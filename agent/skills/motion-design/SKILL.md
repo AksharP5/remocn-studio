@@ -19,6 +19,10 @@ with fps and sizes with resolution. Where `remocn-studio:video-lessons` disagree
 anything here, **video-lessons wins** — its rules are measured on this studio's own
 renders, these are design defaults.
 
+The deep reference lives in `rules/` next to this file — per-question files with exact
+curve values, thresholds and provenance (see §12). This document carries the defaults;
+`rules/` carries the evidence and the edge cases.
+
 ---
 
 ## 1. Scale: everything is bigger than you think
@@ -377,3 +381,23 @@ deliberate, argued choice for this specific content — never as a default:
 - Static decoration, or no decoration at all.
 - For audio-driven scenes: equalizer bars, spectrum analyzers, waveforms, strobing.
   Audio supplies timing and intensity; the visual vocabulary still comes from the brand.
+
+## 12. The rules corpus
+
+`rules/` next to this file is the source of truth behind the defaults above: one file
+per decision, every number with its source and an `[unverified]` marker until a
+snapshot has confirmed it at video scale. Read the file whose question you are about
+to answer — with the Read tool, before writing the code, not after:
+
+| File                     | The question it answers                                        |
+| ------------------------ | -------------------------------------------------------------- |
+| `rules/timing.md`        | How many frames does this entry, exit, move or hold get?        |
+| `rules/easing.md`        | What curve — exact beziers, spring configs, linear exceptions.  |
+| `rules/staging.md`       | What enters when, from where, in what order, staggered how?     |
+| `rules/alive.md`         | What happens after the entrance settles — holds, drift, counts. |
+| `rules/continuity.md`    | How one scene becomes the next; the whole video's rhythm.       |
+| `rules/camera.md`        | When may the whole frame move, and how.                         |
+| `rules/anti-patterns.md` | The consolidated cliché blocklist — scan after drafting.        |
+
+When a rule here and a rule in `rules/` disagree on a number, `rules/` wins — it
+carries the provenance. `remocn-studio:video-lessons` still outranks both.
