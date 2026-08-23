@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "videoId": "stripe-reader-s700",
+  "annotator": "Codex (contact-sheet review)",
+  "scenes": [
+    {
+      "sceneId": "S001",
+      "entranceOrder": ["hand action", "reader interaction", "coffee result"],
+      "gestureOverlap": "continuous",
+      "pauseRole": "The product is introduced through action rather than an establishing hold.",
+      "ambientMotion": ["hand movement", "camera movement"]
+    },
+    {
+      "sceneId": "S008",
+      "entranceOrder": [
+        "brand field",
+        "map trace",
+        "location labels",
+        "feature title"
+      ],
+      "gestureOverlap": "continuous",
+      "pauseRole": "Map destinations punctuate the transition between interview passages.",
+      "ambientMotion": ["map line drawing", "label travel"]
+    },
+    {
+      "sceneId": "S016",
+      "entranceOrder": ["environment", "speaker", "lower-third identity"],
+      "gestureOverlap": "partial",
+      "pauseRole": "Interview shots provide longer verbal holds between dense visual montages.",
+      "ambientMotion": ["speaker motion", "subtle handheld camera"]
+    },
+    {
+      "sceneId": "S037",
+      "entranceOrder": [
+        "merchant context",
+        "reader",
+        "customer device",
+        "payment confirmation"
+      ],
+      "gestureOverlap": "continuous",
+      "pauseRole": "The payment result is held after the physical gesture completes.",
+      "ambientMotion": ["hand-off action", "device UI change"]
+    },
+    {
+      "sceneId": "S052",
+      "entranceOrder": [
+        "clean field",
+        "Stripe Reader S700 title",
+        "product URL"
+      ],
+      "gestureOverlap": "none",
+      "pauseRole": "A static final card is earned by the preceding high-cut montage.",
+      "ambientMotion": [],
+      "notes": "Intentional static exception at the close."
+    }
+  ],
+  "boundaries": [
+    {
+      "fromSceneId": "S007",
+      "toSceneId": "S008",
+      "continuity": "shape",
+      "notes": "Graphic forms and brand colour bridge live action into the map interstitial."
+    },
+    {
+      "fromSceneId": "S036",
+      "toSceneId": "S037",
+      "continuity": "element",
+      "notes": "Payment action continues across changing viewpoints."
+    }
+  ]
+}

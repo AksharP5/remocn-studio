@@ -1,0 +1,74 @@
+{
+  "beats": {
+    "timesSeconds": [
+      8.034104, 8.544943, 9.055782, 9.543401, 10.03102, 10.541859, 11.052698,
+      11.540317, 12.027937, 12.538776, 13.049615, 13.560454, 14.048073,
+      14.535692, 15.046531, 15.53415, 16.044989, 16.532608, 17.043447,
+      17.554286, 18.041905, 18.529524, 19.040363, 19.551202, 20.038821,
+      20.52644, 21.037279, 21.548118, 22.035737, 22.546576, 23.057415,
+      23.545034, 24.032653, 24.543492, 25.031111, 25.54195, 26.029569,
+      26.540408, 27.028027, 27.538866, 28.049705, 28.537324, 29.048163,
+      29.535782, 30.023401
+    ],
+    "transitionHitRateFrames": {
+      "2": null,
+      "3": null,
+      "4": null
+    }
+  },
+  "configSha256": "e67f3adfbf2f500bb0a3befa3dc8b204e36cd1e861baf105d25fa079fb5c313a",
+  "media": {
+    "audioCodec": "opus",
+    "audioSampleRate": 48000,
+    "durationSeconds": 34.834,
+    "fps": 60.0,
+    "hasAudio": true,
+    "height": 960,
+    "videoCodec": "av1",
+    "width": 1920
+  },
+  "motion": {
+    "analysisFps": 12,
+    "confidence": 0.9047,
+    "medianCameraPixels": 1.38016,
+    "medianElementPixels": 1.61592,
+    "shares": {
+      "camera": 0.0,
+      "elements": 0.0504,
+      "mixed": 0.6379,
+      "static": 0.3118
+    },
+    "staticRunsSeconds": [
+      0.166667, 0.083333, 0.083333, 3.75, 0.166667, 1.75, 1.583333, 0.25, 0.5,
+      0.083333, 2.416667
+    ]
+  },
+  "scenes": [
+    {
+      "durationSeconds": 34.834,
+      "endSeconds": 34.834,
+      "id": "S001",
+      "startSeconds": 0.0
+    }
+  ],
+  "schemaVersion": 1,
+  "sensitivity": {
+    "cutScoreBoundaryCounts": {
+      "0.0640": 0,
+      "0.0800": 0,
+      "0.0960": 0
+    }
+  },
+  "sourceSha256": "7967a9e1f14789240ddb8313128f35a8494546c0e7a7a041b3a83721bb61fa5f",
+  "tools": {
+    "ffmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers",
+    "ffprobe": "ffprobe version 8.1.2 Copyright (c) 2007-2026 the FFmpeg developers",
+    "librosa": "0.11.0",
+    "numpy": "2.5.2",
+    "opencv": "4.14.0",
+    "python": "3.13.7"
+  },
+  "transitions": [],
+  "videoId": "linear-product-intelligence",
+  "warnings": []
+}

@@ -1,0 +1,86 @@
+{
+  "beats": {
+    "timesSeconds": [],
+    "transitionHitRateFrames": {
+      "2": 0.0,
+      "3": 0.0,
+      "4": 0.0
+    }
+  },
+  "configSha256": "e67f3adfbf2f500bb0a3befa3dc8b204e36cd1e861baf105d25fa079fb5c313a",
+  "media": {
+    "audioCodec": "opus",
+    "audioSampleRate": 48000,
+    "durationSeconds": 20.894,
+    "fps": 30.0,
+    "hasAudio": true,
+    "height": 1080,
+    "videoCodec": "h264",
+    "width": 1920
+  },
+  "motion": {
+    "analysisFps": 12,
+    "confidence": 0.7177,
+    "medianCameraPixels": 1.00293,
+    "medianElementPixels": 1.41026,
+    "shares": {
+      "camera": 0.0,
+      "elements": 0.132,
+      "mixed": 0.596,
+      "static": 0.272
+    },
+    "staticRunsSeconds": [
+      0.083333, 0.083333, 0.083333, 0.083333, 0.416667, 0.166667, 0.25, 0.25,
+      0.083333, 0.083333, 0.916667, 0.083333, 0.583333, 0.083333, 0.083333,
+      0.083333, 0.083333, 0.083333, 0.083333, 0.083333, 0.083333, 0.083333,
+      0.083333, 0.083333, 0.083333, 0.083333, 0.083333, 0.083333, 0.25, 0.75,
+      0.25
+    ]
+  },
+  "scenes": [
+    {
+      "durationSeconds": 9.266667,
+      "endSeconds": 9.266667,
+      "id": "S001",
+      "startSeconds": 0.0
+    },
+    {
+      "durationSeconds": 11.627333,
+      "endSeconds": 20.894,
+      "id": "S002",
+      "startSeconds": 9.266667
+    }
+  ],
+  "schemaVersion": 1,
+  "sensitivity": {
+    "cutScoreBoundaryCounts": {
+      "0.0640": 1,
+      "0.0800": 1,
+      "0.0960": 0
+    }
+  },
+  "sourceSha256": "e17bfff79113a2b0b7579c106d3c3de2c1c512a24c69fb0029cb39d41590288b",
+  "tools": {
+    "ffmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers",
+    "ffprobe": "ffprobe version 8.1.2 Copyright (c) 2007-2026 the FFmpeg developers",
+    "librosa": "0.11.0",
+    "numpy": "2.5.2",
+    "opencv": "4.14.0",
+    "python": "3.13.7"
+  },
+  "transitions": [
+    {
+      "confidence": 0.4013,
+      "distanceFrames": null,
+      "distanceSeconds": null,
+      "id": "T001",
+      "nearestBeatSeconds": null,
+      "sampleIndex": 111,
+      "score": 0.086413,
+      "seconds": 9.266667,
+      "type": "motion-transition"
+    }
+  ],
+  "videoId": "vercel-ship",
+  "warnings": ["no stable musical beat was detected"]
+}

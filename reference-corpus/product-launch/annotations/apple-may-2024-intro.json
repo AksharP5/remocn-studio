@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "videoId": "apple-may-2024-intro",
+  "annotator": "Codex (contact-sheet review)",
+  "scenes": [
+    {
+      "sceneId": "S001",
+      "entranceOrder": [
+        "single ribbon",
+        "additional coloured forms",
+        "spatial composition"
+      ],
+      "gestureOverlap": "continuous",
+      "pauseRole": "Forms never fully stop; negative space makes each addition readable.",
+      "ambientMotion": ["ribbon deformation", "camera drift"]
+    },
+    {
+      "sceneId": "S005",
+      "entranceOrder": [
+        "assembled forms",
+        "Apple silhouette",
+        "logo resolution"
+      ],
+      "gestureOverlap": "continuous",
+      "pauseRole": "The resolved logo receives a short recognition hold before the camera-world reveal.",
+      "ambientMotion": ["shape morph", "camera continuation"]
+    },
+    {
+      "sceneId": "S008",
+      "entranceOrder": [
+        "campus-wide environment",
+        "track line",
+        "travelling camera",
+        "presenter reveal"
+      ],
+      "gestureOverlap": "continuous",
+      "pauseRole": "A 35s detector scene contains multiple reveals linked by uninterrupted camera travel.",
+      "ambientMotion": ["long camera traverse", "environmental parallax"]
+    },
+    {
+      "sceneId": "S019",
+      "entranceOrder": [
+        "product environment",
+        "device interaction",
+        "person using headset"
+      ],
+      "gestureOverlap": "partial",
+      "pauseRole": "Human reaction holds briefly after the device action.",
+      "ambientMotion": ["hand movement", "headset tracking", "camera drift"]
+    },
+    {
+      "sceneId": "S026",
+      "entranceOrder": [
+        "presenter",
+        "architectural frame",
+        "next narrative beat"
+      ],
+      "gestureOverlap": "partial",
+      "pauseRole": "Presenter speech creates a longer hold while the environment remains subtly alive.",
+      "ambientMotion": ["presenter movement", "slow camera settle"]
+    }
+  ],
+  "boundaries": [
+    {
+      "fromSceneId": "S005",
+      "toSceneId": "S006",
+      "continuity": "shape",
+      "notes": "The logo's curves become the spatial path into the campus world."
+    },
+    {
+      "fromSceneId": "S007",
+      "toSceneId": "S008",
+      "continuity": "camera",
+      "notes": "The moving viewpoint is the connective tissue, not the cut itself."
+    }
+  ]
+}

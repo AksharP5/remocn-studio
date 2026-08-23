@@ -1,0 +1,157 @@
+{
+  "beats": {
+    "timesSeconds": [
+      7.523265, 7.941224, 8.382404, 8.893243, 9.334422, 9.752381, 10.17034,
+      10.565079, 10.983039, 11.400998, 11.818957, 12.236916, 12.654875,
+      13.072834, 13.490794, 13.908753, 14.326712, 14.744671, 15.16263, 15.58059,
+      15.998549, 16.393288, 16.788027, 17.182766, 17.577506, 17.972245,
+      18.390204, 18.761723, 19.156463, 19.527982, 19.899501, 20.29424, 20.61932
+    ],
+    "transitionHitRateFrames": {
+      "2": 0.2,
+      "3": 0.2,
+      "4": 0.2
+    }
+  },
+  "configSha256": "e67f3adfbf2f500bb0a3befa3dc8b204e36cd1e861baf105d25fa079fb5c313a",
+  "media": {
+    "audioCodec": "opus",
+    "audioSampleRate": 48000,
+    "durationSeconds": 54.874,
+    "fps": 60.0,
+    "hasAudio": true,
+    "height": 960,
+    "videoCodec": "av1",
+    "width": 1920
+  },
+  "motion": {
+    "analysisFps": 12,
+    "confidence": 0.8574,
+    "medianCameraPixels": 0.65902,
+    "medianElementPixels": 0.72384,
+    "shares": {
+      "camera": 0.0,
+      "elements": 0.0091,
+      "mixed": 0.576,
+      "static": 0.4149
+    },
+    "staticRunsSeconds": [
+      0.5, 3.25, 3.5, 0.583333, 3.416667, 1.0, 0.25, 0.416667, 0.083333,
+      0.916667, 0.5, 0.666667, 1.416667, 0.083333, 1.75, 4.416667
+    ]
+  },
+  "scenes": [
+    {
+      "durationSeconds": 17.166667,
+      "endSeconds": 17.166667,
+      "id": "S001",
+      "startSeconds": 0.0
+    },
+    {
+      "durationSeconds": 4.833333,
+      "endSeconds": 22.0,
+      "id": "S002",
+      "startSeconds": 17.166667
+    },
+    {
+      "durationSeconds": 13.083333,
+      "endSeconds": 35.083333,
+      "id": "S003",
+      "startSeconds": 22.0
+    },
+    {
+      "durationSeconds": 5.583334,
+      "endSeconds": 40.666667,
+      "id": "S004",
+      "startSeconds": 35.083333
+    },
+    {
+      "durationSeconds": 4.5,
+      "endSeconds": 45.166667,
+      "id": "S005",
+      "startSeconds": 40.666667
+    },
+    {
+      "durationSeconds": 9.707333,
+      "endSeconds": 54.874,
+      "id": "S006",
+      "startSeconds": 45.166667
+    }
+  ],
+  "schemaVersion": 1,
+  "sensitivity": {
+    "cutScoreBoundaryCounts": {
+      "0.0640": 5,
+      "0.0800": 5,
+      "0.0960": 5
+    }
+  },
+  "sourceSha256": "02220709bcf174a533ed7d446d0d3788aaf6589f6672499f482dadfd6724d035",
+  "tools": {
+    "ffmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers",
+    "ffprobe": "ffprobe version 8.1.2 Copyright (c) 2007-2026 the FFmpeg developers",
+    "librosa": "0.11.0",
+    "numpy": "2.5.2",
+    "opencv": "4.14.0",
+    "python": "3.13.7"
+  },
+  "transitions": [
+    {
+      "confidence": 0.6544,
+      "distanceFrames": 0.966,
+      "distanceSeconds": 0.016099,
+      "id": "T001",
+      "nearestBeatSeconds": 17.182766,
+      "sampleIndex": 206,
+      "score": 0.104397,
+      "seconds": 17.166667,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.6931,
+      "distanceFrames": 82.841,
+      "distanceSeconds": 1.38068,
+      "id": "T002",
+      "nearestBeatSeconds": 20.61932,
+      "sampleIndex": 264,
+      "score": 0.143094,
+      "seconds": 22.0,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.6673,
+      "distanceFrames": 867.841,
+      "distanceSeconds": 14.464013,
+      "id": "T003",
+      "nearestBeatSeconds": 20.61932,
+      "sampleIndex": 421,
+      "score": 0.117272,
+      "seconds": 35.083333,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.6911,
+      "distanceFrames": 1202.841,
+      "distanceSeconds": 20.047347,
+      "id": "T004",
+      "nearestBeatSeconds": 20.61932,
+      "sampleIndex": 488,
+      "score": 0.141101,
+      "seconds": 40.666667,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.7941,
+      "distanceFrames": 1472.841,
+      "distanceSeconds": 24.547347,
+      "id": "T005",
+      "nearestBeatSeconds": 20.61932,
+      "sampleIndex": 542,
+      "score": 0.244116,
+      "seconds": 45.166667,
+      "type": "cut"
+    }
+  ],
+  "videoId": "linear-agent",
+  "warnings": []
+}

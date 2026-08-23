@@ -1,0 +1,16 @@
+{
+  "canonicalUrl": "https://www.youtube.com/watch?v=rGvQ_rnCmyc",
+  "channel": "Linear",
+  "extractor": "Youtube",
+  "localFile": "videos/linear-product-intelligence.mp4",
+  "publishedDate": "2025-08-14",
+  "publisher": "Linear",
+  "schemaVersion": 1,
+  "segment": null,
+  "sha256": "7967a9e1f14789240ddb8313128f35a8494546c0e7a7a041b3a83721bb61fa5f",
+  "sizeBytes": 1911329,
+  "sourceDurationSeconds": 35,
+  "sourceId": "rGvQ_rnCmyc",
+  "title": "Product Intelligence (Technology Preview)",
+  "videoId": "linear-product-intelligence"
+}

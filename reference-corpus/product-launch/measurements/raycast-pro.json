@@ -1,0 +1,403 @@
+{
+  "beats": {
+    "timesSeconds": [
+      2.113016, 2.368435, 2.623855, 2.925714, 3.204354, 3.482993, 3.761633,
+      4.040272, 4.318912, 4.597551, 4.852971, 5.13161, 5.410249, 5.688889,
+      5.967528, 6.246168, 6.524807, 6.780227, 7.035646, 7.337506, 7.616145,
+      7.894785, 8.173424, 8.452063, 8.730703, 9.009342, 9.264762, 9.543401,
+      9.822041, 10.10068, 10.37932, 10.634739, 10.913379, 11.215238, 11.470658,
+      11.749297, 12.027937, 12.306576, 12.561995, 12.840635, 13.119274,
+      13.397914, 13.653333, 13.931973, 14.210612, 14.489252, 14.767891,
+      15.046531, 15.32517, 15.60381, 15.882449, 16.161088, 16.416508, 16.695147,
+      16.973787, 17.252426, 17.531066, 17.809705, 18.065125, 18.343764,
+      18.622404, 18.901043, 19.179683, 19.458322, 19.713741, 19.992381,
+      20.27102, 20.54966, 20.828299
+    ],
+    "transitionHitRateFrames": {
+      "2": 0.5789,
+      "3": 0.7895,
+      "4": 0.8421
+    }
+  },
+  "configSha256": "e67f3adfbf2f500bb0a3befa3dc8b204e36cd1e861baf105d25fa079fb5c313a",
+  "media": {
+    "audioCodec": "opus",
+    "audioSampleRate": 48000,
+    "durationSeconds": 22.014,
+    "fps": 60.0,
+    "hasAudio": true,
+    "height": 1080,
+    "videoCodec": "vp9",
+    "width": 1920
+  },
+  "motion": {
+    "analysisFps": 12,
+    "confidence": 0.848,
+    "medianCameraPixels": 0.77639,
+    "medianElementPixels": 0.62941,
+    "shares": {
+      "camera": 0.0038,
+      "elements": 0.0798,
+      "mixed": 0.5133,
+      "static": 0.403
+    },
+    "staticRunsSeconds": [
+      0.166667, 0.916667, 0.166667, 0.416667, 0.25, 0.416667, 0.25, 0.416667,
+      0.25, 0.5, 0.166667, 0.5, 0.333333, 0.25, 0.5, 0.166667, 0.416667,
+      0.166667, 0.5, 0.166667, 0.083333, 0.083333, 0.166667, 0.083333, 0.583333,
+      0.416667, 0.5
+    ]
+  },
+  "scenes": [
+    {
+      "durationSeconds": 2.916667,
+      "endSeconds": 2.916667,
+      "id": "S001",
+      "startSeconds": 0.0
+    },
+    {
+      "durationSeconds": 1.416666,
+      "endSeconds": 4.333333,
+      "id": "S002",
+      "startSeconds": 2.916667
+    },
+    {
+      "durationSeconds": 0.833334,
+      "endSeconds": 5.166667,
+      "id": "S003",
+      "startSeconds": 4.333333
+    },
+    {
+      "durationSeconds": 1.333333,
+      "endSeconds": 6.5,
+      "id": "S004",
+      "startSeconds": 5.166667
+    },
+    {
+      "durationSeconds": 0.833333,
+      "endSeconds": 7.333333,
+      "id": "S005",
+      "startSeconds": 6.5
+    },
+    {
+      "durationSeconds": 1.416667,
+      "endSeconds": 8.75,
+      "id": "S006",
+      "startSeconds": 7.333333
+    },
+    {
+      "durationSeconds": 0.833333,
+      "endSeconds": 9.583333,
+      "id": "S007",
+      "startSeconds": 8.75
+    },
+    {
+      "durationSeconds": 1.333334,
+      "endSeconds": 10.916667,
+      "id": "S008",
+      "startSeconds": 9.583333
+    },
+    {
+      "durationSeconds": 0.833333,
+      "endSeconds": 11.75,
+      "id": "S009",
+      "startSeconds": 10.916667
+    },
+    {
+      "durationSeconds": 0.583333,
+      "endSeconds": 12.333333,
+      "id": "S010",
+      "startSeconds": 11.75
+    },
+    {
+      "durationSeconds": 0.416667,
+      "endSeconds": 12.75,
+      "id": "S011",
+      "startSeconds": 12.333333
+    },
+    {
+      "durationSeconds": 0.333333,
+      "endSeconds": 13.083333,
+      "id": "S012",
+      "startSeconds": 12.75
+    },
+    {
+      "durationSeconds": 0.833334,
+      "endSeconds": 13.916667,
+      "id": "S013",
+      "startSeconds": 13.083333
+    },
+    {
+      "durationSeconds": 1.416666,
+      "endSeconds": 15.333333,
+      "id": "S014",
+      "startSeconds": 13.916667
+    },
+    {
+      "durationSeconds": 0.75,
+      "endSeconds": 16.083333,
+      "id": "S015",
+      "startSeconds": 15.333333
+    },
+    {
+      "durationSeconds": 1.416667,
+      "endSeconds": 17.5,
+      "id": "S016",
+      "startSeconds": 16.083333
+    },
+    {
+      "durationSeconds": 2.25,
+      "endSeconds": 19.75,
+      "id": "S017",
+      "startSeconds": 17.5
+    },
+    {
+      "durationSeconds": 0.583333,
+      "endSeconds": 20.333333,
+      "id": "S018",
+      "startSeconds": 19.75
+    },
+    {
+      "durationSeconds": 0.666667,
+      "endSeconds": 21.0,
+      "id": "S019",
+      "startSeconds": 20.333333
+    },
+    {
+      "durationSeconds": 1.014,
+      "endSeconds": 22.014,
+      "id": "S020",
+      "startSeconds": 21.0
+    }
+  ],
+  "schemaVersion": 1,
+  "sensitivity": {
+    "cutScoreBoundaryCounts": {
+      "0.0640": 20,
+      "0.0800": 19,
+      "0.0960": 19
+    }
+  },
+  "sourceSha256": "d8ce40ee7a092b6f431cca631ac8e81c0e7521521228cb702feba45ba1e75441",
+  "tools": {
+    "ffmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers",
+    "ffprobe": "ffprobe version 8.1.2 Copyright (c) 2007-2026 the FFmpeg developers",
+    "librosa": "0.11.0",
+    "numpy": "2.5.2",
+    "opencv": "4.14.0",
+    "python": "3.13.7"
+  },
+  "transitions": [
+    {
+      "confidence": 1.0,
+      "distanceFrames": 0.543,
+      "distanceSeconds": 0.009047,
+      "id": "T001",
+      "nearestBeatSeconds": 2.925714,
+      "sampleIndex": 35,
+      "score": 0.533229,
+      "seconds": 2.916667,
+      "type": "cut"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 0.865,
+      "distanceSeconds": 0.014421,
+      "id": "T002",
+      "nearestBeatSeconds": 4.318912,
+      "sampleIndex": 52,
+      "score": 0.502801,
+      "seconds": 4.333333,
+      "type": "cut"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 2.103,
+      "distanceSeconds": 0.035057,
+      "id": "T003",
+      "nearestBeatSeconds": 5.13161,
+      "sampleIndex": 62,
+      "score": 0.49055,
+      "seconds": 5.166667,
+      "type": "cut"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 1.488,
+      "distanceSeconds": 0.024807,
+      "id": "T004",
+      "nearestBeatSeconds": 6.524807,
+      "sampleIndex": 78,
+      "score": 0.46486,
+      "seconds": 6.5,
+      "type": "cut"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 0.25,
+      "distanceSeconds": 0.004173,
+      "id": "T005",
+      "nearestBeatSeconds": 7.337506,
+      "sampleIndex": 88,
+      "score": 0.532917,
+      "seconds": 7.333333,
+      "type": "cut"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 1.158,
+      "distanceSeconds": 0.019297,
+      "id": "T006",
+      "nearestBeatSeconds": 8.730703,
+      "sampleIndex": 105,
+      "score": 0.534043,
+      "seconds": 8.75,
+      "type": "cut"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 2.396,
+      "distanceSeconds": 0.039932,
+      "id": "T007",
+      "nearestBeatSeconds": 9.543401,
+      "sampleIndex": 115,
+      "score": 0.518459,
+      "seconds": 9.583333,
+      "type": "cut"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 0.197,
+      "distanceSeconds": 0.003288,
+      "id": "T008",
+      "nearestBeatSeconds": 10.913379,
+      "sampleIndex": 131,
+      "score": 0.504469,
+      "seconds": 10.916667,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.9958,
+      "distanceFrames": 0.042,
+      "distanceSeconds": 0.000703,
+      "id": "T009",
+      "nearestBeatSeconds": 11.749297,
+      "sampleIndex": 141,
+      "score": 0.445831,
+      "seconds": 11.75,
+      "type": "cut"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 1.605,
+      "distanceSeconds": 0.026757,
+      "id": "T010",
+      "nearestBeatSeconds": 12.306576,
+      "sampleIndex": 148,
+      "score": 0.606745,
+      "seconds": 12.333333,
+      "type": "cut"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 5.438,
+      "distanceSeconds": 0.090635,
+      "id": "T011",
+      "nearestBeatSeconds": 12.840635,
+      "sampleIndex": 153,
+      "score": 0.599649,
+      "seconds": 12.75,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.49,
+      "distanceFrames": 2.156,
+      "distanceSeconds": 0.035941,
+      "id": "T012",
+      "nearestBeatSeconds": 13.119274,
+      "sampleIndex": 157,
+      "score": 0.438085,
+      "seconds": 13.083333,
+      "type": "unknown"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 0.918,
+      "distanceSeconds": 0.015306,
+      "id": "T013",
+      "nearestBeatSeconds": 13.931973,
+      "sampleIndex": 167,
+      "score": 0.460856,
+      "seconds": 13.916667,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.9979,
+      "distanceFrames": 0.49,
+      "distanceSeconds": 0.008163,
+      "id": "T014",
+      "nearestBeatSeconds": 15.32517,
+      "sampleIndex": 184,
+      "score": 0.447892,
+      "seconds": 15.333333,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.897,
+      "distanceFrames": 4.665,
+      "distanceSeconds": 0.077755,
+      "id": "T015",
+      "nearestBeatSeconds": 16.161088,
+      "sampleIndex": 193,
+      "score": 0.346994,
+      "seconds": 16.083333,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.9085,
+      "distanceFrames": 1.864,
+      "distanceSeconds": 0.031066,
+      "id": "T016",
+      "nearestBeatSeconds": 17.531066,
+      "sampleIndex": 210,
+      "score": 0.358456,
+      "seconds": 17.5,
+      "type": "cut"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 2.176,
+      "distanceSeconds": 0.036259,
+      "id": "T017",
+      "nearestBeatSeconds": 19.713741,
+      "sampleIndex": 237,
+      "score": 0.509822,
+      "seconds": 19.75,
+      "type": "cut"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 3.739,
+      "distanceSeconds": 0.062313,
+      "id": "T018",
+      "nearestBeatSeconds": 20.27102,
+      "sampleIndex": 244,
+      "score": 0.009895,
+      "seconds": 20.333333,
+      "type": "motion-transition"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 10.302,
+      "distanceSeconds": 0.171701,
+      "id": "T019",
+      "nearestBeatSeconds": 20.828299,
+      "sampleIndex": 252,
+      "score": 0.576063,
+      "seconds": 21.0,
+      "type": "cut"
+    }
+  ],
+  "videoId": "raycast-pro",
+  "warnings": []
+}

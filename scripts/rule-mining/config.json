@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "analysisFps": 12,
+  "analysisWidth": 480,
+  "scene": {
+    "cutScore": 0.08,
+    "fadeWindowFrames": 8,
+    "minimumSceneSeconds": 0.25
+  },
+  "motion": {
+    "staticResidualPixels": 0.35,
+    "cameraPixels": 0.6,
+    "elementPixels": 0.55,
+    "ransacReprojectionThreshold": 2.5,
+    "minimumTrackedPoints": 12
+  },
+  "beatWindowsFrames": [2, 3, 4],
+  "confidence": {
+    "minimumPromotion": 0.7
+  }
+}

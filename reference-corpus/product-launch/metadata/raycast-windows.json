@@ -1,0 +1,19 @@
+{
+  "canonicalUrl": "https://www.youtube.com/watch?v=YKARc05qixw",
+  "channel": "Raycast",
+  "extractor": "Youtube",
+  "localFile": "videos/raycast-windows.mp4",
+  "publishedDate": "2025-06-25",
+  "publisher": "Raycast",
+  "schemaVersion": 1,
+  "segment": {
+    "endSeconds": 120,
+    "startSeconds": 0
+  },
+  "sha256": "446ebca85b9f94724c983b5732b0cc02332f7a68497aae88ce03d6ddc6c0ca6d",
+  "sizeBytes": 15594685,
+  "sourceDurationSeconds": 409,
+  "sourceId": "YKARc05qixw",
+  "title": "First Look at Raycast for Windows",
+  "videoId": "raycast-windows"
+}

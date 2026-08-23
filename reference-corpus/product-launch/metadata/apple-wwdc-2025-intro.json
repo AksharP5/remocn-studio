@@ -1,0 +1,19 @@
+{
+  "canonicalUrl": "https://www.youtube.com/watch?v=0_DjDdfqtUE",
+  "channel": "Apple",
+  "extractor": "Youtube",
+  "localFile": "videos/apple-wwdc-2025-intro.mp4",
+  "publishedDate": "2025-06-09",
+  "publisher": "Apple",
+  "schemaVersion": 1,
+  "segment": {
+    "endSeconds": 120,
+    "startSeconds": 0
+  },
+  "sha256": "90dc48158fa16ffa291385ba50f0929056d8a391c36f2a369bb77c2a4f6df953",
+  "sizeBytes": 38536824,
+  "sourceDurationSeconds": 5546,
+  "sourceId": "0_DjDdfqtUE",
+  "title": "WWDC 2025 — June 9 | Apple",
+  "videoId": "apple-wwdc-2025-intro"
+}

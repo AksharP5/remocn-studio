@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remocn.dev/schemas/rule-mining/manifest-v1.json",
+  "title": "Product launch corpus manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "genre", "entries"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "genre": { "const": "product-launch" },
+    "entries": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 16,
+      "items": { "$ref": "#/$defs/entry" }
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "publisher",
+        "title",
+        "sourceUrl",
+        "sourceId",
+        "selectionRationale"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "publisher": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "sourceUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
+        },
+        "sourceId": { "type": "string", "minLength": 1 },
+        "publishedDate": { "type": "string", "format": "date" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "selectionRationale": { "type": "string", "minLength": 12 },
+        "segment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["startSeconds", "endSeconds"],
+          "properties": {
+            "startSeconds": { "type": "number", "minimum": 0 },
+            "endSeconds": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        }
+      }
+    }
+  }
+}

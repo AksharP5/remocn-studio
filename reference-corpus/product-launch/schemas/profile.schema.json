@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remocn.dev/schemas/rule-mining/profile-v1.json",
+  "title": "Product-launch rhythm profile",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "genre",
+    "measurementIds",
+    "statistics",
+    "rules"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "genre": { "const": "product-launch" },
+    "measurementIds": { "type": "array", "items": { "type": "string" } },
+    "statistics": { "type": "object" },
+    "rules": { "type": "array" }
+  }
+}

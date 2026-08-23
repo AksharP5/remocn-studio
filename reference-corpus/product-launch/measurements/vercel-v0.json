@@ -1,0 +1,113 @@
+{
+  "beats": {
+    "timesSeconds": [
+      6.130068, 6.733787, 7.314286, 7.894785, 8.521723, 9.125442, 9.729161,
+      10.33288, 10.936599, 11.517098, 12.120816, 12.701315, 13.188934,
+      13.769433, 14.373152, 14.976871, 15.55737, 16.161088, 16.764807,
+      17.368526, 17.972245, 18.575964, 19.156463, 19.760181, 20.3639, 20.967619,
+      21.571338, 22.175057, 22.778776, 23.382494, 23.962993, 24.566712,
+      25.170431, 25.77415, 26.377868, 26.981587, 27.585306, 28.189025,
+      28.792744, 29.373243, 29.976961, 30.55746, 31.161179, 31.764898,
+      32.391837, 32.972336, 33.576054, 34.179773, 34.760272, 35.387211,
+      35.96771, 36.571429, 37.175147, 37.778866, 38.382585, 38.986304,
+      39.590023, 40.170522, 40.77424, 41.377959, 41.981678
+    ],
+    "transitionHitRateFrames": {
+      "2": 0.0,
+      "3": 0.0,
+      "4": 0.0
+    }
+  },
+  "configSha256": "e67f3adfbf2f500bb0a3befa3dc8b204e36cd1e861baf105d25fa079fb5c313a",
+  "media": {
+    "audioCodec": "opus",
+    "audioSampleRate": 48000,
+    "durationSeconds": 47.474,
+    "fps": 60.0,
+    "hasAudio": true,
+    "height": 1080,
+    "videoCodec": "av1",
+    "width": 1920
+  },
+  "motion": {
+    "analysisFps": 12,
+    "confidence": 0.8604,
+    "medianCameraPixels": 0.0525,
+    "medianElementPixels": 0.08617,
+    "shares": {
+      "camera": 0.0,
+      "elements": 0.0387,
+      "mixed": 0.3339,
+      "static": 0.6274
+    },
+    "staticRunsSeconds": [
+      0.25, 0.083333, 0.083333, 0.833333, 0.083333, 0.5, 0.416667, 3.0, 0.25,
+      0.5, 0.083333, 2.166667, 0.166667, 2.25, 0.75, 6.583333, 2.333333,
+      0.416667, 0.75, 0.166667, 0.583333, 0.083333, 1.5, 0.083333, 0.166667,
+      0.166667, 0.416667, 0.083333, 0.166667, 1.25, 2.083333, 1.5
+    ]
+  },
+  "scenes": [
+    {
+      "durationSeconds": 28.916667,
+      "endSeconds": 28.916667,
+      "id": "S001",
+      "startSeconds": 0.0
+    },
+    {
+      "durationSeconds": 1.75,
+      "endSeconds": 30.666667,
+      "id": "S002",
+      "startSeconds": 28.916667
+    },
+    {
+      "durationSeconds": 16.807333,
+      "endSeconds": 47.474,
+      "id": "S003",
+      "startSeconds": 30.666667
+    }
+  ],
+  "schemaVersion": 1,
+  "sensitivity": {
+    "cutScoreBoundaryCounts": {
+      "0.0640": 2,
+      "0.0800": 2,
+      "0.0960": 2
+    }
+  },
+  "sourceSha256": "15243b7d587472687ff85ea1a3a37d80b552c4040523e44defdf5a82b53e0dfc",
+  "tools": {
+    "ffmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers",
+    "ffprobe": "ffprobe version 8.1.2 Copyright (c) 2007-2026 the FFmpeg developers",
+    "librosa": "0.11.0",
+    "numpy": "2.5.2",
+    "opencv": "4.14.0",
+    "python": "3.13.7"
+  },
+  "transitions": [
+    {
+      "confidence": 0.7283,
+      "distanceFrames": 7.435,
+      "distanceSeconds": 0.123923,
+      "id": "T001",
+      "nearestBeatSeconds": 28.792744,
+      "sampleIndex": 347,
+      "score": 0.178345,
+      "seconds": 28.916667,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.7816,
+      "distanceFrames": 6.552,
+      "distanceSeconds": 0.109207,
+      "id": "T002",
+      "nearestBeatSeconds": 30.55746,
+      "sampleIndex": 368,
+      "score": 0.231601,
+      "seconds": 30.666667,
+      "type": "cut"
+    }
+  ],
+  "videoId": "vercel-v0",
+  "warnings": []
+}

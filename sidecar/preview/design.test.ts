@@ -11,6 +11,7 @@ import {
   type MotionTargetState,
   motionFindings,
   motionFrames,
+  motionSamplingError,
   parseCssColor,
   requiredContrastRatio,
 } from "./design";
@@ -223,6 +224,34 @@ describe("motionFindings", () => {
     ).toEqual([30, 90, 60]);
   });
 
+  it("samples keeps_moving densely enough to see a long hold", () => {
+    expect(
+      motionFrames([
+        {
+          from: 0,
+          kind: "keeps_moving",
+          maxStaticFrames: 20,
+          selector: ".orb",
+          to: 35,
+        },
+      ])
+    ).toEqual([0, 10, 20, 30, 35]);
+  });
+
+  it("rejects a keeps_moving interval above its sampling budget", () => {
+    expect(
+      motionSamplingError([
+        {
+          from: 0,
+          kind: "keeps_moving",
+          maxStaticFrames: 2,
+          selector: ".orb",
+          to: 100,
+        },
+      ])
+    ).toContain("split the interval");
+  });
+
   it("reports a selector that matched nothing instead of passing silently", () => {
     const findings = evaluate(
       [{ frame: 60, kind: "visible_at", selector: "[data-design-id='gone']" }],
@@ -272,6 +301,48 @@ describe("motionFindings", () => {
       frames: [30, 90],
       severity: "error",
     });
+  });
+
+  it("warns when keeps_moving exceeds the declared unchanged hold", () => {
+    const assertion: MotionAssertion = {
+      from: 0,
+      kind: "keeps_moving",
+      maxStaticFrames: 15,
+      selector: ".orb",
+      to: 30,
+    };
+    const findings = evaluate(
+      [assertion],
+      [0, 7, 14, 21, 28, 30].map((frame) => ({
+        frame,
+        probes: [one()],
+      }))
+    );
+
+    expect(findings[0]).toMatchObject({
+      code: "motion_static_too_long",
+      severity: "warning",
+    });
+    expect(findings[0]?.message).toContain("30 sampled frames");
+  });
+
+  it("passes keeps_moving when the target changes inside the limit", () => {
+    const assertion: MotionAssertion = {
+      from: 0,
+      kind: "keeps_moving",
+      maxStaticFrames: 15,
+      selector: ".orb",
+      to: 30,
+    };
+    const findings = evaluate(
+      [assertion],
+      [0, 7, 14, 21, 28, 30].map((frame) => ({
+        frame,
+        probes: [one({ fingerprint: `state-${frame}` })],
+      }))
+    );
+
+    expect(findings).toEqual([]);
   });
 
   it("passes changes_between when only the pixel content changed", () => {

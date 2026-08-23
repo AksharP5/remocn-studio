@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "videoId": "apple-wwdc-2025-intro",
+  "annotator": "Codex (contact-sheet review)",
+  "scenes": [
+    {
+      "sceneId": "S001",
+      "entranceOrder": ["helmet detail", "driver face", "race-world reveal"],
+      "gestureOverlap": "continuous",
+      "pauseRole": "The extreme detail delays context while mechanical motion continues.",
+      "ambientMotion": [
+        "camera vibration",
+        "driver motion",
+        "vehicle vibration"
+      ]
+    },
+    {
+      "sceneId": "S014",
+      "entranceOrder": ["office figures", "engineer reaction", "race parallel"],
+      "gestureOverlap": "continuous",
+      "pauseRole": "Office beats are brief setup/reaction holds between race impacts.",
+      "ambientMotion": ["character motion", "rack focus", "camera motion"]
+    },
+    {
+      "sceneId": "S028",
+      "entranceOrder": ["track-wide shot", "car entry", "speed pass"],
+      "gestureOverlap": "continuous",
+      "pauseRole": "No settled hold; speed is carried through the cut.",
+      "ambientMotion": ["vehicle travel", "camera pan", "background parallax"]
+    },
+    {
+      "sceneId": "S054",
+      "entranceOrder": ["cockpit detail", "watch insert", "race telemetry"],
+      "gestureOverlap": "continuous",
+      "pauseRole": "The watch insert is an accent scene inside the longer race rhythm.",
+      "ambientMotion": ["wrist motion", "vehicle vibration", "UI change"]
+    },
+    {
+      "sceneId": "S081",
+      "entranceOrder": [
+        "pit action",
+        "driver",
+        "crew response",
+        "race continuation"
+      ],
+      "gestureOverlap": "continuous",
+      "pauseRole": "Reaction shots are shorter than the actions they answer.",
+      "ambientMotion": [
+        "crew choreography",
+        "handheld camera",
+        "vehicle movement"
+      ]
+    },
+    {
+      "sceneId": "S094",
+      "entranceOrder": [
+        "final race beat",
+        "WWDC title",
+        "Apple Park presenter"
+      ],
+      "gestureOverlap": "partial",
+      "pauseRole": "The title lands as a punctuation hold before the presenter resets tempo.",
+      "ambientMotion": [
+        "title transition",
+        "presenter movement",
+        "slow camera settle"
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "fromSceneId": "S027",
+      "toSceneId": "S028",
+      "continuity": "camera",
+      "notes": "Matched race direction carries speed across viewpoints."
+    },
+    {
+      "fromSceneId": "S053",
+      "toSceneId": "S054",
+      "continuity": "element",
+      "notes": "The driver/action context motivates the watch insert."
+    },
+    {
+      "fromSceneId": "S093",
+      "toSceneId": "S094",
+      "continuity": "none",
+      "notes": "The explicit title/presenter reset ends the montage register."
+    }
+  ]
+}

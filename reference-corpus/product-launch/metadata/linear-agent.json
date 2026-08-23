@@ -1,0 +1,16 @@
+{
+  "canonicalUrl": "https://www.youtube.com/watch?v=mRql2VJ99gM",
+  "channel": "Linear",
+  "extractor": "Youtube",
+  "localFile": "videos/linear-agent.mp4",
+  "publishedDate": "2026-03-24",
+  "publisher": "Linear",
+  "schemaVersion": 1,
+  "segment": null,
+  "sha256": "02220709bcf174a533ed7d446d0d3788aaf6589f6672499f482dadfd6724d035",
+  "sizeBytes": 2924493,
+  "sourceDurationSeconds": 55,
+  "sourceId": "mRql2VJ99gM",
+  "title": "Introducing Linear Agent",
+  "videoId": "linear-agent"
+}

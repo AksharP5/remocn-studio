@@ -1,0 +1,16 @@
+{
+  "canonicalUrl": "https://www.youtube.com/watch?v=6dIwFoQ0eVg",
+  "channel": "Linear",
+  "extractor": "Youtube",
+  "localFile": "videos/linear-releases.mp4",
+  "publishedDate": "2026-04-30",
+  "publisher": "Linear",
+  "schemaVersion": 1,
+  "segment": null,
+  "sha256": "220ed724d4a7746c4a45a753306aba9507be290f860a1d706f9525e1a4f6a1f2",
+  "sizeBytes": 1754542,
+  "sourceDurationSeconds": 30,
+  "sourceId": "6dIwFoQ0eVg",
+  "title": "Introducing Linear Releases",
+  "videoId": "linear-releases"
+}

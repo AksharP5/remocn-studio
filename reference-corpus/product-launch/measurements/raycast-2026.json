@@ -1,0 +1,282 @@
+{
+  "beats": {
+    "timesSeconds": [
+      0.928798, 1.393197, 1.834376, 2.275556, 2.716735, 3.157914, 3.599093,
+      4.040272, 4.504671, 5.01551, 5.456689, 5.897868, 6.315828, 6.710567,
+      7.105306, 7.523265, 8.010884, 8.475283, 8.916463, 9.357642, 9.798821,
+      10.24, 10.681179, 11.122358, 11.586757, 12.051156, 12.492336, 12.933515,
+      13.397914, 13.815873, 14.303492, 14.814331, 15.30195, 15.766349,
+      16.207528, 16.648707, 17.089887, 17.531066, 17.972245, 18.436644,
+      18.901043, 19.388662, 19.829841, 20.27102, 20.68898, 21.130159, 21.571338,
+      22.035737, 22.476916, 22.894875, 23.359274, 23.800454, 24.241633,
+      24.706032
+    ],
+    "transitionHitRateFrames": {
+      "2": 0.4167,
+      "3": 0.5,
+      "4": 0.5833
+    }
+  },
+  "configSha256": "e67f3adfbf2f500bb0a3befa3dc8b204e36cd1e861baf105d25fa079fb5c313a",
+  "media": {
+    "audioCodec": "opus",
+    "audioSampleRate": 48000,
+    "durationSeconds": 38.554,
+    "fps": 30.0,
+    "hasAudio": true,
+    "height": 1080,
+    "videoCodec": "av1",
+    "width": 1920
+  },
+  "motion": {
+    "analysisFps": 12,
+    "confidence": 0.8288,
+    "medianCameraPixels": 0.60581,
+    "medianElementPixels": 0.70803,
+    "shares": {
+      "camera": 0.0,
+      "elements": 0.0346,
+      "mixed": 0.5,
+      "static": 0.4654
+    },
+    "staticRunsSeconds": [
+      0.166667, 0.833333, 0.083333, 0.333333, 1.5, 0.75, 1.416667, 0.083333,
+      0.5, 0.416667, 0.5, 0.25, 0.083333, 0.916667, 0.083333, 0.083333,
+      2.666667, 0.333333, 0.333333, 0.75, 0.25, 0.333333, 0.333333, 0.333333,
+      0.416667, 0.25, 2.083333, 1.833333
+    ]
+  },
+  "scenes": [
+    {
+      "durationSeconds": 3.666667,
+      "endSeconds": 3.666667,
+      "id": "S001",
+      "startSeconds": 0.0
+    },
+    {
+      "durationSeconds": 0.433333,
+      "endSeconds": 4.1,
+      "id": "S002",
+      "startSeconds": 3.666667
+    },
+    {
+      "durationSeconds": 1.566667,
+      "endSeconds": 5.666667,
+      "id": "S003",
+      "startSeconds": 4.1
+    },
+    {
+      "durationSeconds": 3.266666,
+      "endSeconds": 8.933333,
+      "id": "S004",
+      "startSeconds": 5.666667
+    },
+    {
+      "durationSeconds": 2.4,
+      "endSeconds": 11.333333,
+      "id": "S005",
+      "startSeconds": 8.933333
+    },
+    {
+      "durationSeconds": 2.666667,
+      "endSeconds": 14.0,
+      "id": "S006",
+      "startSeconds": 11.333333
+    },
+    {
+      "durationSeconds": 2.766667,
+      "endSeconds": 16.766667,
+      "id": "S007",
+      "startSeconds": 14.0
+    },
+    {
+      "durationSeconds": 3.5,
+      "endSeconds": 20.266667,
+      "id": "S008",
+      "startSeconds": 16.766667
+    },
+    {
+      "durationSeconds": 2.233333,
+      "endSeconds": 22.5,
+      "id": "S009",
+      "startSeconds": 20.266667
+    },
+    {
+      "durationSeconds": 1.766667,
+      "endSeconds": 24.266667,
+      "id": "S010",
+      "startSeconds": 22.5
+    },
+    {
+      "durationSeconds": 1.9,
+      "endSeconds": 26.166667,
+      "id": "S011",
+      "startSeconds": 24.266667
+    },
+    {
+      "durationSeconds": 2.1,
+      "endSeconds": 28.266667,
+      "id": "S012",
+      "startSeconds": 26.166667
+    },
+    {
+      "durationSeconds": 10.287333,
+      "endSeconds": 38.554,
+      "id": "S013",
+      "startSeconds": 28.266667
+    }
+  ],
+  "schemaVersion": 1,
+  "sensitivity": {
+    "cutScoreBoundaryCounts": {
+      "0.0640": 14,
+      "0.0800": 12,
+      "0.0960": 10
+    }
+  },
+  "sourceSha256": "c7458fbd9fd28ac15a1a349c28d31ab5ba988e2ee3d83a089d48aa4fd05a5775",
+  "tools": {
+    "ffmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers",
+    "ffprobe": "ffprobe version 8.1.2 Copyright (c) 2007-2026 the FFmpeg developers",
+    "librosa": "0.11.0",
+    "numpy": "2.5.2",
+    "opencv": "4.14.0",
+    "python": "3.13.7"
+  },
+  "transitions": [
+    {
+      "confidence": 0.6706,
+      "distanceFrames": 2.027,
+      "distanceSeconds": 0.067574,
+      "id": "T001",
+      "nearestBeatSeconds": 3.599093,
+      "sampleIndex": 44,
+      "score": 0.120606,
+      "seconds": 3.666667,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.6603,
+      "distanceFrames": 1.792,
+      "distanceSeconds": 0.059728,
+      "id": "T002",
+      "nearestBeatSeconds": 4.040272,
+      "sampleIndex": 49,
+      "score": 0.110286,
+      "seconds": 4.1,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.6591,
+      "distanceFrames": 6.299,
+      "distanceSeconds": 0.209978,
+      "id": "T003",
+      "nearestBeatSeconds": 5.456689,
+      "sampleIndex": 68,
+      "score": 0.10905,
+      "seconds": 5.666667,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.8005,
+      "distanceFrames": 0.506,
+      "distanceSeconds": 0.01687,
+      "id": "T004",
+      "nearestBeatSeconds": 8.916463,
+      "sampleIndex": 107,
+      "score": 0.250513,
+      "seconds": 8.933333,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.407,
+      "distanceFrames": 6.329,
+      "distanceSeconds": 0.210975,
+      "id": "T005",
+      "nearestBeatSeconds": 11.122358,
+      "sampleIndex": 136,
+      "score": 0.091561,
+      "seconds": 11.333333,
+      "type": "motion-transition"
+    },
+    {
+      "confidence": 0.6861,
+      "distanceFrames": 5.524,
+      "distanceSeconds": 0.184127,
+      "id": "T006",
+      "nearestBeatSeconds": 13.815873,
+      "sampleIndex": 168,
+      "score": 0.136066,
+      "seconds": 14.0,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.9106,
+      "distanceFrames": 3.539,
+      "distanceSeconds": 0.11796,
+      "id": "T007",
+      "nearestBeatSeconds": 16.648707,
+      "sampleIndex": 201,
+      "score": 0.092583,
+      "seconds": 16.766667,
+      "type": "motion-transition"
+    },
+    {
+      "confidence": 0.6623,
+      "distanceFrames": 0.131,
+      "distanceSeconds": 0.004353,
+      "id": "T008",
+      "nearestBeatSeconds": 20.27102,
+      "sampleIndex": 243,
+      "score": 0.112276,
+      "seconds": 20.266667,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.7737,
+      "distanceFrames": 0.693,
+      "distanceSeconds": 0.023084,
+      "id": "T009",
+      "nearestBeatSeconds": 22.476916,
+      "sampleIndex": 270,
+      "score": 0.223669,
+      "seconds": 22.5,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.6464,
+      "distanceFrames": 0.751,
+      "distanceSeconds": 0.025034,
+      "id": "T010",
+      "nearestBeatSeconds": 24.241633,
+      "sampleIndex": 291,
+      "score": 0.096443,
+      "seconds": 24.266667,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.7101,
+      "distanceFrames": 43.819,
+      "distanceSeconds": 1.460635,
+      "id": "T011",
+      "nearestBeatSeconds": 24.706032,
+      "sampleIndex": 314,
+      "score": 0.160105,
+      "seconds": 26.166667,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.7161,
+      "distanceFrames": 106.819,
+      "distanceSeconds": 3.560635,
+      "id": "T012",
+      "nearestBeatSeconds": 24.706032,
+      "sampleIndex": 339,
+      "score": 0.166113,
+      "seconds": 28.266667,
+      "type": "cut"
+    }
+  ],
+  "videoId": "raycast-2026",
+  "warnings": []
+}

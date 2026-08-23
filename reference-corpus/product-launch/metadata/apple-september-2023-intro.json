@@ -1,0 +1,19 @@
+{
+  "canonicalUrl": "https://www.youtube.com/watch?v=ZiP1l7jlIIA",
+  "channel": "Apple",
+  "extractor": "Youtube",
+  "localFile": "videos/apple-september-2023-intro.mp4",
+  "publishedDate": "2023-09-12",
+  "publisher": "Apple",
+  "schemaVersion": 1,
+  "segment": {
+    "endSeconds": 120,
+    "startSeconds": 0
+  },
+  "sha256": "a4bf684038a48f2fb0132fbe940390fd506267c007018b5ea95dfd0be58b0edf",
+  "sizeBytes": 36032190,
+  "sourceDurationSeconds": 4975,
+  "sourceId": "ZiP1l7jlIIA",
+  "title": "Apple Event  — September 12, 2023",
+  "videoId": "apple-september-2023-intro"
+}

@@ -39,6 +39,13 @@ sidecar-dist
 
 .omc
 
+# REM-299 local reference corpus. Sources are measured locally and never shipped.
+reference-corpus/product-launch/videos/
+reference-corpus/product-launch/.work/
+.venv-rule-mining/
+__pycache__/
+*.py[cod]
+
 # Agent worktrees, created by Claude Code's worktree isolation
 .claude/worktrees/
 

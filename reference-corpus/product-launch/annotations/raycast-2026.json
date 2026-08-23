@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "videoId": "raycast-2026",
+  "annotator": "Codex (contact-sheet review)",
+  "scenes": [
+    {
+      "sceneId": "S001",
+      "entranceOrder": [
+        "soft monochrome field",
+        "Raycast search capsule",
+        "typed query",
+        "result rows"
+      ],
+      "gestureOverlap": "continuous",
+      "pauseRole": "No dead establish: the search interaction begins inside the opening camera move.",
+      "ambientMotion": ["background light drift", "camera push", "typing"]
+    },
+    {
+      "sceneId": "S004",
+      "entranceOrder": [
+        "clipboard surface",
+        "selection cards",
+        "focused result"
+      ],
+      "gestureOverlap": "continuous",
+      "pauseRole": "Focus pauses are brief and carried by the moving monochrome background.",
+      "ambientMotion": ["horizontal card travel", "background caustic drift"]
+    },
+    {
+      "sceneId": "S008",
+      "entranceOrder": ["voice control", "audio feedback", "assistant result"],
+      "gestureOverlap": "partial",
+      "pauseRole": "The interface result holds while audio feedback finishes.",
+      "ambientMotion": ["audio response", "background drift"]
+    },
+    {
+      "sceneId": "S013",
+      "entranceOrder": [
+        "feature labels",
+        "NEW RAYCAST",
+        "COMING 2026",
+        "brand mark"
+      ],
+      "gestureOverlap": "partial",
+      "pauseRole": "The title cards slow the previously rapid feature rhythm before the logo hold.",
+      "ambientMotion": [
+        "type replacement",
+        "background light drift",
+        "logo settle"
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "fromSceneId": "S003",
+      "toSceneId": "S004",
+      "continuity": "camera",
+      "notes": "A shared monochrome world and matching travel make separate UI features feel continuous."
+    },
+    {
+      "fromSceneId": "S012",
+      "toSceneId": "S013",
+      "continuity": "shape",
+      "notes": "Small centered type preserves the visual axis into the closing cards."
+    }
+  ]
+}
