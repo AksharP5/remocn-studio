@@ -28,10 +28,17 @@ function tools(): TurnTools {
       list: () => Promise.resolve([]),
       save: () => Promise.reject(new Error("unused")),
     },
+    moodboard: {
+      find: () => Promise.resolve(null),
+      save: () => Promise.reject(new Error("unused")),
+    },
     pipeline: {
       requestSource: () => Promise.reject(new Error("unused")),
       setStage: () => Promise.reject(new Error("unused")),
       start: () => Promise.resolve([{ stage: "analysis", status: "active" }]),
+    },
+    stock: {
+      search: () => Promise.reject(new Error("unused")),
     },
   };
 }

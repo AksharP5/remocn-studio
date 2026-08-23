@@ -1,7 +1,7 @@
 import { isAbsolute, resolve } from "node:path";
 import { z } from "zod";
 import { errorMessage } from "@/lib/error-message";
-import type { Asset, AssetDraft } from "@/shared/library";
+import type { Asset, AssetDraft, StockPage } from "@/shared/library";
 import { assetTypeFor } from "@/shared/library";
 import type { MotionRole } from "@/shared/motion";
 import type {
@@ -10,15 +10,20 @@ import type {
   PipelineStatus,
 } from "@/shared/pipeline";
 import { pipelineBrief } from "../claude/conventions";
+import type { MoodboardDraft, MoodboardRecord } from "../library/moodboard";
+import { moodboardBrief } from "../library/moodboard";
 import type { DesignResult, MotionAssertion } from "../preview/design";
 import {
   DESIGN_CHECK,
   DESIGN_SERVER,
+  GET_MOODBOARD,
   LIBRARY_SERVER,
   LIST_ASSETS,
   PIPELINE_SERVER,
   REQUEST_SOURCE_ASSET,
   SAVE_ASSET,
+  SAVE_MOODBOARD,
+  SEARCH_STOCK,
   START_PIPELINE,
   TOOL_SPECS,
   type ToolServer,
@@ -27,6 +32,21 @@ import {
 export interface LibraryCalls {
   readonly list: () => Promise<readonly Asset[]>;
   readonly save: (draft: AssetDraft) => Promise<Asset>;
+}
+
+export interface StockCalls {
+  readonly search: (query: {
+    readonly kind: "photo" | "video";
+    readonly page: number;
+    readonly query: string;
+  }) => Promise<StockPage>;
+}
+
+export interface MoodboardCalls {
+  readonly find: () => Promise<MoodboardRecord | null>;
+  readonly save: (
+    draft: Omit<MoodboardDraft, "project">
+  ) => Promise<MoodboardRecord>;
 }
 
 export interface PipelineCalls {
@@ -53,7 +73,9 @@ export interface TurnTools {
   readonly cwd: string;
   readonly design: DesignCalls;
   readonly library: LibraryCalls;
+  readonly moodboard: MoodboardCalls;
   readonly pipeline: PipelineCalls;
+  readonly stock: StockCalls;
 }
 
 export interface ToolAnswer {
@@ -89,6 +111,15 @@ function run(
   }
   if (server === LIBRARY_SERVER && tool === SAVE_ASSET) {
     return saveAsset(args, tools);
+  }
+  if (server === LIBRARY_SERVER && tool === SEARCH_STOCK) {
+    return searchStock(args, tools.stock);
+  }
+  if (server === LIBRARY_SERVER && tool === GET_MOODBOARD) {
+    return getMoodboard(tools.moodboard);
+  }
+  if (server === LIBRARY_SERVER && tool === SAVE_MOODBOARD) {
+    return saveMoodboard(args, tools);
   }
   if (server === PIPELINE_SERVER && tool === START_PIPELINE) {
     return staged(tools.pipeline.start());
@@ -168,6 +199,126 @@ async function saveAsset(
   });
 
   return `Saved ${saved.name} to the library as ${saved.slug} (${saved.type}), holding ${saved.files.length} file${saved.files.length === 1 ? "" : "s"}. It is now available in every project.`;
+}
+
+async function searchStock(
+  args: Record<string, unknown>,
+  stock: StockCalls
+): Promise<string> {
+  const named = args as {
+    kind?: "photo" | "video";
+    page?: number;
+    query: string;
+  };
+
+  const page = await stock.search({
+    kind: named.kind ?? "photo",
+    page: named.page ?? 1,
+    query: named.query,
+  });
+
+  if (page.items.length === 0) {
+    return `Pexels found nothing for "${named.query}" — try different words.`;
+  }
+
+  const items = page.items.map((item) => ({
+    author: item.author,
+    authorUrl: item.authorUrl,
+    download: item.download,
+    duration: item.duration,
+    height: item.height,
+    id: item.id,
+    name: item.name,
+    pageUrl: item.url,
+    width: item.width,
+  }));
+
+  const tail =
+    page.nextPage === null
+      ? ""
+      : `\n\nMore results exist — pass page: ${page.nextPage} for the next ones.`;
+
+  return `${JSON.stringify(items, null, 2)}${tail}`;
+}
+
+async function getMoodboard(moodboard: MoodboardCalls): Promise<string> {
+  const record = await moodboard.find();
+
+  if (record === null) {
+    return "There is no moodboard for this project yet.";
+  }
+
+  return moodboardBrief(record);
+}
+
+function resolvedFile(cwd: string, file: string | undefined): string | null {
+  if (file === undefined) {
+    return null;
+  }
+  return isAbsolute(file) ? file : resolve(cwd, file);
+}
+
+async function saveMoodboard(
+  args: Record<string, unknown>,
+  tools: TurnTools
+): Promise<string> {
+  const named = args as {
+    images: {
+      author?: string;
+      authorUrl?: string;
+      columns?: number;
+      file?: string;
+      id?: string;
+      note?: string;
+      pageUrl?: string;
+      role?: "photo" | "texture";
+      rows?: number;
+      url?: string;
+    }[];
+    keywords?: string[];
+    palette?: { hex: string; name?: string }[];
+    title: string;
+    typography?: { body: string; heading: string; sample?: string }[];
+  };
+
+  const record = await tools.moodboard.save({
+    images: named.images.map((image) => ({
+      columns: image.columns ?? null,
+      file: resolvedFile(tools.cwd, image.file),
+      note: image.note ?? "",
+      role: image.role ?? "photo",
+      rows: image.rows ?? null,
+      source:
+        image.url !== undefined && image.id !== undefined
+          ? {
+              author: image.author ?? "",
+              authorUrl: image.authorUrl ?? "",
+              id: image.id,
+              provider: "pexels" as const,
+              url: image.pageUrl ?? "",
+            }
+          : null,
+      url: image.url ?? null,
+    })),
+    keywords: named.keywords ?? [],
+    palette: (named.palette ?? []).map((swatch) => ({
+      hex: swatch.hex,
+      name: swatch.name ?? "",
+    })),
+    title: named.title,
+    typography: (named.typography ?? []).map((pair) => ({
+      body: pair.body,
+      heading: pair.heading,
+      sample: pair.sample ?? "",
+    })),
+  });
+
+  const looked =
+    record.asset.preview === null
+      ? "The board rendered no preview."
+      : `The rendered board is at ${record.asset.preview} — read that file, judge it like a designer, and iterate by calling save_moodboard again with only the block that reads wrong replaced.`;
+
+  return `Saved the moodboard ${record.asset.name} as ${record.asset.slug}, holding ${record.spec.images.length} image${record.spec.images.length === 1 ? "" : "s"}. ${looked}`;
 }
 
 async function staged(
