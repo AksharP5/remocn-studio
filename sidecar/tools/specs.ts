@@ -32,6 +32,9 @@ export interface ToolSpec {
 
 export const LIST_ASSETS = "list_assets";
 export const SAVE_ASSET = "save_asset";
+export const SEARCH_STOCK = "search_stock";
+export const GET_MOODBOARD = "get_moodboard";
+export const SAVE_MOODBOARD = "save_moodboard";
 export const START_PIPELINE = "start_video_pipeline";
 export const SET_PIPELINE_STAGE = "set_pipeline_stage";
 export const REQUEST_SOURCE_ASSET = "request_source_asset";
@@ -136,6 +139,133 @@ export const TOOL_SPECS: Record<ToolServer, readonly ToolSpec[]> = {
           .enum(ASSET_TYPES as unknown as [AssetType])
           .optional()
           .describe("Left out, it is worked out from the file extensions."),
+      },
+    },
+    {
+      description:
+        "Search stock photography and footage on Pexels. Use it to curate visual references — for a moodboard, or when the person asks for stock media. It answers with items whose download URL and attribution you pass on; the network and the API key stay in the studio.",
+      name: SEARCH_STOCK,
+      shape: {
+        kind: z
+          .enum(["photo", "video"])
+          .optional()
+          .describe("What to search; photos when left out."),
+        page: z
+          .number()
+          .int()
+          .min(1)
+          .optional()
+          .describe("The result page, starting at 1."),
+        query: z
+          .string()
+          .min(1)
+          .describe(
+            "What to look for — light, atmosphere and subject beat generic words: 'warm window light workspace', not 'office'."
+          ),
+      },
+    },
+    {
+      description:
+        "Answer with this project's moodboard when one exists: its spec and the path of its rendered PNG. Call it before generating anything — an existing board is worked from, never regenerated unless the person explicitly asks to start over. Edits go through save_moodboard as a change to the spec, replacing only the block that is off.",
+      name: GET_MOODBOARD,
+      shape: {},
+    },
+    {
+      description:
+        "Save this project's moodboard: the studio downloads the chosen images, writes the spec and renders the board to a PNG, storing it all as one library asset. Curate first — pick 5–8 photos from search_stock whose light and mood agree, extract the palette from those photos rather than inventing it, and pick Google Fonts the project could really use. It replaces the project's existing board, which is how a single block gets fixed: pass the spec again with only that block changed. After saving, read the returned PNG and judge it — a board whose one dark photo breaks the row is a board to iterate on.",
+      name: SAVE_MOODBOARD,
+      shape: {
+        images: z
+          .array(
+            z
+              .object({
+                author: z
+                  .string()
+                  .optional()
+                  .describe("The photographer, from the search result."),
+                authorUrl: z.string().optional(),
+                columns: z
+                  .number()
+                  .int()
+                  .min(1)
+                  .max(4)
+                  .optional()
+                  .describe(
+                    "Grid columns this image spans, 1–4; the anchor photo is the wide one."
+                  ),
+                file: z
+                  .string()
+                  .optional()
+                  .describe(
+                    "A local image path — a project still or a file already on disk. Give this or url, not both."
+                  ),
+                id: z
+                  .string()
+                  .optional()
+                  .describe("The stock item id, from the search result."),
+                note: z
+                  .string()
+                  .optional()
+                  .describe(
+                    "A short caption saying what this reference is for."
+                  ),
+                pageUrl: z
+                  .string()
+                  .optional()
+                  .describe("The stock item's page URL, for attribution."),
+                role: z
+                  .enum(["photo", "texture"])
+                  .optional()
+                  .describe(
+                    "texture marks grain and backgrounds; photo when left out."
+                  ),
+                rows: z.number().int().min(1).max(4).optional(),
+                url: z
+                  .string()
+                  .optional()
+                  .describe("The download URL from search_stock."),
+              })
+              .refine(
+                (image) =>
+                  (image.file === undefined) !== (image.url === undefined),
+                { message: "an image names exactly one of file or url" }
+              )
+          )
+          .min(1)
+          .max(12)
+          .describe("The curated references, anchor first."),
+        keywords: z
+          .array(z.string().min(1))
+          .max(6)
+          .optional()
+          .describe("Three to five tone words from the brief."),
+        palette: z
+          .array(
+            z.object({
+              hex: z.string().regex(/^#[0-9a-fA-F]{6}$/, "a swatch is #rrggbb"),
+              name: z.string().optional(),
+            })
+          )
+          .max(6)
+          .optional()
+          .describe(
+            "Four to six swatches extracted from the chosen photos, not invented."
+          ),
+        title: z.string().min(1).describe("A short human name for the board."),
+        typography: z
+          .array(
+            z.object({
+              body: z.string().min(1).describe("A Google Fonts family."),
+              heading: z.string().min(1).describe("A Google Fonts family."),
+              sample: z
+                .string()
+                .optional()
+                .describe("A line from the project to set the sample in."),
+            })
+          )
+          .max(2)
+          .optional()
+          .describe("One or two font pairs."),
       },
     },
   ],

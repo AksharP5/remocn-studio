@@ -37,11 +37,18 @@ function tools(shape: Partial<TurnTools> = {}): TurnTools {
       list: () => Promise.resolve([]),
       save: () => Promise.reject(new Error("no save in this test")),
     },
+    moodboard: {
+      find: () => Promise.resolve(null),
+      save: () => Promise.reject(new Error("no moodboard in this test")),
+    },
     pipeline: {
       requestSource: () =>
         Promise.reject(new Error("no source ask in this test")),
       setStage: () => Promise.reject(new Error("no pipeline in this test")),
       start: () => Promise.reject(new Error("no pipeline in this test")),
+    },
+    stock: {
+      search: () => Promise.reject(new Error("no stock in this test")),
     },
     ...shape,
   };
@@ -358,6 +365,164 @@ describe("executeTool", () => {
       isError: true,
       text: "remocn-library has no tool called delete_everything",
     });
+  });
+
+  it("answers a stock search with items the agent can pass to save_moodboard", async () => {
+    const answer = await executeTool(
+      "remocn-library",
+      "search_stock",
+      { query: "warm window light" },
+      tools({
+        stock: {
+          search: (query) => {
+            expect(query).toEqual({
+              kind: "photo",
+              page: 1,
+              query: "warm window light",
+            });
+            return Promise.resolve({
+              items: [
+                {
+                  author: "Anna",
+                  authorUrl: "https://pexels.com/@anna",
+                  download: "https://images.pexels.com/photos/42/warm.jpeg",
+                  duration: null,
+                  height: 2000,
+                  id: "42",
+                  kind: "photo",
+                  name: "Warm window",
+                  thumbnail: "https://images.pexels.com/photos/42/thumb.jpeg",
+                  url: "https://pexels.com/photo/42",
+                  width: 3000,
+                },
+              ],
+              nextPage: 2,
+              total: 44,
+            });
+          },
+        },
+      })
+    );
+
+    expect(answer.isError).toBe(false);
+    expect(answer.text).toContain(
+      '"download": "https://images.pexels.com/photos/42/warm.jpeg"'
+    );
+    expect(answer.text).toContain('"pageUrl": "https://pexels.com/photo/42"');
+    expect(answer.text).not.toContain("thumb.jpeg");
+    expect(answer.text).toContain("pass page: 2");
+  });
+
+  it("says there is no moodboard rather than answering with nothing", async () => {
+    const answer = await executeTool(
+      "remocn-library",
+      "get_moodboard",
+      {},
+      tools()
+    );
+
+    expect(answer).toEqual({
+      isError: false,
+      text: "There is no moodboard for this project yet.",
+    });
+  });
+
+  it("maps a save_moodboard call onto a draft with attribution and resolved files", async () => {
+    let seen: unknown = null;
+
+    const answer = await executeTool(
+      "remocn-library",
+      "save_moodboard",
+      {
+        images: [
+          {
+            author: "Anna",
+            id: "42",
+            note: "anchor",
+            pageUrl: "https://pexels.com/photo/42",
+            url: "https://images.pexels.com/photos/42/warm.jpeg",
+          },
+          { file: "video/assets/frame.png", role: "texture" },
+        ],
+        keywords: ["warm"],
+        palette: [{ hex: "#1a2b3c" }],
+        title: "Warm launch",
+      },
+      tools({
+        moodboard: {
+          find: () => Promise.resolve(null),
+          save: (draft) => {
+            seen = draft;
+            return Promise.resolve({
+              asset: asset({
+                name: "Warm launch",
+                preview: "/library/assets/warm-launch/preview.png",
+                slug: "warm-launch",
+                type: "img",
+              }),
+              spec: {
+                images: [],
+                keywords: ["warm"],
+                palette: [],
+                project: "project-1",
+                title: "Warm launch",
+                typography: [],
+              },
+            });
+          },
+        },
+      })
+    );
+
+    expect(answer.isError).toBe(false);
+    expect(answer.text).toContain("Saved the moodboard Warm launch");
+    expect(answer.text).toContain("/library/assets/warm-launch/preview.png");
+    expect(seen).toEqual({
+      images: [
+        {
+          columns: null,
+          file: null,
+          note: "anchor",
+          role: "photo",
+          rows: null,
+          source: {
+            author: "Anna",
+            authorUrl: "",
+            id: "42",
+            provider: "pexels",
+            url: "https://pexels.com/photo/42",
+          },
+          url: "https://images.pexels.com/photos/42/warm.jpeg",
+        },
+        {
+          columns: null,
+          file: `${CWD}/video/assets/frame.png`,
+          note: "",
+          role: "texture",
+          rows: null,
+          source: null,
+          url: null,
+        },
+      ],
+      keywords: ["warm"],
+      palette: [{ hex: "#1a2b3c", name: "" }],
+      title: "Warm launch",
+      typography: [],
+    });
+  });
+
+  it("refuses a moodboard image naming both a file and a url", async () => {
+    const answer = await executeTool(
+      "remocn-library",
+      "save_moodboard",
+      {
+        images: [{ file: "a.png", url: "https://images.pexels.com/a.jpeg" }],
+        title: "Board",
+      },
+      tools()
+    );
+
+    expect(answer.isError).toBe(true);
   });
 
   it("turns an implementation failure into an error answer, not a crash", async () => {

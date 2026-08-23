@@ -35,6 +35,7 @@ import {
   placeAssets,
   placeMedia,
 } from "./library/insert";
+import { findMoodboard, saveMoodboard } from "./library/moodboard";
 import {
   type StockError,
   saveStock,
@@ -60,6 +61,7 @@ import {
   designFrom,
   exportFrom,
   previewEvents,
+  sourceFrom,
   stillFrom,
   warmFrom,
 } from "./preview/supervisor";
@@ -263,6 +265,16 @@ export const handlers: Handlers<HistoryStore | ProjectStore> = {
                 ),
             },
             library: librarian(params),
+            moodboard: {
+              find: () => Effect.runPromise(findMoodboard(params.projectId)),
+              save: (draft) =>
+                Effect.runPromise(
+                  saveMoodboard(
+                    { ...draft, project: params.projectId },
+                    (input) => sourceFrom(params.projectId, input)
+                  )
+                ),
+            },
             pipeline: {
               requestSource: (input) =>
                 Effect.runPromise(
@@ -279,6 +291,9 @@ export const handlers: Handlers<HistoryStore | ProjectStore> = {
               setStage: (stage, status) =>
                 moved(store.setStage(params.historyId, stage, status)),
               start: () => moved(store.startPipeline(params.historyId)),
+            },
+            stock: {
+              search: (query) => Effect.runPromise(searchStock(query)),
             },
           })
           .pipe(

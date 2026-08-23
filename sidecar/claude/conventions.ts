@@ -110,6 +110,16 @@ one they typed from memory — a relative path is against this project, an absol
 one is somewhere else on their machine. Read it before changing anything around
 it, and treat it as the file they mean even when the sentence around it is vague.
 
+When the person asks for a moodboard — or the pipeline's brand stage calls for
+one — call \`mcp__remocn-library__get_moodboard\` first: an existing board comes
+back as its spec and rendered PNG, and it is never regenerated unless the person
+explicitly asks to start over. To build or change one, search photography with
+\`mcp__remocn-library__search_stock\`, curate five to eight photos whose light
+and mood agree, extract the palette from those photos rather than inventing it,
+then save with \`mcp__remocn-library__save_moodboard\` — and read the PNG it
+returns. A change to an existing board is the same call with only the block that
+reads wrong replaced, never a new search from scratch.
+
 Making a video here runs through a fixed six-stage production pipeline:
 analysis, brand, script, motion, build, review. When the person asks to create
 a video — or to rework one from the ground up — and no active stage is named in
