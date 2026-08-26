@@ -1,0 +1,16 @@
+{
+  "canonicalUrl": "https://www.youtube.com/watch?v=9oieNo53aNY",
+  "channel": "Stripe",
+  "extractor": "Youtube",
+  "localFile": "videos/stripe-reader-s700.mp4",
+  "publishedDate": "2023-05-02",
+  "publisher": "Stripe",
+  "schemaVersion": 1,
+  "segment": null,
+  "sha256": "6ee4a3eba4e756a1bf1da9d949b2e8f4f5499960b43a64fe5a732328d03daa4a",
+  "sizeBytes": 7869440,
+  "sourceDurationSeconds": 74,
+  "sourceId": "9oieNo53aNY",
+  "title": "Introducing Stripe Reader S700",
+  "videoId": "stripe-reader-s700"
+}

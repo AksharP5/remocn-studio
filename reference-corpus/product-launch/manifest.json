@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 1,
+  "genre": "product-launch",
+  "entries": [
+    {
+      "id": "linear-releases",
+      "publisher": "Linear",
+      "title": "Introducing Linear Releases",
+      "sourceUrl": "https://www.youtube.com/watch?v=6dIwFoQ0eVg",
+      "sourceId": "6dIwFoQ0eVg",
+      "publishedDate": "2026-04-30",
+      "sha256": "220ed724d4a7746c4a45a753306aba9507be290f860a1d706f9525e1a4f6a1f2",
+      "selectionRationale": "Short official feature launch with dense UI choreography."
+    },
+    {
+      "id": "linear-agent",
+      "publisher": "Linear",
+      "title": "Introducing Linear Agent",
+      "sourceUrl": "https://www.youtube.com/watch?v=mRql2VJ99gM",
+      "sourceId": "mRql2VJ99gM",
+      "publishedDate": "2026-03-24",
+      "sha256": "02220709bcf174a533ed7d446d0d3788aaf6589f6672499f482dadfd6724d035",
+      "selectionRationale": "Official recent launch reel with product UI and typography."
+    },
+    {
+      "id": "linear-product-intelligence",
+      "publisher": "Linear",
+      "title": "Product Intelligence (Technology Preview)",
+      "sourceUrl": "https://www.youtube.com/watch?v=rGvQ_rnCmyc",
+      "sourceId": "rGvQ_rnCmyc",
+      "publishedDate": "2025-08-14",
+      "sha256": "7967a9e1f14789240ddb8313128f35a8494546c0e7a7a041b3a83721bb61fa5f",
+      "selectionRationale": "Official compact technology preview with a sub-minute rhythm."
+    },
+    {
+      "id": "vercel-product-tour",
+      "publisher": "Vercel",
+      "title": "Vercel Product Tour",
+      "sourceUrl": "https://www.youtube.com/watch?v=3m1FcGW6V4g",
+      "sourceId": "3m1FcGW6V4g",
+      "publishedDate": "2022-11-15",
+      "sha256": "545df6a14c4cb315d5d54f8d1fb68cf5842771f6000c1f88ecd0867934c015a2",
+      "selectionRationale": "Official 42-second launch-style product tour."
+    },
+    {
+      "id": "vercel-v0",
+      "publisher": "Vercel",
+      "title": "Introducing v0: Generative UI",
+      "sourceUrl": "https://www.youtube.com/watch?v=By9wCB9IZp0",
+      "sourceId": "By9wCB9IZp0",
+      "publishedDate": "2023-10-11",
+      "sha256": "15243b7d587472687ff85ea1a3a37d80b552c4040523e44defdf5a82b53e0dfc",
+      "selectionRationale": "Official product introduction combining UI and kinetic type."
+    },
+    {
+      "id": "vercel-ship",
+      "publisher": "Vercel",
+      "title": "Announcing Vercel Ship",
+      "sourceUrl": "https://www.youtube.com/watch?v=U5vRyGV9_PA",
+      "sourceId": "U5vRyGV9_PA",
+      "publishedDate": "2023-04-04",
+      "sha256": "e17bfff79113a2b0b7579c106d3c3de2c1c512a24c69fb0029cb39d41590288b",
+      "selectionRationale": "Official short announcement sting at the fast end of the genre."
+    },
+    {
+      "id": "raycast-2026",
+      "publisher": "Raycast",
+      "title": "New Raycast. Coming 2026",
+      "sourceUrl": "https://www.youtube.com/watch?v=Mi173xGb0ZA",
+      "sourceId": "Mi173xGb0ZA",
+      "publishedDate": "2025-12-18",
+      "sha256": "c7458fbd9fd28ac15a1a349c28d31ab5ba988e2ee3d83a089d48aa4fd05a5775",
+      "selectionRationale": "Official launch teaser driven by camera and interface transitions."
+    },
+    {
+      "id": "raycast-pro",
+      "publisher": "Raycast",
+      "title": "Raycast Pro — Preview",
+      "sourceUrl": "https://www.youtube.com/watch?v=u6iro1jHujs",
+      "sourceId": "u6iro1jHujs",
+      "publishedDate": "2023-05-10",
+      "sha256": "d8ce40ee7a092b6f431cca631ac8e81c0e7521521228cb702feba45ba1e75441",
+      "selectionRationale": "Official 23-second product preview with compressed pacing."
+    },
+    {
+      "id": "raycast-windows",
+      "publisher": "Raycast",
+      "title": "First Look at Raycast for Windows",
+      "sourceUrl": "https://www.youtube.com/watch?v=YKARc05qixw",
+      "sourceId": "YKARc05qixw",
+      "publishedDate": "2025-06-25",
+      "sha256": "446ebca85b9f94724c983b5732b0cc02332f7a68497aae88ce03d6ddc6c0ca6d",
+      "segment": { "startSeconds": 0, "endSeconds": 120 },
+      "selectionRationale": "Official platform launch with continuous UI choreography."
+    },
+    {
+      "id": "stripe-reader-s700",
+      "publisher": "Stripe",
+      "title": "Introducing Stripe Reader S700",
+      "sourceUrl": "https://www.youtube.com/watch?v=9oieNo53aNY",
+      "sourceId": "9oieNo53aNY",
+      "publishedDate": "2023-05-02",
+      "sha256": "6ee4a3eba4e756a1bf1da9d949b2e8f4f5499960b43a64fe5a732328d03daa4a",
+      "selectionRationale": "Official hardware launch film with product cinematography."
+    },
+    {
+      "id": "stripe-reader",
+      "publisher": "Stripe",
+      "title": "Introducing Stripe Reader",
+      "sourceUrl": "https://www.youtube.com/watch?v=S9VAIa-Nw34",
+      "sourceId": "S9VAIa-Nw34",
+      "publishedDate": "2021-11-03",
+      "sha256": "6241aa14fafa185821179e011b7e2b65ed1892705be414600b55eefeadffaeef",
+      "selectionRationale": "Official compact hardware product reveal for comparison."
+    },
+    {
+      "id": "stripe-sessions-2024",
+      "publisher": "Stripe",
+      "title": "Stripe Sessions 2024",
+      "sourceUrl": "https://www.youtube.com/watch?v=KH0_HM6e66w",
+      "sourceId": "KH0_HM6e66w",
+      "publishedDate": "2024-06-04",
+      "sha256": "129911e2109c192443507aed5a5948ead03aa731cac6ca1316c585236e9b58f3",
+      "selectionRationale": "Official launch-event reel spanning multiple product beats."
+    },
+    {
+      "id": "apple-may-2024-intro",
+      "publisher": "Apple",
+      "title": "Apple Event — May 7, 2024 (intro)",
+      "sourceUrl": "https://www.youtube.com/watch?v=f1J38FlDKxo",
+      "sourceId": "f1J38FlDKxo",
+      "publishedDate": "2024-05-07",
+      "sha256": "e30c6e2e2cef1e174df8c14b1f163cf6f9a7aae73ed89844d02cf1d52f27b1d9",
+      "segment": { "startSeconds": 0, "endSeconds": 120 },
+      "selectionRationale": "Official event opening from the Apple launch-film school."
+    },
+    {
+      "id": "apple-september-2023-intro",
+      "publisher": "Apple",
+      "title": "Apple Event — September 12, 2023 (intro)",
+      "sourceUrl": "https://www.youtube.com/watch?v=ZiP1l7jlIIA",
+      "sourceId": "ZiP1l7jlIIA",
+      "publishedDate": "2023-09-12",
+      "sha256": "a4bf684038a48f2fb0132fbe940390fd506267c007018b5ea95dfd0be58b0edf",
+      "segment": { "startSeconds": 0, "endSeconds": 120 },
+      "selectionRationale": "Official Apple event opening replacing a brief candidate that was not publisher-hosted."
+    },
+    {
+      "id": "apple-wwdc-2025-intro",
+      "publisher": "Apple",
+      "title": "WWDC 2025 — June 9 (intro)",
+      "sourceUrl": "https://www.youtube.com/watch?v=0_DjDdfqtUE",
+      "sourceId": "0_DjDdfqtUE",
+      "publishedDate": "2025-06-09",
+      "sha256": "90dc48158fa16ffa291385ba50f0929056d8a391c36f2a369bb77c2a4f6df953",
+      "segment": { "startSeconds": 0, "endSeconds": 120 },
+      "selectionRationale": "Official WWDC opening supplying a third Apple launch rhythm sample."
+    }
+  ]
+}

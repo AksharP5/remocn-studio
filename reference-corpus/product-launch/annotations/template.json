@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "videoId": "replace-with-corpus-id",
+  "annotator": "replace-with-name",
+  "scenes": [
+    {
+      "sceneId": "S001",
+      "entranceOrder": [],
+      "gestureOverlap": "unknown",
+      "pauseRole": "",
+      "ambientMotion": [],
+      "notes": ""
+    }
+  ],
+  "boundaries": []
+}

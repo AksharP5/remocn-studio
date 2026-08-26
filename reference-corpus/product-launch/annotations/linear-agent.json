@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "videoId": "linear-agent",
+  "annotator": "Codex (contact-sheet review)",
+  "scenes": [
+    {
+      "sceneId": "S001",
+      "entranceOrder": [
+        "dark product surface",
+        "project-space label",
+        "issue content",
+        "cursor/action detail"
+      ],
+      "gestureOverlap": "continuous",
+      "pauseRole": "The camera eases without fully stopping while the project context becomes readable.",
+      "ambientMotion": ["slow oblique camera drift", "subtle surface parallax"],
+      "notes": "A long opening scene is internally active; its 17s duration is not a static hold."
+    },
+    {
+      "sceneId": "S003",
+      "entranceOrder": [
+        "integration heading",
+        "connection diagram",
+        "status details"
+      ],
+      "gestureOverlap": "partial",
+      "pauseRole": "A short readable plateau follows the diagram reveal before the next camera move.",
+      "ambientMotion": ["camera continuation", "low-amplitude UI drift"]
+    },
+    {
+      "sceneId": "S006",
+      "entranceOrder": [
+        "command examples",
+        "brand line",
+        "Linear wordmark",
+        "mark"
+      ],
+      "gestureOverlap": "partial",
+      "pauseRole": "The closing claim and mark receive the longest clean holds.",
+      "ambientMotion": ["residual camera settle", "mark transition"]
+    }
+  ],
+  "boundaries": [
+    {
+      "fromSceneId": "S001",
+      "toSceneId": "S002",
+      "continuity": "camera",
+      "notes": "The oblique product plane and motion direction carry across the boundary."
+    },
+    {
+      "fromSceneId": "S005",
+      "toSceneId": "S006",
+      "continuity": "none",
+      "notes": "A deliberate register change clears the UI for the brand close."
+    }
+  ]
+}

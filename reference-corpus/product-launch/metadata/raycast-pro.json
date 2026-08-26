@@ -1,0 +1,16 @@
+{
+  "canonicalUrl": "https://www.youtube.com/watch?v=u6iro1jHujs",
+  "channel": "Raycast",
+  "extractor": "Youtube",
+  "localFile": "videos/raycast-pro.mp4",
+  "publishedDate": "2023-05-10",
+  "publisher": "Raycast",
+  "schemaVersion": 1,
+  "segment": null,
+  "sha256": "d8ce40ee7a092b6f431cca631ac8e81c0e7521521228cb702feba45ba1e75441",
+  "sizeBytes": 3721288,
+  "sourceDurationSeconds": 22,
+  "sourceId": "u6iro1jHujs",
+  "title": "Raycast Pro — Preview",
+  "videoId": "raycast-pro"
+}

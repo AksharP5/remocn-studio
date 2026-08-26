@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remocn.dev/schemas/rule-mining/measurement-v1.json",
+  "title": "Per-video launch measurement",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "videoId",
+    "sourceSha256",
+    "configSha256",
+    "tools",
+    "media",
+    "scenes",
+    "transitions",
+    "motion",
+    "beats",
+    "warnings"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "videoId": { "type": "string" },
+    "sourceSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "configSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "tools": { "type": "object" },
+    "media": { "type": "object" },
+    "scenes": { "type": "array" },
+    "transitions": { "type": "array" },
+    "motion": { "type": "object" },
+    "beats": { "type": "object" },
+    "warnings": { "type": "array", "items": { "type": "string" } }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remocn.dev/schemas/rule-mining/annotation-v1.json",
+  "title": "Manual launch choreography annotation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "videoId", "annotator", "scenes", "boundaries"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "videoId": { "type": "string" },
+    "annotator": { "type": "string", "minLength": 1 },
+    "scenes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "sceneId",
+          "entranceOrder",
+          "gestureOverlap",
+          "pauseRole",
+          "ambientMotion"
+        ],
+        "properties": {
+          "sceneId": { "type": "string" },
+          "entranceOrder": { "type": "array", "items": { "type": "string" } },
+          "gestureOverlap": {
+            "type": "string",
+            "enum": ["none", "partial", "continuous", "unknown"]
+          },
+          "pauseRole": { "type": "string" },
+          "ambientMotion": { "type": "array", "items": { "type": "string" } },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "boundaries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["fromSceneId", "toSceneId", "continuity"],
+        "properties": {
+          "fromSceneId": { "type": "string" },
+          "toSceneId": { "type": "string" },
+          "continuity": {
+            "type": "string",
+            "enum": [
+              "none",
+              "element",
+              "camera",
+              "shape",
+              "occlusion",
+              "unknown"
+            ]
+          },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}

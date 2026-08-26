@@ -1,0 +1,16 @@
+{
+  "canonicalUrl": "https://www.youtube.com/watch?v=Mi173xGb0ZA",
+  "channel": "Raycast",
+  "extractor": "Youtube",
+  "localFile": "videos/raycast-2026.mp4",
+  "publishedDate": "2025-12-18",
+  "publisher": "Raycast",
+  "schemaVersion": 1,
+  "segment": null,
+  "sha256": "c7458fbd9fd28ac15a1a349c28d31ab5ba988e2ee3d83a089d48aa4fd05a5775",
+  "sizeBytes": 1757680,
+  "sourceDurationSeconds": 39,
+  "sourceId": "Mi173xGb0ZA",
+  "title": "New Raycast. Coming 2026",
+  "videoId": "raycast-2026"
+}

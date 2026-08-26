@@ -74,7 +74,9 @@ Before you call a scene or video finished, call
 and when \`video/motion.md\` promises a movement, pass it on the same call as a
 \`motion\` assertion — \`changes_between\` for an element that must move or
 change between two frames, \`visible_at\` for one that must have entered by a
-frame, \`stays_in_frame\` for one that must never leave the canvas — targeting
+frame, \`keeps_moving\` for a bounded scene interval whose declared living layer
+must not hold unchanged longer than \`maxStaticFrames\`, and \`stays_in_frame\`
+for one that must never leave the canvas — targeting
 \`[data-design-id="…"]\`; any CSS selector works, and a selector that matches
 nothing or several elements comes back as a finding rather than a silent pass.
 Inspect the returned snapshots, then fix every mechanical finding or say

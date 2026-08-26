@@ -5,6 +5,7 @@ export const DesignFindingCode = Schema.Literals([
   "motion_not_visible",
   "motion_out_of_frame",
   "motion_static",
+  "motion_static_too_long",
   "motion_target_ambiguous",
   "motion_target_missing",
   "text_clipped",
@@ -41,12 +42,56 @@ export const MotionAssertion = Schema.Union([
     selector: Schema.NonEmptyString,
   }),
   Schema.Struct({
+    from: Schema.Int,
+    kind: Schema.Literal("keeps_moving"),
+    maxStaticFrames: Schema.Int,
+    selector: Schema.NonEmptyString,
+    to: Schema.Int,
+  }),
+  Schema.Struct({
     kind: Schema.Literal("stays_in_frame"),
     selector: Schema.NonEmptyString,
   }),
 ]);
 
 export type MotionAssertion = (typeof MotionAssertion)["Type"];
+
+export const MAX_KEEP_MOVING_SAMPLES = 48;
+
+function keepMovingFrames(
+  assertion: Extract<MotionAssertion, { kind: "keeps_moving" }>
+): number[] {
+  const step = Math.max(1, Math.floor(assertion.maxStaticFrames / 2));
+  const frames: number[] = [];
+  for (let frame = assertion.from; frame <= assertion.to; frame += step) {
+    frames.push(frame);
+  }
+  if (frames.at(-1) !== assertion.to) {
+    frames.push(assertion.to);
+  }
+  return frames;
+}
+
+export function motionSamplingError(
+  assertions: readonly MotionAssertion[]
+): string | null {
+  for (const assertion of assertions) {
+    if (assertion.kind !== "keeps_moving") {
+      continue;
+    }
+    if (assertion.to <= assertion.from) {
+      return `keeps_moving needs "to" greater than "from" for ${assertion.selector}`;
+    }
+    if (assertion.maxStaticFrames < 1) {
+      return `keeps_moving needs maxStaticFrames of at least 1 for ${assertion.selector}`;
+    }
+    const samples = keepMovingFrames(assertion).length;
+    if (samples > MAX_KEEP_MOVING_SAMPLES) {
+      return `keeps_moving for ${assertion.selector} needs ${samples} samples, above the ${MAX_KEEP_MOVING_SAMPLES}-frame budget; split the interval`;
+    }
+  }
+  return null;
+}
 
 export function motionFrames(assertions: readonly MotionAssertion[]): number[] {
   return assertions.flatMap((assertion) => {
@@ -55,6 +100,9 @@ export function motionFrames(assertions: readonly MotionAssertion[]): number[] {
     }
     if (assertion.kind === "visible_at") {
       return [assertion.frame];
+    }
+    if (assertion.kind === "keeps_moving") {
+      return keepMovingFrames(assertion);
     }
     return [];
   });
@@ -343,6 +391,9 @@ export function motionFindings(input: {
     if (assertion.kind === "visible_at") {
       return visibleAt(assertion, probes);
     }
+    if (assertion.kind === "keeps_moving") {
+      return keepsMoving(assertion, probes);
+    }
     return staysInFrame(assertion, probes, input.width, input.height);
   });
 }
@@ -356,6 +407,9 @@ function relevantFrames(
   }
   if (assertion.kind === "visible_at") {
     return [assertion.frame];
+  }
+  if (assertion.kind === "keeps_moving") {
+    return keepMovingFrames(assertion);
   }
   return samples.map(({ frame }) => frame);
 }
@@ -425,6 +479,69 @@ function changesBetween(
       observed: `The element's ${compared} are identical on both frames.`,
       severity: "error",
       target: last,
+    }),
+  ];
+}
+
+function keepsMoving(
+  assertion: Extract<MotionAssertion, { kind: "keeps_moving" }>,
+  probes: readonly { frame: number; probe: MotionProbe }[]
+): DesignFinding[] {
+  let runStart: number | null = null;
+  let longest:
+    | { from: number; target: MotionTargetState; to: number }
+    | undefined;
+
+  for (let index = 1; index < probes.length; index += 1) {
+    const previous = probes[index - 1];
+    const current = probes[index];
+    const previousTarget = previous?.probe.target ?? null;
+    const currentTarget = current?.probe.target ?? null;
+    if (
+      previous === undefined ||
+      current === undefined ||
+      previousTarget === null ||
+      currentTarget === null
+    ) {
+      runStart = null;
+      continue;
+    }
+    const geometryChanged =
+      previousTarget.fingerprint !== currentTarget.fingerprint;
+    const pixelsChanged =
+      previousTarget.pixels !== null &&
+      currentTarget.pixels !== null &&
+      previousTarget.pixels !== currentTarget.pixels;
+    if (geometryChanged || pixelsChanged) {
+      runStart = null;
+      continue;
+    }
+    runStart ??= previous.frame;
+    const span = current.frame - runStart;
+    if (longest === undefined || span > longest.to - longest.from) {
+      longest = { from: runStart, target: currentTarget, to: current.frame };
+    }
+  }
+
+  if (
+    longest === undefined ||
+    longest.to - longest.from <= assertion.maxStaticFrames
+  ) {
+    return [];
+  }
+  const held = longest.to - longest.from;
+  return [
+    motionFinding(assertion, {
+      code: "motion_static_too_long",
+      expected: `A visible geometry, opacity, or pixel change at least every ${assertion.maxStaticFrames} frames between ${assertion.from} and ${assertion.to}.`,
+      fix: "Keep a low-amplitude layer moving through the hold, shorten the hold, or remove this assertion and explain why the pause is intentional.",
+      frames: probes
+        .filter(({ frame }) => frame >= longest.from && frame <= longest.to)
+        .map(({ frame }) => frame),
+      message: `The element stayed visually unchanged for ${held} sampled frames.`,
+      observed: `No geometry, opacity, or pixel fingerprint changed from frame ${longest.from} through ${longest.to}.`,
+      severity: "warning",
+      target: longest.target,
     }),
   ];
 }

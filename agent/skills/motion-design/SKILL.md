@@ -398,6 +398,7 @@ to answer — with the Read tool, before writing the code, not after:
 | `rules/continuity.md`    | How one scene becomes the next; the whole video's rhythm.       |
 | `rules/camera.md`        | When may the whole frame move, and how.                         |
 | `rules/anti-patterns.md` | The consolidated cliché blocklist — scan after drafting.        |
+| `rules/product-launch.md` | Measured scene rhythm, cut mix, beat alignment and holds for product launches. |
 
 When a rule here and a rule in `rules/` disagree on a number, `rules/` wins — it
 carries the provenance. `remocn-studio:video-lessons` still outranks both.

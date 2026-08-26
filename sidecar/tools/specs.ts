@@ -86,6 +86,17 @@ export const TOOL_SPECS: Record<ToolServer, readonly ToolSpec[]> = {
                 kind: z.literal("visible_at"),
                 selector: MOTION_SELECTOR,
               }),
+              z
+                .object({
+                  from: z.number().int().min(0),
+                  kind: z.literal("keeps_moving"),
+                  maxStaticFrames: z.number().int().min(1),
+                  selector: MOTION_SELECTOR,
+                  to: z.number().int().min(0),
+                })
+                .refine((row) => row.to > row.from, {
+                  message: "to must be after from",
+                }),
               z.object({
                 kind: z.literal("stays_in_frame"),
                 selector: MOTION_SELECTOR,
@@ -95,7 +106,7 @@ export const TOOL_SPECS: Record<ToolServer, readonly ToolSpec[]> = {
           .max(12)
           .optional()
           .describe(
-            "Explicit expectations from video/motion.md: changes_between says the element or its content visibly changed between two frames, visible_at says it is visible by a frame, stays_in_frame says it never leaves the canvas on the checked frames."
+            "Explicit expectations from video/motion.md: changes_between says the element or its content visibly changed between two frames, visible_at says it is visible by a frame, keeps_moving limits a selected element's longest unchanged hold inside one bounded scene interval, and stays_in_frame says it never leaves the canvas on the checked frames."
           ),
       },
     },

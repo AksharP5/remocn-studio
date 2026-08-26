@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "videoId": "vercel-product-tour",
+  "annotator": "Codex (contact-sheet review)",
+  "scenes": [
+    {
+      "sceneId": "S002",
+      "entranceOrder": [
+        "dashboard shell",
+        "import dialog",
+        "repository rows",
+        "selection state"
+      ],
+      "gestureOverlap": "partial",
+      "pauseRole": "The modal holds just long enough to explain the chosen repository.",
+      "ambientMotion": ["cursor progression", "dialog state changes"]
+    },
+    {
+      "sceneId": "S003",
+      "entranceOrder": [
+        "deployment shell",
+        "activity card",
+        "status confirmation"
+      ],
+      "gestureOverlap": "continuous",
+      "pauseRole": "State changes replace static explanation; the UI remains the moving narrator.",
+      "ambientMotion": [
+        "card updates",
+        "cursor movement",
+        "small layout shifts"
+      ]
+    },
+    {
+      "sceneId": "S006",
+      "entranceOrder": [
+        "site preview",
+        "deployment overlay",
+        "production result"
+      ],
+      "gestureOverlap": "partial",
+      "pauseRole": "The finished site gets a longer verification hold than intermediate setup states.",
+      "ambientMotion": ["preview reposition", "overlay transition"]
+    },
+    {
+      "sceneId": "S008",
+      "entranceOrder": ["finished site", "value statement", "partner marks"],
+      "gestureOverlap": "partial",
+      "pauseRole": "The end card is the cleanest and most settled beat.",
+      "ambientMotion": ["confetti residual", "small final settle"]
+    }
+  ],
+  "boundaries": [
+    {
+      "fromSceneId": "S002",
+      "toSceneId": "S003",
+      "continuity": "element",
+      "notes": "The same dashboard frame persists while its working content changes."
+    },
+    {
+      "fromSceneId": "S007",
+      "toSceneId": "S008",
+      "continuity": "element",
+      "notes": "The deployed site remains visible as the narrative turns into the closing claim."
+    }
+  ]
+}

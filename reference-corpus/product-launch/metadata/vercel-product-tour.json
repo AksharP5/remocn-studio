@@ -1,0 +1,16 @@
+{
+  "canonicalUrl": "https://www.youtube.com/watch?v=3m1FcGW6V4g",
+  "channel": "Vercel",
+  "extractor": "Youtube",
+  "localFile": "videos/vercel-product-tour.mp4",
+  "publishedDate": "2022-11-15",
+  "publisher": "Vercel",
+  "schemaVersion": 1,
+  "segment": null,
+  "sha256": "545df6a14c4cb315d5d54f8d1fb68cf5842771f6000c1f88ecd0867934c015a2",
+  "sizeBytes": 5967115,
+  "sourceDurationSeconds": 41,
+  "sourceId": "3m1FcGW6V4g",
+  "title": "Vercel Product Tour",
+  "videoId": "vercel-product-tour"
+}

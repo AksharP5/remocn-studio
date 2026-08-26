@@ -1,0 +1,16 @@
+{
+  "canonicalUrl": "https://www.youtube.com/watch?v=U5vRyGV9_PA",
+  "channel": "Vercel",
+  "extractor": "Youtube",
+  "localFile": "videos/vercel-ship.mp4",
+  "publishedDate": "2023-04-04",
+  "publisher": "Vercel",
+  "schemaVersion": 1,
+  "segment": null,
+  "sha256": "e17bfff79113a2b0b7579c106d3c3de2c1c512a24c69fb0029cb39d41590288b",
+  "sizeBytes": 3989168,
+  "sourceDurationSeconds": 21,
+  "sourceId": "U5vRyGV9_PA",
+  "title": "Announcing Vercel Ship",
+  "videoId": "vercel-ship"
+}

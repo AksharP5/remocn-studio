@@ -1,0 +1,16 @@
+{
+  "canonicalUrl": "https://www.youtube.com/watch?v=By9wCB9IZp0",
+  "channel": "Vercel",
+  "extractor": "Youtube",
+  "localFile": "videos/vercel-v0.mp4",
+  "publishedDate": "2023-10-11",
+  "publisher": "Vercel",
+  "schemaVersion": 1,
+  "segment": null,
+  "sha256": "15243b7d587472687ff85ea1a3a37d80b552c4040523e44defdf5a82b53e0dfc",
+  "sizeBytes": 3342515,
+  "sourceDurationSeconds": 48,
+  "sourceId": "By9wCB9IZp0",
+  "title": "Introducing v0: Generative UI",
+  "videoId": "vercel-v0"
+}

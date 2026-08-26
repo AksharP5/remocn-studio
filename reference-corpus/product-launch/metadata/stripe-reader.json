@@ -1,0 +1,16 @@
+{
+  "canonicalUrl": "https://www.youtube.com/watch?v=S9VAIa-Nw34",
+  "channel": "Stripe",
+  "extractor": "Youtube",
+  "localFile": "videos/stripe-reader.mp4",
+  "publishedDate": "2021-11-03",
+  "publisher": "Stripe",
+  "schemaVersion": 1,
+  "segment": null,
+  "sha256": "6241aa14fafa185821179e011b7e2b65ed1892705be414600b55eefeadffaeef",
+  "sizeBytes": 5819920,
+  "sourceDurationSeconds": 52,
+  "sourceId": "S9VAIa-Nw34",
+  "title": "Introducing Stripe Reader",
+  "videoId": "stripe-reader"
+}

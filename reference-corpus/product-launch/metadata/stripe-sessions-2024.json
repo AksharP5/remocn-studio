@@ -1,0 +1,16 @@
+{
+  "canonicalUrl": "https://www.youtube.com/watch?v=KH0_HM6e66w",
+  "channel": "Stripe",
+  "extractor": "Youtube",
+  "localFile": "videos/stripe-sessions-2024.mp4",
+  "publishedDate": "2024-06-04",
+  "publisher": "Stripe",
+  "schemaVersion": 1,
+  "segment": null,
+  "sha256": "129911e2109c192443507aed5a5948ead03aa731cac6ca1316c585236e9b58f3",
+  "sizeBytes": 16508960,
+  "sourceDurationSeconds": 109,
+  "sourceId": "KH0_HM6e66w",
+  "title": "Stripe Sessions 2024",
+  "videoId": "stripe-sessions-2024"
+}

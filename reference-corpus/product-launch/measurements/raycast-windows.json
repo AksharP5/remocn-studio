@@ -1,0 +1,629 @@
+{
+  "beats": {
+    "timesSeconds": [
+      0.487619, 0.952018, 1.416417, 1.857596, 2.321995, 2.786395, 3.250794,
+      3.715193, 4.179592, 4.667211, 5.15483, 5.665669, 6.130068, 6.640907,
+      7.105306, 7.592925, 8.126984, 8.661043, 9.102222, 9.566621, 10.0078,
+      10.4722, 10.983039, 11.447438, 11.935057, 12.422676, 12.887075, 13.305034,
+      13.722993, 14.140952, 14.605351, 15.023311, 15.46449, 15.905669,
+      16.346848, 16.811247, 17.298866, 17.786485, 18.343764, 18.808163,
+      19.295782, 19.760181, 20.22458, 20.66576, 21.106939, 21.594558, 22.082177,
+      22.569796, 23.127075, 23.614694, 24.102313, 24.543492, 24.984671,
+      25.47229, 25.936689, 26.493968, 26.981587, 27.469206, 27.933605,
+      28.398005, 28.862404, 29.326803, 29.791202, 30.209161, 30.62712,
+      31.114739, 31.555918, 32.020317, 32.484717, 32.949116, 33.483175,
+      33.970794, 34.481633, 34.969252, 35.456871, 35.92127, 36.408889,
+      36.850068, 37.314467, 37.825306, 38.289705, 38.777324, 39.241723,
+      39.706122, 40.147302, 40.611701, 41.05288, 41.540499, 42.051338,
+      42.538957, 43.003356, 43.490975, 43.978594, 44.442993, 44.884172,
+      45.325351, 45.766531, 46.20771, 46.672109, 47.182948, 47.600907,
+      48.134966, 48.599365, 49.086984, 49.574603, 50.085442, 50.549841,
+      51.01424, 51.478639, 51.919819, 52.360998, 52.802177, 53.220136,
+      53.707755, 54.218594, 54.682993, 55.124172, 55.588571, 56.07619,
+      56.610249, 57.144308, 57.608707, 58.049887, 58.467846, 58.862585,
+      59.373424, 59.814603, 60.302222, 60.789841, 61.25424, 61.718639,
+      62.136599, 62.531338, 62.972517, 63.413696, 63.901315, 64.388934,
+      64.853333, 65.317732, 65.805351, 66.223311, 66.68771, 67.128889,
+      67.570068, 68.011247, 68.452426, 68.893605, 69.334785, 69.775964,
+      70.217143, 70.681542, 71.122721, 71.5639, 72.097959, 72.632018, 73.166077,
+      73.676916, 74.164535, 74.582494, 75.000454, 75.488073, 75.975692,
+      76.463311, 76.97415, 77.508209, 77.995828, 78.390567, 78.854966,
+      79.342585, 79.830204, 80.341043, 80.782222, 81.223401, 81.71102,
+      82.198639, 82.686259, 83.150658, 83.661497, 84.125896, 84.613515,
+      85.124354, 85.611973, 86.076372, 86.517551, 86.98195, 87.492789,
+      87.957188, 88.444807, 88.909206, 89.373605, 89.814785, 90.302404,
+      90.766803, 91.231202, 91.625941, 92.09034, 92.485079, 92.926259,
+      93.390658, 93.831837, 94.249796, 94.667755, 95.085714, 95.573333,
+      96.107392, 96.548571, 97.05941, 97.47737, 97.895329, 98.336508, 98.754467,
+      99.218866, 99.636825, 100.054785, 100.565624, 101.006803, 101.517642,
+      102.074921, 102.56254, 102.980499, 103.421678, 103.955737, 104.443356,
+      104.930975, 105.348934, 105.766893, 106.231293, 106.695692, 107.229751,
+      107.787029, 108.251429, 108.715828, 109.180227, 109.621406, 110.062585,
+      110.573424, 111.061043, 111.525442, 111.989841, 112.50068, 112.988299,
+      113.429478, 113.940317, 114.427937, 114.915556, 115.379955, 115.797914,
+      116.215873, 116.610612, 117.051791, 117.56263, 118.050249, 118.514649,
+      118.979048, 119.443447, 119.931066
+    ],
+    "transitionHitRateFrames": {
+      "2": 0.5,
+      "3": 0.6667,
+      "4": 0.7
+    }
+  },
+  "configSha256": "e67f3adfbf2f500bb0a3befa3dc8b204e36cd1e861baf105d25fa079fb5c313a",
+  "media": {
+    "audioCodec": "aac",
+    "audioSampleRate": 48000,
+    "durationSeconds": 120.0,
+    "fps": 24.0,
+    "hasAudio": true,
+    "height": 1080,
+    "videoCodec": "h264",
+    "width": 1920
+  },
+  "motion": {
+    "analysisFps": 12,
+    "confidence": 0.9224,
+    "medianCameraPixels": 0.08921,
+    "medianElementPixels": 0.17143,
+    "shares": {
+      "camera": 0.0,
+      "elements": 0.1126,
+      "mixed": 0.0403,
+      "static": 0.8471
+    },
+    "staticRunsSeconds": [
+      2.166667, 0.416667, 0.5, 0.583333, 0.166667, 1.0, 1.416667, 0.083333,
+      0.083333, 1.166667, 0.166667, 2.416667, 1.833333, 0.083333, 0.25,
+      0.166667, 0.583333, 3.5, 3.25, 0.083333, 0.166667, 0.166667, 0.166667,
+      1.5, 0.083333, 12.666667, 0.083333, 0.333333, 0.25, 0.166667, 0.333333,
+      0.083333, 2.25, 1.75, 0.416667, 0.25, 0.166667, 0.166667, 0.25, 0.083333,
+      0.083333, 0.083333, 0.083333, 0.5, 0.083333, 0.916667, 0.333333, 0.25,
+      0.5, 0.083333, 0.083333, 0.916667, 2.333333, 0.083333, 0.25, 0.083333,
+      0.5, 1.75, 0.333333, 1.416667, 0.416667, 0.083333, 0.416667, 0.083333,
+      0.583333, 0.083333, 2.5, 1.5, 2.166667, 1.333333, 1.25, 0.5, 0.666667,
+      1.5, 0.083333, 0.583333, 4.166667, 0.25, 0.083333, 0.833333, 0.583333,
+      1.666667, 0.916667, 0.166667, 0.583333, 1.0, 2.333333, 4.166667, 6.333333,
+      0.416667, 11.916667, 0.5
+    ]
+  },
+  "scenes": [
+    {
+      "durationSeconds": 4.416667,
+      "endSeconds": 4.416667,
+      "id": "S001",
+      "startSeconds": 0.0
+    },
+    {
+      "durationSeconds": 1.916666,
+      "endSeconds": 6.333333,
+      "id": "S002",
+      "startSeconds": 4.416667
+    },
+    {
+      "durationSeconds": 3.166667,
+      "endSeconds": 9.5,
+      "id": "S003",
+      "startSeconds": 6.333333
+    },
+    {
+      "durationSeconds": 2.75,
+      "endSeconds": 12.25,
+      "id": "S004",
+      "startSeconds": 9.5
+    },
+    {
+      "durationSeconds": 1.916667,
+      "endSeconds": 14.166667,
+      "id": "S005",
+      "startSeconds": 12.25
+    },
+    {
+      "durationSeconds": 1.5,
+      "endSeconds": 15.666667,
+      "id": "S006",
+      "startSeconds": 14.166667
+    },
+    {
+      "durationSeconds": 3.583333,
+      "endSeconds": 19.25,
+      "id": "S007",
+      "startSeconds": 15.666667
+    },
+    {
+      "durationSeconds": 6.583333,
+      "endSeconds": 25.833333,
+      "id": "S008",
+      "startSeconds": 19.25
+    },
+    {
+      "durationSeconds": 13.0,
+      "endSeconds": 38.833333,
+      "id": "S009",
+      "startSeconds": 25.833333
+    },
+    {
+      "durationSeconds": 2.416667,
+      "endSeconds": 41.25,
+      "id": "S010",
+      "startSeconds": 38.833333
+    },
+    {
+      "durationSeconds": 6.25,
+      "endSeconds": 47.5,
+      "id": "S011",
+      "startSeconds": 41.25
+    },
+    {
+      "durationSeconds": 4.5,
+      "endSeconds": 52.0,
+      "id": "S012",
+      "startSeconds": 47.5
+    },
+    {
+      "durationSeconds": 6.75,
+      "endSeconds": 58.75,
+      "id": "S013",
+      "startSeconds": 52.0
+    },
+    {
+      "durationSeconds": 1.0,
+      "endSeconds": 59.75,
+      "id": "S014",
+      "startSeconds": 58.75
+    },
+    {
+      "durationSeconds": 6.916667,
+      "endSeconds": 66.666667,
+      "id": "S015",
+      "startSeconds": 59.75
+    },
+    {
+      "durationSeconds": 1.25,
+      "endSeconds": 67.916667,
+      "id": "S016",
+      "startSeconds": 66.666667
+    },
+    {
+      "durationSeconds": 2.75,
+      "endSeconds": 70.666667,
+      "id": "S017",
+      "startSeconds": 67.916667
+    },
+    {
+      "durationSeconds": 1.583333,
+      "endSeconds": 72.25,
+      "id": "S018",
+      "startSeconds": 70.666667
+    },
+    {
+      "durationSeconds": 2.25,
+      "endSeconds": 74.5,
+      "id": "S019",
+      "startSeconds": 72.25
+    },
+    {
+      "durationSeconds": 2.75,
+      "endSeconds": 77.25,
+      "id": "S020",
+      "startSeconds": 74.5
+    },
+    {
+      "durationSeconds": 0.75,
+      "endSeconds": 78.0,
+      "id": "S021",
+      "startSeconds": 77.25
+    },
+    {
+      "durationSeconds": 0.833333,
+      "endSeconds": 78.833333,
+      "id": "S022",
+      "startSeconds": 78.0
+    },
+    {
+      "durationSeconds": 1.583334,
+      "endSeconds": 80.416667,
+      "id": "S023",
+      "startSeconds": 78.833333
+    },
+    {
+      "durationSeconds": 1.333333,
+      "endSeconds": 81.75,
+      "id": "S024",
+      "startSeconds": 80.416667
+    },
+    {
+      "durationSeconds": 0.25,
+      "endSeconds": 82.0,
+      "id": "S025",
+      "startSeconds": 81.75
+    },
+    {
+      "durationSeconds": 4.333333,
+      "endSeconds": 86.333333,
+      "id": "S026",
+      "startSeconds": 82.0
+    },
+    {
+      "durationSeconds": 2.0,
+      "endSeconds": 88.333333,
+      "id": "S027",
+      "startSeconds": 86.333333
+    },
+    {
+      "durationSeconds": 2.5,
+      "endSeconds": 90.833333,
+      "id": "S028",
+      "startSeconds": 88.333333
+    },
+    {
+      "durationSeconds": 1.916667,
+      "endSeconds": 92.75,
+      "id": "S029",
+      "startSeconds": 90.833333
+    },
+    {
+      "durationSeconds": 26.666667,
+      "endSeconds": 119.416667,
+      "id": "S030",
+      "startSeconds": 92.75
+    },
+    {
+      "durationSeconds": 0.583333,
+      "endSeconds": 120.0,
+      "id": "S031",
+      "startSeconds": 119.416667
+    }
+  ],
+  "schemaVersion": 1,
+  "sensitivity": {
+    "cutScoreBoundaryCounts": {
+      "0.0640": 30,
+      "0.0800": 30,
+      "0.0960": 28
+    }
+  },
+  "sourceSha256": "446ebca85b9f94724c983b5732b0cc02332f7a68497aae88ce03d6ddc6c0ca6d",
+  "tools": {
+    "ffmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers",
+    "ffprobe": "ffprobe version 8.1.2 Copyright (c) 2007-2026 the FFmpeg developers",
+    "librosa": "0.11.0",
+    "numpy": "2.5.2",
+    "opencv": "4.14.0",
+    "python": "3.13.7"
+  },
+  "transitions": [
+    {
+      "confidence": 0.1816,
+      "distanceFrames": 5.69,
+      "distanceSeconds": 0.237075,
+      "id": "T001",
+      "nearestBeatSeconds": 4.179592,
+      "sampleIndex": 53,
+      "score": 0.081555,
+      "seconds": 4.416667,
+      "type": "unknown"
+    },
+    {
+      "confidence": 0.2145,
+      "distanceFrames": 4.878,
+      "distanceSeconds": 0.203265,
+      "id": "T002",
+      "nearestBeatSeconds": 6.130068,
+      "sampleIndex": 76,
+      "score": 0.114513,
+      "seconds": 6.333333,
+      "type": "unknown"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 1.599,
+      "distanceSeconds": 0.066621,
+      "id": "T003",
+      "nearestBeatSeconds": 9.566621,
+      "sampleIndex": 114,
+      "score": 0.600891,
+      "seconds": 9.5,
+      "type": "cut"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 4.144,
+      "distanceSeconds": 0.172676,
+      "id": "T004",
+      "nearestBeatSeconds": 12.422676,
+      "sampleIndex": 147,
+      "score": 0.607604,
+      "seconds": 12.25,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.6771,
+      "distanceFrames": 0.617,
+      "distanceSeconds": 0.025715,
+      "id": "T005",
+      "nearestBeatSeconds": 14.140952,
+      "sampleIndex": 170,
+      "score": 0.127099,
+      "seconds": 14.166667,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.869,
+      "distanceFrames": 4.852,
+      "distanceSeconds": 0.202177,
+      "id": "T006",
+      "nearestBeatSeconds": 15.46449,
+      "sampleIndex": 188,
+      "score": 0.319029,
+      "seconds": 15.666667,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.8192,
+      "distanceFrames": 1.099,
+      "distanceSeconds": 0.045782,
+      "id": "T007",
+      "nearestBeatSeconds": 19.295782,
+      "sampleIndex": 231,
+      "score": 0.269161,
+      "seconds": 19.25,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.7923,
+      "distanceFrames": 2.481,
+      "distanceSeconds": 0.103356,
+      "id": "T008",
+      "nearestBeatSeconds": 25.936689,
+      "sampleIndex": 310,
+      "score": 0.242262,
+      "seconds": 25.833333,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.9479,
+      "distanceFrames": 1.344,
+      "distanceSeconds": 0.056009,
+      "id": "T009",
+      "nearestBeatSeconds": 38.777324,
+      "sampleIndex": 466,
+      "score": 0.397885,
+      "seconds": 38.833333,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.9018,
+      "distanceFrames": 4.731,
+      "distanceSeconds": 0.19712,
+      "id": "T010",
+      "nearestBeatSeconds": 41.05288,
+      "sampleIndex": 495,
+      "score": 0.35179,
+      "seconds": 41.25,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.9143,
+      "distanceFrames": 2.422,
+      "distanceSeconds": 0.100907,
+      "id": "T011",
+      "nearestBeatSeconds": 47.600907,
+      "sampleIndex": 570,
+      "score": 0.364286,
+      "seconds": 47.5,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.8976,
+      "distanceFrames": 1.924,
+      "distanceSeconds": 0.080181,
+      "id": "T012",
+      "nearestBeatSeconds": 51.919819,
+      "sampleIndex": 624,
+      "score": 0.347621,
+      "seconds": 52.0,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.9025,
+      "distanceFrames": 2.702,
+      "distanceSeconds": 0.112585,
+      "id": "T013",
+      "nearestBeatSeconds": 58.862585,
+      "sampleIndex": 705,
+      "score": 0.352492,
+      "seconds": 58.75,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.9139,
+      "distanceFrames": 1.55,
+      "distanceSeconds": 0.064603,
+      "id": "T014",
+      "nearestBeatSeconds": 59.814603,
+      "sampleIndex": 717,
+      "score": 0.363931,
+      "seconds": 59.75,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.8958,
+      "distanceFrames": 0.505,
+      "distanceSeconds": 0.021043,
+      "id": "T015",
+      "nearestBeatSeconds": 66.68771,
+      "sampleIndex": 800,
+      "score": 0.345762,
+      "seconds": 66.666667,
+      "type": "cut"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 2.27,
+      "distanceSeconds": 0.09458,
+      "id": "T016",
+      "nearestBeatSeconds": 68.011247,
+      "sampleIndex": 815,
+      "score": 0.755301,
+      "seconds": 67.916667,
+      "type": "cut"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 0.357,
+      "distanceSeconds": 0.014875,
+      "id": "T017",
+      "nearestBeatSeconds": 70.681542,
+      "sampleIndex": 848,
+      "score": 0.608871,
+      "seconds": 70.666667,
+      "type": "cut"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 3.649,
+      "distanceSeconds": 0.152041,
+      "id": "T018",
+      "nearestBeatSeconds": 72.097959,
+      "sampleIndex": 867,
+      "score": 0.622846,
+      "seconds": 72.25,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.8988,
+      "distanceFrames": 1.98,
+      "distanceSeconds": 0.082494,
+      "id": "T019",
+      "nearestBeatSeconds": 74.582494,
+      "sampleIndex": 894,
+      "score": 0.3488,
+      "seconds": 74.5,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.8191,
+      "distanceFrames": 6.197,
+      "distanceSeconds": 0.258209,
+      "id": "T020",
+      "nearestBeatSeconds": 77.508209,
+      "sampleIndex": 927,
+      "score": 0.269143,
+      "seconds": 77.25,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.1915,
+      "distanceFrames": 0.1,
+      "distanceSeconds": 0.004172,
+      "id": "T021",
+      "nearestBeatSeconds": 77.995828,
+      "sampleIndex": 936,
+      "score": 0.09145,
+      "seconds": 78.0,
+      "type": "unknown"
+    },
+    {
+      "confidence": 0.6627,
+      "distanceFrames": 0.519,
+      "distanceSeconds": 0.021633,
+      "id": "T022",
+      "nearestBeatSeconds": 78.854966,
+      "sampleIndex": 946,
+      "score": 0.112701,
+      "seconds": 78.833333,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.6677,
+      "distanceFrames": 1.815,
+      "distanceSeconds": 0.075624,
+      "id": "T023",
+      "nearestBeatSeconds": 80.341043,
+      "sampleIndex": 965,
+      "score": 0.117651,
+      "seconds": 80.416667,
+      "type": "cut"
+    },
+    {
+      "confidence": 0.7005,
+      "distanceFrames": 0.936,
+      "distanceSeconds": 0.03898,
+      "id": "T024",
+      "nearestBeatSeconds": 81.71102,
+      "sampleIndex": 981,
+      "score": 0.161609,
+      "seconds": 81.75,
+      "type": "motion-transition"
+    },
+    {
+      "confidence": 0.7816,
+      "distanceFrames": 4.767,
+      "distanceSeconds": 0.198639,
+      "id": "T025",
+      "nearestBeatSeconds": 82.198639,
+      "sampleIndex": 984,
+      "score": 0.124129,
+      "seconds": 82.0,
+      "type": "motion-transition"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 4.421,
+      "distanceSeconds": 0.184218,
+      "id": "T026",
+      "nearestBeatSeconds": 86.517551,
+      "sampleIndex": 1036,
+      "score": 0.566171,
+      "seconds": 86.333333,
+      "type": "cut"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 2.675,
+      "distanceSeconds": 0.111474,
+      "id": "T027",
+      "nearestBeatSeconds": 88.444807,
+      "sampleIndex": 1060,
+      "score": 0.588508,
+      "seconds": 88.333333,
+      "type": "cut"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 1.597,
+      "distanceSeconds": 0.06653,
+      "id": "T028",
+      "nearestBeatSeconds": 90.766803,
+      "sampleIndex": 1090,
+      "score": 0.572043,
+      "seconds": 90.833333,
+      "type": "cut"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 4.23,
+      "distanceSeconds": 0.176259,
+      "id": "T029",
+      "nearestBeatSeconds": 92.926259,
+      "sampleIndex": 1113,
+      "score": 0.566292,
+      "seconds": 92.75,
+      "type": "cut"
+    },
+    {
+      "confidence": 1.0,
+      "distanceFrames": 0.643,
+      "distanceSeconds": 0.02678,
+      "id": "T030",
+      "nearestBeatSeconds": 119.443447,
+      "sampleIndex": 1433,
+      "score": 0.468003,
+      "seconds": 119.416667,
+      "type": "cut"
+    }
+  ],
+  "videoId": "raycast-windows",
+  "warnings": []
+}

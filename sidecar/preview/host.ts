@@ -14,7 +14,11 @@ import {
 } from "@/shared/ipc";
 import { libraryRoot } from "../library/store";
 import { untilGone, untilOrphaned, untilSignalled } from "../lifecycle";
-import { finishDesignResult, motionFrames } from "./design";
+import {
+  finishDesignResult,
+  motionFrames,
+  motionSamplingError,
+} from "./design";
 import { clipMedia, exporterOf, exportMedia } from "./export";
 import { withoutWebFonts } from "./grab";
 import {
@@ -479,6 +483,11 @@ function inspectDesign(
           message: "design_check needs between 2 and 9 distinct frames",
         })
       );
+    }
+
+    const samplingError = motionSamplingError(command.motion);
+    if (samplingError !== null) {
+      return yield* Effect.fail(new PreviewError({ message: samplingError }));
     }
 
     const sampleFrames = [
