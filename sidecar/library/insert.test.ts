@@ -245,66 +245,82 @@ describe("assetBrief", () => {
   });
 
   it("says nothing at all when no asset was referenced", () => {
-    expect(assetBrief([])).toBeNull();
+    expect(assetBrief([], "bun add")).toBeNull();
   });
 
   it("numbers each block against the reference in the message", () => {
-    const brief = assetBrief([
-      placement({ copied: ["src/library/a/A.tsx"] }),
-      placement({
-        copied: ["public/library/logo.png"],
-        name: "Logo",
-        type: "img",
-      }),
-    ]);
+    const brief = assetBrief(
+      [
+        placement({ copied: ["src/library/a/A.tsx"] }),
+        placement({
+          copied: ["public/library/logo.png"],
+          name: "Logo",
+          type: "img",
+        }),
+      ],
+      "bun add"
+    );
 
     expect(brief).toContain("[Asset #1] Neon Title");
     expect(brief).toContain("[Asset #2] Logo");
   });
 
   it("tells the agent how to reference media, not how to import it", () => {
-    const brief = assetBrief([
-      placement({
-        copied: ["public/library/logo.png"],
-        name: "Logo",
-        type: "img",
-      }),
-    ]);
+    const brief = assetBrief(
+      [
+        placement({
+          copied: ["public/library/logo.png"],
+          name: "Logo",
+          type: "img",
+        }),
+      ],
+      "bun add"
+    );
 
     expect(brief).toContain('staticFile("library/logo.png")');
   });
 
   it("names the untouched files so earlier edits are not rewritten", () => {
-    const brief = assetBrief([placement({ skipped: ["src/library/a/A.tsx"] })]);
+    const brief = assetBrief(
+      [placement({ skipped: ["src/library/a/A.tsx"] })],
+      "bun add"
+    );
 
     expect(brief).toContain("already in the project, untouched");
   });
 
   it("names the role beside the asset, in the words the conventions use", () => {
-    const brief = assetBrief([
-      placement({ copied: ["src/library/a/A.tsx"], role: "entry" }),
-    ]);
+    const brief = assetBrief(
+      [placement({ copied: ["src/library/a/A.tsx"], role: "entry" })],
+      "bun add"
+    );
 
     expect(brief).toContain("[Asset #1] Neon Title (entry)");
   });
 
   it("says nothing about a role for media, which has none", () => {
-    const brief = assetBrief([
-      placement({
-        copied: ["public/library/logo.png"],
-        name: "Logo",
-        type: "img",
-      }),
-    ]);
+    const brief = assetBrief(
+      [
+        placement({
+          copied: ["public/library/logo.png"],
+          name: "Logo",
+          type: "img",
+        }),
+      ],
+      "bun add"
+    );
 
     expect(brief).toContain("[Asset #1] Logo\n");
   });
 
   it("asks for the missing packages by name", () => {
-    const brief = assetBrief([placement({ missing: ["three"] })]);
+    const brief = assetBrief(
+      [placement({ missing: ["three"] })],
+      "npm install"
+    );
 
     expect(brief).toContain("not installed yet: three");
-    expect(brief).toContain("bun add");
+    expect(brief).toContain("run npm install for them");
   });
 });
 

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { EnvironmentCheck } from "@/shared/ipc";
-import { compositionRow, isBlocked, merged, unresolved } from "./environment";
+import {
+  compositionRow,
+  downloadPercent,
+  isBlocked,
+  merged,
+  unresolved,
+} from "./environment";
 import { PREVIEW_MESSAGE_SOURCE, type PreviewComposition } from "./preview";
 
 const pick = (over: Partial<PreviewComposition> = {}): PreviewComposition => ({
@@ -82,17 +88,38 @@ describe("merged", () => {
   });
 });
 
+describe("downloadPercent", () => {
+  it("is null before a length is known", () => {
+    expect(downloadPercent(null)).toBeNull();
+    expect(
+      downloadPercent({ received: 10, total: null, type: "progress" })
+    ).toBeNull();
+  });
+
+  it("rounds what has arrived against what was declared", () => {
+    expect(
+      downloadPercent({ received: 50, total: 200, type: "progress" })
+    ).toBe(25);
+  });
+
+  it("never claims more than a whole file", () => {
+    expect(
+      downloadPercent({ received: 300, total: 200, type: "progress" })
+    ).toBe(100);
+  });
+});
+
 describe("unresolved", () => {
   it("keeps only what the user has to act on", () => {
     const checks = [
       row({ id: "claude", state: "ok" }),
-      row({ id: "runtime", state: "warn" }),
+      row({ id: "manager", state: "warn" }),
       row({ id: "remotion", state: "failed" }),
       row({ id: "compositions", state: "pending" }),
     ];
 
     expect(unresolved(checks).map((check) => check.id)).toEqual([
-      "runtime",
+      "manager",
       "remotion",
     ]);
   });

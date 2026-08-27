@@ -5,6 +5,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { Data, Effect } from "effect";
 import { errorMessage } from "@/lib/error-message";
+import { installCommand, pmOf } from "../package-manager";
 import type { WarmInternals } from "./session";
 
 export class PreviewError extends Data.TaggedError("PreviewError")<{
@@ -38,7 +39,7 @@ export type WebpackOverride = (
 
 const missing = (root: string, specifier: string) =>
   new PreviewError({
-    message: `${specifier} is not installed in ${root} — run bun install in the project folder`,
+    message: `${specifier} is not installed in ${root} — run ${installCommand(pmOf(root).manager)} in the project folder`,
   });
 
 export function resolveFrom(
@@ -112,7 +113,7 @@ export function agreedVersionIn(
 
       return yield* Effect.fail(
         new PreviewError({
-          message: `remotion is ${remotion} in this project but ${listed}. An export renders with the project's own packages, so mismatched ones would not match the preview — run bun install in the project folder to bring them in step.`,
+          message: `remotion is ${remotion} in this project but ${listed}. An export renders with the project's own packages, so mismatched ones would not match the preview — run ${installCommand(pmOf(root).manager)} in the project folder to bring them in step.`,
         })
       );
     }

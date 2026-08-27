@@ -36,6 +36,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "externalBin": ["binaries/bun"],
     "createUpdaterArtifacts": true,
     "resources": {
       "../sidecar-dist/main.js": "sidecar/main.js",

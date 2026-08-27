@@ -5,22 +5,26 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { causeMessage } from "@/lib/error-message";
 import {
   checkEnvironment,
+  installNode,
   installProject,
   isBlocked,
   merged,
   unresolved,
 } from "@/lib/studio/environment";
 import type { PreviewComposition } from "@/lib/studio/preview";
-import type { EnvironmentCheck } from "@/shared/ipc";
+import type { EnvironmentCheck, NodeDownload } from "@/shared/ipc";
 import type { AgentProvider } from "@/shared/providers";
 
 export interface Environment {
   checks: readonly EnvironmentCheck[];
+  download: NodeDownload | null;
   error: string | null;
   install: () => void;
+  installNode: () => void;
   isBlocking: boolean;
   isChecking: boolean;
   isInstalling: boolean;
+  isInstallingNode: boolean;
   output: string | null;
   recheck: () => void;
   troubles: readonly EnvironmentCheck[];
@@ -40,6 +44,8 @@ export function useEnvironment(
   const [isChecking, setIsChecking] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
   const [output, setOutput] = useState<string | null>(null);
+  const [isInstallingNode, setIsInstallingNode] = useState(false);
+  const [download, setDownload] = useState<NodeDownload | null>(null);
   const running = useRef<Running | null>(null);
 
   const stop = useCallback(() => {
@@ -131,20 +137,67 @@ export function useEnvironment(
     );
   }, [check, isInstalling, projectId]);
 
+  const getNode = useCallback(() => {
+    if (isInstallingNode) {
+      return;
+    }
+
+    setIsInstallingNode(true);
+    setDownload(null);
+
+    Effect.runFork(
+      installNode((event) => {
+        setDownload(event);
+      }).pipe(
+        Effect.onExit((exit) =>
+          Effect.sync(() => {
+            setIsInstallingNode(false);
+            setDownload(null);
+
+            if (Exit.isSuccess(exit)) {
+              setError(null);
+              return;
+            }
+
+            const message = causeMessage(exit.cause);
+            if (message !== null) {
+              setError(message);
+            }
+          })
+        )
+      )
+    );
+  }, [isInstallingNode]);
+
   const shown = useMemo(() => merged(checks, pick), [checks, pick]);
 
   return useMemo(
     () => ({
       checks: shown,
+      download,
       error,
       install,
+      installNode: getNode,
       isBlocking: isBlocked(shown, provider),
       isChecking,
       isInstalling,
+      isInstallingNode,
       output,
       recheck,
       troubles: unresolved(shown),
     }),
-    [error, install, isChecking, isInstalling, output, provider, recheck, shown]
+    [
+      download,
+      error,
+      getNode,
+      install,
+      isChecking,
+      isInstalling,
+      isInstallingNode,
+      output,
+      provider,
+      recheck,
+      shown,
+    ]
   );
 }

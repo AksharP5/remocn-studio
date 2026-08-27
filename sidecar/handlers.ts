@@ -32,6 +32,7 @@ import { VideoStore } from "./history/videos";
 import { HandlerError, type Handlers } from "./host";
 import { listBundled } from "./library/bundled";
 import {
+  addCommandFor,
   assetBrief,
   mediaBrief,
   placeAssets,
@@ -57,6 +58,7 @@ import {
   saveAsset,
   unofferedFrom,
 } from "./library/store";
+import { installNode } from "./node-installer";
 import { remotionRootOf } from "./preview/project";
 import {
   clipFrom,
@@ -67,7 +69,7 @@ import {
   stillFrom,
   warmFrom,
 } from "./preview/supervisor";
-import { installDependencies } from "./scaffold/install";
+import { installDependencies, installScaffold } from "./scaffold/install";
 import { ensureRegistry } from "./scaffold/registry";
 import {
   expandTemplate,
@@ -316,7 +318,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
             Effect.andThen(
               adapter.turn(params, {
                 briefs: {
-                  assets: assetBrief(placed),
+                  assets: assetBrief(placed, addCommandFor(project.path)),
                   media: mediaBrief(placedMedia),
                   pipeline: pipelineBrief(stages),
                 },
@@ -427,6 +429,11 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
     stockConfigured().pipe(
       Effect.map((configured) => ({ configured })),
       Effect.mapError(unstocked)
+    ),
+
+  "node.install": ({ emit }) =>
+    installNode((event) => emit(event)).pipe(
+      Effect.mapError((error) => new HandlerError({ message: error.message }))
     ),
 
   "pipeline.get": ({ params }) =>
@@ -581,7 +588,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
 
       yield* emit({ step: "install", type: "started" });
       yield* Effect.mapError(
-        installDependencies(project.path, (line) => log(`install: ${line}`)),
+        installScaffold(project.path, (line) => log(`install: ${line}`)),
         unscaffolded
       );
       yield* emit({ step: "install", type: "done" });

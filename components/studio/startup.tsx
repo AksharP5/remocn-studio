@@ -77,7 +77,7 @@ export function Startup({
             </Button>
           </div>
           <p className="text-muted-foreground text-xs">
-            Needs bun, and a Claude Code you are already signed in to.
+            Needs a Claude Code you are already signed in to.
           </p>
         </div>
       </Scrim>

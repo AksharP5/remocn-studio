@@ -13,6 +13,7 @@ import {
 import type { MotionRole } from "@/shared/motion";
 import { referenceOf } from "@/shared/references";
 import { isInstalled } from "../environment";
+import { addCommand, pmOf } from "../package-manager";
 import { remotionRootOf } from "../preview/project";
 import { bundledPlan } from "./bundled";
 import { findAsset, LibraryError } from "./store";
@@ -28,6 +29,10 @@ export interface Placement {
   readonly role: MotionRole | null;
   readonly skipped: readonly string[];
   readonly type: AssetType;
+}
+
+export function addCommandFor(cwd: string): string {
+  return addCommand(pmOf(remotionRootOf(cwd)).manager);
 }
 
 export function placeAssets(
@@ -84,19 +89,22 @@ export function mediaBrief(placements: readonly Placement[]): string | null {
   return `The person attached this media to the message. It is already copied into the project — use it where it now sits rather than looking for it anywhere else.\n\n${blocks.join("\n")}`;
 }
 
-export function assetBrief(placements: readonly Placement[]): string | null {
+export function assetBrief(
+  placements: readonly Placement[],
+  add: string
+): string | null {
   if (placements.length === 0) {
     return null;
   }
 
   const blocks = placements.map((placement, index) =>
-    describe(placement, index)
+    describe(placement, index, add)
   );
 
   return `The assets referenced above come from the studio's library and are already copied into this project. Use them where they now sit — do not rewrite them from scratch, and do not read anything from the library folder.\n\n${blocks.join("\n\n")}`;
 }
 
-function describe(placement: Placement, index: number): string {
+function describe(placement: Placement, index: number, add: string): string {
   const head =
     placement.role === null
       ? `${referenceOf("asset", index)} ${placement.name}`
@@ -133,7 +141,7 @@ function describe(placement: Placement, index: number): string {
 
   if (placement.missing.length > 0) {
     lines.push(
-      `not installed yet: ${placement.missing.join(", ")} — run bun add for them before importing.`
+      `not installed yet: ${placement.missing.join(", ")} — run ${add} for them before importing.`
     );
   }
 
