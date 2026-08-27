@@ -120,7 +120,7 @@ function FormatCard({ format }: { format: VideoFormat }) {
       <span className="flex h-9 w-full items-center justify-center">
         <span
           className={cn(
-            "rounded-[3px] border-2 border-muted-foreground/60",
+            "rounded-sm border-2 border-muted-foreground/60",
             format.width >= format.height ? "w-9" : "h-9"
           )}
           style={{ aspectRatio: `${format.width} / ${format.height}` }}

@@ -13,6 +13,7 @@ import { useCopyCommand } from "@/hooks/use-copy-command";
 import type { Environment } from "@/hooks/use-environment";
 import { cn } from "@/lib/utils";
 import type { EnvironmentCheck, EnvironmentState } from "@/shared/ipc";
+import { AboveComposer, NoticeCard } from "./notice-card";
 
 // Shared with the Settings dialog's AI accounts section, so a state reads
 // the same everywhere it appears.
@@ -42,11 +43,8 @@ export function EnvironmentChecklist({
   }
 
   return (
-    <div className="mb-2 shrink-0 px-4 pt-1">
-      <section
-        aria-label="Environment checklist"
-        className="mx-auto flex w-full max-w-2xl flex-col gap-2 rounded-xl border border-dashed px-3 py-2.5"
-      >
+    <AboveComposer>
+      <NoticeCard aria-label="Environment checklist">
         <header className="flex items-center justify-between gap-3">
           <h3 className="font-medium text-xs">
             This project is not ready to run
@@ -81,8 +79,8 @@ export function EnvironmentChecklist({
             {environment.error}
           </p>
         )}
-      </section>
-    </div>
+      </NoticeCard>
+    </AboveComposer>
   );
 }
 
@@ -116,7 +114,7 @@ function CheckRow({
 
         {check.fix?.type === "command" ? (
           <div className="flex items-center gap-2">
-            <code className="select-text rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+            <code className="select-text rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs">
               {check.fix.command}
             </code>
             <Button

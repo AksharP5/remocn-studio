@@ -3,7 +3,7 @@
 import { Effect, Fiber } from "effect";
 import type { RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "@/components/ui/toast";
+import { toastManager } from "@/components/ui/toast";
 import { mediaOf } from "@/lib/studio/attachments";
 import {
   type DropPoint,
@@ -108,7 +108,7 @@ export function useFileDrops({
                 zone === "composer" ? "the message" : "the library"
               );
               if (refusal !== null) {
-                toast.add({ title: refusal });
+                toastManager.add({ title: refusal });
               }
 
               if (kept.length === 0) {

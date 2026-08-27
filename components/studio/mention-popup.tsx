@@ -17,7 +17,10 @@ function MentionPopupBlock({ mentions }: { mentions: Mentions }) {
     <div className="absolute right-0 bottom-full left-0 z-20 mb-2">
       <div className="overflow-hidden rounded-xl bg-popover p-1.5 shadow-[var(--elevation-floating)]">
         {mentions.items.length > 0 ? (
-          <div className="max-h-64 space-y-0.5 overflow-y-auto" role="listbox">
+          <div
+            className="flex max-h-64 flex-col gap-0.5 overflow-y-auto"
+            role="listbox"
+          >
             {mentions.items.map((item, index) => (
               <MentionRow
                 index={index}
@@ -64,7 +67,7 @@ function MentionRow({
     <button
       aria-selected={isActive}
       className={cn(
-        "flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm outline-none",
+        "flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none",
         isActive && "bg-muted"
       )}
       onClick={onChoose}

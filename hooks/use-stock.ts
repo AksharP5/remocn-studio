@@ -3,7 +3,7 @@
 import { Effect, Fiber } from "effect";
 import type { ChangeEvent, MouseEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "@/components/ui/toast";
+import { toastManager } from "@/components/ui/toast";
 import { causeMessage } from "@/lib/error-message";
 import { saveStock, searchStock, stockStatus } from "@/lib/studio/stock";
 import type { StockProgress } from "@/shared/ipc";
@@ -165,7 +165,7 @@ export function useStock(kind: StockKind, onSaved: () => void): Stock {
           ),
           Effect.tapCause((cause) =>
             Effect.sync(() => {
-              toast.add({
+              toastManager.add({
                 description: causeMessage(cause) ?? item.name,
                 title: "The download failed",
               });

@@ -3,7 +3,7 @@
 import { Duration, Effect, Exit, Fiber } from "effect";
 import type { MouseEvent, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "@/components/ui/toast";
+import { toastManager } from "@/components/ui/toast";
 import { causeMessage } from "@/lib/error-message";
 import { previewUrl } from "@/lib/studio/attachments";
 import { type ClipboardError, saveImages } from "@/lib/studio/clipboard";
@@ -440,7 +440,7 @@ export function useLibrary(
 
     held.current.delete(slug);
     Effect.runFork(Fiber.interrupt(pending.fiber));
-    toast.close(pending.toastId);
+    toastManager.close(pending.toastId);
     return pending;
   }, []);
 
@@ -478,7 +478,7 @@ export function useLibrary(
 
       setAssets((current) => current.filter((row) => row.slug !== slug));
 
-      const toastId = toast.add({
+      const toastId = toastManager.add({
         actionProps: { children: "Undo", onClick: () => undoRemove(slug) },
         description: asset.name,
         timeout: Duration.toMillis(undoWindow),
@@ -496,7 +496,7 @@ export function useLibrary(
             Effect.sync(() => {
               if (held.current.get(slug)?.toastId === toastId) {
                 held.current.delete(slug);
-                toast.close(toastId);
+                toastManager.close(toastId);
               }
             })
           )

@@ -29,7 +29,7 @@ function TaskItem({ task }: { task: TaskRow }) {
           task.description === null ? undefined : disclosure.isOpen
         }
         className={cn(
-          "group flex w-full min-w-0 items-start gap-2 rounded-lg px-2 py-1.5 text-left text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default",
+          "group flex w-full min-w-0 items-start gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default",
           task.status === "in_progress" && "bg-muted/60"
         )}
         disabled={task.description === null}

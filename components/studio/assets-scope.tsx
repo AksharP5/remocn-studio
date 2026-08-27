@@ -22,14 +22,14 @@ const SCOPE_ICONS = {
 export function AssetsScopeSwitch({ scope }: { scope: AssetsScope }) {
   return (
     <div className="px-1 pb-2">
-      <div className="flex h-9 rounded-md bg-input/30 p-0.5 ring-1 ring-border ring-inset">
+      <div className="flex h-9 rounded-md bg-input/30 p-0.5 ring-1 ring-border ring-inset sm:h-8">
         {(["library", "photo", "video"] as const).map((entry) => {
           const Icon = SCOPE_ICONS[entry];
           return (
             <button
               aria-pressed={scope.scope === entry}
               className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-[calc(var(--radius-md)-2px)] text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
+                "flex flex-1 items-center justify-center gap-1.5 rounded-sm text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
                 scope.scope === entry
                   ? "bg-accent text-foreground"
                   : "text-muted-foreground hover:text-foreground"

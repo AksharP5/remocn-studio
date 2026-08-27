@@ -284,7 +284,7 @@ function PaneViewMenu({
   // pointing at an item answers quietly while the rail stays the only mark
   // of the view that is actually open.
   return (
-    <nav aria-label="Library views" className="px-2 py-4">
+    <nav aria-label="Library views" className="px-2 pt-6 pb-4">
       <SidebarMenu>
         {VIEW_ITEMS.map((item) => (
           <SidebarMenuItem key={item.view}>
@@ -295,7 +295,7 @@ function PaneViewMenu({
               value={item.view}
             >
               {view === item.view ? (
-                <span className="absolute top-1/2 left-0 h-4 w-0.5 -translate-y-1/2 rounded-full bg-primary" />
+                <span className="absolute top-1/2 left-0 h-4 w-0.5 -translate-y-1/2 rounded-full bg-sidebar-primary" />
               ) : null}
               <item.icon />
               {item.label}

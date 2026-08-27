@@ -139,7 +139,7 @@ function PipelineList({
         <li className="flex min-w-0 flex-col" key={template.id}>
           <div
             className={cn(
-              "flex w-full min-w-0 items-start gap-2 rounded-lg px-2 py-1.5 text-left text-sm",
+              "flex w-full min-w-0 items-start gap-2 rounded-md px-2 py-1.5 text-left text-sm",
               stage.status === "active" && "bg-muted/60"
             )}
           >

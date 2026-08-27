@@ -37,15 +37,17 @@ export function StockPane({
   return (
     <div className="relative">
       <div className="sticky top-0 z-10 bg-sidebar px-1 pb-2">
-        <SearchIcon className="pointer-events-none absolute top-2.5 left-3.5 size-4 text-muted-foreground" />
-        <Input
-          aria-label="Search Pexels"
-          className="h-9 pl-8"
-          onChange={stock.onQueryChange}
-          placeholder={kind === "photo" ? "Search photos…" : "Search videos…"}
-          type="search"
-          value={stock.query}
-        />
+        <div className="relative">
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            aria-label="Search Pexels"
+            className="pl-8"
+            onChange={stock.onQueryChange}
+            placeholder={kind === "photo" ? "Search photos…" : "Search videos…"}
+            type="search"
+            value={stock.query}
+          />
+        </div>
       </div>
 
       <StockBody onOpenSettings={onOpenSettings} stock={stock} />
@@ -186,7 +188,7 @@ function StockCard({
         />
 
         {length === null ? null : (
-          <span className="absolute right-1 bottom-1 rounded bg-black/60 px-1 font-mono text-[10px] text-white tabular-nums">
+          <span className="absolute right-1 bottom-1 rounded-sm bg-black/60 px-1 font-mono text-2xs text-white tabular-nums">
             {length}
           </span>
         )}

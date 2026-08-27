@@ -66,7 +66,7 @@ function SelectionChip({
           render={
             <Button
               aria-label={`Show ${labelOf(element)} at ${frameTime(element.frame, element.fps)}`}
-              className="h-6 gap-1 rounded-md px-1.5 font-normal text-xs"
+              className="gap-1 font-normal"
               onClick={onSeek}
               size="xs"
               value={String(index)}

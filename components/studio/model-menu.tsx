@@ -3,6 +3,7 @@
 import { ChevronDownIcon } from "lucide-react";
 import { useCallback } from "react";
 import { ProviderIcon } from "@/components/studio/provider-icon";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +16,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { InputGroupButton } from "@/components/ui/input-group";
 import {
   Tooltip,
   TooltipContent,
@@ -53,14 +53,14 @@ export function ModelMenu({
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <InputGroupButton aria-label={`Model: ${label}`} variant="ghost" />
+          <Button aria-label={`Model: ${label}`} size="sm" variant="ghost" />
         }
       >
         <ProviderIcon provider={provider} />
         {label}
         <ChevronDownIcon className="text-muted-foreground" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-56">
+      <DropdownMenuContent align="end" className="w-auto min-w-56">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Model</DropdownMenuLabel>
           {AGENT_PROVIDERS.map((candidate) => (

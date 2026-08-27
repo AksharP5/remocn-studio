@@ -126,7 +126,7 @@ function AssetRowItem({
         <AttachmentTitle>{asset.name}</AttachmentTitle>
         {length === null ? null : (
           <AttachmentDescription>
-            <span className="absolute top-1 left-1 rounded bg-black/70 px-1 py-px font-medium text-[10px] text-white tabular-nums">
+            <span className="absolute top-1 left-1 rounded-sm bg-black/70 px-1 py-px font-medium text-2xs text-white tabular-nums">
               {length}
             </span>
           </AttachmentDescription>

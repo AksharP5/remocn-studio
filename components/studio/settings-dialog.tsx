@@ -109,7 +109,7 @@ export function SettingsDialog() {
 
   return (
     <Dialog onOpenChange={settingsDialog.setOpen} open={settingsDialog.isOpen}>
-      <DialogContent className="flex h-[30rem] max-h-[80vh] gap-0 overflow-hidden p-0 sm:max-w-2xl">
+      <DialogContent className="flex h-120 max-h-[80vh] flex-row gap-0 overflow-hidden p-0 sm:max-w-2xl">
         <SectionRail active={section} onPick={onPickSection} />
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -154,7 +154,7 @@ function SectionRail({
           <button
             aria-current={active === entry.id ? "true" : undefined}
             className={cn(
-              "flex h-8 items-center gap-2 rounded-md px-2 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 active:bg-accent",
+              "flex h-8 items-center gap-2 rounded-md px-2 text-left text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:bg-accent",
               active === entry.id
                 ? "bg-accent text-foreground"
                 : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
@@ -243,7 +243,7 @@ function AppearanceSection() {
         {THEME_TILES.map((tile) => (
           <button
             aria-pressed={choice === tile.id}
-            className="group flex min-w-0 flex-1 flex-col items-stretch gap-2 rounded-lg outline-none active:translate-y-px"
+            className="group flex min-w-0 flex-1 flex-col items-stretch gap-2 rounded-md outline-none active:translate-y-px"
             key={tile.id}
             onClick={onPickTheme}
             type="button"
@@ -257,7 +257,9 @@ function AppearanceSection() {
               )}
             >
               <span className={cn("h-1.5 w-1/2 rounded-full", tile.bar)} />
-              <span className={cn("h-4 w-2/3 self-end rounded", tile.chip)} />
+              <span
+                className={cn("h-4 w-2/3 self-end rounded-sm", tile.chip)}
+              />
             </span>
             <span
               className={cn(
@@ -374,7 +376,7 @@ function AccountRow({
         <span className="flex items-center gap-1.5 text-sm">
           {info.name}
           {info.experimental ? (
-            <Badge className="text-[10px]" variant="outline">
+            <Badge className="text-2xs" variant="outline">
               Experimental
             </Badge>
           ) : null}
@@ -426,7 +428,7 @@ function AccountStatus({
 
       {row.fix?.type === "command" ? (
         <span className="mt-1 flex items-center gap-2">
-          <code className="select-text rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+          <code className="select-text rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs">
             {row.fix.command}
           </code>
           <Button
@@ -466,7 +468,7 @@ function StockSection() {
 
       <div className="flex items-center gap-2">
         <Input
-          className="h-8 flex-1"
+          className="flex-1"
           id="settings-pexels-key"
           onChange={stockKey.onChange}
           placeholder={

@@ -12,7 +12,7 @@ export function ExportButton({ exporting }: { readonly exporting: Exporting }) {
     return (
       <Button
         aria-disabled={!exporting.canExport}
-        className="min-w-[5.5rem] aria-disabled:opacity-50"
+        className="min-w-22 aria-disabled:opacity-50"
         onClick={exporting.start}
         size="sm"
         title={exporting.unavailable ?? "Render this composition into out/"}
@@ -26,7 +26,7 @@ export function ExportButton({ exporting }: { readonly exporting: Exporting }) {
   return (
     <Button
       aria-label="Cancel the export"
-      className="relative min-w-[5.5rem] overflow-hidden"
+      className="relative min-w-22 overflow-hidden"
       onClick={exporting.cancel}
       size="sm"
       title={exporting.status ?? undefined}

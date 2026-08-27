@@ -3,7 +3,7 @@
 import { Duration, Effect, Fiber } from "effect";
 import type { MouseEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "@/components/ui/toast";
+import { toastManager } from "@/components/ui/toast";
 import { listSessions, removeSession } from "@/lib/studio/history";
 import type { HistorySession } from "@/shared/ipc";
 
@@ -110,7 +110,7 @@ export function useSessions(
 
     held.current.delete(sessionId);
     Effect.runFork(Fiber.interrupt(pending.fiber));
-    toast.close(pending.toastId);
+    toastManager.close(pending.toastId);
     return pending;
   }, []);
 
@@ -179,7 +179,7 @@ export function useSessions(
         startSession();
       }
 
-      const toastId = toast.add({
+      const toastId = toastManager.add({
         actionProps: {
           children: "Undo",
           onClick: () => undoRemoveSession(id),
@@ -200,7 +200,7 @@ export function useSessions(
             Effect.sync(() => {
               if (held.current.get(id)?.toastId === toastId) {
                 held.current.delete(id);
-                toast.close(toastId);
+                toastManager.close(toastId);
               }
             })
           )

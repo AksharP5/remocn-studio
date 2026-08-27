@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
-import { DM_Sans, Geist_Mono, Golos_Text } from "next/font/google";
+import { Geist_Mono, Golos_Text, Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 
-const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-sans" });
+const interHeading = Inter({ subsets: ["latin"], variable: "--font-heading" });
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 // DM Sans ships no Cyrillic at all, so without this every Russian sentence
 // falls to the Arial-based fallback next/font fabricates. Golos sits after
@@ -36,7 +38,12 @@ export default function RootLayout({
     // `suppressHydrationWarning` is required by next-themes: it writes the
     // theme class onto <html> before React hydrates.
     <html
-      className={cn("font-sans", dmSans.variable, golos.variable)}
+      className={cn(
+        golos.variable,
+        "font-sans",
+        inter.variable,
+        interHeading.variable
+      )}
       lang="en"
       suppressHydrationWarning
     >
