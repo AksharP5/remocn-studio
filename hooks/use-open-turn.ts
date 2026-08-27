@@ -36,6 +36,7 @@ export interface OpenTurnSettings {
   projectId: string | null;
   session: HistorySession | null;
   turns: Turns;
+  videoId: string | null;
 }
 
 export interface OpenTurn {
@@ -85,6 +86,7 @@ export function useOpenTurn({
   projectId,
   session,
   turns,
+  videoId,
 }: OpenTurnSettings): OpenTurn {
   const openId = session?.id ?? draftId;
   const {
@@ -116,7 +118,7 @@ export function useOpenTurn({
       assets: readonly PromptAsset[] = [],
       media: readonly PromptMedia[] = []
     ) => {
-      if (projectId === null) {
+      if (projectId === null || videoId === null) {
         return false;
       }
       const model = models[turn.provider];
@@ -132,6 +134,7 @@ export function useOpenTurn({
         playing,
         projectId,
         prompt,
+        videoId,
       });
     },
     [
@@ -143,6 +146,7 @@ export function useOpenTurn({
       sendTurn,
       turn.mode,
       turn.provider,
+      videoId,
     ]
   );
 

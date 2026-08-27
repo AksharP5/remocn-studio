@@ -10,7 +10,7 @@ import {
 import { PipelineStage, PipelineStageId, PipelineStatus } from "./pipeline";
 import { AgentProvider, DEFAULT_AGENT_PROVIDER, ToolVerb } from "./providers";
 
-export const SIDECAR_PROTOCOL = 22;
+export const SIDECAR_PROTOCOL = 23;
 
 export const SIDECAR_STATUS_EVENT = "sidecar://status";
 export const SIDECAR_NOTIFY_EVENT = "sidecar://notify";
@@ -72,6 +72,13 @@ export const METHOD_NAMES = [
   "project.scaffold",
   "sidecar.emit",
   "sidecar.info",
+  "video.create",
+  "video.list",
+  "video.reconcile",
+  "video.register",
+  "video.remove",
+  "video.rename",
+  "video.restore",
 ] as const;
 
 export const SidecarInfo = Schema.Struct({
@@ -235,6 +242,7 @@ export const PromptParams = Schema.Struct({
   prompt: Schema.String,
   provider,
   sessionId: Schema.NullOr(Schema.NonEmptyString),
+  videoId: Schema.NonEmptyString,
 });
 
 export const ActivityState = Schema.Literals(["done", "failed", "running"]);
@@ -286,6 +294,7 @@ export const HistorySession = Schema.Struct({
   sdkSessionId: Schema.NullOr(Schema.String),
   title: Schema.String,
   updatedAt: Schema.Int,
+  videoId: Schema.NonEmptyString,
 });
 
 export const HistorySessionRef = Schema.Struct({
@@ -444,11 +453,41 @@ export const VideoSize = Schema.Struct({
   width: Schema.Int,
 });
 
-export const ScaffoldParams = Schema.Struct({
+export const Video = Schema.Struct({
+  compositionId: Schema.NonEmptyString,
+  createdAt: Schema.Int,
+  deletedAt: Schema.NullOr(Schema.Int),
+  id: Schema.NonEmptyString,
+  missing: Schema.Boolean,
+  name: Schema.NonEmptyString,
+  projectId: Schema.NonEmptyString,
+  updatedAt: Schema.Int,
+});
+
+export const VideoRef = Schema.Struct({
+  videoId: Schema.NonEmptyString,
+});
+
+export const VideoDraft = Schema.Struct({
   height: Schema.Int,
+  name: Schema.NonEmptyString,
   projectId: Schema.NonEmptyString,
   width: Schema.Int,
 });
+
+export const VideoName = Schema.Struct({
+  name: Schema.NonEmptyString,
+  videoId: Schema.NonEmptyString,
+});
+
+export const VideoRemoved = Schema.Struct({ removed: Schema.Boolean });
+
+export const VideoReconcile = Schema.Struct({
+  compositions: Schema.Array(Schema.NonEmptyString),
+  projectId: Schema.NonEmptyString,
+});
+
+export const ScaffoldParams = ProjectRef;
 
 export const SCAFFOLD_STEPS = ["template", "install"] as const;
 
@@ -662,6 +701,12 @@ export type DirectoryPath = (typeof DirectoryPath)["Type"];
 export type DirectoryEntry = (typeof DirectoryEntry)["Type"];
 export type DirectoryListing = (typeof DirectoryListing)["Type"];
 export type VideoSize = (typeof VideoSize)["Type"];
+export type Video = (typeof Video)["Type"];
+export type VideoRef = (typeof VideoRef)["Type"];
+export type VideoDraft = (typeof VideoDraft)["Type"];
+export type VideoName = (typeof VideoName)["Type"];
+export type VideoRemoved = (typeof VideoRemoved)["Type"];
+export type VideoReconcile = (typeof VideoReconcile)["Type"];
 export type ScaffoldParams = (typeof ScaffoldParams)["Type"];
 export type ScaffoldStep = (typeof ScaffoldStep)["Type"];
 export type ScaffoldEvent = (typeof ScaffoldEvent)["Type"];
@@ -970,6 +1015,41 @@ export const SIDECAR_METHODS = {
   "sidecar.info": {
     params: Schema.Null,
     result: SidecarInfo,
+    stream: Schema.Never,
+  },
+  "video.create": {
+    params: VideoDraft,
+    result: Video,
+    stream: Schema.Never,
+  },
+  "video.list": {
+    params: ProjectRef,
+    result: Schema.Array(Video),
+    stream: Schema.Never,
+  },
+  "video.reconcile": {
+    params: VideoReconcile,
+    result: Schema.Array(Video),
+    stream: Schema.Never,
+  },
+  "video.register": {
+    params: VideoRef,
+    result: Video,
+    stream: Schema.Never,
+  },
+  "video.remove": {
+    params: VideoRef,
+    result: VideoRemoved,
+    stream: Schema.Never,
+  },
+  "video.rename": {
+    params: VideoName,
+    result: Video,
+    stream: Schema.Never,
+  },
+  "video.restore": {
+    params: VideoRef,
+    result: Video,
     stream: Schema.Never,
   },
 } as const;

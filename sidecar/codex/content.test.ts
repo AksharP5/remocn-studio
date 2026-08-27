@@ -17,6 +17,7 @@ function params(shape: Partial<PromptParams>): PromptParams {
     prompt: "",
     provider: "codex",
     sessionId: null,
+    videoId: "video-1",
     ...shape,
   };
 }

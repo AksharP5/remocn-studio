@@ -62,30 +62,33 @@ export function compositionRow(
   if (pick.total === 0 || pick.compositionId === null) {
     return {
       detail:
-        "The Root compiled, but it registers no <Composition>. Ask Claude to add one called Main.",
+        "The Root compiled, but it registers no <Composition>. Ask Claude to add a video.",
       fix: null,
       id: "compositions",
       state: "failed",
-      title: "No compositions are registered",
+      title: "No videos are registered",
     };
   }
 
-  if (pick.reason !== "main") {
+  // The one case worth failing on now that a project holds many videos: the
+  // pane asked for one by name and the compiled project does not render it.
+  // "No composition called Main" is the normal case here, not a warning.
+  if (pick.reason === "missing") {
     return {
-      detail: `${pick.total} registered, but none of them is called Main, so ${pick.compositionId} is playing.`,
+      detail: `Nothing in this project renders ${pick.compositionId}. Its Root.tsx has to register it — ask Claude to, or open a video the project does render.`,
       fix: null,
       id: "compositions",
-      state: "warn",
-      title: "There is no composition called Main",
+      state: "failed",
+      title: `${pick.compositionId} is not in the code`,
     };
   }
 
   return {
-    detail: `${pick.total} registered, and Main is one of them.`,
+    detail: `${pick.total} registered, and ${pick.compositionId} is playing.`,
     fix: null,
     id: "compositions",
     state: "ok",
-    title: "Compositions are registered",
+    title: "Videos are registered",
   };
 }
 

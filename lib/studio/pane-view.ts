@@ -1,7 +1,7 @@
 import type { Asset } from "@/shared/library";
 import { MOTION_ROLES, type MotionRole, ROLE_LABELS } from "@/shared/motion";
 
-export const PANE_VIEWS = ["projects", "assets", "components"] as const;
+export const PANE_VIEWS = ["videos", "assets", "components"] as const;
 
 export type PaneView = (typeof PANE_VIEWS)[number];
 
@@ -11,7 +11,7 @@ export function isPaneView(value: string | undefined): value is PaneView {
 
 export type SlideDirection = "push" | "pop" | "none";
 
-// Projects is the root: entering any other view pushes, coming back pops.
+// Videos is the root: entering any other view pushes, coming back pops.
 // Assets and Components slide by their order in the menu.
 export function slideDirection(
   from: PaneView | null,

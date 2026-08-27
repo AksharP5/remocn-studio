@@ -47,6 +47,7 @@ export const claudeAdapter: AgentAdapter = {
           onMode: (apply) => Effect.runSync(services.onMode(apply)),
           onStop: () => Effect.runSync(services.gate.abandon(services.turnId)),
           tools: services.tools,
+          video: services.video,
         }),
         (message) =>
           Effect.gen(function* () {

@@ -54,7 +54,7 @@ export function usePanes(
     Effect.runFork(saveProjectsPane(next));
   }, [isProjectsShown]);
 
-  const paneView = view ?? settings?.paneView ?? "projects";
+  const paneView = view ?? settings?.paneView ?? "videos";
   const held = useRef(paneView);
   held.current = paneView;
 

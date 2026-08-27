@@ -10,11 +10,14 @@ import {
   ProjectStore,
 } from "@/sidecar/history/projects";
 import { broken, HistoryStore } from "@/sidecar/history/store";
+import { broken as brokenVideos, VideoStore } from "@/sidecar/history/videos";
 import { type Handlers, runHost } from "@/sidecar/host";
 
 const FLUSH_MS = 80;
 
-function harness(overrides?: Partial<Handlers<HistoryStore | ProjectStore>>) {
+function harness(
+  overrides?: Partial<Handlers<HistoryStore | ProjectStore | VideoStore>>
+) {
   const input = new PassThrough();
   const sent: SidecarFrame[] = [];
   const logged: string[] = [];
@@ -35,6 +38,10 @@ function harness(overrides?: Partial<Handlers<HistoryStore | ProjectStore>>) {
       Effect.provideService(
         ProjectStore,
         brokenProjects("history is not open in this harness")
+      ),
+      Effect.provideService(
+        VideoStore,
+        brokenVideos("history is not open in this harness")
       )
     )
   );

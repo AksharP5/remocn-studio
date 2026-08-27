@@ -7,6 +7,7 @@ import type { SqlDriver, SqlRow, SqlValue } from "@/sidecar/history/driver";
 import { MIGRATIONS, migrate, prepare } from "@/sidecar/history/migrations";
 import { make as makeProjects } from "@/sidecar/history/projects";
 import { broken, make } from "@/sidecar/history/store";
+import { make as makeVideos } from "@/sidecar/history/videos";
 
 const FOLDER = "/videos/promo";
 const MODE = "auto" as const;
@@ -33,6 +34,13 @@ async function studio() {
 
   const history = make(driver);
   const project = await run(makeProjects(driver).open(FOLDER));
+  const video = await run(
+    makeVideos(driver).create({
+      compositionId: "promo",
+      name: "Promo",
+      projectId: project.id,
+    })
+  );
 
   const open = (
     title: string,
@@ -45,9 +53,10 @@ async function studio() {
       projectId: project.id,
       provider: "claude",
       title,
+      videoId: video.id,
     });
 
-  return { history, open, project };
+  return { history, open, project, video };
 }
 
 const assistant = (text: string): TranscriptEntry => ({
@@ -68,19 +77,22 @@ describe("migrate", () => {
     });
   });
 
-  it("leaves a session that predates the mode column in Auto", async () => {
+  // There are no users yet, so migration 6 clears the sessions rather than
+  // inventing a video for each of them: a chat without a video cannot exist,
+  // and the folders on disk are untouched either way.
+  it("clears the chats that predate videos, blocks and all", async () => {
     const driver = nodeDriver();
     prepare(driver);
 
     driver.exec("PRAGMA foreign_keys = OFF");
-    for (const step of MIGRATIONS.slice(0, 2).flat()) {
+    for (const step of MIGRATIONS.slice(0, 5).flat()) {
       if (typeof step === "string") {
         driver.exec(step);
       } else {
         step(driver);
       }
     }
-    driver.exec("PRAGMA user_version = 2");
+    driver.exec("PRAGMA user_version = 5");
     driver.exec("PRAGMA foreign_keys = ON");
 
     driver.run(
@@ -89,47 +101,19 @@ describe("migrate", () => {
       [FOLDER]
     );
     driver.run(
-      `INSERT INTO session (id, project_id, sdk_session_id, title, created_at, updated_at)
-       VALUES ('s', 'p', NULL, 'A promo', 0, 0)`
+      `INSERT INTO session (id, project_id, sdk_session_id, title, mode, provider, created_at, updated_at)
+       VALUES ('s', 'p', NULL, 'A promo', 'plan', 'claude', 0, 0)`
+    );
+    driver.run(
+      `INSERT INTO block (session_id, ordinal, kind, payload, created_at)
+       VALUES ('s', 0, 'assistant', '{}', 0)`
     );
 
     migrate(driver);
 
-    const [session] = await run(make(driver).sessions);
-    expect(session.mode).toBe("auto");
-    expect(session.title).toBe("A promo");
-  });
-
-  it("leaves a session that predates the provider column on Claude", async () => {
-    const driver = nodeDriver();
-    prepare(driver);
-
-    driver.exec("PRAGMA foreign_keys = OFF");
-    for (const step of MIGRATIONS.slice(0, 4).flat()) {
-      if (typeof step === "string") {
-        driver.exec(step);
-      } else {
-        step(driver);
-      }
-    }
-    driver.exec("PRAGMA user_version = 4");
-    driver.exec("PRAGMA foreign_keys = ON");
-
-    driver.run(
-      `INSERT INTO project (id, path, name, created_at, updated_at)
-       VALUES ('p', ?, 'promo', 0, 0)`,
-      [FOLDER]
-    );
-    driver.run(
-      `INSERT INTO session (id, project_id, sdk_session_id, title, mode, created_at, updated_at)
-       VALUES ('s', 'p', NULL, 'A promo', 'plan', 0, 0)`
-    );
-
-    migrate(driver);
-
-    const [session] = await run(make(driver).sessions);
-    expect(session.provider).toBe("claude");
-    expect(session.mode).toBe("plan");
+    expect(await run(make(driver).sessions)).toEqual([]);
+    expect(driver.all("SELECT ordinal FROM block")).toEqual([]);
+    expect(await run(makeProjects(driver).list)).toHaveLength(1);
   });
 });
 
@@ -359,6 +343,7 @@ describe("HistoryStore", () => {
         projectId: "gone",
         provider: "claude",
         title: "Orphan",
+        videoId: "gone-too",
       })
     );
 

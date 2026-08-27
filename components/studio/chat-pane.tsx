@@ -29,6 +29,7 @@ import type { Environment } from "@/hooks/use-environment";
 import type { Library } from "@/hooks/use-library";
 import { useLocateProject } from "@/hooks/use-locate-project";
 import type { NewProject } from "@/hooks/use-new-project";
+import type { NewVideo } from "@/hooks/use-new-video";
 import { useNow } from "@/hooks/use-now";
 import type { OpenTurn } from "@/hooks/use-open-turn";
 import type { Queue } from "@/hooks/use-queue";
@@ -43,6 +44,7 @@ import { EnvironmentChecklist } from "./environment-checklist";
 import { LogoMark } from "./logo-mark";
 import { MarkdownProvider } from "./markdown";
 import { NewProjectWizard } from "./new-project-wizard";
+import { NewVideoWizard } from "./new-video-wizard";
 import { AboveComposer, NoticeCard } from "./notice-card";
 import { Pane, PaneActions, PaneBody, PaneHeader, PaneTitle } from "./pane";
 import { PermissionCard } from "./permission-card";
@@ -65,6 +67,7 @@ export function ChatPane() {
     isProjectsShown,
     library,
     newProject,
+    newVideo,
     openedProject,
     openFolder,
     preferences,
@@ -141,9 +144,11 @@ export function ChatPane() {
           library={library}
           missing={openedProject?.missing ?? false}
           newProject={newProject}
+          newVideo={newVideo}
           offersEnabled={preferences.assetOffers}
           onLocate={locate}
           onOpenFolder={openFolder}
+          projectName={openedProject?.name ?? null}
           queue={queue}
           settings={settings}
           turn={turn}
@@ -182,9 +187,11 @@ function Conversation({
   library,
   missing,
   newProject,
+  newVideo,
   offersEnabled,
   onLocate,
   onOpenFolder,
+  projectName,
   queue,
   settings,
   turn,
@@ -195,15 +202,17 @@ function Conversation({
   library: Library;
   missing: boolean;
   newProject: NewProject;
+  newVideo: NewVideo;
   offersEnabled: boolean;
   onLocate: () => void;
   onOpenFolder: () => void;
+  projectName: string | null;
   queue: Queue;
   settings: StudioSettings | null;
   turn: OpenTurn;
 }) {
   const hasTranscript = turn.entries.length > 0 || turn.turnError !== null;
-  const isCreating = newProject.isOpen;
+  const isCreating = newProject.isOpen || newVideo.isOpen;
   const isStartup = !(hasProject || hasTranscript);
   const now = useNow(turn.isRunning ? TICK : null);
   const offer = useAssetOffer({
@@ -227,7 +236,7 @@ function Conversation({
         <MessageScrollerProvider>
           <MessageScroller>
             <MessageScrollerViewport
-              aria-label={isCreating ? "New project" : "Conversation"}
+              aria-label={isCreating ? "New video" : "Conversation"}
             >
               <MessageScrollerContent
                 className="mx-auto w-full max-w-2xl gap-3 px-4 py-6"
@@ -238,8 +247,10 @@ function Conversation({
                   hasProject={hasProject}
                   hasTranscript={hasTranscript}
                   newProject={newProject}
+                  newVideo={newVideo}
                   now={now}
                   onOpenFolder={onOpenFolder}
+                  projectName={projectName}
                   turn={turn}
                 />
               </MessageScrollerContent>
@@ -328,22 +339,36 @@ function ConversationBody({
   hasProject,
   hasTranscript,
   newProject,
+  newVideo,
   now,
   onOpenFolder,
+  projectName,
   turn,
 }: {
   cwd: string | null;
   hasProject: boolean;
   hasTranscript: boolean;
   newProject: NewProject;
+  newVideo: NewVideo;
   now: number;
   onOpenFolder: () => void;
+  projectName: string | null;
   turn: OpenTurn;
 }) {
-  const entrance = useEntrance(newProject.isOpen);
+  const entrance = useEntrance(newProject.isOpen || newVideo.isOpen);
 
   if (newProject.isOpen) {
     return <NewProjectWizard control={newProject} entrance={entrance} />;
+  }
+
+  if (newVideo.isOpen) {
+    return (
+      <NewVideoWizard
+        control={newVideo}
+        entrance={entrance}
+        project={projectName}
+      />
+    );
   }
 
   if (hasTranscript) {

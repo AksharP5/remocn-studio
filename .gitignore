@@ -52,3 +52,5 @@ __pycache__/
 # Vendored reference checkouts (read-only material for agents, see CLAUDE.md).
 # Third-party source — cloned locally on purpose, never committed.
 repos/
+
+diagnostics/slideshow/videos/product-demo-r1.mp4

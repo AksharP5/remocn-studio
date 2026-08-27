@@ -39,7 +39,7 @@ function bundled(
 
 describe("isPaneView", () => {
   it("accepts the three views and nothing else", () => {
-    expect(isPaneView("projects")).toBe(true);
+    expect(isPaneView("videos")).toBe(true);
     expect(isPaneView("assets")).toBe(true);
     expect(isPaneView("components")).toBe(true);
     expect(isPaneView("drawer")).toBe(false);
@@ -49,8 +49,8 @@ describe("isPaneView", () => {
 
 describe("slideDirection", () => {
   it("pushes when leaving the root, pops on the way back", () => {
-    expect(slideDirection("projects", "assets")).toBe("push");
-    expect(slideDirection("assets", "projects")).toBe("pop");
+    expect(slideDirection("videos", "assets")).toBe("push");
+    expect(slideDirection("assets", "videos")).toBe("pop");
   });
 
   it("slides Assets and Components by their order in the menu", () => {
@@ -59,7 +59,7 @@ describe("slideDirection", () => {
   });
 
   it("does not animate the first view or a repeat", () => {
-    expect(slideDirection(null, "projects")).toBe("none");
+    expect(slideDirection(null, "videos")).toBe("none");
     expect(slideDirection("assets", "assets")).toBe("none");
   });
 });

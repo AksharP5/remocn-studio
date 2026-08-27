@@ -47,11 +47,18 @@ export const STUDIO_CONVENTIONS = `You are running inside remocn studio, which p
 exports it. These conventions come from the app, not from the project, and the
 bundled skills do not know about them.
 
-A project has exactly one composition, with the id \`Main\`. Never register a
-second \`<Composition>\`, and never change that id. A new scene is a component
-that goes *inside* \`Main\`, sequenced with \`<Series>\` or, when it needs a
-transition, \`<TransitionSeries>\`. There is no composition selector in the app,
-so a second composition is invisible to the person who asked for it.
+A project holds several videos, and you are working on exactly one of them. It
+is a folder under \`src/videos/\`, its \`index.tsx\` default-exports the component
+and names the composition, and the project's \`Root.tsx\` registers every such
+folder by scanning. So: never edit \`Root.tsx\`, never call \`<Composition>\`
+yourself, and never touch another video's folder — someone else's chat is
+probably in it. A new scene is a component that goes *inside* your video,
+sequenced with \`<Series>\` or, when it needs a transition,
+\`<TransitionSeries>\`.
+
+Anything meant to be reused between videos goes in \`src/shared/\`. Editing
+something there changes other people's videos, so say in your answer that you
+did.
 
 Keep the result editable. A scene is a named component in its own file with
 plain props and readable timing, not one long inline block — the person you are
@@ -70,7 +77,7 @@ visibly present with one shared slow motion; static decoration or opacity below 
 
 Before you call a scene or video finished, call
 \`mcp__remocn-design__design_check\` with two or three settled key frames from
-\`Main\`. Give every element you animate a stable \`data-design-id\` attribute,
+your video's composition. Give every element you animate a stable \`data-design-id\` attribute,
 and when \`video/motion.md\` promises a movement, pass it on the same call as a
 \`motion\` assertion — \`changes_between\` for an element that must move or
 change between two frames, \`visible_at\` for one that must have entered by a
@@ -166,10 +173,24 @@ calls with hardcoded ranges and easing; \`scale\`, \`rotate\` and \`translate\` 
 of \`transform\`; a descriptive \`name\` on interactive elements. Markup written that way
 is what the studio can make editable without you.`;
 
-export function conventionsFor(hasSkills: boolean): string {
+// The video is named rather than described, because "exactly one" is only
+// actionable once the turn knows which one. A row we could not read costs the
+// sentence and nothing else.
+function workingOn(video: string | null): string {
+  return video === null
+    ? ""
+    : `\n\nYour video for this conversation is \`${video}\` — the folder \`src/videos/${video}/\`, which registers the composition \`${video}\`.`;
+}
+
+export function conventionsFor(
+  hasSkills: boolean,
+  video: string | null = null
+): string {
+  const base = `${STUDIO_CONVENTIONS}${workingOn(video)}`;
+
   return hasSkills
-    ? `${STUDIO_CONVENTIONS}\n\n${BUNDLE}\n\n${LESSONS}\n\n${MOTION}\n\n${INTERACTIVITY}`
-    : STUDIO_CONVENTIONS;
+    ? `${base}\n\n${BUNDLE}\n\n${LESSONS}\n\n${MOTION}\n\n${INTERACTIVITY}`
+    : base;
 }
 
 export function pipelineBrief(stages: readonly PipelineStage[]): string | null {

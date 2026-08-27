@@ -44,6 +44,7 @@ export interface QueuedMessage {
   playing: PromptFrame | null;
   projectId: string;
   text: string;
+  videoId: string;
 }
 
 export interface TurnState {
@@ -97,6 +98,32 @@ export function nextQueued(
     return null;
   }
   return turn.queue[0] ?? null;
+}
+
+// A turn that just ended frees its *video*, not only its own chat, so the
+// baton can pass to a sibling chat that has been waiting. The order is the
+// map's, which is insertion order — the chat that queued first goes first.
+export function waitingSibling(
+  turns: ReadonlyMap<string, TurnState>,
+  videoOf: (historyId: string) => string | null,
+  video: string | null,
+  besides: string
+): { historyId: string; message: QueuedMessage } | null {
+  if (video === null) {
+    return null;
+  }
+
+  for (const [historyId, turn] of turns) {
+    if (historyId === besides || videoOf(historyId) !== video) {
+      continue;
+    }
+    const message = nextQueued(turn, false);
+    if (message !== null) {
+      return { historyId, message };
+    }
+  }
+
+  return null;
 }
 
 export function queuedCounts(message: QueuedMessage): ReferenceCounts {

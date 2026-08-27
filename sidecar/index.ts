@@ -5,6 +5,7 @@ import { handlers } from "./handlers";
 import { ProjectStore } from "./history/projects";
 import { openStores } from "./history/sqlite";
 import { HistoryStore } from "./history/store";
+import { VideoStore } from "./history/videos";
 import { runHost } from "./host";
 import { untilOrphaned, untilSignalled } from "./lifecycle";
 import { runPreviewHost } from "./preview/host";
@@ -25,7 +26,8 @@ const sidecar = Effect.gen(function* () {
     untilSignalled,
   ]).pipe(
     Effect.provideService(HistoryStore, stores.history),
-    Effect.provideService(ProjectStore, stores.projects)
+    Effect.provideService(ProjectStore, stores.projects),
+    Effect.provideService(VideoStore, stores.videos)
   );
 
   yield* channel.log(reason);

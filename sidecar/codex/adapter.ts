@@ -186,7 +186,7 @@ function configOf(
   services: TurnServices,
   knowledge: KnowledgeBundle
 ): NonNullable<CodexOptions["config"]> {
-  const conventions = conventionsFor(knowledge.loaded);
+  const conventions = conventionsFor(knowledge.loaded, services.video);
 
   return {
     developer_instructions:

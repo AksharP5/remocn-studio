@@ -20,7 +20,14 @@ import {
 export const PREVIEW_MESSAGE_SOURCE = "remocn-preview";
 export const PREVIEW_COMMAND_SOURCE = "remocn-studio";
 
-export const PreviewPick = Schema.Literals(["first", "folder", "main", "none"]);
+export const PreviewPick = Schema.Literals([
+  "asked",
+  "first",
+  "folder",
+  "main",
+  "missing",
+  "none",
+]);
 
 export const PreviewRect = Schema.Struct({
   height: Schema.Finite,
@@ -47,6 +54,7 @@ const from = Schema.Literal(PREVIEW_MESSAGE_SOURCE);
 export const PreviewMessage = Schema.Union([
   Schema.Struct({
     compositionId: Schema.NullOr(Schema.String),
+    compositions: Schema.Array(Schema.NonEmptyString),
     reason: PreviewPick,
     source: from,
     total: Schema.Int,

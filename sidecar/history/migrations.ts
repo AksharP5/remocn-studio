@@ -55,6 +55,37 @@ export const MIGRATIONS: readonly (readonly Migration[])[] = [
     )`,
   ],
   ["ALTER TABLE session ADD COLUMN provider TEXT NOT NULL DEFAULT 'claude'"],
+  [
+    `CREATE TABLE video (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES project (id) ON DELETE CASCADE,
+      composition_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      present INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER
+    )`,
+    "CREATE UNIQUE INDEX video_by_composition ON video (project_id, composition_id)",
+    "CREATE INDEX video_by_project ON video (project_id)",
+    "DELETE FROM block",
+    "DELETE FROM pipeline_stage",
+    "DROP TABLE session",
+    `CREATE TABLE session (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES project (id) ON DELETE CASCADE,
+      video_id TEXT NOT NULL REFERENCES video (id) ON DELETE CASCADE,
+      sdk_session_id TEXT,
+      title TEXT NOT NULL,
+      mode TEXT NOT NULL DEFAULT 'auto',
+      provider TEXT NOT NULL DEFAULT 'claude',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )`,
+    "CREATE INDEX session_by_recency ON session (updated_at DESC)",
+    "CREATE INDEX session_by_project ON session (project_id)",
+    "CREATE INDEX session_by_video ON session (video_id)",
+  ],
 ];
 
 export function prepare(driver: SqlDriver): void {

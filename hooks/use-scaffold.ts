@@ -4,9 +4,8 @@ import { Effect } from "effect";
 import type { MouseEvent } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { causeMessage } from "@/lib/error-message";
-import { DEFAULT_FORMAT, sizeOf } from "@/lib/studio/formats";
 import { scaffoldProject } from "@/lib/studio/projects";
-import type { Project, ScaffoldStep, VideoSize } from "@/shared/ipc";
+import type { Project, ScaffoldStep } from "@/shared/ipc";
 
 export interface ScaffoldState {
   error: string | null;
@@ -17,7 +16,7 @@ export interface ScaffoldState {
 export interface Scaffolds {
   onRetryScaffold: (event: MouseEvent<HTMLButtonElement>) => void;
   scaffolds: ReadonlyMap<string, ScaffoldState>;
-  startScaffold: (projectId: string, size: VideoSize) => void;
+  startScaffold: (projectId: string) => void;
 }
 
 const STARTED: ScaffoldState = {
@@ -33,7 +32,6 @@ export function useScaffold(
     ReadonlyMap<string, ScaffoldState>
   >(() => new Map());
   const running = useRef(new Set<string>());
-  const sizes = useRef(new Map<string, VideoSize>());
 
   const write = useCallback(
     (projectId: string, state: ScaffoldState | null) => {
@@ -51,16 +49,15 @@ export function useScaffold(
   );
 
   const startScaffold = useCallback(
-    (projectId: string, size: VideoSize) => {
+    (projectId: string) => {
       if (running.current.has(projectId)) {
         return;
       }
       running.current.add(projectId);
-      sizes.current.set(projectId, size);
       write(projectId, STARTED);
 
       Effect.runFork(
-        scaffoldProject(projectId, size, (event) => {
+        scaffoldProject(projectId, (event) => {
           if (event.type === "started") {
             write(projectId, {
               error: null,
@@ -87,7 +84,6 @@ export function useScaffold(
                 return;
               }
 
-              sizes.current.delete(projectId);
               write(projectId, null);
               onScaffolded(exit.value);
             })
@@ -100,12 +96,7 @@ export function useScaffold(
 
   const onRetryScaffold = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
-      const projectId = event.currentTarget.value;
-
-      startScaffold(
-        projectId,
-        sizes.current.get(projectId) ?? sizeOf(DEFAULT_FORMAT)
-      );
+      startScaffold(event.currentTarget.value);
     },
     [startScaffold]
   );

@@ -214,7 +214,10 @@ export function acpTurn(
         ]);
       }
 
-      const conventions = conventionsFor(config.knowledge.loaded);
+      const conventions = conventionsFor(
+        config.knowledge.loaded,
+        services.video
+      );
       const briefed =
         services.briefs.pipeline === null
           ? conventions

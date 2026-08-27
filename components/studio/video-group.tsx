@@ -5,8 +5,8 @@ import {
   ChevronRight,
   CircleAlertIcon,
   CircleQuestionMarkIcon,
+  FileQuestionIcon,
   SquarePenIcon,
-  UnplugIcon,
 } from "lucide-react";
 import type { MouseEvent } from "react";
 import { memo } from "react";
@@ -18,21 +18,19 @@ import {
   SidebarMenuSub,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { ProjectCommands } from "@/hooks/use-project-menu";
-import type { ScaffoldState } from "@/hooks/use-scaffold";
+import type { VideoCommands } from "@/hooks/use-video-menu";
 import { useVisibleSessions } from "@/hooks/use-visible-sessions";
 import type { Rollup as GroupRollup, PaneGroup } from "@/lib/studio/groups";
 import { cn } from "@/lib/utils";
-import { ProjectMenu } from "./project-menu";
 import { SessionItem } from "./session-item";
+import { VideoMenu } from "./video-menu";
 
-function ProjectGroupBlock({
+function VideoGroupBlock({
   activeSessionId,
   commands,
   group,
@@ -40,26 +38,22 @@ function ProjectGroupBlock({
   now,
   onNewSession,
   onRemoveSession,
-  onRetryScaffold,
   onSelectSession,
   onToggle,
-  scaffold,
 }: {
   activeSessionId: string | null;
-  commands: ProjectCommands;
+  commands: VideoCommands;
   group: PaneGroup;
   isExpanded: boolean;
   now: number;
   onNewSession: (event: MouseEvent<HTMLButtonElement>) => void;
   onRemoveSession: (event: MouseEvent<HTMLButtonElement>) => void;
-  onRetryScaffold: (event: MouseEvent<HTMLButtonElement>) => void;
   onSelectSession: (event: MouseEvent<HTMLButtonElement>) => void;
   onToggle: (event: MouseEvent<HTMLButtonElement>) => void;
-  scaffold: ScaffoldState | undefined;
 }) {
   const { hidden, isFull, toggle, visible } = useVisibleSessions(group);
-  const { project } = group;
-  const panelId = `project-${project.id}`;
+  const { video } = group;
+  const panelId = `video-${video.id}`;
 
   return (
     <SidebarMenuItem>
@@ -68,36 +62,34 @@ function ProjectGroupBlock({
         aria-expanded={isExpanded}
         className="pr-14 font-medium hover:bg-sidebar-accent/40 active:bg-sidebar-accent/40"
         onClick={onToggle}
-        value={project.id}
+        value={video.id}
       >
         {isExpanded ? (
           <ChevronDown className="text-muted-foreground" />
         ) : (
           <ChevronRight className="text-muted-foreground" />
         )}
-        {/* Only the name dims for a missing project: the chevron and the menu
-            are still the way to its history and to Locate…, so they keep full
-            contrast. */}
+        {/* Only the name dims for a video the bundle no longer names: its
+            chats are still worth reading, so the chevron and the menu keep
+            full contrast. */}
         <span
           className={cn(
             "min-w-0 flex-1 truncate",
-            project.missing && "text-sidebar-foreground/70"
+            video.missing && "text-sidebar-foreground/70"
           )}
         >
-          {project.name}
+          {video.name}
         </span>
-        {project.missing ? (
+        {video.missing ? (
           <Tooltip>
             <TooltipTrigger render={<span className="shrink-0" />}>
-              <UnplugIcon className="size-3 text-muted-foreground" />
+              <FileQuestionIcon className="size-3 text-muted-foreground" />
               <span className="sr-only">
-                {project.path} is not on disk anymore
+                Nothing in this project renders {video.compositionId} anymore
               </span>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <span className="break-all">
-                {project.path} is not on disk anymore
-              </span>
+              Nothing in this project renders {video.compositionId} anymore
             </TooltipContent>
           </Tooltip>
         ) : null}
@@ -112,35 +104,27 @@ function ProjectGroupBlock({
           <TooltipTrigger
             render={
               <Button
-                aria-label={`New session in ${project.name}`}
+                aria-label={`New chat about ${video.name}`}
                 className="relative after:absolute after:-inset-y-1 after:right-0 after:-left-1"
-                disabled={project.missing}
+                disabled={video.missing}
                 onClick={onNewSession}
                 size="icon-xs"
-                value={project.id}
+                value={video.id}
                 variant="ghost"
               />
             }
           >
             <SquarePenIcon />
           </TooltipTrigger>
-          <TooltipContent side="bottom">New session here</TooltipContent>
+          <TooltipContent side="bottom">New chat here</TooltipContent>
         </Tooltip>
 
-        <ProjectMenu commands={commands} project={project} />
+        <VideoMenu commands={commands} video={video} />
       </div>
-
-      {scaffold === undefined ? null : (
-        <Scaffolding
-          onRetry={onRetryScaffold}
-          projectId={project.id}
-          scaffold={scaffold}
-        />
-      )}
 
       {isExpanded ? (
         // The sub-list keeps its semantics but drops its rail and indent: a
-        // session title lines up with the project name above it, one level.
+        // chat title lines up with the video name above it, one level.
         // `role="list"` survives preflight's list-style:none, which WKWebView
         // otherwise takes as a reason to drop list semantics entirely.
         <SidebarMenuSub
@@ -162,7 +146,7 @@ function ProjectGroupBlock({
 
           {group.rows.length === 0 ? (
             <SidebarMenuSubItem className="py-1.5 pr-2 pl-7 text-muted-foreground text-xs">
-              No sessions yet
+              No chats yet
             </SidebarMenuSubItem>
           ) : null}
 
@@ -184,7 +168,7 @@ function ProjectGroupBlock({
   );
 }
 
-export const ProjectGroup = memo(ProjectGroupBlock);
+export const VideoGroup = memo(VideoGroupBlock);
 
 const ROLLUP_WORD: Record<GroupRollup["status"], string> = {
   failed: "failed",
@@ -199,7 +183,7 @@ function Rollup({ rollup }: { rollup: GroupRollup | null }) {
   }
 
   const { count, status } = rollup;
-  const label = `${count} ${count === 1 ? "session" : "sessions"} ${ROLLUP_WORD[status]}`;
+  const label = `${count} ${count === 1 ? "chat" : "chats"} ${ROLLUP_WORD[status]}`;
 
   return (
     <span
@@ -228,54 +212,5 @@ function Rollup({ rollup }: { rollup: GroupRollup | null }) {
         <span className="size-1.5 rounded-full bg-sidebar-primary" />
       ) : null}
     </span>
-  );
-}
-
-const DOING: Record<ScaffoldState["step"], string> = {
-  install: "Installing dependencies…",
-  template: "Copying the template…",
-};
-
-const FAILED: Record<ScaffoldState["step"], string> = {
-  install: "Could not install the dependencies.",
-  template: "Could not copy the template.",
-};
-
-function Scaffolding({
-  onRetry,
-  projectId,
-  scaffold,
-}: {
-  onRetry: (event: MouseEvent<HTMLButtonElement>) => void;
-  projectId: string;
-  scaffold: ScaffoldState;
-}) {
-  if (scaffold.isRunning) {
-    return (
-      <p className="flex items-center gap-2 py-1 pl-7 text-muted-foreground text-xs">
-        <Spinner className="size-3" />
-        {DOING[scaffold.step]}
-      </p>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-1 py-1 pl-7">
-      <p className="text-destructive text-xs">{FAILED[scaffold.step]}</p>
-      {scaffold.error === null ? null : (
-        <p className="line-clamp-3 break-all font-mono text-2xs text-muted-foreground">
-          {scaffold.error}
-        </p>
-      )}
-      <Button
-        className="self-start text-xs"
-        onClick={onRetry}
-        size="sm"
-        value={projectId}
-        variant="outline"
-      >
-        Retry
-      </Button>
-    </div>
   );
 }

@@ -9,6 +9,7 @@ import { useHydratedSettings } from "@/hooks/use-hydrated-settings";
 import { type Library, useLibrary } from "@/hooks/use-library";
 import { type StudioModels, useModels } from "@/hooks/use-models";
 import { type NewProject, useNewProject } from "@/hooks/use-new-project";
+import { type NewVideo, useNewVideo } from "@/hooks/use-new-video";
 import { type OpenTurn, useOpenTurn } from "@/hooks/use-open-turn";
 import { type Panes, usePanes } from "@/hooks/use-panes";
 import { type Preferences, usePreferences } from "@/hooks/use-preferences";
@@ -18,6 +19,7 @@ import {
   useProviderAccounts,
 } from "@/hooks/use-provider-accounts";
 import { type Queue, useQueue } from "@/hooks/use-queue";
+import { useReconciledVideos } from "@/hooks/use-reconciled-videos";
 import {
   type SettingsDialog,
   useSettingsDialog,
@@ -39,6 +41,7 @@ export type Studio = ClaudeEffort &
     environment: Environment;
     library: Library;
     newProject: NewProject;
+    newVideo: NewVideo;
     preferences: Preferences;
     queue: Queue;
     settings: StudioSettings | null;
@@ -79,7 +82,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     async (draft: ProjectDraft, format: VideoFormat) => {
       const project = await createProject(draft, format);
       if (project !== null) {
-        showPane("projects");
+        showPane("videos");
       }
       return project;
     },
@@ -87,10 +90,29 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
   );
 
   const newProject = useNewProject(createAndShow);
+
+  const { addVideo } = workspace;
+  const addAndShow = useCallback(
+    async (name: string, format: VideoFormat) => {
+      const video = await addVideo(name, format);
+      if (video !== null) {
+        showPane("videos");
+      }
+      return video;
+    },
+    [addVideo, showPane]
+  );
+
+  const newVideo = useNewVideo(addAndShow);
   const library = useLibrary(workspace.hasRunningTurns);
 
   const previewProjectId = previewTarget(workspace);
-  const preview = usePreview(previewProjectId);
+  const preview = usePreview(
+    previewProjectId,
+    workspace.openedVideo?.compositionId ?? null
+  );
+
+  useReconciledVideos(preview, previewProjectId, workspace.reconcile);
 
   const turn = useOpenTurn({
     changeMode: workspace.changeSessionMode,
@@ -101,6 +123,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     projectId: workspace.activeProject?.id ?? null,
     session: workspace.openedSession,
     turns: workspace,
+    videoId: workspace.openedVideo?.id ?? null,
   });
 
   const opened = workspace.openedProject;
@@ -154,6 +177,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       environment,
       library,
       newProject,
+      newVideo,
       preferences,
       queue,
       settings,
@@ -171,6 +195,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       library,
       model,
       newProject,
+      newVideo,
       panes,
       preferences,
       queue,

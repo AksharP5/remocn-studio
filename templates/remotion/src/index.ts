@@ -1,4 +1,5 @@
 import { registerRoot } from "remotion";
 import { Root } from "./Root";
+import { withVideos } from "./videos/registry";
 
-registerRoot(Root);
+registerRoot(withVideos(Root));

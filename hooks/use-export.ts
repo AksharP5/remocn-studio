@@ -14,10 +14,28 @@ import {
 import type { SidecarError } from "@/lib/studio/sidecar";
 import type { ExportEvent, Exported } from "@/shared/ipc";
 
+// The result belongs to a video, not to a project: with several videos in one
+// folder, keying by project alone would show one video's render in another's
+// panel. `composition` is that identity, and it is already a setting here.
 export type ExportState =
-  | { event: ExportEvent | null; phase: "running"; projectId: string }
-  | { exported: Exported; phase: "done"; projectId: string }
-  | { message: string; phase: "failed"; projectId: string }
+  | {
+      composition: string;
+      event: ExportEvent | null;
+      phase: "running";
+      projectId: string;
+    }
+  | {
+      composition: string;
+      exported: Exported;
+      phase: "done";
+      projectId: string;
+    }
+  | {
+      composition: string;
+      message: string;
+      phase: "failed";
+      projectId: string;
+    }
   | { phase: "idle" };
 
 export interface Exporting {
@@ -58,7 +76,7 @@ export function useExport({
     }
   }, []);
 
-  const mine = ownedBy(state, projectId);
+  const mine = ownedBy(state, projectId, composition);
   const result = mine?.phase === "done" ? mine.exported : null;
   const { error, reveal } = useRevealInFinder(result?.path ?? null);
 
@@ -79,19 +97,21 @@ export function useExport({
       return;
     }
 
-    setState({ event: null, phase: "running", projectId });
+    setState({ composition, event: null, phase: "running", projectId });
 
     const shipping = renderExport({ composition, projectId }, (event) =>
       setState((current) =>
-        current.phase === "running" && current.projectId === projectId
-          ? { event, phase: "running", projectId }
+        current.phase === "running" &&
+        current.projectId === projectId &&
+        current.composition === composition
+          ? { composition, event, phase: "running", projectId }
           : current
       )
     ).pipe(
       Effect.onExit((exit) =>
         Effect.sync(() => {
           inflight.current = null;
-          setState(settled(exit, projectId));
+          setState(settled(exit, projectId, composition));
         })
       )
     );
@@ -121,22 +141,30 @@ export function useExport({
 
 function ownedBy(
   state: ExportState,
-  projectId: string | null
+  projectId: string | null,
+  composition: string | null
 ): Exclude<ExportState, { phase: "idle" }> | null {
-  return state.phase !== "idle" && state.projectId === projectId ? state : null;
+  return state.phase !== "idle" &&
+    state.projectId === projectId &&
+    state.composition === composition
+    ? state
+    : null;
 }
 
 function settled(
   exit: Exit.Exit<Exported, SidecarError>,
-  projectId: string
+  projectId: string,
+  composition: string
 ): ExportState {
   if (exit._tag === "Success") {
-    return { exported: exit.value, phase: "done", projectId };
+    return { composition, exported: exit.value, phase: "done", projectId };
   }
 
   const message = causeMessage(exit.cause);
 
-  return message === null ? IDLE : { message, phase: "failed", projectId };
+  return message === null
+    ? IDLE
+    : { composition, message, phase: "failed", projectId };
 }
 
 function unavailableOf(state: {

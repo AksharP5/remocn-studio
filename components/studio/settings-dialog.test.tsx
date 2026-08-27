@@ -76,7 +76,7 @@ async function renderShell() {
       <Page />
     </ThemeProvider>
   );
-  await screen.findByRole("heading", { name: "Projects" });
+  await screen.findByRole("heading", { name: "Videos" });
 }
 
 async function openSettings() {

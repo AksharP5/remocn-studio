@@ -9,19 +9,77 @@ export class ScaffoldError extends Data.TaggedError("ScaffoldError")<{
 }> {}
 
 const MANIFEST = "package.json";
-const ROOT = "Root.tsx";
+const META = "meta";
 const FALLBACK_NAME = "remotion-project";
 const UNSAFE = /[^a-z0-9._-]+/g;
 const EDGES = /^[-_.]+|[-_.]+$/g;
-const WIDTH = /width=\{\d+\}/;
-const HEIGHT = /height=\{\d+\}/;
+const WIDTH = /width: \d+/;
+const HEIGHT = /height: \d+/;
+const NAME_SLOT = /__VIDEO_NAME__/g;
+
+// The project template carries the video module it stamps out, so one
+// resource ships both. It is not part of a project: `video.create` is the
+// only thing that reads it, for the first video and for every one after.
+export const VIDEO_TEMPLATE = "video-template";
+export const REGISTRY_TEMPLATE = "registry.tsx";
+export const VIDEOS_DIR = "videos";
 
 type Rewrite = (content: string) => string;
 
+export interface VideoDraft {
+  readonly name: string;
+  readonly size: VideoSize;
+  readonly slug: string;
+}
+
 export function expandTemplate(
-  target: string,
-  size: VideoSize
+  target: string
 ): Effect.Effect<void, ScaffoldError> {
+  return template((source) =>
+    copyInto(source, target, rewriteFor(target), skipVideoTemplate)
+  );
+}
+
+// A video is a folder under src/videos, and the scan in the project's own
+// Root.tsx is what registers it. Nothing edits Root.tsx — not us, not the
+// agent — so two videos created at once cannot race for one file.
+export function expandVideo(
+  target: string,
+  draft: VideoDraft
+): Effect.Effect<string, ScaffoldError> {
+  const folder = join(target, "src", VIDEOS_DIR, draft.slug);
+
+  return template(async (source) => {
+    await copyInto(
+      join(source, VIDEO_TEMPLATE),
+      folder,
+      () => (content) => stamped(content, draft),
+      () => false
+    );
+
+    return folder;
+  });
+}
+
+export function sized(content: string, { height, width }: VideoSize): string {
+  if (!(WIDTH.test(content) && HEIGHT.test(content))) {
+    throw new Error(
+      `the ${VIDEO_TEMPLATE} no longer declares ${META} width and height as literals, so ${width}×${height} could not be written into it`
+    );
+  }
+
+  return content
+    .replace(WIDTH, `width: ${width}`)
+    .replace(HEIGHT, `height: ${height}`);
+}
+
+function stamped(content: string, draft: VideoDraft): string {
+  return sized(content, draft.size).replace(NAME_SLOT, draft.name);
+}
+
+function template<A>(
+  use: (source: string) => Promise<A>
+): Effect.Effect<A, ScaffoldError> {
   return Effect.suspend(() => {
     const source = process.env[TEMPLATE_DIR_ENV];
 
@@ -35,21 +93,17 @@ export function expandTemplate(
 
     return Effect.tryPromise({
       catch: (cause) => new ScaffoldError({ message: errorMessage(cause) }),
-      try: () => copyInto(source, target, rewriteFor(target, size)),
+      try: () => use(source),
     });
   });
 }
 
-export function sized(content: string, { height, width }: VideoSize): string {
-  if (!(WIDTH.test(content) && HEIGHT.test(content))) {
-    throw new Error(
-      `the template's ${ROOT} no longer declares width and height as literals, so ${width}×${height} could not be written into it`
-    );
-  }
-
-  return content
-    .replace(WIDTH, `width={${width}}`)
-    .replace(HEIGHT, `height={${height}}`);
+// Both live in the template dir so one resource ships them, and neither is a
+// file of the project: the video template is stamped out by `video.create`,
+// and the registry is placed by `ensureRegistry`, which also has to reach a
+// project the studio never scaffolded.
+function skipVideoTemplate(entry: string): boolean {
+  return entry === VIDEO_TEMPLATE || entry === REGISTRY_TEMPLATE;
 }
 
 export function packageName(target: string): string {
@@ -61,38 +115,34 @@ export function packageName(target: string): string {
   return slug.length === 0 ? FALLBACK_NAME : slug;
 }
 
-function rewriteFor(
-  target: string,
-  size: VideoSize
-): (entry: string) => Rewrite | null {
+function rewriteFor(target: string): (entry: string) => Rewrite | null {
   const name = packageName(target);
 
-  return (entry) => {
-    if (entry === MANIFEST) {
-      return (content) => named(content, name);
-    }
-    return entry === ROOT ? (content) => sized(content, size) : null;
-  };
+  return (entry) =>
+    entry === MANIFEST ? (content) => named(content, name) : null;
 }
 
 async function copyInto(
   source: string,
   target: string,
-  rewrite: (entry: string) => Rewrite | null
+  rewrite: (entry: string) => Rewrite | null,
+  skip: (entry: string) => boolean
 ): Promise<void> {
   await mkdir(target, { recursive: true });
 
   const entries = await readdir(source, { withFileTypes: true });
 
   await Promise.all(
-    entries.map((entry) => {
-      const from = join(source, entry.name);
-      const to = join(target, entry.name);
+    entries
+      .filter((entry) => !skip(entry.name))
+      .map((entry) => {
+        const from = join(source, entry.name);
+        const to = join(target, entry.name);
 
-      return entry.isDirectory()
-        ? copyInto(from, to, rewrite)
-        : copyFile(from, to, rewrite(entry.name));
-    })
+        return entry.isDirectory()
+          ? copyInto(from, to, rewrite, skip)
+          : copyFile(from, to, rewrite(entry.name));
+      })
   );
 }
 

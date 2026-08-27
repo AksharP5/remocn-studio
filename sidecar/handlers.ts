@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { Clock, Effect, Stream } from "effect";
 import { errorMessage } from "@/lib/error-message";
@@ -12,6 +12,7 @@ import {
 import type { Asset, AssetDraft } from "@/shared/library";
 import type { PipelineStage } from "@/shared/pipeline";
 import { AGENT_PROVIDERS } from "@/shared/providers";
+import { freeSlug, slugFor } from "@/shared/slug";
 import { makeAccountCache } from "./agent/account";
 import { makeGate } from "./agent/gate";
 import { makeModeSwitch } from "./agent/mode";
@@ -27,6 +28,7 @@ import { type FilesError, listFolder, projectFiles } from "./files";
 import { ProjectStore } from "./history/projects";
 import { recording } from "./history/recorder";
 import { type HistoryError, HistoryStore } from "./history/store";
+import { VideoStore } from "./history/videos";
 import { HandlerError, type Handlers } from "./host";
 import { listBundled } from "./library/bundled";
 import {
@@ -66,7 +68,13 @@ import {
   warmFrom,
 } from "./preview/supervisor";
 import { installDependencies } from "./scaffold/install";
-import { expandTemplate, type ScaffoldError } from "./scaffold/template";
+import { ensureRegistry } from "./scaffold/registry";
+import {
+  expandTemplate,
+  expandVideo,
+  type ScaffoldError,
+  VIDEOS_DIR,
+} from "./scaffold/template";
 import { makeGateway } from "./tools/gateway";
 import { DESIGN_SERVER, LIBRARY_SERVER, PIPELINE_SERVER } from "./tools/specs";
 
@@ -163,7 +171,7 @@ const located = (projectId: string) =>
     Effect.flatMap(onDisk)
   );
 
-export const handlers: Handlers<HistoryStore | ProjectStore> = {
+export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
   // One row per provider, for the model picker to mark who is actually
   // reachable. The probes share project.check's cache, so a warm answer
   // costs nothing and Recheck refreshes both.
@@ -189,6 +197,14 @@ export const handlers: Handlers<HistoryStore | ProjectStore> = {
       const adapter = adapterFor(params.provider);
 
       const store = yield* HistoryStore;
+      const videos = yield* VideoStore;
+      const video = yield* videos.find(params.videoId).pipe(
+        Effect.map((row) => row.compositionId),
+        Effect.catch((error) =>
+          log(`video: ${error.message}`).pipe(Effect.as(null))
+        )
+      );
+
       const recorder = yield* recording(store, params, log);
       if (recorder.session !== null) {
         yield* emit({ session: recorder.session, type: "history" });
@@ -317,6 +333,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore> = {
                   [PIPELINE_SERVER]: gateway.transport(PIPELINE_SERVER, turnId),
                 },
                 turnId,
+                video,
               })
             )
           )
@@ -558,13 +575,8 @@ export const handlers: Handlers<HistoryStore | ProjectStore> = {
       const project = yield* located(params.projectId);
 
       yield* emit({ step: "template", type: "started" });
-      yield* Effect.mapError(
-        expandTemplate(project.path, {
-          height: params.height,
-          width: params.width,
-        }),
-        unscaffolded
-      );
+      yield* Effect.mapError(expandTemplate(project.path), unscaffolded);
+      yield* Effect.mapError(ensureRegistry(project.path), unscaffolded);
       yield* emit({ step: "template", type: "done" });
 
       yield* emit({ step: "install", type: "started" });
@@ -607,7 +619,113 @@ export const handlers: Handlers<HistoryStore | ProjectStore> = {
       protocol: SIDECAR_PROTOCOL,
       uptimeMs: Math.round(process.uptime() * 1000),
     })),
+
+  // The slug is minted here and never moves again; the name is the row's
+  // and renames freely. Both halves of the video — the folder the scan
+  // picks up and the row the pane draws — are written by this one call,
+  // for the first video of a project and for every one after it.
+  "video.create": ({ params }) =>
+    Effect.gen(function* () {
+      const project = yield* located(params.projectId);
+      const videos = yield* VideoStore;
+
+      const taken = yield* Effect.mapError(
+        videos.taken(params.projectId),
+        unstored
+      );
+
+      const slug = freeSlug(slugFor(params.name), [
+        ...taken,
+        ...(yield* videoFolders(project.path)),
+      ]);
+
+      // A folder nothing registers is not a video. In a project the studio
+      // scaffolded this is already true and costs a read; in one opened from
+      // disk it is what makes the folder reach Remotion at all.
+      yield* Effect.mapError(ensureRegistry(project.path), unscaffolded);
+
+      yield* Effect.mapError(
+        expandVideo(project.path, {
+          name: params.name,
+          size: { height: params.height, width: params.width },
+          slug,
+        }),
+        unscaffolded
+      );
+
+      return yield* Effect.mapError(
+        videos.create({
+          compositionId: slug,
+          name: params.name,
+          projectId: params.projectId,
+        }),
+        unstored
+      );
+    }),
+
+  "video.list": ({ params }) =>
+    Effect.flatMap(VideoStore, (videos) => videos.list(params.projectId)).pipe(
+      Effect.mapError(unstored)
+    ),
+
+  "video.reconcile": ({ params }) =>
+    Effect.flatMap(VideoStore, (videos) =>
+      videos.reconcile(params.projectId, params.compositions)
+    ).pipe(Effect.mapError(unstored)),
+
+  // The repair for a video created before its project could register one, and
+  // the only path that writes into someone else's project on purpose: it is a
+  // button they press, on a row that says what is wrong.
+  "video.register": ({ params }) =>
+    Effect.gen(function* () {
+      const videos = yield* VideoStore;
+      const video = yield* Effect.mapError(
+        videos.find(params.videoId),
+        unstored
+      );
+      const project = yield* located(video.projectId);
+
+      yield* Effect.mapError(ensureRegistry(project.path), unscaffolded);
+
+      return video;
+    }),
+
+  "video.remove": ({ params }) =>
+    Effect.flatMap(VideoStore, (videos) => videos.remove(params.videoId)).pipe(
+      Effect.map((removed) => ({ removed })),
+      Effect.mapError(unstored)
+    ),
+
+  "video.rename": ({ params }) =>
+    Effect.flatMap(VideoStore, (videos) =>
+      videos.rename(params.videoId, params.name)
+    ).pipe(Effect.mapError(unstored)),
+
+  "video.restore": ({ params }) =>
+    Effect.flatMap(VideoStore, (videos) => videos.restore(params.videoId)).pipe(
+      Effect.mapError(unstored)
+    ),
 };
+
+// A slug has to clear the folders on disk as well as the rows: a project
+// opened from someone else's tree can hold a src/videos nobody recorded.
+function videoFolders(path: string): Effect.Effect<readonly string[]> {
+  return Effect.promise(async () => {
+    try {
+      const entries = await readdir(
+        join(remotionRootOf(path), "src", VIDEOS_DIR),
+        {
+          withFileTypes: true,
+        }
+      );
+      return entries
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name);
+    } catch {
+      return [];
+    }
+  });
+}
 
 function clamp(value: number, low: number, high: number): number {
   if (!Number.isFinite(value)) {

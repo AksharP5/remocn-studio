@@ -72,11 +72,21 @@ describe("conventionsFor", () => {
 
   it("keeps the app's own conventions either way", () => {
     for (const text of [conventionsFor(true), conventionsFor(false)]) {
-      expect(text).toContain("exactly one composition");
+      expect(text.replaceAll("\n", " ")).toContain(
+        "working on exactly one of them"
+      );
+      expect(text).toContain("never edit `Root.tsx`");
       expect(text).toContain("[Element #N]");
       expect(text).toContain("mcp__remocn-design__design_check");
       expect(text).toContain("fix every mechanical finding");
     }
+  });
+
+  it("names the video the turn is about, and only when it knows it", () => {
+    const named = conventionsFor(false, "opening-title");
+
+    expect(named).toContain("`src/videos/opening-title/`");
+    expect(conventionsFor(false)).not.toContain("Your video for this");
   });
 
   it("keeps the motion-design baseline even without bundled skills", () => {

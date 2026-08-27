@@ -5,6 +5,7 @@ import { PREVIEW_MESSAGE_SOURCE, type PreviewComposition } from "./preview";
 
 const pick = (over: Partial<PreviewComposition> = {}): PreviewComposition => ({
   compositionId: "Main",
+  compositions: ["Main"],
   reason: "main",
   source: PREVIEW_MESSAGE_SOURCE,
   total: 3,
@@ -35,21 +36,31 @@ describe("compositionRow", () => {
     expect(check.state).toBe("failed");
   });
 
-  it("warns when there is no Main, naming what plays instead", () => {
+  // A project holds many videos now, so "none of them is called Main" is the
+  // ordinary case. The one thing worth failing on is a video the pane asked
+  // for that the compiled project does not render.
+  it("fails when the video that was asked for is not in the code", () => {
     const check = compositionRow(
-      pick({ compositionId: "Intro", reason: "first" })
+      pick({ compositionId: "torrens-motherboard", reason: "missing" })
     );
 
-    expect(check.state).toBe("warn");
-    expect(check.detail).toContain("Intro");
+    expect(check.state).toBe("failed");
+    expect(check.title).toContain("torrens-motherboard");
+    expect(check.detail).toContain("Root.tsx");
   });
 
-  it("passes when Main is one of them", () => {
-    expect(compositionRow(pick()).state).toBe("ok");
+  it("passes on the video the pane asked for", () => {
+    const check = compositionRow(
+      pick({ compositionId: "opening-title", reason: "asked" })
+    );
+
+    expect(check.state).toBe("ok");
+    expect(check.detail).toContain("opening-title");
   });
 
-  it("does not call a folder match a missing Main", () => {
-    expect(compositionRow(pick({ reason: "folder" })).state).toBe("warn");
+  it("says nothing about Main when no video was asked for", () => {
+    expect(compositionRow(pick({ reason: "first" })).state).toBe("ok");
+    expect(compositionRow(pick({ reason: "folder" })).state).toBe("ok");
   });
 });
 

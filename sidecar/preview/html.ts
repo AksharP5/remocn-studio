@@ -6,6 +6,7 @@ const SITE_VERSION = "11";
 const DELAY_RENDER_TIMEOUT_MS = 30_000;
 
 export interface PageOptions {
+  asked: string | null;
   hasGrab: boolean;
   preferred: string | null;
   publicPath: string;
@@ -21,6 +22,7 @@ export function previewPage(options: PageOptions): string {
     globals: {
       ...shared(options),
       __REACT_GRAB_DISABLED__: true,
+      remocn_composition: options.asked,
       remocn_preferred: options.preferred,
       remocn_root: options.root,
       remotion_puppeteerTimeout: DELAY_RENDER_TIMEOUT_MS,

@@ -13,12 +13,18 @@ import {
   type ProjectStore,
 } from "./projects";
 import { broken, type HistoryStore, make } from "./store";
+import {
+  broken as brokenVideos,
+  make as makeVideos,
+  type VideoStore,
+} from "./videos";
 
 const FILE = "history.db";
 
 export interface Stores {
   readonly history: HistoryStore;
   readonly projects: ProjectStore;
+  readonly videos: VideoStore;
 }
 
 export function driverFor(path: string): SqlDriver {
@@ -52,6 +58,7 @@ export function openStores(
       Effect.map(({ driver }) => ({
         history: make(driver),
         projects: makeProjects(driver),
+        videos: makeVideos(driver),
       })),
       Effect.catch((message) =>
         log(`history is unavailable: ${message}`).pipe(
@@ -60,6 +67,7 @@ export function openStores(
             projects: brokenProjects(
               `the history at ${path} could not be opened`
             ),
+            videos: brokenVideos(`the history at ${path} could not be opened`),
           })
         )
       )

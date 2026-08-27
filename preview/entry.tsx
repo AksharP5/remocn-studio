@@ -46,12 +46,17 @@ function Preview({ Root }: { readonly Root: React.FC }) {
 
 function Stage() {
   const { compositions } = useContext(Internals.CompositionManager);
-  const picked = pick(compositions, preferredId());
+  const picked = pick(compositions, askedId(), preferredId());
   const player = useRef<PlayerRef>(null);
 
   useEffect(() => {
-    post(describe(picked, compositions.length));
-  }, [compositions.length, picked]);
+    post(
+      describe(
+        picked,
+        compositions.map((composition) => composition.id)
+      )
+    );
+  }, [compositions, picked]);
 
   usePreviewCommands(player, {
     composition: picked?.id ?? null,
@@ -150,15 +155,32 @@ function usePreviewCommands(
   );
 }
 
+// Two different signals, deliberately not merged. `asked` is the video the pane
+// opened this page for, and a miss is a fact worth reporting; `preferred` is the
+// basename of the opened folder, a guess from #226 whose miss is unremarkable.
+function askedId(): string | null {
+  return (window as unknown as { remocn_composition: string | null })
+    .remocn_composition;
+}
+
 function preferredId(): string | null {
   return (window as unknown as { remocn_preferred: string | null })
     .remocn_preferred;
 }
 
-function describe(picked: ReturnType<typeof pick>, total: number) {
+// The app draws its list of videos from rows it already has and reconciles it
+// against this: the ids are the only thing that knows what the project really
+// renders, and they cost nothing to send with the pick.
+function describe(
+  picked: ReturnType<typeof pick>,
+  compositions: readonly string[]
+) {
+  const total = compositions.length;
+
   if (picked === null) {
     return {
       compositionId: null,
+      compositions,
       reason: "none",
       total,
       type: "composition",
@@ -167,11 +189,15 @@ function describe(picked: ReturnType<typeof pick>, total: number) {
   }
 
   return {
+    // A missing video keeps its id in the message: the pane has to be able to
+    // name what it asked for, and "unmeasured" is a different fact — a
+    // composition that exists but computes its metadata.
     compositionId: picked.id,
+    compositions,
     reason: picked.reason,
     total,
     type: "composition",
-    unmeasured: picked.metadata === null,
+    unmeasured: picked.reason !== "missing" && picked.metadata === null,
   };
 }
 
@@ -185,9 +211,24 @@ interface AnyComposition {
   width: number | undefined;
 }
 
-function pick(compositions: AnyComposition[], preferred: string | null) {
+function pick(
+  compositions: AnyComposition[],
+  asked: string | null,
+  preferred: string | null
+) {
   if (compositions.length === 0) {
     return null;
+  }
+
+  if (asked !== null) {
+    const byId = compositions.find((composition) => composition.id === asked);
+
+    // Playing the neighbour instead is the one thing this must not do: the
+    // pane asked for a video by name, and a silent substitution reads as the
+    // wrong video rendering rather than as a video nothing registers.
+    return byId === undefined
+      ? { id: asked, metadata: null, reason: "missing" }
+      : { id: byId.id, metadata: measured(byId), reason: "asked" };
   }
 
   const byFolder =

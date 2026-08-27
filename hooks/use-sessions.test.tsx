@@ -17,6 +17,7 @@ const STORED: HistorySession[] = [
     sdkSessionId: null,
     title: "Newest",
     updatedAt: 3,
+    videoId: "video-1",
   },
   {
     createdAt: 0,
@@ -27,6 +28,7 @@ const STORED: HistorySession[] = [
     sdkSessionId: null,
     title: "Middle",
     updatedAt: 2,
+    videoId: "video-1",
   },
   {
     createdAt: 0,
@@ -37,6 +39,7 @@ const STORED: HistorySession[] = [
     sdkSessionId: null,
     title: "Oldest",
     updatedAt: 1,
+    videoId: "video-1",
   },
 ];
 

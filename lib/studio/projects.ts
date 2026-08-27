@@ -9,6 +9,7 @@ import type {
   Project,
   ProjectDraft,
   ScaffoldEvent,
+  Video,
   VideoSize,
 } from "@/shared/ipc";
 
@@ -60,7 +61,6 @@ export function renameProject(
 
 export function scaffoldProject(
   projectId: string,
-  size: VideoSize,
   onEvent: (event: ScaffoldEvent) => void
 ): Effect.Effect<Project, SidecarError> {
   return Effect.gen(function* () {
@@ -70,7 +70,7 @@ export function scaffoldProject(
       id,
       method: "project.scaffold",
       onStream: onEvent,
-      params: { height: size.height, projectId, width: size.width },
+      params: { projectId },
     }).pipe(Effect.onInterrupt(() => Effect.ignore(cancelSidecarRequest(id))));
   });
 }
@@ -103,5 +103,115 @@ export function removeProject(
     });
 
     return answer.removed;
+  });
+}
+
+export function listVideos(
+  projectId: string
+): Effect.Effect<readonly Video[], SidecarError> {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+
+    return yield* requestSidecar({
+      id,
+      method: "video.list",
+      params: { projectId },
+    });
+  });
+}
+
+export function createVideo(
+  projectId: string,
+  name: string,
+  size: VideoSize
+): Effect.Effect<Video, SidecarError> {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+
+    return yield* requestSidecar({
+      id,
+      method: "video.create",
+      params: { ...size, name, projectId },
+    });
+  });
+}
+
+export function renameVideo(
+  videoId: string,
+  name: string
+): Effect.Effect<Video, SidecarError> {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+
+    return yield* requestSidecar({
+      id,
+      method: "video.rename",
+      params: { name, videoId },
+    });
+  });
+}
+
+// Places the studio's scan in the project and splices it into the entry point,
+// so a folder that nothing rendered becomes a composition on the next build.
+export function registerVideo(
+  videoId: string
+): Effect.Effect<Video, SidecarError> {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+
+    return yield* requestSidecar({
+      id,
+      method: "video.register",
+      params: { videoId },
+    });
+  });
+}
+
+export function removeVideo(
+  videoId: string
+): Effect.Effect<boolean, SidecarError> {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+
+    const answer = yield* requestSidecar({
+      id,
+      method: "video.remove",
+      params: { videoId },
+    });
+
+    return answer.removed;
+  });
+}
+
+export function restoreVideo(
+  videoId: string
+): Effect.Effect<Video, SidecarError> {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+
+    return yield* requestSidecar({
+      id,
+      method: "video.restore",
+      params: { videoId },
+    });
+  });
+}
+
+// What the bundle knows beats what the rows remember, and only for the
+// project it compiled: a composition nobody recorded becomes a row, a row
+// nothing compiles is marked absent, and a video the person deleted stays
+// deleted.
+export function reconcileVideos(
+  projectId: string,
+  compositions: readonly string[]
+): Effect.Effect<readonly Video[], SidecarError> {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+
+    return yield* requestSidecar({
+      id,
+      method: "video.reconcile",
+      params: { compositions, projectId },
+    });
   });
 }

@@ -8,12 +8,15 @@ import { causeMessage } from "@/lib/error-message";
 import { TEMPLATE_DIR_ENV } from "@/shared/ipc";
 import {
   expandTemplate,
+  expandVideo,
   packageName,
+  REGISTRY_TEMPLATE,
   sized,
+  VIDEO_TEMPLATE,
 } from "@/sidecar/scaffold/template";
 
 const TEMPLATE = join(process.cwd(), "templates", "remotion");
-const COMPOSITION = /<Composition/g;
+const VIDEO_MODULE = join(TEMPLATE, VIDEO_TEMPLATE, "index.tsx");
 const LANDSCAPE = { height: 1080, width: 1920 };
 const VERTICAL = { height: 1920, width: 1080 };
 
@@ -21,16 +24,31 @@ const run = <A, E>(effect: Effect.Effect<A, E>) => Effect.runPromise(effect);
 
 async function folder(name: string) {
   const parent = await mkdtemp(join(tmpdir(), "remocn-template-"));
-  const target = join(parent, name);
-  return target;
+  return join(parent, name);
 }
 
 describe("the vendored template", () => {
-  it("declares exactly one composition, called Main", async () => {
+  // Root.tsx is the project's own file in every project, scaffolded or not —
+  // the scan lives beside it, in a file the studio wrote and owns.
+  it("registers no composition of its own, and leaves Root for the person", async () => {
     const root = await readFile(join(TEMPLATE, "src", "Root.tsx"), "utf8");
 
-    expect(root.match(COMPOSITION)).toHaveLength(1);
-    expect(root).toContain('id="Main"');
+    expect(root).not.toContain("require.context");
+    expect(root).not.toContain("<Composition");
+  });
+
+  it("wraps its entry point in the scan, the way an opened project is", async () => {
+    const entry = await readFile(join(TEMPLATE, "src", "index.ts"), "utf8");
+
+    expect(entry).toContain('from "./videos/registry"');
+    expect(entry).toContain("registerRoot(withVideos(Root));");
+  });
+
+  it("keeps the registry out of the project tree until it is placed", async () => {
+    const registry = await readFile(join(TEMPLATE, REGISTRY_TEMPLATE), "utf8");
+
+    expect(registry).toContain("require.context");
+    expect(registry).toContain("export function withVideos");
   });
 
   it("registers a root from an entry point the preview looks for", async () => {
@@ -39,18 +57,18 @@ describe("the vendored template", () => {
     expect(entry).toContain("registerRoot");
   });
 
-  it("declares its dimensions as literals the wizard can rewrite", async () => {
-    const root = await readFile(join(TEMPLATE, "src", "Root.tsx"), "utf8");
+  it("declares the video's dimensions as literals the wizard can rewrite", async () => {
+    const video = await readFile(VIDEO_MODULE, "utf8");
 
-    expect(sized(root, VERTICAL)).toContain("width={1080}");
-    expect(sized(root, VERTICAL)).toContain("height={1920}");
+    expect(sized(video, VERTICAL)).toContain("width: 1080");
+    expect(sized(video, VERTICAL)).toContain("height: 1920");
   });
 });
 
 describe("sized", () => {
   it("says which file drifted rather than silently keeping the old size", () => {
-    expect(() => sized('<Composition id="Main" />', LANDSCAPE)).toThrow(
-      "Root.tsx"
+    expect(() => sized("export const meta = {};", LANDSCAPE)).toThrow(
+      VIDEO_TEMPLATE
     );
   });
 });
@@ -63,7 +81,7 @@ describe("expandTemplate", () => {
   it("writes the template into a folder that does not exist yet", async () => {
     const target = await folder("launch-film");
 
-    await run(expandTemplate(target, LANDSCAPE));
+    await run(expandTemplate(target));
 
     const manifest = JSON.parse(
       await readFile(join(target, "package.json"), "utf8")
@@ -71,35 +89,33 @@ describe("expandTemplate", () => {
 
     expect(manifest.name).toBe("launch-film");
     expect(manifest.dependencies.remotion).toBeDefined();
-    expect(await readFile(join(target, "src", "Root.tsx"), "utf8")).toContain(
-      'id="Main"'
+    expect(await readFile(join(target, "src", "index.ts"), "utf8")).toContain(
+      "registerRoot(withVideos(Root));"
     );
   });
 
-  it("writes the chosen dimensions into the one composition", async () => {
-    const target = await folder("reel");
+  it("leaves the template's own scaffolding out of the project", async () => {
+    const target = await folder("promo");
 
-    await run(expandTemplate(target, VERTICAL));
+    await run(expandTemplate(target));
 
-    const root = await readFile(join(target, "src", "Root.tsx"), "utf8");
-
-    expect(root).toContain("width={1080}");
-    expect(root).toContain("height={1920}");
-    expect(root.match(COMPOSITION)).toHaveLength(1);
+    await expect(
+      readFile(join(target, VIDEO_TEMPLATE, "index.tsx"), "utf8")
+    ).rejects.toBeDefined();
+    await expect(
+      readFile(join(target, REGISTRY_TEMPLATE), "utf8")
+    ).rejects.toBeDefined();
   });
 
   it("leaves a file that is already there alone", async () => {
     const target = await folder("promo");
 
-    await run(expandTemplate(target, LANDSCAPE));
-    await writeFile(join(target, "src", "Main.tsx"), "// mine\n", "utf8");
-    await run(expandTemplate(target, VERTICAL));
+    await run(expandTemplate(target));
+    await writeFile(join(target, "src", "Root.tsx"), "// mine\n", "utf8");
+    await run(expandTemplate(target));
 
-    expect(await readFile(join(target, "src", "Main.tsx"), "utf8")).toBe(
+    expect(await readFile(join(target, "src", "Root.tsx"), "utf8")).toBe(
       "// mine\n"
-    );
-    expect(await readFile(join(target, "src", "Root.tsx"), "utf8")).toContain(
-      "width={1920}"
     );
   });
 
@@ -108,7 +124,7 @@ describe("expandTemplate", () => {
     Reflect.deleteProperty(process.env, TEMPLATE_DIR_ENV);
 
     const exit = await Effect.runPromiseExit(
-      expandTemplate(await folder("nowhere"), LANDSCAPE)
+      expandTemplate(await folder("nowhere"))
     );
     process.env[TEMPLATE_DIR_ENV] = kept;
 
@@ -116,6 +132,48 @@ describe("expandTemplate", () => {
     if (Exit.isFailure(exit)) {
       expect(causeMessage(exit.cause)).toContain(TEMPLATE_DIR_ENV);
     }
+  });
+});
+
+describe("expandVideo", () => {
+  beforeAll(() => {
+    process.env[TEMPLATE_DIR_ENV] = TEMPLATE;
+  });
+
+  it("writes one folder under src/videos, sized and named", async () => {
+    const target = await folder("reel");
+    await run(expandTemplate(target));
+
+    const written = await run(
+      expandVideo(target, {
+        name: "Интро",
+        size: VERTICAL,
+        slug: "intro",
+      })
+    );
+
+    expect(written).toBe(join(target, "src", "videos", "intro"));
+
+    const module = await readFile(join(written, "index.tsx"), "utf8");
+
+    expect(module).toContain("width: 1080");
+    expect(module).toContain("height: 1920");
+    expect(module).toContain("Интро");
+    expect(module).not.toContain("__VIDEO_NAME__");
+  });
+
+  it("never overwrites a video the agent has already edited", async () => {
+    const target = await folder("reel");
+    await run(expandTemplate(target));
+
+    const draft = { name: "Intro", size: LANDSCAPE, slug: "intro" };
+    const written = await run(expandVideo(target, draft));
+    await writeFile(join(written, "index.tsx"), "// mine\n", "utf8");
+    await run(expandVideo(target, draft));
+
+    expect(await readFile(join(written, "index.tsx"), "utf8")).toBe(
+      "// mine\n"
+    );
   });
 });
 

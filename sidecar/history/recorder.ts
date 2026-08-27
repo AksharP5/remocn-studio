@@ -38,6 +38,7 @@ export function recording(
         projectId: params.projectId,
         provider: params.provider,
         title: titleOf(params),
+        videoId: params.videoId,
       })
     );
     if (session === null) {

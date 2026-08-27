@@ -7,7 +7,7 @@ import type { AgentProvider } from "@/shared/providers";
 
 const SETTINGS_FILE = "settings.json";
 const PROJECT_FOLDER_KEY = "projectFolder";
-const EXPANDED_PROJECTS_KEY = "expandedProjects";
+const EXPANDED_VIDEOS_KEY = "expandedVideos";
 const CLAUDE_MODEL_KEY = "claudeModel";
 const CODEX_MODEL_KEY = "codexModel";
 const COPILOT_MODEL_KEY = "copilotModel";
@@ -32,7 +32,7 @@ export interface StudioSettings {
   claudeModel: string | null;
   codexModel: string | null;
   copilotModel: string | null;
-  expandedProjects: readonly string[];
+  expandedVideos: readonly string[];
   grokModel: string | null;
   legacyProjectFolder: string | null;
   paneView: PaneView | null;
@@ -57,7 +57,7 @@ export const hydrateSettings: Effect.Effect<StudioSettings> = openStore.pipe(
       claudeModel: cache.get(CLAUDE_MODEL_KEY) ?? null,
       codexModel: cache.get(CODEX_MODEL_KEY) ?? null,
       copilotModel: cache.get(COPILOT_MODEL_KEY) ?? null,
-      expandedProjects: idsOf(cache.get(EXPANDED_PROJECTS_KEY)),
+      expandedVideos: idsOf(cache.get(EXPANDED_VIDEOS_KEY)),
       grokModel: cache.get(GROK_MODEL_KEY) ?? null,
       legacyProjectFolder: cache.get(PROJECT_FOLDER_KEY) ?? null,
       paneView: paneViewOf(cache.get(PANE_VIEW_KEY)),
@@ -133,10 +133,10 @@ export const forgetProjectFolder: Effect.Effect<void> = Effect.sync(() => {
   cache.delete(PROJECT_FOLDER_KEY);
 }).pipe(Effect.andThen(forget(PROJECT_FOLDER_KEY)));
 
-export function saveExpandedProjects(
+export function saveExpandedVideos(
   ids: readonly string[]
 ): Effect.Effect<void> {
-  return remember(EXPANDED_PROJECTS_KEY, JSON.stringify(ids));
+  return remember(EXPANDED_VIDEOS_KEY, JSON.stringify(ids));
 }
 
 const MODEL_KEYS: Record<AgentProvider, string> = {

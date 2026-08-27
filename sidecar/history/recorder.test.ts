@@ -10,6 +10,7 @@ import { recording } from "@/sidecar/history/recorder";
 import { broken, type HistoryStore, make } from "@/sidecar/history/store";
 
 const PROJECT_ID = "project-1";
+const VIDEO_ID = "video-1";
 
 function store(): HistoryStore {
   const db = new DatabaseSync(":memory:");
@@ -29,6 +30,11 @@ function store(): HistoryStore {
      VALUES (?, ?, ?, ?, ?)`,
     [PROJECT_ID, "/videos/promo", "promo", 0, 0]
   );
+  driver.run(
+    `INSERT INTO video (id, project_id, composition_id, name, present, created_at, updated_at, deleted_at)
+     VALUES (?, ?, 'promo', 'Promo', 1, 0, 0, NULL)`,
+    [VIDEO_ID, PROJECT_ID]
+  );
   return make(driver);
 }
 
@@ -47,6 +53,7 @@ function params(shape: Partial<PromptParams>): PromptParams {
     prompt: "make a title card",
     provider: "claude",
     sessionId: null,
+    videoId: VIDEO_ID,
     ...shape,
   };
 }

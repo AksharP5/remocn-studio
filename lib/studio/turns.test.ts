@@ -43,6 +43,7 @@ function message(id: string, text = "now in red"): QueuedMessage {
     playing: null,
     projectId: "project-1",
     text,
+    videoId: "video-1",
   };
 }
 

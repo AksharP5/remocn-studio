@@ -37,7 +37,13 @@ const IDLE: Preview = { phase: "idle" };
 
 type Running = Fiber.Fiber<unknown, unknown>;
 
-export function usePreview(projectId: string | null): PreviewControl {
+// One host per project, one page per video: the bundle is shared and the
+// iframe asks for the composition it wants, so switching videos is a page
+// load rather than another seven-second compile.
+export function usePreview(
+  projectId: string | null,
+  compositionId: string | null
+): PreviewControl {
   const [preview, setPreview] = useState<Preview>(IDLE);
   const [pick, setPick] = useState<PreviewComposition | null>(null);
   const [frame, setFrame] = useState(0);
@@ -46,6 +52,8 @@ export function usePreview(projectId: string | null): PreviewControl {
   const listeners = useRef(new Set<PreviewListener>());
 
   const origin = preview.phase === "ready" ? originOf(preview.url) : null;
+  const url =
+    preview.phase === "ready" ? playing(preview.url, compositionId) : null;
 
   const subscribe = useCallback((listen: PreviewListener) => {
     listeners.current.add(listen);
@@ -167,14 +175,24 @@ export function usePreview(projectId: string | null): PreviewControl {
       hint,
       isServing: preview.phase === "ready",
       pick,
-      preview,
+      preview: url === null ? preview : { phase: "ready" as const, url },
       restart,
       send,
       stage,
       subscribe,
     }),
-    [frame, hint, pick, preview, restart, send, subscribe]
+    [frame, hint, pick, preview, restart, send, subscribe, url]
   );
+}
+
+function playing(url: string, compositionId: string | null): string {
+  if (compositionId === null) {
+    return url;
+  }
+
+  const asked = new URL(url);
+  asked.searchParams.set("composition", compositionId);
+  return asked.toString();
 }
 
 export function useOnPreview(
@@ -202,7 +220,13 @@ function hintOf(message: PreviewComposition | null): string | null {
   }
 
   if (message.compositionId === null) {
-    return "This project registers no compositions.";
+    return "This project registers no videos.";
+  }
+
+  // Naming the video the pane asked for is the whole point of this branch:
+  // playing a neighbour instead would read as the wrong video rendering.
+  if (message.reason === "missing") {
+    return `Nothing in this project renders ${message.compositionId}. Ask Claude to register it, or open a video that is in the code.`;
   }
 
   if (message.unmeasured) {
@@ -214,7 +238,7 @@ function hintOf(message: PreviewComposition | null): string | null {
   }
 
   if (message.reason === "first") {
-    return `No composition called Main, so ${message.compositionId} is playing.`;
+    return `No video was asked for, so ${message.compositionId} is playing.`;
   }
 
   return null;

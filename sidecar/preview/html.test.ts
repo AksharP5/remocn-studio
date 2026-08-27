@@ -8,9 +8,11 @@ const ROOT = "/Users/me/projects/my-video";
 const page = (
   title = "demo",
   preferred: string | null = null,
-  hasGrab = true
+  hasGrab = true,
+  asked: string | null = null
 ) =>
   previewPage({
+    asked,
     hasGrab,
     preferred,
     publicPath: "/",
@@ -21,6 +23,14 @@ const page = (
   });
 
 describe("previewPage", () => {
+  it("publishes the video the pane asked for, apart from the folder guess", () => {
+    const asked = page("demo", "opened-folder", true, "opening-title");
+
+    expect(asked).toContain('window.remocn_composition = "opening-title";');
+    expect(asked).toContain('window.remocn_preferred = "opened-folder";');
+    expect(page()).toContain("window.remocn_composition = null;");
+  });
+
   it("renders the element Remotion mounts into", () => {
     expect(page()).toContain('id="__remotion-studio-container"');
   });
@@ -86,6 +96,7 @@ describe("previewPage", () => {
 describe("renderPage", () => {
   const rendered = () =>
     renderPage({
+      asked: null,
       hasGrab: true,
       preferred: null,
       publicPath: "/",

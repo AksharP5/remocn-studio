@@ -65,6 +65,7 @@ function announce(
   post(
     {
       ...pick,
+      compositions: ["Main", "Intro"],
       source: "remocn-preview",
       total: 2,
       type: "composition",
@@ -92,10 +93,13 @@ const SELECTION = {
   type: "selection",
 };
 
-async function served(listen: PreviewListener = listener()) {
+async function served(
+  listen: PreviewListener = listener(),
+  composition: string | null = null
+) {
   const host = mockPreview();
   const rendered = renderHook(() => {
-    const preview = usePreview(FOLDER);
+    const preview = usePreview(FOLDER, composition);
     useOnPreview(preview, listen);
     return preview;
   });
@@ -110,6 +114,17 @@ async function served(listen: PreviewListener = listener()) {
 }
 
 describe("usePreview", () => {
+  it("asks the served page for the video it is showing", async () => {
+    const { rendered } = await served(listener(), "opening-title");
+
+    await waitFor(() => {
+      expect(rendered.result.current.preview).toEqual({
+        phase: "ready",
+        url: `${URL}/?composition=opening-title`,
+      });
+    });
+  });
+
   it("shows the served url once the host is ready", async () => {
     const { rendered } = await served();
 
@@ -144,20 +159,32 @@ describe("usePreview", () => {
   });
 
   it("stays idle without a folder", () => {
-    const { result } = renderHook(() => usePreview(null));
+    const { result } = renderHook(() => usePreview(null, null));
 
     expect(result.current.preview).toEqual({ phase: "idle" });
     expect(result.current.isServing).toBe(false);
   });
 
-  it("names the fallback composition when there is no Main", async () => {
+  it("names the fallback composition when none was asked for", async () => {
     const { rendered } = await served();
 
     announce({ compositionId: "Intro", reason: "first" });
 
     await waitFor(() => {
       expect(rendered.result.current.hint).toBe(
-        "No composition called Main, so Intro is playing."
+        "No video was asked for, so Intro is playing."
+      );
+    });
+  });
+
+  it("says so rather than letting a neighbour stand in for the video", async () => {
+    const { rendered } = await served(listener(), "torrens-motherboard");
+
+    announce({ compositionId: "torrens-motherboard", reason: "missing" });
+
+    await waitFor(() => {
+      expect(rendered.result.current.hint).toContain(
+        "Nothing in this project renders torrens-motherboard"
       );
     });
   });
@@ -266,7 +293,7 @@ describe("usePreview", () => {
     const listen = listener();
     mockPreview();
     renderHook(() => {
-      const preview = usePreview(FOLDER);
+      const preview = usePreview(FOLDER, null);
       useOnPreview(preview, listen);
       return preview;
     });

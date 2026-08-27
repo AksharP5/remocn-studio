@@ -24,6 +24,7 @@ const STORED: HistorySession = {
   sdkSessionId: "sdk-9",
   title: "A promo",
   updatedAt: 0,
+  videoId: "video-1",
 };
 
 const STAGES: PipelineStage[] = [
@@ -44,7 +45,11 @@ const BLOCKS: TranscriptEntry[] = [
   { id: "block-1", kind: "assistant", text: "Building it now." },
 ];
 
-function turn(historyId: string, prompt = "make a title card"): StartTurn {
+function turn(
+  historyId: string,
+  prompt = "make a title card",
+  videoId = historyId
+): StartTurn {
   return {
     assets: [],
     attachments: [],
@@ -57,6 +62,7 @@ function turn(historyId: string, prompt = "make a title card"): StartTurn {
     playing: null,
     projectId: "project-1",
     prompt,
+    videoId,
   };
 }
 

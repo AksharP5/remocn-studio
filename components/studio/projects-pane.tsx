@@ -1,12 +1,11 @@
 "use client";
 
 import {
+  ClapperboardIcon,
   ComponentIcon,
-  FolderIcon,
-  FolderOpenIcon,
-  FolderPlusIcon,
   LibraryBigIcon,
   PanelLeftCloseIcon,
+  PlusIcon,
   SettingsIcon,
 } from "lucide-react";
 import type { MouseEvent } from "react";
@@ -31,6 +30,7 @@ import {
   SidebarMenuSkeleton,
   SidebarProvider,
 } from "@/components/ui/sidebar";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Tooltip,
   TooltipContent,
@@ -42,6 +42,7 @@ import { useNow } from "@/hooks/use-now";
 import { usePickAsset } from "@/hooks/use-pick-asset";
 import type { ProjectCommands } from "@/hooks/use-project-menu";
 import type { ScaffoldState } from "@/hooks/use-scaffold";
+import type { VideoCommands } from "@/hooks/use-video-menu";
 import { type PaneGroup, paneSections } from "@/lib/studio/groups";
 import { isPaneView, type PaneView } from "@/lib/studio/pane-view";
 import { cn } from "@/lib/utils";
@@ -50,19 +51,20 @@ import { AssetsPane } from "./assets-pane";
 import { AssetsScopeSwitch } from "./assets-scope";
 import { ComponentsPane } from "./components-pane";
 import { LogoWordmark } from "./logo-mark";
-import { ProjectGroup } from "./project-group";
+import { ProjectSwitcher } from "./project-switcher";
 import { StockPane } from "./stock-pane";
 import { useStudio } from "./studio-provider";
 import { UpdateStatus } from "./update-status";
+import { VideoGroup } from "./video-group";
 
 const PLACEHOLDERS = ["one", "two", "three", "four"];
 
 const VIEW_ITEMS: readonly {
-  icon: typeof FolderIcon;
+  icon: typeof ComponentIcon;
   label: string;
   view: PaneView;
 }[] = [
-  { icon: FolderIcon, label: "Projects", view: "projects" },
+  { icon: ClapperboardIcon, label: "Videos", view: "videos" },
   { icon: LibraryBigIcon, label: "Assets", view: "assets" },
   { icon: ComponentIcon, label: "Components", view: "components" },
 ];
@@ -70,33 +72,42 @@ const VIEW_ITEMS: readonly {
 export function ProjectsPane() {
   const {
     actionError,
+    activeProject,
     activeSession,
     composer,
     drops,
-    expandedProjects,
+    expandedVideos,
     folderError,
     groups,
     isLoadingProjects,
+    isLoadingVideos,
     library,
     newProject,
+    newVideo,
     onNewSession,
     onRemoveSession,
     onRetryScaffold,
     onSelectSession,
-    onToggleProject,
+    onToggleVideo,
     openFolder,
     paneSlide,
     paneView,
+    projects,
     projectsError,
     relocateProject,
-    reloadProjects,
+    registerVideo,
+    reloadVideos,
     removeProject,
+    removeVideo,
     renameProject,
+    renameVideo,
     scaffolds,
+    selectProject,
     sessionsError,
     settingsDialog,
     showPane,
     toggleProjects,
+    videosError,
   } = useStudio();
 
   const now = useNow();
@@ -104,6 +115,10 @@ export function ProjectsPane() {
   const commands: ProjectCommands = useMemo(
     () => ({ relocateProject, removeProject, renameProject }),
     [relocateProject, removeProject, renameProject]
+  );
+  const videoCommands: VideoCommands = useMemo(
+    () => ({ registerVideo, removeVideo, renameVideo }),
+    [registerVideo, removeVideo, renameVideo]
   );
   const pickable = useMemo(
     () => [...library.assets, ...library.bundled],
@@ -124,26 +139,40 @@ export function ProjectsPane() {
 
   let content = (
     <>
-      <h2 className="sr-only">Projects</h2>
-      <SidebarActions
+      <h2 className="sr-only">Videos</h2>
+      <ProjectSwitcher
+        commands={commands}
         onNewProject={newProject.open}
         onOpenFolder={openFolder}
+        onSelect={selectProject}
+        project={activeProject}
+        projects={projects}
       />
-      <ProjectsBody
+      <NewVideoAction
+        isDisabled={activeProject === null || activeProject.missing}
+        onNewVideo={newVideo.open}
+      />
+      {activeProject === null ? null : (
+        <Scaffolding
+          onRetry={onRetryScaffold}
+          projectId={activeProject.id}
+          scaffold={scaffolds.get(activeProject.id)}
+        />
+      )}
+      <VideosBody
         activeSessionId={activeSession?.id ?? null}
-        commands={commands}
-        error={projectsError ?? sessionsError}
-        expanded={expandedProjects}
+        commands={videoCommands}
+        error={projectsError ?? videosError ?? sessionsError}
+        expanded={expandedVideos}
         groups={groups}
-        isLoading={isLoadingProjects}
+        hasProject={activeProject !== null}
+        isLoading={isLoadingProjects || isLoadingVideos}
         now={now}
         onNewSession={onNewSession}
         onRemoveSession={onRemoveSession}
-        onRetry={reloadProjects}
-        onRetryScaffold={onRetryScaffold}
+        onRetry={reloadVideos}
         onSelectSession={onSelectSession}
-        onToggle={onToggleProject}
-        scaffolds={scaffolds}
+        onToggle={onToggleVideo}
       />
     </>
   );
@@ -338,74 +367,59 @@ function SidebarBrand({ onHide }: { onHide: () => void }) {
     </div>
   );
 }
-
-function SidebarActions({
-  onNewProject,
-  onOpenFolder,
+// One primary action, and it is the only place a video is born by hand: the
+// first video of a project comes with the project wizard, and a new chat under
+// an existing video is a single click on its row.
+function NewVideoAction({
+  isDisabled,
+  onNewVideo,
 }: {
-  onNewProject: () => void;
-  onOpenFolder: () => void;
+  isDisabled: boolean;
+  onNewVideo: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2 px-2 pb-2">
+    <div className="px-2 pb-2">
       <Button
-        className="flex-1 bg-input/30"
-        onClick={onNewProject}
+        className="w-full bg-input/30"
+        disabled={isDisabled}
+        onClick={onNewVideo}
         variant="secondary"
       >
-        <FolderPlusIcon data-icon="inline-start" />
-        New Project
+        <PlusIcon data-icon="inline-start" />
+        New Video
       </Button>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              aria-label="Open an existing project"
-              className="shrink-0 text-muted-foreground"
-              onClick={onOpenFolder}
-              size="icon"
-              variant="ghost"
-            />
-          }
-        >
-          <FolderOpenIcon />
-        </TooltipTrigger>
-        <TooltipContent side="bottom">Open an existing project</TooltipContent>
-      </Tooltip>
     </div>
   );
 }
 
-function ProjectsBody({
+function VideosBody({
   activeSessionId,
   commands,
   error,
   expanded,
   groups,
+  hasProject,
   isLoading,
   now,
   onNewSession,
   onRemoveSession,
   onRetry,
-  onRetryScaffold,
   onSelectSession,
   onToggle,
-  scaffolds,
 }: {
   activeSessionId: string | null;
-  commands: ProjectCommands;
+  commands: VideoCommands;
   error: string | null;
   expanded: ReadonlySet<string>;
   groups: readonly PaneGroup[];
+  hasProject: boolean;
   isLoading: boolean;
   now: number;
   onNewSession: (event: MouseEvent<HTMLButtonElement>) => void;
   onRemoveSession: (event: MouseEvent<HTMLButtonElement>) => void;
   onRetry: () => void;
-  onRetryScaffold: (event: MouseEvent<HTMLButtonElement>) => void;
   onSelectSession: (event: MouseEvent<HTMLButtonElement>) => void;
   onToggle: (event: MouseEvent<HTMLButtonElement>) => void;
-  scaffolds: ReadonlyMap<string, ScaffoldState>;
 }) {
   if (error !== null) {
     return (
@@ -435,22 +449,33 @@ function ProjectsBody({
     );
   }
 
+  if (!hasProject) {
+    return (
+      <Empty className="px-4 py-8">
+        <EmptyHeader>
+          <EmptyTitle className="text-balance">No project open</EmptyTitle>
+          <EmptyDescription>
+            Create one, or open a folder you already have.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
+  }
+
   const { active, gone } = paneSections(groups);
 
   const item = (group: PaneGroup) => (
-    <ProjectGroup
+    <VideoGroup
       activeSessionId={activeSessionId}
       commands={commands}
       group={group}
-      isExpanded={expanded.has(group.project.id)}
-      key={group.project.id}
+      isExpanded={expanded.has(group.video.id)}
+      key={group.video.id}
       now={now}
       onNewSession={onNewSession}
       onRemoveSession={onRemoveSession}
-      onRetryScaffold={onRetryScaffold}
       onSelectSession={onSelectSession}
       onToggle={onToggle}
-      scaffold={scaffolds.get(group.project.id)}
     />
   );
 
@@ -460,17 +485,79 @@ function ProjectsBody({
         <SidebarMenu>{active.map(item)}</SidebarMenu>
       )}
 
+      {active.length === 0 && gone.length === 0 ? (
+        <p className="px-3 py-2 text-muted-foreground text-xs">
+          No videos yet.
+        </p>
+      ) : null}
+
       {gone.length === 0 ? null : (
         <>
           <h3
             className="mt-2 flex h-8 shrink-0 items-center px-2 font-medium text-sidebar-foreground/70 text-xs"
-            title="These folders are not where the studio left them. Locate… reconnects one that moved."
+            title="Nothing in this project renders these anymore. Their chats are still here."
           >
-            Moved or deleted
+            Not in the code
           </h3>
           <SidebarMenu>{gone.map(item)}</SidebarMenu>
         </>
       )}
     </>
+  );
+}
+
+const DOING: Record<ScaffoldState["step"], string> = {
+  install: "Installing dependencies…",
+  template: "Copying the template…",
+};
+
+const FAILED: Record<ScaffoldState["step"], string> = {
+  install: "Could not install the dependencies.",
+  template: "Could not copy the template.",
+};
+
+// Scaffolding belongs to the project, so it reports under the switcher rather
+// than on a video: the template and the install are what the whole folder is
+// waiting for, not one composition in it.
+function Scaffolding({
+  onRetry,
+  projectId,
+  scaffold,
+}: {
+  onRetry: (event: MouseEvent<HTMLButtonElement>) => void;
+  projectId: string;
+  scaffold: ScaffoldState | undefined;
+}) {
+  if (scaffold === undefined) {
+    return null;
+  }
+
+  if (scaffold.isRunning) {
+    return (
+      <p className="flex items-center gap-2 px-3 py-1 text-muted-foreground text-xs">
+        <Spinner className="size-3" />
+        {DOING[scaffold.step]}
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1 px-3 py-1">
+      <p className="text-destructive text-xs">{FAILED[scaffold.step]}</p>
+      {scaffold.error === null ? null : (
+        <p className="line-clamp-3 break-all font-mono text-2xs text-muted-foreground">
+          {scaffold.error}
+        </p>
+      )}
+      <Button
+        className="self-start text-xs"
+        onClick={onRetry}
+        size="sm"
+        value={projectId}
+        variant="outline"
+      >
+        Retry
+      </Button>
+    </div>
   );
 }

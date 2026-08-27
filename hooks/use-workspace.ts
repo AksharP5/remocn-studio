@@ -4,9 +4,9 @@ import { Effect } from "effect";
 import type { MouseEvent } from "react";
 import { useCallback, useMemo } from "react";
 import {
-  type ExpandedProjects,
-  useExpandedProjects,
-} from "@/hooks/use-expanded-projects";
+  type ExpandedVideos,
+  useExpandedVideos,
+} from "@/hooks/use-expanded-videos";
 import {
   type ProjectActions,
   useProjectActions,
@@ -15,8 +15,14 @@ import { type StudioProjects, useProjects } from "@/hooks/use-projects";
 import { type Scaffolds, useScaffold } from "@/hooks/use-scaffold";
 import { type StudioSessions, useSessions } from "@/hooks/use-sessions";
 import { type Turns, useTurns } from "@/hooks/use-turns";
-import { sizeOf, type VideoFormat } from "@/lib/studio/formats";
-import { type PaneGroup, paneGroups, projectOf } from "@/lib/studio/groups";
+import { type StudioVideos, useVideos } from "@/hooks/use-videos";
+import type { VideoFormat } from "@/lib/studio/formats";
+import {
+  type PaneGroup,
+  paneGroups,
+  projectOf,
+  videoOf,
+} from "@/lib/studio/groups";
 import { saveSessionMode } from "@/lib/studio/history";
 import type { StudioSettings } from "@/lib/studio/settings";
 import type {
@@ -24,15 +30,18 @@ import type {
   Project,
   ProjectDraft,
   SessionMode,
+  Video,
 } from "@/shared/ipc";
 
 export interface Workspace
   extends StudioProjects,
     StudioSessions,
-    ExpandedProjects,
+    StudioVideos,
+    ExpandedVideos,
     Omit<ProjectActions, "createProject">,
     Scaffolds,
     Turns {
+  addVideo: (name: string, format: VideoFormat) => Promise<Video | null>;
   changeSessionMode: (historyId: string, mode: SessionMode) => void;
   createProject: (
     draft: ProjectDraft,
@@ -42,7 +51,8 @@ export interface Workspace
   onNewSession: (event: MouseEvent<HTMLButtonElement>) => void;
   onSelectSession: (event: MouseEvent<HTMLButtonElement>) => void;
   openedProject: Project | null;
-  startSessionIn: (projectId: string) => void;
+  openedVideo: Video | null;
+  startSessionIn: (videoId: string) => void;
 }
 
 export function useWorkspace(settings: StudioSettings | null): Workspace {
@@ -51,16 +61,15 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
   const actions = useProjectActions();
   const turns = useTurns(sessions.rememberSession);
   const scaffolds = useScaffold(projects.replaceProject);
-  const expansion = useExpandedProjects(
-    settings,
-    projects.activeProject?.id ?? null
-  );
+  const videos = useVideos(projects.activeProject?.id ?? null);
+  const expansion = useExpandedVideos(settings, videos.activeVideo?.id ?? null);
 
   const { forgetProject, rememberProject, replaceProject, selectProject } =
     projects;
   const { forgetSessionsOf, replaceSession, selectSession, startSession } =
     sessions;
-  const { expandProject } = expansion;
+  const { createVideo, selectVideo } = videos;
+  const { expandVideo } = expansion;
   const { setTurnMode, stopTurn } = turns;
   const rows = sessions.sessions;
   const pickFolder = projects.openFolder;
@@ -70,12 +79,12 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
   const rename = actions.renameProject;
 
   const startSessionIn = useCallback(
-    (projectId: string) => {
-      selectProject(projectId);
-      expandProject(projectId);
+    (videoId: string) => {
+      selectVideo(videoId);
+      expandVideo(videoId);
       startSession();
     },
-    [expandProject, selectProject, startSession]
+    [expandVideo, selectVideo, startSession]
   );
 
   const changeSessionMode = useCallback(
@@ -99,26 +108,59 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
   const openFolder = useCallback(async () => {
     const project = await pickFolder();
     if (project !== null) {
-      expandProject(project.id);
       startSession();
     }
     return project;
-  }, [expandProject, pickFolder, startSession]);
+  }, [pickFolder, startSession]);
 
   const { startScaffold } = scaffolds;
 
+  // Creating a project and creating its first video are one gesture: the
+  // person asked for a video, and the folder is the container it needs.
   const createProject = useCallback(
     async (draft: ProjectDraft, format: VideoFormat) => {
       const project = await create(draft);
-      if (project !== null) {
-        rememberProject(project);
-        expandProject(project.id);
-        startSession();
-        startScaffold(project.id, sizeOf(format));
+      if (project === null) {
+        return null;
       }
+
+      rememberProject(project);
+      startScaffold(project.id);
+
+      const video = await createVideo(project.id, draft.name, format);
+      if (video !== null) {
+        expandVideo(video.id);
+      }
+      startSession();
+
       return project;
     },
-    [create, expandProject, rememberProject, startScaffold, startSession]
+    [
+      create,
+      createVideo,
+      expandVideo,
+      rememberProject,
+      startScaffold,
+      startSession,
+    ]
+  );
+
+  const activeProjectId = projects.activeProject?.id ?? null;
+
+  const addVideo = useCallback(
+    async (name: string, format: VideoFormat) => {
+      if (activeProjectId === null) {
+        return null;
+      }
+
+      const video = await createVideo(activeProjectId, name, format);
+      if (video !== null) {
+        expandVideo(video.id);
+        startSession();
+      }
+      return video;
+    },
+    [activeProjectId, createVideo, expandVideo, startSession]
   );
 
   const renameProject = useCallback(
@@ -164,10 +206,11 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
   const openSession = useCallback(
     (session: HistorySession) => {
       selectProject(session.projectId);
-      expandProject(session.projectId);
+      selectVideo(session.videoId);
+      expandVideo(session.videoId);
       selectSession(session);
     },
-    [expandProject, selectProject, selectSession]
+    [expandVideo, selectProject, selectSession, selectVideo]
   );
 
   const onSelectSession = useCallback(
@@ -198,8 +241,8 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
   );
 
   const groups = useMemo(
-    () => paneGroups(projects.projects, rows, turns.turns),
-    [projects.projects, rows, turns.turns]
+    () => paneGroups(videos.videos, rows, turns.turns),
+    [rows, turns.turns, videos.videos]
   );
 
   const openedProject = projectOf(
@@ -208,14 +251,22 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
     projects.activeProject
   );
 
+  const openedVideo = videoOf(
+    videos.videos,
+    sessions.openedSession,
+    videos.activeVideo
+  );
+
   return useMemo(
     () => ({
       ...projects,
       ...sessions,
+      ...videos,
       ...actions,
       ...expansion,
       ...scaffolds,
       ...turns,
+      addVideo,
       changeSessionMode,
       createProject,
       groups,
@@ -223,6 +274,7 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
       onRemoveSession,
       onSelectSession,
       openedProject,
+      openedVideo,
       openFolder,
       relocateProject,
       removeProject,
@@ -232,6 +284,7 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
     }),
     [
       actions,
+      addVideo,
       changeSessionMode,
       createProject,
       expansion,
@@ -240,6 +293,7 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
       onRemoveSession,
       onSelectSession,
       openedProject,
+      openedVideo,
       openFolder,
       openSession,
       projects,
@@ -250,6 +304,7 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
       sessions,
       startSessionIn,
       turns,
+      videos,
     ]
   );
 }

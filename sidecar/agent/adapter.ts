@@ -35,6 +35,10 @@ export interface TurnServices {
   readonly record: (event: AgentEvent) => Effect.Effect<void>;
   readonly tools: Readonly<Record<ToolServer, StdioTransport>>;
   readonly turnId: string;
+  // The composition this turn is about, by slug — the folder under src/videos
+  // and the id the preview plays. Null when the row could not be read, which
+  // costs the conventions their one concrete sentence and nothing else.
+  readonly video: string | null;
 }
 
 // A turn never fails as an Effect: every way it can go wrong is folded into

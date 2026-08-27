@@ -24,6 +24,7 @@ function message(id: string, text: string): QueuedMessage {
     playing: null,
     projectId: "project-1",
     text,
+    videoId: "video-1",
   };
 }
 

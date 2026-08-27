@@ -17,6 +17,7 @@ import type {
   PromptElement,
   PromptParams,
   SessionMode,
+  Video,
 } from "@/shared/ipc";
 
 interface ComposerShape {
@@ -33,6 +34,17 @@ const PROJECT: Project = {
   missing: false,
   name: "my-video",
   path: "/Users/me/projects/my-video",
+  updatedAt: 1_700_000_000_000,
+};
+
+const VIDEO: Video = {
+  compositionId: "my-video",
+  createdAt: 1_700_000_000_000,
+  deletedAt: null,
+  id: "video-1",
+  missing: false,
+  name: "My video",
+  projectId: PROJECT.id,
   updatedAt: 1_700_000_000_000,
 };
 
@@ -97,6 +109,12 @@ function mockShell(
         const request = payload as { method: string; params: unknown };
         if (request.method === "project.list") {
           return [PROJECT];
+        }
+        if (request.method === "video.list") {
+          return [VIDEO];
+        }
+        if (request.method === "video.reconcile") {
+          return [VIDEO];
         }
         if (request.method === "history.sessions") {
           return [];

@@ -25,6 +25,7 @@ export interface OpenSession {
   readonly projectId: string;
   readonly provider: AgentProvider;
   readonly title: string;
+  readonly videoId: string;
 }
 
 export interface StoredBlock {
@@ -72,7 +73,7 @@ export const HistoryStore = Context.Service<HistoryStore>(
 );
 
 const COLUMNS =
-  "id, project_id, sdk_session_id, title, mode, provider, created_at, updated_at" as const;
+  "id, project_id, video_id, sdk_session_id, title, mode, provider, created_at, updated_at" as const;
 
 const decodeSession = Schema.decodeUnknownEffect(HistorySession);
 const decodeEntry = Schema.decodeUnknownEffect(TranscriptEntry);
@@ -151,15 +152,17 @@ export function make(driver: SqlDriver): HistoryStore {
 
         yield* attempt(() =>
           driver.run(
-            `INSERT INTO session (${COLUMNS}) VALUES (?, ?, NULL, ?, ?, ?, ?, ?)
+            `INSERT INTO session (${COLUMNS}) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?)
              ON CONFLICT (id) DO UPDATE SET
                project_id = excluded.project_id,
+               video_id = excluded.video_id,
                mode = excluded.mode,
                provider = excluded.provider,
                updated_at = excluded.updated_at`,
             [
               input.id,
               input.projectId,
+              input.videoId,
               input.title,
               input.mode,
               input.provider,
@@ -275,6 +278,7 @@ function sessionOf(row: SqlRow): Effect.Effect<HistorySession, HistoryError> {
     sdkSessionId: row.sdk_session_id,
     title: row.title,
     updatedAt: row.updated_at,
+    videoId: row.video_id,
   }).pipe(Effect.mapError(failed));
 }
 

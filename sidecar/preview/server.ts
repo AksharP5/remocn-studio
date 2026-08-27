@@ -56,6 +56,8 @@ const MIME: Record<string, string> = {
   ".woff2": "font/woff2",
 };
 
+export const COMPOSITION_PARAM = "composition";
+
 export interface PreviewServer {
   readonly notifyRebuilt: () => void;
   readonly port: number;
@@ -155,12 +157,27 @@ function handle(
   }
 
   if (pathname === "/" || pathname === "/index.html") {
-    sendPage(previewPage(pageOptions(options, options.previewBase)), response);
+    // Which composition the page plays is the page's, not the host's: one
+    // bundle serves every video in the project, and each pane opens its own
+    // at `/?composition=<slug>`.
+    sendPage(
+      previewPage(
+        pageOptions(
+          options,
+          options.previewBase,
+          url.searchParams.get(COMPOSITION_PARAM)
+        )
+      ),
+      response
+    );
     return;
   }
 
   if (isRenderPage(pathname)) {
-    sendPage(renderPage(pageOptions(options, options.staticBase)), response);
+    sendPage(
+      renderPage(pageOptions(options, options.staticBase, null)),
+      response
+    );
     return;
   }
 
@@ -221,8 +238,13 @@ function isRenderPage(pathname: string): boolean {
   );
 }
 
-function pageOptions(options: ServerOptions, staticBase: string) {
+function pageOptions(
+  options: ServerOptions,
+  staticBase: string,
+  asked: string | null
+) {
   return {
+    asked,
     hasGrab: options.grab !== null,
     preferred: options.preferred,
     publicPath: "/",

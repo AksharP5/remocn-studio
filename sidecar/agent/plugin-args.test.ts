@@ -30,6 +30,7 @@ const params: PromptParams = {
   prompt: "make me a video",
   provider: "copilot",
   sessionId: null,
+  videoId: "video-1",
 };
 
 const pairs = [

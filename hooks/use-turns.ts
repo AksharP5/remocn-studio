@@ -19,6 +19,7 @@ import {
   nextQueued,
   type QueuedMessage,
   type TurnState,
+  waitingSibling,
 } from "@/lib/studio/turns";
 import type {
   EffortLevel,
@@ -47,6 +48,7 @@ export interface StartTurn {
   playing: PromptFrame | null;
   projectId: string;
   prompt: string;
+  videoId: string;
 }
 
 export interface Turns {
@@ -97,6 +99,7 @@ function queuedOf(input: StartTurn, id: string): QueuedMessage {
     playing: input.playing,
     projectId: input.projectId,
     text: input.prompt,
+    videoId: input.videoId,
   };
 }
 
@@ -117,6 +120,7 @@ function startOf(
     playing: message.playing,
     projectId: message.projectId,
     prompt: message.text,
+    videoId: message.videoId,
   };
 }
 
@@ -126,7 +130,22 @@ export function useTurns(onSession: (session: HistorySession) => void): Turns {
   );
   const snapshot = useRef(turns);
   const fibers = useRef(new Map<string, Running>());
+  const videos = useRef(new Map<string, string>());
   const open = useRef<string | null>(null);
+
+  const videoFor = useCallback(
+    (historyId: string) => videos.current.get(historyId) ?? null,
+    []
+  );
+
+  const isVideoBusy = useCallback((videoId: string) => {
+    for (const historyId of fibers.current.keys()) {
+      if (videos.current.get(historyId) === videoId) {
+        return true;
+      }
+    }
+    return false;
+  }, []);
 
   const update = useCallback(
     (historyId: string, step: (turn: TurnState) => TurnState) => {
@@ -265,6 +284,7 @@ export function useTurns(onSession: (session: HistorySession) => void): Turns {
           prompt: trimmed,
           provider: started.provider,
           sessionId: started.sdkSessionId,
+          videoId: input.videoId,
         },
         (event) => {
           if (event.type === "session") {
@@ -361,14 +381,37 @@ export function useTurns(onSession: (session: HistorySession) => void): Turns {
 
             if (head !== null) {
               launcher.current(startOf(head, historyId, before.mode));
+              return;
+            }
+
+            // Nothing of ours to send, so the video is free: hand it to a
+            // sibling chat that has been holding a message for it.
+            const sibling = waitingSibling(
+              snapshot.current,
+              videoFor,
+              videos.current.get(historyId) ?? null,
+              historyId
+            );
+            if (sibling !== null) {
+              update(sibling.historyId, (current) =>
+                dropQueued(current, sibling.message.id)
+              );
+              launcher.current(
+                startOf(
+                  sibling.message,
+                  sibling.historyId,
+                  snapshot.current.get(sibling.historyId)?.mode ?? before.mode
+                )
+              );
             }
           })
         )
       );
 
+      videos.current.set(historyId, input.videoId);
       fibers.current.set(historyId, Effect.runFork(request));
     },
-    [onSession, update]
+    [onSession, update, videoFor]
   );
 
   launcher.current = launch;
@@ -379,7 +422,12 @@ export function useTurns(onSession: (session: HistorySession) => void): Turns {
         return false;
       }
 
-      if (fibers.current.has(input.historyId)) {
+      // The resource two chats fight over is the video's folder, not the SDK
+      // session, so one turn at a time is per video and the queue is what
+      // makes the wait visible.
+      videos.current.set(input.historyId, input.videoId);
+
+      if (isVideoBusy(input.videoId)) {
         update(input.historyId, (current) =>
           enqueue(current, queuedOf(input, crypto.randomUUID()))
         );
@@ -389,7 +437,7 @@ export function useTurns(onSession: (session: HistorySession) => void): Turns {
       launch(input);
       return true;
     },
-    [launch, update]
+    [isVideoBusy, launch, update]
   );
 
   const removeQueued = useCallback(

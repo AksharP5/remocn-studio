@@ -11,7 +11,7 @@ import {
   statusOf,
   type TurnState,
 } from "@/lib/studio/turns";
-import type { HistorySession, Project } from "@/shared/ipc";
+import type { HistorySession, Project, Video } from "@/shared/ipc";
 
 export const SESSION_LIMIT = 8;
 
@@ -36,9 +36,9 @@ export interface Rollup {
 
 export interface PaneGroup {
   readonly hidden: number;
-  readonly project: Project;
   readonly rollup: Rollup | null;
   readonly rows: readonly SessionRow[];
+  readonly video: Video;
   readonly visible: readonly SessionRow[];
 }
 
@@ -72,32 +72,32 @@ export function projectOf(
 }
 
 export function paneGroups(
-  projects: readonly Project[],
+  videos: readonly Video[],
   sessions: readonly HistorySession[],
   turns: ReadonlyMap<string, TurnState>,
   limit: number = SESSION_LIMIT
 ): readonly PaneGroup[] {
-  const byProject = new Map<string, SessionRow[]>();
+  const byVideo = new Map<string, SessionRow[]>();
 
   for (const session of sessions) {
     const row = rowOf(session, turns.get(session.id));
-    const kept = byProject.get(session.projectId);
+    const kept = byVideo.get(session.videoId);
     if (kept === undefined) {
-      byProject.set(session.projectId, [row]);
+      byVideo.set(session.videoId, [row]);
     } else {
       kept.push(row);
     }
   }
 
-  const groups = projects.map((project) => {
-    const rows = ordered(byProject.get(project.id) ?? []);
+  const groups = videos.map((video) => {
+    const rows = ordered(byVideo.get(video.id) ?? []);
     const visible = capped(rows, limit);
 
     return {
       hidden: rows.length - visible.length,
-      project,
       rollup: rollupOf(rows),
       rows,
+      video,
       visible,
     };
   });
@@ -107,9 +107,21 @@ export function paneGroups(
 
 export function paneSections(groups: readonly PaneGroup[]): PaneSections {
   return {
-    active: groups.filter((group) => !group.project.missing),
-    gone: groups.filter((group) => group.project.missing),
+    active: groups.filter((group) => !group.video.missing),
+    gone: groups.filter((group) => group.video.missing),
   };
+}
+
+export function videoOf(
+  videos: readonly Video[],
+  session: HistorySession | null,
+  fallback: Video | null
+): Video | null {
+  if (session === null) {
+    return fallback;
+  }
+
+  return videos.find((row) => row.id === session.videoId) ?? fallback;
 }
 
 export function sessionMeta(row: SessionRow, now: number): SessionMeta | null {

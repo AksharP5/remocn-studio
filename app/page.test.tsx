@@ -2,13 +2,19 @@ import { mockIPC } from "@tauri-apps/api/mocks";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import Page from "@/app/page";
-import type { HistorySession, Project, TranscriptEntry } from "@/shared/ipc";
+import type {
+  HistorySession,
+  Project,
+  TranscriptEntry,
+  Video,
+} from "@/shared/ipc";
 
 const PICKED_FOLDER = "/Users/me/projects/my-video";
 const SESSION_ROW = /^A promo for the launch/;
 const PRODUCT_DEMO_ROW = /^Product demo/;
 const LAUNCH_TEASER_ROW = /^Launch teaser/;
 const WORDMARK = /^emocn/;
+const SWITCHER = /No project open|my-video/;
 const STARTUP = "Make a video by describing it";
 
 const SIDECAR_READY = {
@@ -28,6 +34,17 @@ const PROJECT: Project = {
   updatedAt: 1_700_000_000_000,
 };
 
+const VIDEO: Video = {
+  compositionId: "my-video",
+  createdAt: 1_700_000_000_000,
+  deletedAt: null,
+  id: "video-1",
+  missing: false,
+  name: "My video",
+  projectId: PROJECT.id,
+  updatedAt: 1_700_000_000_000,
+};
+
 const STORED_SESSION: HistorySession = {
   createdAt: 1_700_000_000_000,
   id: "session-1",
@@ -37,6 +54,7 @@ const STORED_SESSION: HistorySession = {
   sdkSessionId: "sdk-1",
   title: "A promo for the launch",
   updatedAt: 1_700_000_000_000,
+  videoId: VIDEO.id,
 };
 
 function mockStudio(
@@ -45,6 +63,7 @@ function mockStudio(
     folder?: string | null;
     projects?: Project[];
     sessions?: HistorySession[];
+    videos?: Video[];
   } = {}
 ) {
   mockIPC(
@@ -72,6 +91,12 @@ function mockStudio(
         if (method === "project.list") {
           return options.projects ?? [];
         }
+        if (method === "video.list") {
+          return options.videos ?? [VIDEO];
+        }
+        if (method === "video.reconcile") {
+          return options.videos ?? [VIDEO];
+        }
         if (method === "project.open") {
           return PROJECT;
         }
@@ -88,16 +113,14 @@ function mockStudio(
 
 async function renderShell() {
   render(<Page />);
-  await screen.findByRole("heading", { name: "Projects" });
+  await screen.findByRole("heading", { name: "Videos" });
 }
 
-// The startup state offers the same action, so this names the sidebar's copy —
-// the one that is there whether or not a project is open.
+// The sidebar's route to another project runs through the switcher now, so
+// this opens it and hands back the menu item rather than a bare button.
 async function openFolderButton() {
-  const [sidebar] = await screen.findAllByRole("button", {
-    name: "Open an existing project",
-  });
-  return sidebar;
+  fireEvent.click(await screen.findByRole("button", { name: SWITCHER }));
+  return await screen.findByRole("menuitem", { name: "Open a folder…" });
 }
 
 // The preview leaves once the project list comes back empty, so its own
@@ -115,7 +138,7 @@ describe("app shell", () => {
     mockStudio({ projects: [PROJECT] });
     await renderShell();
 
-    expect(screen.getByRole("heading", { name: "Projects" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Videos" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Chat" })).toBeVisible();
     expect(
       await screen.findByRole("heading", { name: "Preview" })
@@ -192,7 +215,7 @@ describe("app shell", () => {
     );
 
     expect(
-      screen.queryByRole("heading", { name: "Projects" })
+      screen.queryByRole("heading", { name: "Videos" })
     ).not.toBeInTheDocument();
     expect(screen.queryByText("my-video")).not.toBeInTheDocument();
 
@@ -200,7 +223,7 @@ describe("app shell", () => {
       screen.getByRole("button", { name: "Show the project list" })
     );
 
-    expect(screen.getByRole("heading", { name: "Projects" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Videos" })).toBeVisible();
     expect(await screen.findByText("my-video")).toBeVisible();
   });
 
@@ -230,10 +253,12 @@ describe("app shell", () => {
     await renderShell();
     await showPreviewButton();
 
+    // The pane's own copies moved into the project switcher's menu, so the
+    // startup screen is the only one on screen without opening it.
     const create = screen.getAllByRole("button", { name: "New Project" });
 
     expect(screen.getByRole("heading", { name: STARTUP })).toBeVisible();
-    expect(create).toHaveLength(2);
+    expect(create).toHaveLength(1);
     expect(screen.queryByText("No projects yet")).not.toBeInTheDocument();
   });
 
@@ -248,7 +273,7 @@ describe("app shell", () => {
     expect(within(steps).getByText("Export the mp4")).toBeVisible();
     expect(
       screen.getAllByRole("button", { name: "Open an existing project" })
-    ).toHaveLength(2);
+    ).toHaveLength(1);
   });
 
   it("names the app at the head of the sidebar, and never a folder", async () => {
@@ -346,7 +371,7 @@ describe("app shell", () => {
     expect(
       screen.queryByRole("button", { name: SESSION_ROW })
     ).not.toBeInTheDocument();
-    expect(await screen.findByText("No sessions yet")).toBeVisible();
+    expect(await screen.findByText("No chats yet")).toBeVisible();
     expect(
       await screen.findByRole("heading", { name: "New session" })
     ).toBeVisible();

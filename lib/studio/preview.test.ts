@@ -12,6 +12,7 @@ import {
 
 const picked = {
   compositionId: "Main",
+  compositions: ["Main", "Intro", "Outro"],
   reason: "main",
   source: "remocn-preview",
   total: 3,
@@ -21,6 +22,7 @@ const picked = {
 
 const nothingRegistered = {
   compositionId: null,
+  compositions: [],
   reason: "none",
   source: "remocn-preview",
   total: 0,

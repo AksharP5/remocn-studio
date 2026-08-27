@@ -6,7 +6,14 @@ import {
   useVideoConfig,
 } from "remotion";
 
-export function Main() {
+export const meta = {
+  durationInFrames: 150,
+  fps: 30,
+  height: 1080,
+  width: 1920,
+};
+
+export default function Video() {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
@@ -38,7 +45,7 @@ export function Main() {
           transform: `translateY(${interpolate(rise, [0, 1], [24, 0])}px)`,
         }}
       >
-        Your video starts here
+        __VIDEO_NAME__
       </h1>
     </AbsoluteFill>
   );

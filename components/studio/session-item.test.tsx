@@ -20,6 +20,7 @@ const SESSION: HistorySession = {
   sdkSessionId: "sdk-1",
   title: "A promo for the launch",
   updatedAt: NOW - 2 * MINUTE,
+  videoId: "video-1",
 };
 
 const IDLE_ROW: SessionRow = {

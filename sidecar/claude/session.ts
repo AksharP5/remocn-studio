@@ -38,6 +38,7 @@ export interface TurnCallbacks {
   readonly onMode: (apply: ApplyMode) => void;
   readonly onStop: () => void;
   readonly tools: Readonly<Record<ToolServer, StdioTransport>>;
+  readonly video: string | null;
 }
 
 export function messages(
@@ -110,7 +111,10 @@ function open(params: PromptParams, callbacks: TurnCallbacks): Turn {
 
 function optionsOf(params: PromptParams, callbacks: TurnCallbacks): Options {
   const plugins = pluginsFor(callbacks.knowledge);
-  const conventions = conventionsFor(callbacks.knowledge.loaded);
+  const conventions = conventionsFor(
+    callbacks.knowledge.loaded,
+    callbacks.video
+  );
 
   return {
     canUseTool: callbacks.canUseTool,

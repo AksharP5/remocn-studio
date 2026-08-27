@@ -5,10 +5,9 @@ import { MiddleTruncation } from "@/components/middle-truncation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { NewProject } from "@/hooks/use-new-project";
-import { VIDEO_FORMATS, type VideoFormat } from "@/lib/studio/formats";
 import { cn } from "@/lib/utils";
+import { FormatPicker } from "./format-picker";
 import { Scrim } from "./scrim";
 
 const RATIO_LABEL = "new-project-ratio";
@@ -39,8 +38,8 @@ export function NewProjectWizard({
               New project
             </h3>
             <p className="text-pretty text-muted-foreground text-sm/relaxed">
-              A folder is created for it. Claude writes the Remotion project
-              inside.
+              A folder is created for it, with your first video inside. More
+              videos live in the same project and share its components.
             </p>
           </div>
         </div>
@@ -83,21 +82,11 @@ export function NewProjectWizard({
             </Button>
           </div>
 
-          <div className="flex min-w-0 flex-col gap-2">
-            <span className="font-medium text-sm leading-none" id={RATIO_LABEL}>
-              Aspect ratio
-            </span>
-            <RadioGroup
-              aria-labelledby={RATIO_LABEL}
-              className="grid @lg:grid-cols-4 grid-cols-2 gap-2"
-              onValueChange={control.onFormatChange}
-              value={control.format.id}
-            >
-              {VIDEO_FORMATS.map((format) => (
-                <FormatCard format={format} key={format.id} />
-              ))}
-            </RadioGroup>
-          </div>
+          <FormatPicker
+            id={RATIO_LABEL}
+            onChange={control.onFormatChange}
+            value={control.format}
+          />
 
           <div className="flex justify-end">
             <Button disabled={!control.canCreate} type="submit">
@@ -107,35 +96,5 @@ export function NewProjectWizard({
         </form>
       </Scrim>
     </div>
-  );
-}
-
-function FormatCard({ format }: { format: VideoFormat }) {
-  return (
-    <Label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border bg-card p-3 text-center font-normal leading-normal transition-colors has-[:focus-visible]:border-ring has-[[data-checked]]:border-primary has-[[data-checked]]:bg-primary/5 has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50">
-      <span className="sr-only">
-        <RadioGroupItem value={format.id} />
-      </span>
-
-      <span className="flex h-9 w-full items-center justify-center">
-        <span
-          className={cn(
-            "rounded-sm border-2 border-muted-foreground/60",
-            format.width >= format.height ? "w-9" : "h-9"
-          )}
-          style={{ aspectRatio: `${format.width} / ${format.height}` }}
-        />
-      </span>
-
-      <span className="flex flex-col gap-0.5">
-        <span className="font-medium text-sm">{format.label}</span>
-        <span className="text-muted-foreground text-xs tabular-nums">
-          {format.width}×{format.height}
-        </span>
-        <span className="text-balance text-muted-foreground text-xs">
-          {format.note}
-        </span>
-      </span>
-    </Label>
   );
 }

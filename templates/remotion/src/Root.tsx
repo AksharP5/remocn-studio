@@ -1,15 +1,5 @@
-import { Composition } from "remotion";
-import { Main } from "./Main";
-
+// Your videos live in src/videos and are registered by the studio's scan. This
+// file is for a composition you want to register by hand.
 export function Root() {
-  return (
-    <Composition
-      component={Main}
-      durationInFrames={150}
-      fps={30}
-      height={1080}
-      id="Main"
-      width={1920}
-    />
-  );
+  return null;
 }
