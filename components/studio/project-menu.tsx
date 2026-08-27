@@ -8,12 +8,11 @@ import {
 } from "lucide-react";
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
+  AlertDialogClose,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
+  AlertDialogPopup,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -116,7 +115,7 @@ export function ProjectMenu({
       </Dialog>
 
       <AlertDialog onOpenChange={menu.setRemoving} open={menu.isRemoving}>
-        <AlertDialogContent>
+        <AlertDialogPopup>
           <AlertDialogHeader>
             <AlertDialogTitle>Remove {project.name}?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -125,15 +124,17 @@ export function ProjectMenu({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
+            <AlertDialogClose render={<Button variant="outline" />}>
+              Cancel
+            </AlertDialogClose>
+            <AlertDialogClose
               onClick={menu.confirmRemove}
-              variant="destructive"
+              render={<Button variant="destructive" />}
             >
               Remove
-            </AlertDialogAction>
+            </AlertDialogClose>
           </AlertDialogFooter>
-        </AlertDialogContent>
+        </AlertDialogPopup>
       </AlertDialog>
     </>
   );

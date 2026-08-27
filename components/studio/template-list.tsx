@@ -58,7 +58,7 @@ export function TemplateList({
         const Icon = iconOf(template.id);
         return (
           <button
-            className="flex min-w-0 items-center gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex min-w-0 items-center gap-3 rounded-md px-3 py-2 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             key={template.id}
             onClick={pick}
             type="button"

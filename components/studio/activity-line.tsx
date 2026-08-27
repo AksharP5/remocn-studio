@@ -53,7 +53,7 @@ export function ActivityLine({
       </button>
 
       {failure === null ? null : (
-        <p className="wrap-break-word whitespace-pre-wrap rounded-md bg-destructive/10 px-2 py-1 font-mono text-[0.6875rem] text-destructive">
+        <p className="wrap-break-word whitespace-pre-wrap rounded-md bg-destructive/10 px-2 py-1 font-mono text-2xs text-destructive">
           {failure}
         </p>
       )}

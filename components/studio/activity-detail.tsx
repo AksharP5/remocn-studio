@@ -121,7 +121,7 @@ function OutputText({ text }: { text: string }) {
 function Frame({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="overflow-hidden rounded-lg border bg-muted/40 font-mono text-[0.6875rem] leading-relaxed"
+      className="overflow-hidden rounded-md border bg-muted/40 font-mono text-2xs leading-relaxed"
       data-slot="activity-detail"
     >
       {children}

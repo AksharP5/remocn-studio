@@ -25,12 +25,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupTextarea,
-} from "@/components/ui/input-group";
+import { InputGroup, InputGroupAddon } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
 import { useKeepAttachment } from "@/hooks/use-keep-attachment";
 import { type Sidecar, useSidecar } from "@/hooks/use-sidecar";
@@ -138,7 +133,7 @@ function ComposerBlock({
             offer, so the border is the edge there. */}
         <InputGroup
           className={cn(
-            "rounded-xl dark:border-none",
+            "rounded-xl before:rounded-[calc(var(--radius-xl)-1px)] dark:border-none",
             drops.composer.isOver && "bg-primary/5 ring-2 ring-primary/40"
           )}
           ref={drops.composer.ref}
@@ -186,16 +181,17 @@ function ComposerBlock({
           <div className="relative flex w-full min-w-0 flex-1 flex-col">
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-2.5 py-2 text-base [scrollbar-gutter:stable] md:text-sm"
+              className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-[calc(--spacing(3)-1px)] py-[calc(--spacing(3)-1px)] text-base [scrollbar-gutter:stable] sm:text-sm"
               ref={composer.caret.mirror}
             >
               <MessageText counts={composer.counts} text={composer.value} />
               {LINE_BOX_TERMINATOR}
             </div>
 
-            <InputGroupTextarea
+            <textarea
               aria-label="Message Claude"
-              className="relative max-h-64 text-transparent caret-foreground [scrollbar-gutter:stable] selection:bg-primary/30"
+              className="field-sizing-content relative max-h-64 w-full rounded-none border-0 bg-transparent px-[calc(--spacing(3)-1px)] py-[calc(--spacing(3)-1px)] text-base text-transparent caret-foreground shadow-none outline-none [scrollbar-gutter:stable] selection:bg-primary/30 placeholder:text-muted-foreground/72 sm:text-sm"
+              data-slot="textarea"
               disabled={isLocked}
               onBlur={composer.onBlur}
               onChange={composer.onChange}
@@ -218,18 +214,18 @@ function ComposerBlock({
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <InputGroupButton
+                  <Button
                     aria-label="Add to this message"
                     className="relative after:absolute after:-inset-1"
                     disabled={isLocked}
-                    size="icon-xs"
+                    size="icon-sm"
                     variant="ghost"
                   />
                 }
               >
                 <PlusIcon />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
+              <DropdownMenuContent align="start" className="w-auto min-w-56">
                 <DropdownMenuGroup>
                   <DropdownMenuItem onClick={composer.add}>
                     <ImagePlusIcon />
@@ -283,8 +279,8 @@ function ComposerBlock({
               {isRunning ? (
                 <>
                   {composer.canSubmit ? (
-                    <InputGroupButton
-                      className="h-8 gap-1 px-2.5"
+                    <Button
+                      className="gap-1"
                       disabled={cannotSend}
                       onClick={composer.submit}
                       size="sm"
@@ -292,19 +288,15 @@ function ComposerBlock({
                     >
                       <ListPlusIcon />
                       Queue
-                    </InputGroupButton>
+                    </Button>
                   ) : null}
-                  <InputGroupButton
-                    onClick={onStop}
-                    size="icon-sm"
-                    variant="outline"
-                  >
+                  <Button onClick={onStop} size="icon-sm" variant="outline">
                     <SquareIcon />
                     <span className="sr-only">Stop</span>
-                  </InputGroupButton>
+                  </Button>
                 </>
               ) : (
-                <InputGroupButton
+                <Button
                   disabled={cannotSend || !composer.canSubmit}
                   onClick={composer.submit}
                   size="icon-sm"
@@ -312,7 +304,7 @@ function ComposerBlock({
                 >
                   <ArrowUpIcon />
                   <span className="sr-only">Send</span>
-                </InputGroupButton>
+                </Button>
               )}
             </div>
           </InputGroupAddon>
@@ -354,14 +346,14 @@ function MenuChip({
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <InputGroupButton aria-label={`${title}: ${label}`} variant="ghost" />
+          <Button aria-label={`${title}: ${label}`} size="sm" variant="ghost" />
         }
       >
         <Icon />
         {label}
         <ChevronDownIcon className="text-muted-foreground" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="w-auto min-w-44">
         <DropdownMenuGroup>
           <DropdownMenuLabel>{title}</DropdownMenuLabel>
           <DropdownMenuRadioGroup
@@ -398,7 +390,9 @@ function ComposerStatus({
   sidecar: Sidecar;
 }) {
   if (isOver) {
-    return <span className="text-primary">Drop to attach to this message</span>;
+    return (
+      <span className="text-foreground">Drop to attach to this message</span>
+    );
   }
 
   if (error !== null) {

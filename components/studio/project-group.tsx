@@ -169,7 +169,7 @@ function ProjectGroupBlock({
           {hidden > 0 || isFull ? (
             <SidebarMenuSubItem>
               <Button
-                className="h-7 w-full justify-start pl-7 text-muted-foreground text-xs hover:bg-transparent hover:text-foreground"
+                className="w-full justify-start pl-7 text-muted-foreground text-xs hover:bg-transparent hover:text-foreground"
                 onClick={toggle}
                 size="sm"
                 variant="ghost"
@@ -204,7 +204,7 @@ function Rollup({ rollup }: { rollup: GroupRollup | null }) {
   return (
     <span
       aria-label={label}
-      className="flex shrink-0 items-center gap-1 font-normal text-[0.6875rem] text-muted-foreground tabular-nums"
+      className="flex shrink-0 items-center gap-1 font-normal text-2xs text-muted-foreground tabular-nums"
       role="img"
     >
       {status === "waiting" ? (
@@ -263,7 +263,7 @@ function Scaffolding({
     <div className="flex flex-col gap-1 py-1 pl-7">
       <p className="text-destructive text-xs">{FAILED[scaffold.step]}</p>
       {scaffold.error === null ? null : (
-        <p className="line-clamp-3 break-all font-mono text-[0.6875rem] text-muted-foreground">
+        <p className="line-clamp-3 break-all font-mono text-2xs text-muted-foreground">
           {scaffold.error}
         </p>
       )}

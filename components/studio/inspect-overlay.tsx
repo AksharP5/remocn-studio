@@ -61,7 +61,7 @@ function ElementMarker({ marker }: { marker: Marker }) {
         width: `${marker.rect.width * 100}%`,
       }}
     >
-      <span className="absolute -top-2 -left-2 flex size-5 items-center justify-center rounded-full bg-reference font-medium text-[10px] text-background tabular-nums">
+      <span className="absolute -top-2 -left-2 flex size-5 items-center justify-center rounded-full bg-reference font-medium text-2xs text-background tabular-nums">
         {marker.index + 1}
       </span>
     </div>

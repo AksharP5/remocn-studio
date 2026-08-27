@@ -2,14 +2,14 @@
 
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
+  AlertDialogClose,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
+  AlertDialogPopup,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { useQuitGuard } from "@/hooks/use-quit-guard";
 import { useStudio } from "./studio-provider";
 
@@ -19,7 +19,7 @@ export function QuitGuard() {
 
   return (
     <AlertDialog onOpenChange={guard.setAsking} open={guard.isAsking}>
-      <AlertDialogContent>
+      <AlertDialogPopup>
         <AlertDialogHeader>
           <AlertDialogTitle>Quit while Claude is working?</AlertDialogTitle>
           <AlertDialogDescription>
@@ -28,12 +28,17 @@ export function QuitGuard() {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Keep working</AlertDialogCancel>
-          <AlertDialogAction onClick={guard.quitAnyway} variant="destructive">
+          <AlertDialogClose render={<Button variant="outline" />}>
+            Keep working
+          </AlertDialogClose>
+          <AlertDialogClose
+            onClick={guard.quitAnyway}
+            render={<Button variant="destructive" />}
+          >
             Quit
-          </AlertDialogAction>
+          </AlertDialogClose>
         </AlertDialogFooter>
-      </AlertDialogContent>
+      </AlertDialogPopup>
     </AlertDialog>
   );
 }

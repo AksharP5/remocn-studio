@@ -46,8 +46,10 @@
       "includes": [
         "components/ui/**",
         "hooks/use-mobile.ts",
+        "hooks/use-media-query.ts",
         "lib/dotmatrix-core.tsx",
-        "lib/dotmatrix-hooks.ts"
+        "lib/dotmatrix-hooks.ts",
+        "lib/segmented-control.ts"
       ],
       // Linter off, formatter on. `recommended: false` does not work as a
       // blanket here: the ultracite presets enable rules by name, so they

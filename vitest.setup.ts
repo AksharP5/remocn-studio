@@ -35,6 +35,15 @@ globalThis.matchMedia ??= ((media: string) => ({
   removeListener: () => undefined,
 })) as typeof matchMedia;
 
+// jsdom implements no Web Animations API, so `Element.getAnimations` is
+// missing. Base UI's scroll area calls it on a timer to wait its scrollbar
+// fade out, and the throw lands outside any test as an unhandled rejection —
+// every suite passes and the run still fails. Answering "nothing is animating"
+// is the branch these tests want anyway.
+if (typeof Element !== "undefined") {
+  Element.prototype.getAnimations ??= () => [];
+}
+
 // jsdom defines `getContext` and answers null from it — so this is an
 // assignment, not a `??=`. `MiddleTruncation` measures text through it and
 // throws on null, which is what stops anything containing a truncated path —

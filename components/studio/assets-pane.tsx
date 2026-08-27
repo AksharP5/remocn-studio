@@ -34,15 +34,17 @@ export function AssetSearchField({
     // and the field never leaves the top. The background is what stops the
     // cards showing through the padding as they pass.
     <div className="sticky top-0 z-10 bg-sidebar px-1 pb-2">
-      <SearchIcon className="pointer-events-none absolute top-2.5 left-3.5 size-4 text-muted-foreground" />
-      <Input
-        aria-label="Search by name"
-        className="h-9 pl-8"
-        onChange={onChange}
-        placeholder="Search…"
-        type="search"
-        value={value}
-      />
+      <div className="relative">
+        <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          aria-label="Search by name"
+          className="pl-8"
+          onChange={onChange}
+          placeholder="Search…"
+          type="search"
+          value={value}
+        />
+      </div>
     </div>
   );
 }
@@ -100,7 +102,7 @@ export function AssetsPane({
       />
 
       {isOver ? (
-        <p className="pointer-events-none absolute inset-x-0 bottom-2 text-center text-primary text-xs">
+        <p className="pointer-events-none absolute inset-x-0 bottom-2 text-center text-foreground text-xs">
           Drop to add to the library
         </p>
       ) : null}

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { AssetOffer } from "@/hooks/use-asset-offer";
 import { MediaRow } from "./media-row";
+import { AboveComposer, NoticeCard } from "./notice-card";
 
 export function AssetOfferCard({ offer }: { offer: AssetOffer }) {
   if (offer.items.length === 0) {
@@ -14,8 +15,8 @@ export function AssetOfferCard({ offer }: { offer: AssetOffer }) {
   const count = offer.items.length;
 
   return (
-    <div className="mb-2 shrink-0 px-4 pt-1">
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-2 rounded-xl border border-dashed px-3 py-2.5">
+    <AboveComposer>
+      <NoticeCard>
         <div className="flex items-center gap-2">
           <LibraryBigIcon
             aria-hidden="true"
@@ -43,7 +44,7 @@ export function AssetOfferCard({ offer }: { offer: AssetOffer }) {
             Save to library
           </Button>
         </div>
-      </div>
-    </div>
+      </NoticeCard>
+    </AboveComposer>
   );
 }

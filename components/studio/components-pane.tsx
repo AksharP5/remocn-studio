@@ -23,7 +23,7 @@ const PLACEHOLDERS = ["one", "two", "three"];
 
 function GroupHeading({ count, label }: { count: number; label: string }) {
   return (
-    <h3 className="sticky top-11 z-[9] flex h-8 shrink-0 items-center justify-between bg-sidebar px-2 font-medium text-sidebar-foreground/70 text-xs">
+    <h3 className="sticky top-11 z-0 flex h-8 shrink-0 items-center justify-between bg-sidebar px-2 font-medium text-sidebar-foreground/70 text-xs">
       {label}
       <span className="text-sidebar-foreground/50 tabular-nums">{count}</span>
     </h3>

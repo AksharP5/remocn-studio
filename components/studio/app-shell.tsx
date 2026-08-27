@@ -5,7 +5,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import { Toaster } from "@/components/ui/toast";
+import { AnchoredToastProvider, ToastProvider } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { shellMood } from "@/lib/studio/mood";
 import { panelIdsOf } from "@/lib/studio/panes";
@@ -25,11 +25,13 @@ export function AppShell() {
   return (
     <StudioProvider>
       <TooltipProvider delay={500}>
-        <Toaster>
-          <ShellLayout />
-          <SettingsDialog />
-          <QuitGuard />
-        </Toaster>
+        <ToastProvider>
+          <AnchoredToastProvider>
+            <ShellLayout />
+            <SettingsDialog />
+            <QuitGuard />
+          </AnchoredToastProvider>
+        </ToastProvider>
       </TooltipProvider>
     </StudioProvider>
   );

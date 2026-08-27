@@ -37,10 +37,9 @@ export function PermissionCard({
       className="bg-input/50 ring-none"
       data-slot="permission-card"
       onKeyDown={card.onKeyDown}
-      size="sm"
     >
-      <CardHeader>
-        <CardTitle>
+      <CardHeader className="gap-1 p-4">
+        <CardTitle className="text-sm">
           {permissionTitle(permission.reason)}
           {plan === null ? (
             <span className="text-muted-foreground"> {permission.name}</span>
@@ -48,23 +47,23 @@ export function PermissionCard({
         </CardTitle>
 
         {plan === null ? null : (
-          <div className="max-h-56 overflow-y-auto rounded-lg bg-muted/50 px-2.5 py-1.5">
+          <div className="max-h-56 overflow-y-auto rounded-md bg-muted/50 px-2.5 py-1.5">
             <Markdown className="text-xs">{plan}</Markdown>
           </div>
         )}
 
         {target === null ? null : (
-          <p className="wrap-break-word whitespace-pre-wrap rounded-lg bg-muted/50 px-2.5 py-1.5 font-mono text-foreground text-xs leading-relaxed">
+          <p className="wrap-break-word whitespace-pre-wrap rounded-md bg-muted/50 px-2.5 py-1.5 font-mono text-foreground text-xs leading-relaxed">
             {target}
           </p>
         )}
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="p-4">
         <div className="flex flex-col">
           {permissionChoices(permission.reason).map((choice, index) => (
             <button
-              className="-mx-1 flex items-baseline gap-2 rounded-lg px-2 py-1.5 text-left outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 active:bg-muted/80"
+              className="-mx-1 flex items-baseline gap-2 rounded-md px-2 py-1.5 text-left outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 active:bg-muted/80"
               key={choice.id}
               onClick={card.onChoose}
               ref={index === 0 ? card.first : undefined}

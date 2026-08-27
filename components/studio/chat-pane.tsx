@@ -43,6 +43,7 @@ import { EnvironmentChecklist } from "./environment-checklist";
 import { LogoMark } from "./logo-mark";
 import { MarkdownProvider } from "./markdown";
 import { NewProjectWizard } from "./new-project-wizard";
+import { AboveComposer, NoticeCard } from "./notice-card";
 import { Pane, PaneActions, PaneBody, PaneHeader, PaneTitle } from "./pane";
 import { PermissionCard } from "./permission-card";
 import { QueueDock } from "./queue-dock";
@@ -251,16 +252,16 @@ function Conversation({
       {isCreating ? null : (
         <>
           {missing ? (
-            <div className="mb-2 shrink-0 px-4 pt-1">
-              <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 rounded-xl border border-dashed px-3 py-2">
+            <AboveComposer>
+              <NoticeCard className="flex-row items-center justify-between gap-3">
                 <p className="min-w-0 break-all text-muted-foreground text-xs">
                   {cwd} is not on disk anymore.
                 </p>
                 <Button onClick={onLocate} size="sm" variant="outline">
                   Locate…
                 </Button>
-              </div>
-            </div>
+              </NoticeCard>
+            </AboveComposer>
           ) : null}
 
           <EnvironmentChecklist environment={environment} />
@@ -268,28 +269,24 @@ function Conversation({
           <AssetOfferCard offer={offer} />
 
           {turn.source === null ? null : (
-            <div className="mb-2 shrink-0 px-4 pt-1">
-              <div className="mx-auto w-full max-w-2xl">
-                <AssetSourceCard
-                  key={turn.source.id}
-                  onAnswer={turn.answerSource}
-                  source={turn.source}
-                />
-              </div>
-            </div>
+            <AboveComposer>
+              <AssetSourceCard
+                key={turn.source.id}
+                onAnswer={turn.answerSource}
+                source={turn.source}
+              />
+            </AboveComposer>
           )}
 
           {turn.permission === null ? null : (
-            <div className="mb-2 shrink-0 px-4 pt-1">
-              <div className="mx-auto w-full max-w-2xl">
-                <PermissionCard
-                  cwd={cwd}
-                  key={turn.permission.id}
-                  onAnswer={turn.answer}
-                  permission={turn.permission}
-                />
-              </div>
-            </div>
+            <AboveComposer>
+              <PermissionCard
+                cwd={cwd}
+                key={turn.permission.id}
+                onAnswer={turn.answer}
+                permission={turn.permission}
+              />
+            </AboveComposer>
           )}
 
           {/* Both drawers sit on top of the composer, collapsed to one line

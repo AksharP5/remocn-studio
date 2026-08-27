@@ -59,7 +59,7 @@ export function PreviewPane() {
             onClick={inspect.toggle}
             size="sm"
             title={inspect.unavailable ?? "Pick an element to comment on"}
-            variant={inspect.isArmed ? "default" : "ghost"}
+            variant={inspect.isArmed ? "default" : "outline"}
           >
             <SquareDashedMousePointerIcon data-icon="inline-start" />
             Inspect
@@ -71,7 +71,7 @@ export function PreviewPane() {
             onClick={snapshot.toggle}
             size="sm"
             title={snapshot.unavailable ?? "Capture the frame, or part of it"}
-            variant={snapshot.isArmed ? "default" : "ghost"}
+            variant={snapshot.isArmed ? "default" : "outline"}
           >
             {snapshot.isBusy ? (
               <Spinner

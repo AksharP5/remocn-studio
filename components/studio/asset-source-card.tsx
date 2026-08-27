@@ -71,15 +71,14 @@ export function AssetSourceCard({
       className="bg-input/50 ring-none"
       data-slot="asset-source-card"
       onKeyDown={onKeyDown}
-      size="sm"
     >
-      <CardHeader>
-        <CardTitle>Original asset needed</CardTitle>
+      <CardHeader className="gap-1 p-4">
+        <CardTitle className="text-sm">Original asset needed</CardTitle>
         <p className="text-muted-foreground text-xs">
           The agent could not recover <strong>{source.name}</strong> from the
           supplied source.
         </p>
-        <p className="wrap-break-word rounded-lg bg-muted/50 px-2.5 py-1.5 font-mono text-foreground text-xs">
+        <p className="wrap-break-word rounded-md bg-muted/50 px-2.5 py-1.5 font-mono text-foreground text-xs">
           {source.source}
         </p>
         <p className="text-muted-foreground text-xs">{source.attempt}</p>
@@ -87,10 +86,10 @@ export function AssetSourceCard({
           <p className="text-destructive text-xs">{error}</p>
         )}
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-4">
         <div className="flex flex-col">
           <button
-            className="-mx-1 rounded-lg px-2 py-1.5 text-left outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="-mx-1 rounded-md px-2 py-1.5 text-left outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
             disabled={busy}
             onClick={upload}
             ref={first}
@@ -102,7 +101,7 @@ export function AssetSourceCard({
             </span>
           </button>
           <button
-            className="-mx-1 rounded-lg px-2 py-1.5 text-left outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="-mx-1 rounded-md px-2 py-1.5 text-left outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
             disabled={busy}
             onClick={screenshot}
             type="button"
@@ -113,7 +112,7 @@ export function AssetSourceCard({
             </span>
           </button>
           <button
-            className="-mx-1 rounded-lg px-2 py-1.5 text-left text-destructive text-sm outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="-mx-1 rounded-md px-2 py-1.5 text-left text-destructive text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
             disabled={busy}
             onClick={cancel}
             type="button"
