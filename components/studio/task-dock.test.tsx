@@ -18,6 +18,7 @@ const SETTINGS: StudioSettings = {
   previewPane: null,
   projectsPane: null,
   taskDock: null,
+  toursSeen: [],
 };
 
 const PLAN: readonly TaskRow[] = [

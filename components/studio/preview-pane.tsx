@@ -56,6 +56,7 @@ export function PreviewPane() {
             aria-disabled={!inspect.canInspect}
             aria-pressed={inspect.isArmed}
             className="aria-disabled:opacity-50"
+            data-tour="preview-tools"
             onClick={inspect.toggle}
             size="sm"
             title={inspect.unavailable ?? "Pick an element to comment on"}

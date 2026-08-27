@@ -25,10 +25,13 @@ import {
   useSettingsDialog,
 } from "@/hooks/use-settings-dialog";
 import { type Tools, useTools } from "@/hooks/use-tools";
+import { type Tours, useTours } from "@/hooks/use-tours";
 import { type Updates, useUpdates } from "@/hooks/use-updates";
 import { useWorkspace, type Workspace } from "@/hooks/use-workspace";
 import type { VideoFormat } from "@/lib/studio/formats";
 import type { StudioSettings } from "@/lib/studio/settings";
+import { currentTasks } from "@/lib/studio/tasks";
+import type { TourReveal } from "@/lib/studio/tours";
 import type { ProjectDraft, PromptFrame } from "@/shared/ipc";
 
 export type Studio = ClaudeEffort &
@@ -47,6 +50,7 @@ export type Studio = ClaudeEffort &
     settings: StudioSettings | null;
     settingsDialog: SettingsDialog;
     tools: Tools;
+    tours: Tours;
     turn: OpenTurn;
     updates: Updates;
   };
@@ -165,6 +169,41 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     showPane,
   });
 
+  // The tips are told what is on screen, not who is on screen: every field is
+  // a state the studio already keeps, so the catalog's conditions stay a pure
+  // function over them.
+  const onReveal = useCallback(
+    (reveal: TourReveal) => {
+      if (reveal === "assets") {
+        showPane("assets");
+      }
+    },
+    [showPane]
+  );
+
+  const tours = useTours({
+    onReveal,
+    settings,
+    stage: {
+      hasMedia:
+        composer.attachments.items.length > 0 ||
+        composer.media.items.length > 0,
+      hasPlan: currentTasks(turn.entries).length > 0,
+      hasPreviewTools: tools.inspect.canInspect,
+      hasProject: opened !== null && !opened.missing,
+      isBlocked:
+        turn.permission !== null ||
+        turn.source !== null ||
+        environment.isBlocking ||
+        newProject.isOpen ||
+        newVideo.isOpen ||
+        settingsDialog.isOpen,
+      isPaneShown: panes.isProjectsShown,
+
+      isRunning: workspace.hasRunningTurns,
+    },
+  });
+
   const studio = useMemo(
     () => ({
       ...workspace,
@@ -183,6 +222,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       settings,
       settingsDialog,
       tools,
+      tours,
       turn,
       updates,
     }),
@@ -202,6 +242,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       settings,
       settingsDialog,
       tools,
+      tours,
       turn,
       updates,
       workspace,

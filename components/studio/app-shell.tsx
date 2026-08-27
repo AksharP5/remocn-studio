@@ -18,6 +18,7 @@ import { QuitGuard } from "./quit-guard";
 import { SettingsDialog } from "./settings-dialog";
 import { StudioProvider, useStudio } from "./studio-provider";
 import { Titlebar } from "./titlebar";
+import { TourTip } from "./tour-tip";
 
 const SHELL_LAYOUT_ID = "shell";
 
@@ -29,6 +30,7 @@ export function AppShell() {
           <AnchoredToastProvider>
             <ShellLayout />
             <SettingsDialog />
+            <TourTip />
             <QuitGuard />
           </AnchoredToastProvider>
         </ToastProvider>

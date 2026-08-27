@@ -18,6 +18,7 @@ const PREVIEW_PANE_KEY = "previewPane";
 const PROJECTS_PANE_KEY = "projectsPane";
 const TASK_DOCK_KEY = "taskDock";
 const PANE_VIEW_KEY = "paneView";
+const TOURS_SEEN_KEY = "toursSeen";
 const LAYOUT_KEY_PREFIX = "layout:";
 
 const cache = new Map<string, string>();
@@ -39,6 +40,7 @@ export interface StudioSettings {
   previewPane: boolean | null;
   projectsPane: boolean | null;
   taskDock: boolean | null;
+  toursSeen: readonly string[];
 }
 
 export const hydrateSettings: Effect.Effect<StudioSettings> = openStore.pipe(
@@ -64,6 +66,7 @@ export const hydrateSettings: Effect.Effect<StudioSettings> = openStore.pipe(
       previewPane: shownOf(cache.get(PREVIEW_PANE_KEY)),
       projectsPane: shownOf(cache.get(PROJECTS_PANE_KEY)),
       taskDock: shownOf(cache.get(TASK_DOCK_KEY)),
+      toursSeen: idsOf(cache.get(TOURS_SEEN_KEY)),
     };
   })
 );
@@ -163,6 +166,12 @@ export function saveProjectsPane(shown: boolean): Effect.Effect<void> {
 
 export function saveTaskDock(shown: boolean): Effect.Effect<void> {
   return remember(TASK_DOCK_KEY, shown ? "shown" : "hidden");
+}
+
+// The tips a person has answered. Replaying them is this list going empty,
+// which is why it is written whole rather than appended to.
+export function saveToursSeen(ids: readonly string[]): Effect.Effect<void> {
+  return remember(TOURS_SEEN_KEY, JSON.stringify(ids));
 }
 
 export function savePaneView(view: PaneView): Effect.Effect<void> {
