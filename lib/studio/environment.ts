@@ -10,6 +10,8 @@ import type {
   EnvironmentReport,
   InstallEvent,
   Installed,
+  NodeDownload,
+  NodeInstaller,
 } from "@/shared/ipc";
 import type { AgentProvider } from "@/shared/providers";
 import type { PreviewComposition } from "./preview";
@@ -44,6 +46,29 @@ export function installProject(
       params: { projectId },
     }).pipe(Effect.onInterrupt(() => Effect.ignore(cancelSidecarRequest(id))));
   });
+}
+
+export function installNode(
+  onEvent: (event: NodeDownload) => void
+): Effect.Effect<NodeInstaller, SidecarError> {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+
+    return yield* requestSidecar({
+      id,
+      method: "node.install",
+      onStream: onEvent,
+      params: null,
+    }).pipe(Effect.onInterrupt(() => Effect.ignore(cancelSidecarRequest(id))));
+  });
+}
+
+export function downloadPercent(event: NodeDownload | null): number | null {
+  if (event === null || event.total === null || event.total <= 0) {
+    return null;
+  }
+
+  return Math.min(100, Math.round((event.received / event.total) * 100));
 }
 
 export function compositionRow(

@@ -11,10 +11,10 @@ import {
   dependencyRow,
   driftFrom,
   entryRow,
+  managerRow,
   manifestOf,
   missingFrom,
   remotionRow,
-  runtimeRow,
 } from "./environment";
 
 let folder = "";
@@ -30,16 +30,46 @@ afterEach(async () => {
 const write = (file: string, body: unknown) =>
   writeFile(path.join(folder, file), JSON.stringify(body));
 
-describe("runtimeRow", () => {
-  it("reports the bun the sidecar is running on", () => {
-    expect(runtimeRow("1.3.2")).toMatchObject({
-      detail: "bun 1.3.2",
+describe("managerRow", () => {
+  it("passes a manager that is on the machine", () => {
+    expect(
+      managerRow({ lockfile: null, manager: "bun", root: "/p" }, "/bin/bun")
+    ).toMatchObject({
+      fix: null,
       state: "ok",
     });
   });
 
-  it("warns when the sidecar is not on bun at all", () => {
-    expect(runtimeRow(undefined).state).toBe("warn");
+  it("names the lockfile that chose the manager", () => {
+    const row = managerRow(
+      { lockfile: "/p/package-lock.json", manager: "npm", root: "/p" },
+      "/usr/bin/npm"
+    );
+
+    expect(row.detail).toContain("package-lock.json");
+  });
+
+  it("offers Node itself when the project needs npm and npm is not there", () => {
+    const row = managerRow(
+      { lockfile: "/p/package-lock.json", manager: "npm", root: "/p" },
+      null
+    );
+
+    expect(row).toMatchObject({
+      fix: { type: "node" },
+      state: "failed",
+      title: "Node.js (npm) is not installed",
+    });
+  });
+
+  it("refuses to install another project's dependencies with the shipped bun", () => {
+    const row = managerRow(
+      { lockfile: "/p/pnpm-lock.yaml", manager: "pnpm", root: "/p" },
+      null
+    );
+
+    expect(row.state).toBe("failed");
+    expect(row.detail).toContain("pnpm install");
   });
 });
 
@@ -211,7 +241,7 @@ describe("checksFor", () => {
   it("says a folder is not a Remotion project once, not three times", async () => {
     expect(await idsOf()).toEqual([
       "claude",
-      "runtime",
+      "manager",
       "remotion",
       "compositions",
     ]);
@@ -222,7 +252,7 @@ describe("checksFor", () => {
 
     expect(await idsOf()).toEqual([
       "claude",
-      "runtime",
+      "manager",
       "remotion",
       "dependencies",
       "compositions",

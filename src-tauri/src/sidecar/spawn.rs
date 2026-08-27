@@ -35,14 +35,24 @@ pub fn resolve_bun() -> Result<PathBuf, String> {
         ));
     }
 
+    if let Some(shipped) = shipped_bun() {
+        return Ok(shipped);
+    }
+
     search_dirs()
         .into_iter()
         .map(|dir| dir.join("bun"))
         .find(|candidate| candidate.is_file())
         .ok_or_else(|| {
-            "bun is not installed, or not where the app can find it — install it from https://bun.sh"
+            "this build ships no bun runtime and none is installed — build with `bun run bun:fetch` first, or install bun from https://bun.sh"
                 .to_string()
         })
+}
+
+fn shipped_bun() -> Option<PathBuf> {
+    let beside = env::current_exe().ok()?.parent()?.join("bun");
+
+    beside.is_file().then_some(beside)
 }
 
 #[cfg(debug_assertions)]

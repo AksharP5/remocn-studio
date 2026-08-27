@@ -64,6 +64,10 @@ The lockfile is `bun.lock`; use bun.
 - `bun run test` — Vitest, single run. `test:watch` and `test:coverage` also exist.
 - `bun run build` — Next static export into `out/`. Needs network on a cold cache
   (fonts are self-hosted at build time).
+- `bun run bun:fetch` — download the bun runtime the app ships into the
+  gitignored `src-tauri/binaries/`, pinned to `packageManager` in `package.json`.
+  Needs network the first time only; `tauri:before-build` runs it, so a normal
+  `bun tauri build` needs nothing extra. See *The sidecar*.
 - `bun run sidecar:build` — bundle `sidecar/` into `sidecar-dist/main.js`, which
   ships as a Tauri resource. **Only release builds need this** — in debug the
   core runs `sidecar/index.ts` from the repo, so there is nothing to rebuild.
@@ -544,11 +548,30 @@ event.
     `session.interrupt()`, because that call can only be answered by a CLI that is
     not blocked on a permission prompt. `Effect.onExit` around the stream repeats
     the abandon for every other way a turn can end.
-- **bun comes from the user's machine**, resolved from `$REMOCN_STUDIO_BUN`,
-  `~/.bun/bin`, `$PATH`, then the usual Homebrew/`/usr/local` locations. A
-  GUI-launched app gets a minimal `PATH`, which is why the fallback list exists.
-  The app does **not** bundle a bun runtime — #218 already requires the user to
-  have bun and a logged-in Claude Code.
+- **The app ships its own bun, and #218's "do not bundle a runtime" is reversed**
+  (REM-296). The measured price of not bundling was *the app does not start*: no
+  bun means no sidecar, and the environment checklist that would have explained
+  it is drawn by the sidecar. So bun rides as a Tauri `externalBin`
+  (`binaries/bun-<triple>`, 58 MB per architecture), which lands in
+  `Contents/MacOS/bun` beside the app binary. The resolve order in `spawn.rs` is
+  `$REMOCN_STUDIO_BUN` → **the shipped binary** → `~/.bun/bin`, `$PATH`, the usual
+  Homebrew/`/usr/local` locations. The env override stays *first* on purpose: an
+  override that the shipped copy always beat would not be one. A GUI-launched app
+  gets a minimal `PATH`, which is why the fallback list survives.
+  - **The binaries are fetched, not committed.** `bun run bun:fetch`
+    (`scripts/fetch-bun.ts`) downloads the release matching `packageManager` in
+    `package.json` — one version, one place — into the gitignored
+    `src-tauri/binaries/`, and re-running it is a no-op once the binary reports
+    that version. `tauri:before-build` runs it first, so CI needs no step of its
+    own; the fetch honours `TAURI_ENV_TARGET_TRIPLE` and takes only the
+    architecture being built, falling back to both when it is not set.
+  - **The checklist row for bun is gone**, because the runtime is now always
+    there. What took its place answers a different question — see *A project
+    installs with its own package manager*.
+  - bun is MIT, so redistributing the binary is free of conditions. Signing is
+    REM-10's problem and unchanged by this: the app is not signed today, and when
+    it is, a hardened runtime signs nested binaries — `Contents/MacOS/bun` is one
+    more of those, not a new class of thing.
 - **Where the script comes from differs by profile**: debug resolves
   `../sidecar/index.ts` from `CARGO_MANIFEST_DIR` (edit and restart, no build
   step), release resolves the bundled `sidecar/main.js` from the resource dir.
@@ -1860,6 +1883,56 @@ of the way" means. It re-runs on opening a project, on Recheck and after an inst
 - **The account probe is cached per sidecar process** and `force` — Recheck — is what clears it, so
   switching projects does not pay for it again. Warm, a whole report costs 250–800 ms.
 
+### A project installs with its own package manager
+
+bun had two jobs and they break differently: it is the sidecar's runtime — now shipped, see *The
+sidecar* — and it was also hardcoded as the package manager of every project the studio opens. The
+second one is wrong for a folder that is not ours: `bun install` over a `package-lock.json` writes a
+second lockfile and resolves to different versions than the project's own tooling would. `pmOf(root)`
+in `sidecar/package-manager.ts` is the one place that decides, and every hardcoded `bun …` goes
+through it (REM-296).
+
+- **The lockfile names the manager**, the way the remotion skills already do it: `bun.lock(b)` → bun,
+  `pnpm-lock.yaml` → pnpm, `yarn.lock` → yarn, `package-lock.json` / `npm-shrinkwrap.json` → npm.
+  With no lockfile anywhere the answer is bun, which is what our own scaffolds want and what the
+  shipped runtime always makes available.
+- **The walk up stops at the repository root.** A video project inside a workspace legitimately
+  installs from the workspace's lockfile, so `pmOf` climbs — but only until it has looked in the
+  directory holding `.git`. Without that bound, a project created inside somebody's unrelated repo
+  would inherit that repo's manager and install at *its* root.
+- **The scaffold does not ask.** `installScaffold` always uses bun, because the folder was made from
+  our template a second ago and `pmOf` would otherwise read a lockfile from an enclosing repo. Every
+  other install — the checklist's button, a Retry — is `installDependencies`, which asks `pmOf`. It
+  runs in the lockfile's own directory, not the Remotion root, which is what makes a workspace
+  install a workspace install.
+- **The shipped bun is the binary for a bun project, and never for anyone else's.** `binaryOf` answers
+  `process.execPath` for bun — the runtime the sidecar is already running on, so a machine with no
+  bun installed still installs a bun project — and resolves npm/pnpm/yarn from `$PATH` plus the
+  install locations a GUI-launched app does not inherit.
+- **Drift is a bun-only claim, and silence is the honest degradation.**
+  `bun install --dry-run --frozen-lockfile` looks at nothing and writes nothing (measured: byte-
+  identical output and exit 0 with `node_modules` deleted); npm, yarn and pnpm have no comparable
+  command, and the rule is that the studio never runs something that writes into the user's project
+  to answer a checklist row. So for a non-bun project `lockfileDrift` returns `null` and the row says
+  nothing rather than guessing. The *missing packages* half of that row is manager-independent — it
+  reads `node_modules` — and still works everywhere.
+- **The agent is told its own project's command.** `[Asset #N]`'s "not installed yet" line now names
+  `npm install` / `pnpm add` / `yarn add` / `bun add` from `pmOf`; the convention that packages are
+  added through an ordinary Bash card is unchanged, only the suggested command moved.
+- **No manager at all is a row with a button.** A foreign project whose lockfile says npm on a machine
+  with no Node is the case #218's prerequisites used to make impossible to reach. The `manager` row
+  fails, says which lockfile chose the manager and why the studio will not substitute its own bun, and
+  carries `fix: { type: "node" }` — Install Node.js. `node.install` in the sidecar reads
+  `nodejs.org/dist/index.json`, takes the newest entry that is LTS, streams the universal `.pkg` into
+  a temp folder with `{ received, total }` progress, and hands it to `/usr/bin/open`: the system
+  installer, with macOS's own admin prompt. A silent user-space install (nvm, fnm) is deliberately not
+  done — the studio does not want to be a Node manager in somebody else's machine. Offline, the row
+  says so instead of showing a button that cannot work.
+  - **A missing pnpm or yarn on a machine that *has* npm is a different fix**: `npm install -g pnpm`
+    on the copyable-command row, because downloading Node again would install nothing new.
+  - The dependencies row drops its own Install button while the manager is missing, so the checklist
+    never offers a button that would fail.
+
 ### The asset library
 
 Save something once and reuse it in every other video: an image, a video, a sound, or a finished
@@ -2271,7 +2344,9 @@ shared/               ipc.ts: the typed contract, and the media types it carries
                       motion.ts: the movement taxonomy — roles, the props each
                       expects, and the dictionary of named behaviours
 sidecar/              bun: frame loop, method handlers, SQLite history;
-                      files.ts is the project walk and the folder read behind `@`
+                      files.ts is the project walk and the folder read behind `@`;
+                      package-manager.ts is the one reader of a project's lockfile;
+                      node-installer.ts fetches and opens the Node LTS installer
 sidecar/agent/        the provider-neutral seam: AgentAdapter, the permission
                       gate's skeleton, the mode switch, account cache, registry,
                       and knowledge.ts — the one locator/attach contract for the
@@ -2301,7 +2376,8 @@ templates/remotion/   that project, vendored here and shipped as a Tauri resourc
 agent/                the one skills bundle every provider loads: vendored skills,
                       plus video-lessons and motion-design — our own record of what
                       failed on screen and the motion bar it has to clear
-scripts/              build-time tooling; skills-sync.ts is the vendoring step
+scripts/              build-time tooling; skills-sync.ts is the vendoring step and
+                      fetch-bun.ts pulls the bun runtime the app ships
 sidecar/preview/      the --preview-host child: project resolution, webpack watch, server,
                       stills for Snapshot and the mp4 export
 src-tauri/            Rust core (Tauri v2), the sidecar supervisor, pasted-image writes

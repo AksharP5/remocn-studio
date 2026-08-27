@@ -4,6 +4,7 @@ import {
   AlertTriangleIcon,
   CheckIcon,
   CopyIcon,
+  DownloadIcon,
   RotateCwIcon,
   XCircleIcon,
 } from "lucide-react";
@@ -11,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useCopyCommand } from "@/hooks/use-copy-command";
 import type { Environment } from "@/hooks/use-environment";
+import { useOnline } from "@/hooks/use-online";
+import { downloadPercent } from "@/lib/studio/environment";
 import { cn } from "@/lib/utils";
 import type { EnvironmentCheck, EnvironmentState } from "@/shared/ipc";
 import { AboveComposer, NoticeCard } from "./notice-card";
@@ -84,6 +87,43 @@ export function EnvironmentChecklist({
   );
 }
 
+function NodeFix({ environment }: { environment: Environment }) {
+  const online = useOnline();
+  const percent = downloadPercent(environment.download);
+
+  if (!online) {
+    return (
+      <p className="text-muted-foreground text-xs leading-snug">
+        You are offline, so the studio cannot fetch the Node.js installer.
+        Connect and press Recheck.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        disabled={environment.isInstallingNode}
+        onClick={environment.installNode}
+        size="xs"
+        variant="outline"
+      >
+        {environment.isInstallingNode ? (
+          <Spinner className="size-3" data-icon="inline-start" />
+        ) : (
+          <DownloadIcon data-icon="inline-start" />
+        )}
+        Install Node.js
+      </Button>
+      {environment.isInstallingNode ? (
+        <span className="text-muted-foreground text-xs tabular-nums">
+          {percent === null ? "Downloading…" : `Downloading… ${percent}%`}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function CheckRow({
   check,
   copied,
@@ -131,6 +171,10 @@ function CheckRow({
               {copied === check.fix.command ? "Copied" : "Copy"}
             </Button>
           </div>
+        ) : null}
+
+        {check.fix?.type === "node" ? (
+          <NodeFix environment={environment} />
         ) : null}
 
         {check.fix?.type === "install" ? (

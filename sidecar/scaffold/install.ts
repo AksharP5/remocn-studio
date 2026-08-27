@@ -1,6 +1,16 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { Effect } from "effect";
+import {
+  binaryOf,
+  DEFAULT_MANAGER,
+  INSTALL_ARGS,
+  installCommand,
+  type PackageManager,
+  type ProjectManager,
+  pmOf,
+} from "../package-manager";
+import { remotionRootOf } from "../preview/project";
 import { ScaffoldError } from "./template";
 
 const KILL_GRACE_MS = 2000;
@@ -10,9 +20,32 @@ export function installDependencies(
   cwd: string,
   log: (line: string) => Effect.Effect<void>
 ): Effect.Effect<void, ScaffoldError> {
+  return runInstall(pmOf(remotionRootOf(cwd)), log);
+}
+
+export function installScaffold(
+  cwd: string,
+  log: (line: string) => Effect.Effect<void>
+): Effect.Effect<void, ScaffoldError> {
+  const root = remotionRootOf(cwd);
+
+  return runInstall({ lockfile: null, manager: DEFAULT_MANAGER, root }, log);
+}
+
+function runInstall(
+  project: ProjectManager,
+  log: (line: string) => Effect.Effect<void>
+): Effect.Effect<void, ScaffoldError> {
+  const { manager } = project;
+  const binary = binaryOf(manager);
+
+  if (binary === null) {
+    return Effect.fail(new ScaffoldError({ message: notInstalled(manager) }));
+  }
+
   return Effect.callback<void, ScaffoldError>((resume) => {
-    const child = spawn(process.execPath, ["install"], {
-      cwd,
+    const child = spawn(binary, [...INSTALL_ARGS], {
+      cwd: project.root,
       stdio: ["ignore", "pipe", "pipe"],
     });
 
@@ -50,7 +83,7 @@ export function installDependencies(
       resume(
         Effect.fail(
           new ScaffoldError({
-            message: reason(code, signal, tail),
+            message: reason(manager, code, signal, tail),
           })
         )
       );
@@ -65,7 +98,12 @@ export function installDependencies(
   });
 }
 
+export function notInstalled(manager: PackageManager): string {
+  return `this project's lockfile is ${manager}'s, and ${manager} is not installed on this machine — the studio will not install its dependencies with anything else`;
+}
+
 function reason(
+  manager: PackageManager,
   code: number | null,
   signal: NodeJS.Signals | null,
   tail: readonly string[]
@@ -75,6 +113,6 @@ function reason(
   const said = tail.join("\n").trim();
 
   return said.length === 0
-    ? `bun install ${how}`
-    : `bun install ${how}:\n${said}`;
+    ? `${installCommand(manager)} ${how}`
+    : `${installCommand(manager)} ${how}:\n${said}`;
 }

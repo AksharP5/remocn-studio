@@ -4,6 +4,13 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Data, Effect } from "effect";
 import type { EnvironmentCheck } from "@/shared/ipc";
+import {
+  binaryOf,
+  installCommand,
+  type PackageManager,
+  type ProjectManager,
+  pmOf,
+} from "./package-manager";
 import { entryPointOf, remotionRootOf } from "./preview/project";
 
 export class EnvironmentError extends Data.TaggedError("EnvironmentError")<{
@@ -23,25 +30,43 @@ const DEPENDENCY_FIELDS = [
   "peerDependencies",
 ] as const;
 
-export function runtimeRow(version: string | undefined): EnvironmentCheck {
-  if (version === undefined) {
+export function managerRow(
+  project: ProjectManager,
+  binary: string | null
+): EnvironmentCheck {
+  const named =
+    project.lockfile === null
+      ? `${project.manager}, since nothing in this project names a package manager`
+      : `${project.manager}, named by ${path.basename(project.lockfile)}`;
+
+  if (binary !== null) {
     return {
-      detail:
-        "The sidecar is not running on bun, so bun:sqlite and the project's own installs may behave differently.",
+      detail: named,
       fix: null,
-      id: "runtime",
-      state: "warn",
-      title: "The runtime is not bun",
+      id: "manager",
+      state: "ok",
+      title: "This project has a package manager",
     };
   }
 
   return {
-    detail: `bun ${version}`,
-    fix: null,
-    id: "runtime",
-    state: "ok",
-    title: "bun is running the sidecar",
+    detail: `This project installs with ${installCommand(project.manager)} — ${project.lockfile === null ? "the studio's own default" : `its ${path.basename(project.lockfile)} says so`} — and ${project.manager} is not on this machine. The studio ships its own bun for itself, and will not install another project's dependencies with it: that would write a second lockfile and resolve to different versions.`,
+    fix: fixFor(project.manager),
+    id: "manager",
+    state: "failed",
+    title:
+      project.manager === "npm"
+        ? "Node.js (npm) is not installed"
+        : `${project.manager} is not installed`,
   };
+}
+
+function fixFor(manager: PackageManager) {
+  if (manager === "npm" || binaryOf("npm") === null) {
+    return { type: "node" } as const;
+  }
+
+  return { command: `npm install -g ${manager}`, type: "command" } as const;
 }
 
 export function remotionRow(
@@ -80,7 +105,8 @@ export function remotionRow(
 export function dependencyRow(
   missing: readonly string[],
   total: number,
-  drifted: string | null
+  drifted: string | null,
+  installable = true
 ): EnvironmentCheck {
   if (missing.length > 0) {
     const named = missing.slice(0, NAMED_MISSING).join(", ");
@@ -91,7 +117,7 @@ export function dependencyRow(
 
     return {
       detail: `${missing.length} of ${total} declared packages are not in node_modules: ${named}${rest}.`,
-      fix: { type: "install" },
+      fix: installable ? { type: "install" } : null,
       id: "dependencies",
       state: "failed",
       title: "Dependencies are not installed",
@@ -101,7 +127,7 @@ export function dependencyRow(
   if (drifted !== null) {
     return {
       detail: drifted,
-      fix: { type: "install" },
+      fix: installable ? { type: "install" } : null,
       id: "dependencies",
       state: "warn",
       title: "package.json and the lockfile disagree",
@@ -202,13 +228,20 @@ export function missingFrom(
   return dependencies.filter((name) => !isInstalled(root, name));
 }
 
-export function lockfileDrift(root: string): Effect.Effect<string | null> {
+export function lockfileDrift(
+  project: ProjectManager
+): Effect.Effect<string | null> {
+  const binary = project.manager === "bun" ? binaryOf("bun") : null;
+
+  if (binary === null) {
+    return Effect.succeed(null);
+  }
+
   return Effect.callback<string | null>((resume) => {
-    const child = spawn(
-      process.execPath,
-      ["install", "--dry-run", "--frozen-lockfile"],
-      { cwd: root, stdio: ["ignore", "pipe", "pipe"] }
-    );
+    const child = spawn(binary, ["install", "--dry-run", "--frozen-lockfile"], {
+      cwd: project.root,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
 
     let said = "";
 
@@ -256,17 +289,25 @@ export function checksFor(
     const root = remotionRootOf(folder);
     const manifest = yield* manifestOf(root);
 
-    const runtime = runtimeRow(
-      (process.versions as Record<string, string | undefined>).bun ?? undefined
-    );
+    const project = pmOf(root);
+    const binary = binaryOf(project.manager);
 
-    const head = [account, runtime, remotionRow(root, manifest)];
+    const head = [
+      account,
+      managerRow(project, binary),
+      remotionRow(root, manifest),
+    ];
 
     if (manifest === null) {
       return [...head, PENDING_COMPOSITIONS];
     }
 
-    const dependencies = yield* dependenciesRow(root, manifest);
+    const dependencies = yield* dependenciesRow(
+      root,
+      manifest,
+      project,
+      binary !== null
+    );
 
     if (manifest.remotion === null) {
       return [...head, dependencies, PENDING_COMPOSITIONS];
@@ -285,17 +326,29 @@ export function checksFor(
 
 function dependenciesRow(
   root: string,
-  manifest: Manifest
+  manifest: Manifest,
+  project: ProjectManager,
+  installable: boolean
 ): Effect.Effect<EnvironmentCheck> {
   return Effect.gen(function* () {
     const missing = missingFrom(root, manifest.dependencies);
 
     if (missing.length > 0) {
-      return dependencyRow(missing, manifest.dependencies.length, null);
+      return dependencyRow(
+        missing,
+        manifest.dependencies.length,
+        null,
+        installable
+      );
     }
 
-    const drifted = yield* lockfileDrift(root);
+    const drifted = yield* lockfileDrift(project);
 
-    return dependencyRow([], manifest.dependencies.length, drifted);
+    return dependencyRow(
+      [],
+      manifest.dependencies.length,
+      drifted,
+      installable
+    );
   });
 }

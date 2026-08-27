@@ -53,6 +53,7 @@ export const METHOD_NAMES = [
   "library.stockSave",
   "library.stockSearch",
   "library.stockStatus",
+  "node.install",
   "pipeline.get",
   "pipeline.set",
   "pipeline.start",
@@ -509,7 +510,7 @@ export const ENVIRONMENT_CHECKS = [
   "codex",
   "copilot",
   "grok",
-  "runtime",
+  "manager",
   "remotion",
   "dependencies",
   "entry",
@@ -525,6 +526,9 @@ export const EnvironmentState = Schema.Literals(ENVIRONMENT_STATES);
 export const EnvironmentFix = Schema.Union([
   Schema.Struct({
     type: Schema.Literal("install"),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("node"),
   }),
   Schema.Struct({
     command: Schema.NonEmptyString,
@@ -556,6 +560,17 @@ export const InstallEvent = Schema.Struct({
 });
 
 export const Installed = Schema.Struct({ installed: Schema.Boolean });
+
+export const NodeDownload = Schema.Struct({
+  received: Schema.Int,
+  total: Schema.NullOr(Schema.Int),
+  type: Schema.Literal("progress"),
+});
+
+export const NodeInstaller = Schema.Struct({
+  opened: Schema.Boolean,
+  version: Schema.NonEmptyString,
+});
 
 export const ContextUsage = Schema.Struct({
   maxTokens: Schema.Int,
@@ -714,6 +729,8 @@ export type EnvironmentCheckId = (typeof EnvironmentCheckId)["Type"];
 export type EnvironmentState = (typeof EnvironmentState)["Type"];
 export type EnvironmentFix = (typeof EnvironmentFix)["Type"];
 export type EnvironmentCheck = (typeof EnvironmentCheck)["Type"];
+export type NodeDownload = (typeof NodeDownload)["Type"];
+export type NodeInstaller = (typeof NodeInstaller)["Type"];
 export type EnvironmentReport = (typeof EnvironmentReport)["Type"];
 export type EnvironmentParams = (typeof EnvironmentParams)["Type"];
 export type InstallEvent = (typeof InstallEvent)["Type"];
@@ -925,6 +942,11 @@ export const SIDECAR_METHODS = {
     params: Schema.Null,
     result: StockConfigured,
     stream: Schema.Never,
+  },
+  "node.install": {
+    params: Schema.Null,
+    result: NodeInstaller,
+    stream: NodeDownload,
   },
   "pipeline.get": {
     params: HistorySessionRef,
