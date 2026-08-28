@@ -192,5 +192,19 @@ jobs:
           # `.app.tar.gz` it points at.
           releaseDraft: false
           prerelease: false
-          args: --target ${{ matrix.target }}
+          # `crash-reports` turns on the core's own half of REM-268 — the panic
+          # hook and the supervisor's sidecar-crash note. It is off in
+          # `Cargo.toml` and switched on here rather than by `default`, so a
+          # local `cargo build` still compiles neither `sentry` nor its
+          # transport; the webview and the sidecar carry their own SDKs and
+          # need no flag.
+          #
+          # **This job is the only place any Rust is compiled in CI**, so a
+          # break here is found while cutting a release. `cargo check --features
+          # crash-reports` on a Mac is what stands in for that.
+          #
+          # `--features` takes a *list*, so it goes first and `--target` ends
+          # it: a flag terminates the list, where anything tauri-action might
+          # append after ours would be swallowed as another feature name.
+          args: --features crash-reports --target ${{ matrix.target }}
           uploadUpdaterJson: true

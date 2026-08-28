@@ -302,10 +302,14 @@ never reported.
   assumed the plugin for the sake of one DSN and one release across three
   layers — the shared `crashRelease(version)` gives both without it. What is
   left is the plain `sentry` crate for panics.
-- **The Rust half is behind an off-by-default Cargo feature (`crash-reports`).**
-  No workflow in this repo compiles the Rust except the release job, so an
-  unbuildable dependency tree would first be discovered while cutting a release.
-  Turning the feature on is the last step, once a DSN exists.
+- **The Rust half is behind a Cargo feature (`crash-reports`), off by default
+  and switched on by the release job's `args`.** Off in `Cargo.toml` so a local
+  `cargo build` compiles neither `sentry` nor its transport; on for the build
+  that ships. The flag leads the argument list, because `--features` takes a
+  list and `--target` is what ends it — anything appended after ours would be
+  read as another feature name. No workflow in this repo compiles the Rust
+  except that release job, so `cargo check --features crash-reports` on a Mac
+  is what stands in for a CI gate.
 - **`ClientOptions` is `#[non_exhaustive]`**, so it is built by assignment
   rather than a struct literal — `..Default::default()` buys no exemption from
   that outside the declaring crate. `before_send` also needs
@@ -320,9 +324,9 @@ never reported.
   rewritten to `<home>` and the ordinary words of the message intact;
   `note_sidecar_crash` arrives as its own message event; `server_name` is the
   constant rather than the hostname, the contexts are architecture and OS only,
-  and there are no breadcrumbs. What that leaves unverified is the app as a
-  whole — the crate compiling beside `tauri` on macOS, which is what
-  `cargo check --features crash-reports` answers.
+  and there are no breadcrumbs. The one thing that isolation could not answer —
+  the crate compiling beside `tauri` on macOS — was then confirmed by
+  `cargo check --features crash-reports` on a Mac.
 - **The sourcemap step is a line of `tauri:before-build`, and it has to be.**
   Sentry matches a minified frame by a debug id written into the built
   JavaScript, so the inject must be the last thing that touches those bytes —
