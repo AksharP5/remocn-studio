@@ -12,6 +12,7 @@ import type {
 import { pipelineBrief } from "../claude/conventions";
 import type { MoodboardDraft, MoodboardRecord } from "../library/moodboard";
 import { moodboardBrief } from "../library/moodboard";
+import type { VideoCheck } from "../preview/choreography";
 import type { DesignResult, MotionAssertion } from "../preview/design";
 import {
   DESIGN_CHECK,
@@ -66,6 +67,7 @@ export interface DesignCalls {
   readonly check: (input: {
     readonly frames: readonly number[];
     readonly motion: readonly MotionAssertion[];
+    readonly video: VideoCheck | null;
   }) => Promise<DesignResult>;
 }
 
@@ -152,9 +154,16 @@ async function designCheck(
   args: Record<string, unknown>,
   design: DesignCalls
 ): Promise<string> {
+  const declared = args.video as
+    | { camera?: string | null; scenes: VideoCheck["scenes"] }
+    | undefined;
   const result = await design.check({
     frames: args.frames as number[],
     motion: (args.motion as MotionAssertion[] | undefined) ?? [],
+    video:
+      declared === undefined
+        ? null
+        : { camera: declared.camera ?? null, scenes: declared.scenes },
   });
   return JSON.stringify(result, null, 2);
 }

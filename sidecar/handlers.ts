@@ -274,12 +274,13 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
           .serving(turnId, {
             cwd: project.path,
             design: {
-              check: ({ frames, motion }) =>
+              check: ({ frames, motion, video: sceneMap }) =>
                 Effect.runPromise(
                   designFrom(params.projectId, {
                     composition: "Main",
                     frames,
                     motion,
+                    video: sceneMap,
                   })
                 ),
             },

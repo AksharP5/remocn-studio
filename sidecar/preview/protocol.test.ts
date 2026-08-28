@@ -12,6 +12,7 @@ describe("preview design protocol", () => {
         id: "request-1",
         motion: [],
         type: "design",
+        video: null,
       })
     );
 
@@ -39,10 +40,47 @@ describe("preview design protocol", () => {
           { kind: "stays_in_frame", selector: ".ticker" },
         ],
         type: "design",
+        video: null,
       })
     );
 
     expect(Exit.isSuccess(decoded)).toBe(true);
+  });
+
+  it("decodes a design command carrying the whole-video scene map", () => {
+    const decoded = decodeHostCommand(
+      JSON.stringify({
+        composition: "Main",
+        frames: [30, 90],
+        id: "request-1",
+        motion: [],
+        type: "design",
+        video: {
+          camera: "[data-design-id='stage']",
+          scenes: [
+            { from: 0, name: "open", to: 60 },
+            { from: 60, name: "claim", to: 150 },
+          ],
+        },
+      })
+    );
+
+    expect(Exit.isSuccess(decoded)).toBe(true);
+  });
+
+  it("refuses a scene the map did not name", () => {
+    const decoded = decodeHostCommand(
+      JSON.stringify({
+        composition: "Main",
+        frames: [30, 90],
+        id: "request-1",
+        motion: [],
+        type: "design",
+        video: { camera: null, scenes: [{ from: 0, to: 60 }] },
+      })
+    );
+
+    expect(Exit.isSuccess(decoded)).toBe(false);
   });
 
   it("refuses a motion assertion the union does not know", () => {

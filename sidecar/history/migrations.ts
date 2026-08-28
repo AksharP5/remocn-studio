@@ -86,6 +86,12 @@ export const MIGRATIONS: readonly (readonly Migration[])[] = [
     "CREATE INDEX session_by_project ON session (project_id)",
     "CREATE INDEX session_by_video ON session (video_id)",
   ],
+  [
+    `INSERT INTO pipeline_stage (session_id, stage, status)
+     SELECT session_id, 'choreography',
+            CASE WHEN status = 'pending' THEN 'pending' ELSE 'done' END
+     FROM pipeline_stage WHERE stage = 'review'`,
+  ],
 ];
 
 export function prepare(driver: SqlDriver): void {

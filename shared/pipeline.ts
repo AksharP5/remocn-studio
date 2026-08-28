@@ -6,6 +6,7 @@ export const PIPELINE_STAGE_IDS = [
   "script",
   "motion",
   "build",
+  "choreography",
   "review",
 ] as const;
 
@@ -29,6 +30,7 @@ export type PipelineStage = (typeof PipelineStage)["Type"];
 export interface StageTemplate {
   readonly activeForm: string;
   readonly ask: string;
+  readonly checklist?: readonly string[];
   readonly discover: string;
   readonly doneWhen: string;
   readonly goal: string;
@@ -97,6 +99,25 @@ export const STAGE_TEMPLATES: readonly StageTemplate[] = [
     id: "build",
     outputs: ["src/"],
     title: "Build",
+  },
+  {
+    activeForm: "Choreographing the whole video",
+    ask: "Ask only when a scene's meaning is unclear enough that you cannot tell which beat should carry the accent — name the scene and the ambiguity.",
+    checklist: [
+      "Rhythm. Scene durations must not be uniform: across the video, longest/shortest >= 1.5x. Place one short accent scene (under 1s) per every 4-5 scenes, and hold at least 15 frames of rest after each key statement. If an audiomap is present, cut on hard stops and energy jumps - never on every beat.",
+      'Continuity. In at least half of the scene changes, something must live across the boundary: an element exits WHILE the next one enters, a background field persists through the cut, or camera motion carries over. "Everything out, then everything in" is the definition of a slideshow - break it wherever you find it. A transition owns its own boundary; a bridge element lives outside the Series, above the scenes it spans.',
+      "Life after entry. Every key element keeps secondary motion after landing (drift, breathe, parallax); decorations share one slow ambient motion. A frame where nothing moves for more than 1.5s is a defect unless it is a deliberate held beat.",
+      "Order of arrival. Entrances follow meaning hierarchy: the thing the viewer must read first arrives first, alone; supporting elements follow 2-4 frames apart. Rework any scene where everything enters at once or in a mechanical top-to-bottom sweep.",
+      "Camera. Scenes with more than one plane run inside a camera wrapper — one transform framing the whole scene; a locked-off frame is a deliberate choice you can name, not a default.",
+    ],
+    discover:
+      "Read video/script.md for the scene list and its durations and video/motion.md for the devices it promised, then measure what was actually built: call mcp__remocn-design__design_check with the whole video's scene map in `video`, so the rhythm, the carried boundaries, the frozen runs and the camera are answered by measurement rather than by reading the code.",
+    doneWhen:
+      "video/choreography.md records the pass scene by scene, and design_check's whole-video findings are either fixed or answered in one line each.",
+    goal: "Walk the finished video end to end once and fix what makes it read as slides: uneven rhythm, boundaries nothing lives across, elements that freeze after their entry, entrances that arrive all at once, and a camera that never moves.",
+    id: "choreography",
+    outputs: ["video/choreography.md", "src/"],
+    title: "Choreography",
   },
   {
     activeForm: "Reviewing the result",

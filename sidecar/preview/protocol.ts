@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 import { ExportEvent, Exported, Still, StillEvent } from "@/shared/ipc";
+import { VideoCheck } from "./choreography";
 import { DesignResult, MotionAssertion } from "./design";
 
 export const RENDER_BASE = "/__remocn/render";
@@ -33,6 +34,7 @@ export const HostCommand = Schema.Union([
     id: Schema.NonEmptyString,
     motion: Schema.Array(MotionAssertion),
     type: Schema.Literal("design"),
+    video: Schema.NullOr(VideoCheck),
   }),
   Schema.Struct({
     id: Schema.NonEmptyString,

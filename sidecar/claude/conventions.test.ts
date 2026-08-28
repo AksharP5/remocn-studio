@@ -4,6 +4,7 @@ import {
   MOTION_DICTIONARY,
   MOTION_ROLES,
 } from "@/shared/motion";
+import { PIPELINE_STAGE_IDS, stageTemplate } from "@/shared/pipeline";
 import {
   BUNDLE_NAME,
   INTERACTIVITY_SKILL,
@@ -13,6 +14,7 @@ import {
 } from "@/sidecar/agent/knowledge";
 import {
   conventionsFor,
+  pipelineBrief,
   STUDIO_CONVENTIONS,
 } from "@/sidecar/claude/conventions";
 
@@ -145,5 +147,72 @@ describe("the movement taxonomy", () => {
   it("leaves the recipes to the skill that carries them", () => {
     expect(conventionsFor(true)).toContain("the movement dictionary");
     expect(conventionsFor(false)).not.toContain("the movement dictionary");
+  });
+});
+
+describe("the choreography stage", () => {
+  const brief = pipelineBrief([{ stage: "choreography", status: "active" }]);
+
+  it("stands between building and reviewing, because it is a property of the whole", () => {
+    expect([...PIPELINE_STAGE_IDS]).toEqual([
+      "analysis",
+      "brand",
+      "script",
+      "motion",
+      "build",
+      "choreography",
+      "review",
+    ]);
+  });
+
+  it("says the pipeline has seven stages and names the new one", () => {
+    expect(STUDIO_CONVENTIONS).toContain("seven-stage");
+    expect(STUDIO_CONVENTIONS).toContain(
+      "analysis, brand, script, motion, build, choreography, review"
+    );
+  });
+
+  it("hands the agent the whole checklist, in order", () => {
+    const checklist = stageTemplate("choreography").checklist ?? [];
+
+    expect(checklist).toHaveLength(5);
+    for (const item of checklist) {
+      expect(brief).toContain(`- ${item}`);
+    }
+  });
+
+  it("names the five things a slide-shaped video is missing", () => {
+    for (const word of [
+      "Rhythm.",
+      "Continuity.",
+      "Life after entry.",
+      "Order of arrival.",
+      "Camera.",
+    ]) {
+      expect(brief).toContain(word);
+    }
+  });
+
+  it("sends the agent to measure the whole video rather than read the code", () => {
+    expect(brief).toContain("mcp__remocn-design__design_check");
+    expect(brief).toContain("scene map");
+  });
+
+  it("puts the checklist only on the stage that has one", () => {
+    for (const stage of PIPELINE_STAGE_IDS) {
+      const text = pipelineBrief([{ stage, status: "active" }]) ?? "";
+      const hasChecklist = text.includes(
+        "Work this checklist over the WHOLE video"
+      );
+
+      expect(hasChecklist).toBe(stage === "choreography");
+    }
+  });
+
+  it("draws the camera rule where every turn reads it, not only the stage", () => {
+    expect(STUDIO_CONVENTIONS).toContain("runs inside a camera");
+    expect(STUDIO_CONVENTIONS).toContain(
+      "locked-off frame is a deliberate choice"
+    );
   });
 });

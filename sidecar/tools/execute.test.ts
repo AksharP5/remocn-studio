@@ -312,6 +312,69 @@ describe("executeTool", () => {
     ]);
   });
 
+  it("passes the whole-video scene map through, and normalises an omitted camera", async () => {
+    const asked: unknown[] = [];
+    const report = {
+      composition: "Main",
+      findings: [],
+      frames: [30, 90],
+      height: 1080,
+      snapshots: [],
+      summary: { errors: 0, info: 0, warnings: 0 },
+      width: 1920,
+    };
+    const design = {
+      check: ({ video }: { video: unknown }) => {
+        asked.push(video);
+        return Promise.resolve(report);
+      },
+    };
+
+    await executeTool(
+      "remocn-design",
+      "design_check",
+      {
+        frames: [30, 90],
+        video: {
+          scenes: [
+            { from: 0, name: "open", to: 60 },
+            { from: 60, name: "claim", to: 150 },
+          ],
+        },
+      },
+      tools({ design })
+    );
+    await executeTool(
+      "remocn-design",
+      "design_check",
+      { frames: [30, 90] },
+      tools({ design })
+    );
+
+    expect(asked[0]).toEqual({
+      camera: null,
+      scenes: [
+        { from: 0, name: "open", to: 60 },
+        { from: 60, name: "claim", to: 150 },
+      ],
+    });
+    expect(asked[1]).toBeNull();
+  });
+
+  it("refuses a scene map of one scene, which has no boundary to check", async () => {
+    const answer = await executeTool(
+      "remocn-design",
+      "design_check",
+      {
+        frames: [30, 90],
+        video: { scenes: [{ from: 0, name: "open", to: 60 }] },
+      },
+      tools()
+    );
+
+    expect(answer.isError).toBe(true);
+  });
+
   it("refuses a motion assertion of an unknown kind", async () => {
     const answer = await executeTool(
       "remocn-design",

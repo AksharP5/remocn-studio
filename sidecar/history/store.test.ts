@@ -56,7 +56,7 @@ async function studio() {
       videoId: video.id,
     });
 
-  return { history, open, project, video };
+  return { driver, history, open, project, video };
 }
 
 const assistant = (text: string): TranscriptEntry => ({
@@ -371,10 +371,39 @@ describe("pipeline", () => {
       "script",
       "motion",
       "build",
+      "choreography",
       "review",
     ]);
     expect(stages[0]).toEqual({ stage: "analysis", status: "active" });
     expect(stages.slice(1).every((row) => row.status === "pending")).toBe(true);
+  });
+
+  it("gives a pipeline started before the choreography stage its own row", async () => {
+    const { driver, history, open } = await studio();
+    const building = await run(open("Still building"));
+    const reviewed = await run(open("Already reviewed"));
+
+    await run(history.startPipeline(building.id));
+    await run(history.startPipeline(reviewed.id));
+    await run(history.setStage(reviewed.id, "review", "active"));
+
+    driver.run("DELETE FROM pipeline_stage WHERE stage = 'choreography'");
+    driver.exec(`PRAGMA user_version = ${MIGRATIONS.length - 1}`);
+    migrate(driver);
+
+    const stageOf = async (sessionId: string) =>
+      (await run(history.pipeline(sessionId))).find(
+        (row) => row.stage === "choreography"
+      );
+
+    expect(await stageOf(building.id)).toEqual({
+      stage: "choreography",
+      status: "pending",
+    });
+    expect(await stageOf(reviewed.id)).toEqual({
+      stage: "choreography",
+      status: "done",
+    });
   });
 
   it("keeps moved stages when started twice", async () => {

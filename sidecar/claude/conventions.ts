@@ -8,6 +8,7 @@ import {
 import {
   activeStage,
   type PipelineStage,
+  type StageTemplate,
   stageTemplate,
 } from "@/shared/pipeline";
 import {
@@ -93,6 +94,12 @@ does not replace your own design review of the snapshots.
 
 ${MOTION_TAXONOMY}
 
+A scene with more than one visual plane runs inside a camera: one wrapper whose
+transform frames the whole scene and is keyed to something happening in it. A
+locked-off frame is a deliberate choice you can name, not the default you land
+on by not deciding. Give that wrapper a \`data-design-id\` like everything else
+you animate, so the check can see whether the camera ever moved.
+
 A component you write new must be tunable by someone who does not read code.
 Everything a person might want to change — texts, colors, durations, amplitudes
 — is a typed prop, with its default written inline where the prop is declared,
@@ -129,8 +136,8 @@ then save with \`mcp__remocn-library__save_moodboard\` — and read the PNG it
 returns. A change to an existing board is the same call with only the block that
 reads wrong replaced, never a new search from scratch.
 
-Making a video here runs through a fixed six-stage production pipeline:
-analysis, brand, script, motion, build, review. When the person asks to create
+Making a video here runs through a fixed seven-stage production pipeline:
+analysis, brand, script, motion, build, choreography, review. When the person asks to create
 a video — or to rework one from the ground up — and no active stage is named in
 this prompt, call \`mcp__remocn-pipeline__start_video_pipeline\` before anything
 else and follow the instructions it returns. A small, pointed edit needs no
@@ -193,6 +200,21 @@ export function conventionsFor(
     : base;
 }
 
+function checklistOf(template: StageTemplate): string {
+  if (template.checklist === undefined) {
+    return "";
+  }
+
+  const rows = template.checklist.map((item) => `- ${item}`).join("\n");
+
+  return `\nWork this checklist over the WHOLE video, in the order it is written —
+the stage exists because each of these is a property of the whole, and a video
+assembled scene by scene does not get them by accident:
+
+${rows}
+`;
+}
+
 export function pipelineBrief(stages: readonly PipelineStage[]): string | null {
   const running = activeStage(stages);
   if (running === null) {
@@ -211,7 +233,7 @@ Goal: ${template.goal}
 The stage is done when: ${template.doneWhen}
 Write the result to: ${template.outputs.join(", ")} — a file in the project, not
 only a message, so a reopened session loses nothing.
-
+${checklistOf(template)}
 Start the stage by finding out what is already known, in this order, and create
 your task list with TaskCreate from what you find:
 1. ${template.discover}
