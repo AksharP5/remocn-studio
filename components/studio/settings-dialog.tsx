@@ -6,6 +6,7 @@ import {
   CircleArrowUpIcon,
   CopyIcon,
   ImagesIcon,
+  LightbulbIcon,
   RotateCwIcon,
   SlidersHorizontalIcon,
   SunMoonIcon,
@@ -282,7 +283,7 @@ function AppearanceSection() {
 }
 
 function BehaviorSection() {
-  const { preferences, updates } = useStudio();
+  const { preferences, tours, updates } = useStudio();
 
   return (
     <div className="flex flex-col gap-6">
@@ -302,6 +303,28 @@ function BehaviorSection() {
           id="settings-asset-offers"
           onCheckedChange={preferences.setAssetOffers}
         />
+      </div>
+
+      {/* Replaying forgets every "Got it". Nothing appears while this dialog
+          is open — a tip never competes with something already on screen — so
+          the first one arrives after it is closed. */}
+      <div className="flex items-start justify-between gap-6">
+        <div className="flex min-w-0 flex-col gap-1">
+          <span className="text-sm">Tips</span>
+          <p className="text-muted-foreground text-xs leading-snug">
+            A short pointer the first time a part of the studio becomes usable,
+            one at a time, never twice
+          </p>
+        </div>
+        <Button
+          disabled={!tours.hasSeenAny}
+          onClick={tours.replay}
+          size="sm"
+          variant="outline"
+        >
+          <LightbulbIcon data-icon="inline-start" />
+          Replay tips
+        </Button>
       </div>
 
       <CrashReportsRow
