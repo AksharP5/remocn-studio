@@ -1,5 +1,133 @@
 # remocn-studio
 
+## 0.6.0
+
+### Minor Changes
+
+- 37a6e37: Give Codex, Copilot and Grok the same five bundled skills Claude already had.
+
+  The studio has always shipped its knowledge as one plugin — `remocn`,
+  `remotion-best-practices`, `remotion-interactivity`, `video-lessons`,
+  `motion-design` — and only Claude ever loaded it. The other three got the
+  always-on conventions and nothing else, so the same request produced a different
+  process depending on whose model answered it. Now every provider gets the whole
+  bundle, through its own native skill mechanism, out of the one `agent/skills/`
+  that was always the source of truth. Nothing is copied into your project, no
+  skill body is pasted into a prompt, and progressive disclosure still works: the
+  runtime shows a catalog and the agent opens what it needs.
+
+  Copilot and Grok take the shipped directory as `--plugin-dir` and read the
+  manifest the plugin already carried. Codex needed more: it resolves plugins only
+  from a user config layer, and `--config` overrides land in a layer it
+  deliberately skips — measured against codex-cli 0.148.0, `codex plugin list`
+  with those overrides answers "No marketplace plugins found" and the same tables
+  written into a `config.toml` answer with the plugin. So the studio keeps a Codex
+  home of its own beside its database and mirrors yours into it: every entry is a
+  symlink back, `auth.json` included, so the ChatGPT session and the sessions you
+  can resume are the same ones. Only the config and the plugin store are the
+  studio's, and your `~/.codex/config.toml` is never written to.
+
+  Attach is a value now, not a guess from the provider's name: `{ loaded, source,
+collisions, reason }`. Skill-aware conventions are sent because the attach
+  succeeded, and they name the skills in words no single runtime owns, so the same
+  sentence resolves in four catalogs. A bundle that is missing or incomplete
+  degrades to the studio conventions plus one notice — never a failed turn, and
+  never dressed up as an auth or model failure.
+
+  A project that ships its own copy of a bundled skill no longer switches the
+  whole bundle off. That copy wins by each runtime's own precedence, the collision
+  is logged, and the other four skills still load.
+
+  Measured per turn, against the same prompt: Claude +1215 tokens, Grok +978,
+  Codex +605. Copilot's live run is blocked by an org policy on the account this
+  was built on, so it keeps its Experimental badge until someone can run the
+  matrix against a Copilot login that works.
+
+- 04d75b2: Generate a moodboard before building the video: photo references, a palette, a
+  type pairing and tone words, curated by the agent and rendered to a real PNG.
+
+  The spec is a neutral JSON structure (`shared/moodboard.ts`) — the generation
+  does not know which canvas the board will end up on, which is what keeps a
+  Paper or Figma adapter (REM-265) a pure translation later. The default render
+  needs no external MCP at all: a deterministic HTML+CSS page built from the
+  spec, screenshotted through the same provisioned headless Chrome the snapshot
+  machinery already owns, at the exact 1440×900 viewport the `source` capture
+  already opens.
+
+  Three agent tools land on the existing `remocn-library` server, auto-allowed
+  like the rest: `search_stock` finds Pexels photography through the sidecar's
+  own client (the key and the network never reach the agent),
+  `save_moodboard` downloads the curated picks, writes `spec.json`, renders the
+  board and stores it all as one ordinary library asset — preview, undo window
+  and insertion already work — and `get_moodboard` is the idempotence gate: an
+  existing board comes back as its ready spec and PNG, so the expensive
+  search-and-curate pass is never repeated unless the person asks to start over.
+  Iteration is the same save with one block replaced; the pipeline's brand stage
+  now calls for the board and works from its palette.
+
+- 9632171: Movement now has a role: entry, emphasis, exit, scene or transition.
+
+  Keyframes are being replaced here by a vocabulary of named behaviours, and a vocabulary
+  needs a skeleton. This is it — one axis that says _when in the life of the thing it is
+  attached to_ a movement runs, where the Components pane's categories only ever said what
+  a component was about. All 99 bundled remocn components are classified: 21 entry, 15
+  emphasis, 4 exit, 36 scene, 23 transition. Exit being that thin is information, and it
+  is visible now.
+
+  The pane groups by those five words instead of by category, with a count on each
+  heading; category survives in the data and orders the tiles inside a group, so Scene
+  still reads shaders before filters. A component you saved sits in its own role next to
+  the shipped ones — that is the point, the dictionary is meant to grow — and anything
+  saved before roles existed keeps a leading _Saved_ group.
+
+  The agent is told the same vocabulary in every turn: the five roles, the rule that every
+  animated element gets an entry and an exit and that emphasis is spent on the one thing
+  that matters, the twenty dictionary names, and the props each role is expected to expose
+  — so a behaviour it invents arrives with the knobs a props panel can pick up later. The
+  names are in the conventions and the recipes are in the `motion-design` skill, which now
+  carries a Remotion recipe and a starting number per name. `save_asset` takes the role,
+  so a behaviour worth keeping joins the library already classified, and an inserted asset
+  reaches the turn as `[Asset #N] Name (entry)`.
+
+  The dictionary obeys `video-lessons` rather than competing with it: there is no `pulse`
+  in it, because §1 bans pulsing, and `rise-in` is documented as panels-and-images only,
+  because a text entrance travels on X or the glyph baselines snap.
+
+  Nothing without a role behaves differently. The field is nullable wherever it is stored,
+  a manifest written before this reads back as having none, and media is never given one.
+
+- 27afc95: Ship the bun runtime, and install each project with its own package manager.
+
+  The app used to need bun on the machine to start at all — no bun, no sidecar, and
+  so no chat, no history, no preview, and not even the checklist that would have
+  explained it. bun now rides in the bundle as a Tauri external binary, so the only
+  thing the studio still asks for is a Claude Code you are signed in to.
+
+  The other half is that bun is no longer everybody's package manager. `pmOf` reads
+  the project's lockfile — npm, yarn, pnpm or bun — and the scaffold, the Install
+  button and the "not installed yet" line in an asset brief all follow it, so
+  opening a project with a `package-lock.json` no longer earns it a second
+  lockfile. A project whose manager is not installed says so, and offers to install
+  Node.js for you.
+
+- ef73b8c: Add a measured product-launch rhythm profile, a launch-teaser recipe, and a
+  bounded `keeps_moving` design assertion. The research corpus records only
+  public source metadata and derived measurements; raw reference videos stay
+  local and are never shipped.
+- 1b83f12: Crash reporting through Sentry, off until it is switched on.
+
+  A Rust panic, an unhandled rejection in the sidecar and a React render that
+  throws now reach Sentry — and only with the person's consent, which is opt-in
+  in Settings › Behavior and initialises no SDK at all until it is given. Paths
+  are stripped of the home directory before anything is sent; prompts, agent
+  conversations, project sources, breadcrumbs and the machine's hostname are
+  never attached. A development build reports nothing whatever the switch says,
+  and so does any build carrying no DSN — which is every build until the Sentry
+  project exists, so this release behaves exactly as the last one did.
+
+  `bun run crash:verify` measures all of it against a local stand-in for
+  Sentry's endpoint, with no account needed.
+
 ## 0.5.0
 
 ### Minor Changes
