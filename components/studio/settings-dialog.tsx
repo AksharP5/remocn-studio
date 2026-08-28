@@ -7,6 +7,8 @@ import {
   CopyIcon,
   ImagesIcon,
   LightbulbIcon,
+  MailIcon,
+  MessageSquareIcon,
   RotateCwIcon,
   SlidersHorizontalIcon,
   SunMoonIcon,
@@ -46,6 +48,7 @@ const SECTION_IDS = [
   "stock",
   "updates",
   "accounts",
+  "feedback",
 ] as const;
 
 type SectionId = (typeof SECTION_IDS)[number];
@@ -93,6 +96,12 @@ const SECTIONS: readonly {
     id: "accounts",
     label: "AI Accounts",
   },
+  {
+    description: "Tell us what broke, or what is missing",
+    icon: MessageSquareIcon,
+    id: "feedback",
+    label: "Feedback",
+  },
 ];
 
 export function SettingsDialog() {
@@ -127,6 +136,7 @@ export function SettingsDialog() {
             {section === "stock" ? <StockSection /> : null}
             {section === "updates" ? <UpdatesSection /> : null}
             {section === "accounts" ? <AccountsSection /> : null}
+            {section === "feedback" ? <FeedbackSection /> : null}
           </div>
         </div>
       </DialogContent>
@@ -380,6 +390,34 @@ function CrashReportsRow({
           This is a development build — it reports nothing either way.
         </p>
       ) : null}
+    </div>
+  );
+}
+
+function FeedbackSection() {
+  const { feedback } = useStudio();
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-muted-foreground text-xs leading-snug">
+        Feedback is an email: the button opens your mail client with the
+        studio&rsquo;s version, your macOS version and the session&rsquo;s agent
+        already filled in. You write the rest and send it yourself &mdash;
+        nothing leaves the app on its own.
+      </p>
+      <p className="text-muted-foreground text-xs leading-snug">
+        A screenshot says more than a paragraph &mdash; attach one to the email
+        by hand before sending.
+      </p>
+      <div>
+        <Button onClick={feedback.send} size="sm" variant="outline">
+          <MailIcon data-icon="inline-start" />
+          Email feedback
+        </Button>
+      </div>
+      {feedback.error === null ? null : (
+        <p className="break-words text-destructive text-xs">{feedback.error}</p>
+      )}
     </div>
   );
 }

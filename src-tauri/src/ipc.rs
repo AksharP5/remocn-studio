@@ -81,5 +81,6 @@ pub enum AppEnvironment {
 #[serde(rename_all = "camelCase")]
 pub struct StudioBuild {
     pub environment: AppEnvironment,
+    pub os: String,
     pub version: String,
 }

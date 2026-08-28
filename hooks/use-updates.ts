@@ -30,6 +30,7 @@ export interface Updates {
   install: () => Promise<void>;
   isChecking: boolean;
   isInstalling: boolean;
+  os: string | null;
   release: Release | null;
   unavailable: string | null;
   version: string | null;
@@ -130,6 +131,7 @@ export function useUpdates(): Updates {
       install,
       isChecking,
       isInstalling: download !== null,
+      os: build?.os ?? null,
       release,
       unavailable: unavailableOf(build),
       version: build?.version ?? null,

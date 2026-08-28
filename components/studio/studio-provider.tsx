@@ -5,6 +5,7 @@ import { type ClaudeEffort, useClaudeEffort } from "@/hooks/use-claude-effort";
 import { type Composer, useComposer } from "@/hooks/use-composer";
 import { useCrashReporting } from "@/hooks/use-crash-reporting";
 import { type Environment, useEnvironment } from "@/hooks/use-environment";
+import { type Feedback, useFeedback } from "@/hooks/use-feedback";
 import { type FileDrops, useFileDrops } from "@/hooks/use-file-drops";
 import { useHydratedSettings } from "@/hooks/use-hydrated-settings";
 import { type Library, useLibrary } from "@/hooks/use-library";
@@ -34,6 +35,7 @@ import type { StudioSettings } from "@/lib/studio/settings";
 import { currentTasks } from "@/lib/studio/tasks";
 import type { TourReveal } from "@/lib/studio/tours";
 import type { ProjectDraft, PromptFrame } from "@/shared/ipc";
+import { PROVIDER_INFO } from "@/shared/providers";
 
 export type Studio = ClaudeEffort &
   StudioModels &
@@ -43,6 +45,7 @@ export type Studio = ClaudeEffort &
     composer: Composer;
     drops: FileDrops;
     environment: Environment;
+    feedback: Feedback;
     library: Library;
     newProject: NewProject;
     newVideo: NewVideo;
@@ -168,6 +171,13 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     turn.provider
   );
 
+  const feedback = useFeedback({
+    environment: updates.environment,
+    os: updates.os,
+    provider: PROVIDER_INFO[turn.provider].name,
+    version: updates.version,
+  });
+
   const drops = useFileDrops({
     drop: composer.drop,
     isComposerOpen:
@@ -226,6 +236,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       composer,
       drops,
       environment,
+      feedback,
       library,
       newProject,
       newVideo,
@@ -244,6 +255,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       drops,
       effort,
       environment,
+      feedback,
       library,
       model,
       newProject,

@@ -46,7 +46,7 @@ function mockStudio(written: [string, unknown][]) {
         return null;
       }
       if (cmd === "studio_build") {
-        return { environment: "development", version: "0.3.0" };
+        return { environment: "development", os: "15.5", version: "0.3.0" };
       }
       if (cmd === "sidecar_status") {
         return SIDECAR_READY;
