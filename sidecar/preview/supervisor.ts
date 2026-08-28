@@ -14,6 +14,7 @@ import {
   type Still,
   type StillEvent,
 } from "@/shared/ipc";
+import type { VideoCheck } from "./choreography";
 import type { DesignResult, MotionAssertion } from "./design";
 import { PREVIEW_OUT_ENV, PREVIEW_PARENT_ENV } from "./host";
 import { PreviewError } from "./project";
@@ -75,6 +76,7 @@ export interface DesignRequest {
   composition: string;
   frames: readonly number[];
   motion: readonly MotionAssertion[];
+  video: VideoCheck | null;
 }
 
 export interface SourceRequest {
@@ -137,6 +139,10 @@ export function designFrom(
       id,
       motion: [...request.motion],
       type: "design",
+      video:
+        request.video === null
+          ? null
+          : { camera: request.video.camera, scenes: [...request.video.scenes] },
     }),
     (settle) => ({
       fail: (message) => settle(Effect.fail(failed(message))),

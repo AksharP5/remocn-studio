@@ -15,6 +15,13 @@ import {
 import { libraryRoot } from "../library/store";
 import { untilGone, untilOrphaned, untilSignalled } from "../lifecycle";
 import {
+  type VideoCheck,
+  videoCheckError,
+  videoFindings,
+  videoPlan,
+} from "./choreography";
+import {
+  type DesignFinding,
   finishDesignResult,
   motionFrames,
   motionSamplingError,
@@ -517,6 +524,13 @@ function inspectDesign(
       );
     }
 
+    if (command.video !== null) {
+      const invalid = videoCheckError(command.video, session.durationInFrames);
+      if (invalid !== null) {
+        return yield* Effect.fail(new PreviewError({ message: invalid }));
+      }
+    }
+
     const folder = yield* freshDesignFolder(booted.dir);
     const audits = yield* Effect.forEach(sampleFrames, (frame) => {
       const output = path.join(
@@ -528,12 +542,18 @@ function inspectDesign(
         .pipe(Effect.map((audit) => ({ audit, frame, output })));
     });
 
+    const video =
+      command.video === null
+        ? []
+        : yield* choreographyPass(session, command.video);
+
     const result = finishDesignResult({
       assertions: command.motion,
       audits,
       composition: command.composition,
       height: session.height,
       snapshots: audits.map(({ frame, output }) => ({ frame, path: output })),
+      video,
       width: session.width,
     });
 
@@ -553,6 +573,28 @@ function inspectDesign(
       )
     )
   );
+}
+
+function choreographyPass(
+  session: Session,
+  video: VideoCheck
+): Effect.Effect<readonly DesignFinding[], PreviewError> {
+  return Effect.gen(function* () {
+    const plan = videoPlan(video, session.durationInFrames);
+    const started = Date.now();
+    const samples = yield* Effect.forEach(plan.frames, (frame) =>
+      session
+        .probe(frame, video.camera)
+        .pipe(Effect.map((probe) => ({ ...probe, frame })))
+    );
+    const spent = Date.now() - started;
+
+    yield* log(
+      `choreography pass sampled ${samples.length} frames across ${video.scenes.length} scenes and ${plan.boundaries.length} boundaries in ${spent}ms`
+    );
+
+    return videoFindings({ fps: session.fps, plan, samples, video });
+  });
 }
 
 function freshDesignFolder(dir: string): Effect.Effect<string, PreviewError> {

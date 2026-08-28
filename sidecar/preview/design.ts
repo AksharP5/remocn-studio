@@ -12,6 +12,12 @@ export const DesignFindingCode = Schema.Literals([
   "text_occluded",
   "text_out_of_frame",
   "timeline_static",
+  "video_boundary_dead",
+  "video_frozen_run",
+  "video_no_accent",
+  "video_static_camera",
+  "video_uniform_rhythm",
+  "video_untagged",
 ]);
 
 export type DesignFindingCode = (typeof DesignFindingCode)["Type"];
@@ -275,6 +281,7 @@ export function finishDesignResult(input: {
   readonly composition: string;
   readonly height: number;
   readonly snapshots: readonly DesignSnapshot[];
+  readonly video?: readonly DesignFinding[];
   readonly width: number;
 }): DesignResult {
   const frames = [...new Set(input.audits.map(({ frame }) => frame))].sort(
@@ -294,6 +301,7 @@ export function finishDesignResult(input: {
       width: input.width,
     })
   );
+  collected.push(...(input.video ?? []));
   const fingerprints = input.audits.map(({ audit }) => audit.fingerprint);
 
   if (

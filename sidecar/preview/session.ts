@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import { errorMessage } from "@/lib/error-message";
+import { probeVideoFrame, type VideoFrameProbe } from "./choreography";
 import {
   type FrameDesignAudit,
   finishDesignContrast,
@@ -61,7 +62,13 @@ export interface Session {
   ) => Effect.Effect<void, PreviewError>;
   readonly close: Effect.Effect<void>;
   readonly composition: string;
+  readonly durationInFrames: number;
+  readonly fps: number;
   readonly height: number;
+  readonly probe: (
+    frame: number,
+    camera: string | null
+  ) => Effect.Effect<VideoFrameProbe, PreviewError>;
   readonly width: number;
 }
 
@@ -239,11 +246,33 @@ export function openSession(
           Effect.tryPromise(() => browser.close({ silent: true }))
         ),
         composition: input.composition,
+        durationInFrames: Math.max(
+          1,
+          Math.round(countOf(measured.durationInFrames, 1))
+        ),
+        fps: countOf(measured.fps, 30),
         height: Math.round(measured.height),
+        probe: (frame: number, camera: string | null) =>
+          Effect.tryPromise({
+            catch: failed,
+            try: async () => {
+              await seek(frame);
+              return await evaluate<VideoFrameProbe>(
+                probeVideoFrame as (...args: never[]) => unknown,
+                [camera]
+              );
+            },
+          }),
         width: Math.round(measured.width),
       };
     })
   );
+}
+
+function countOf(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? value
+    : fallback;
 }
 
 function evaluated<A>(result: unknown): A {

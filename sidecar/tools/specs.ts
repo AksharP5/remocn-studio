@@ -7,6 +7,7 @@ import {
   type PipelineStageId,
   type PipelineStatus,
 } from "@/shared/pipeline";
+import { MAX_VIDEO_SCENES } from "../preview/choreography";
 
 export const LIBRARY_SERVER = "remocn-library";
 export const PIPELINE_SERVER = "remocn-pipeline";
@@ -55,7 +56,7 @@ export const TOOL_SPECS: Record<ToolServer, readonly ToolSpec[]> = {
   [DESIGN_SERVER]: [
     {
       description:
-        "Mechanically review 2–9 key frames of Main before calling a scene finished. It renders temporary snapshots and reports measurable WCAG contrast, clipped/occluded/out-of-frame text, and a timeline that did not visibly advance. Pass the movements video/motion.md promises as motion assertions so the check verifies the declared motion instead of guessing; a selector that matches nothing or several elements is its own finding, never a silent pass. Fix every finding or explain why it is intentional; inspect the returned snapshot paths for design judgement the checks cannot make.",
+        "Mechanically review 2–9 key frames of Main before calling a scene finished. It renders temporary snapshots and reports measurable WCAG contrast, clipped/occluded/out-of-frame text, and a timeline that did not visibly advance. Pass the movements video/motion.md promises as motion assertions so the check verifies the declared motion instead of guessing; a selector that matches nothing or several elements is its own finding, never a silent pass. In the choreography stage add `video` with the whole scene map: that runs a second, cheap pass over the composition end to end and answers what no single frame can — whether the scene durations carry a rhythm, whether anything lives across each cut, how long the frame stood completely still, and whether the camera ever moved. Fix every finding or explain why it is intentional; inspect the returned snapshot paths for design judgement the checks cannot make.",
       name: DESIGN_CHECK,
       shape: {
         frames: z
@@ -107,6 +108,33 @@ export const TOOL_SPECS: Record<ToolServer, readonly ToolSpec[]> = {
           .optional()
           .describe(
             "Explicit expectations from video/motion.md: changes_between says the element or its content visibly changed between two frames, visible_at says it is visible by a frame, keeps_moving limits a selected element's longest unchanged hold inside one bounded scene interval, and stays_in_frame says it never leaves the canvas on the checked frames."
+          ),
+        video: z
+          .object({
+            camera: z
+              .string()
+              .min(1)
+              .nullish()
+              .describe(
+                "A CSS selector for the wrapper whose transform frames the whole scene. Leave it out and the pass says the video declared no camera rather than assuming the locked-off frame was a decision."
+              ),
+            scenes: z
+              .array(
+                z.object({
+                  from: z.number().int().min(0),
+                  name: z.string().min(1),
+                  to: z.number().int().min(1),
+                })
+              )
+              .min(2)
+              .max(MAX_VIDEO_SCENES)
+              .describe(
+                "Every scene in the order it plays, in frame numbers: from inclusive, to exclusive. A transition shows up as an overlap — one scene's to past the next scene's from — and the check reads the pair outside that overlap, so a crossfade cannot pass for continuity."
+              ),
+          })
+          .optional()
+          .describe(
+            "The whole video, for the choreography pass. It samples the composition end to end and reports the spread of the scene durations, the scene changes with nothing visible on both sides, the longest stretch in which nothing in the frame changed, and a declared camera that never moves. Pass it once for the video, not once per scene."
           ),
       },
     },
@@ -283,7 +311,7 @@ export const TOOL_SPECS: Record<ToolServer, readonly ToolSpec[]> = {
   [PIPELINE_SERVER]: [
     {
       description:
-        "Start the six-stage video production pipeline for this session: analysis, brand, script, motion, build, review. Call it once, when the person asks to create a video (or rework one from the ground up) and no pipeline is active yet. It answers with the instructions for the first stage — follow them.",
+        "Start the seven-stage video production pipeline for this session: analysis, brand, script, motion, build, choreography, review. Call it once, when the person asks to create a video (or rework one from the ground up) and no pipeline is active yet. It answers with the instructions for the first stage — follow them.",
       name: START_PIPELINE,
       shape: {},
     },
