@@ -199,13 +199,13 @@ describe("useTours", () => {
       });
     });
     await pause(PAST_DWELL);
-    expect(view.result.current.tip?.id).toBe("library");
+    expect(view.result.current.tip?.id).toBe("assets");
 
     act(() => {
       view.result.current.reveal?.();
     });
 
     expect(onReveal).toHaveBeenCalledWith("assets");
-    expect(written.at(-1)).toEqual(["composer", "library"]);
+    expect(written.at(-1)).toEqual(["composer", "assets"]);
   });
 });

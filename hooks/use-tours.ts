@@ -11,10 +11,9 @@ import {
   type TourTip,
 } from "@/lib/studio/tours";
 
-// A feature becoming available is not on its own a reason to interrupt: the
-// tip waits until it has been available and unchanged for this long, so a
-// pane that opens on the way somewhere else never flashes a card at you.
-const DWELL = "2 seconds";
+// The tip appears the moment its feature does — the sleep survives only as a
+// seam, so a test (or a future change of heart) can put a wait back.
+const DWELL = "0 seconds";
 
 export interface Tours {
   /** Dismiss for this launch only — nothing is written down. */

@@ -6,7 +6,9 @@
 export const TOUR_IDS = [
   "composer",
   "preview-tools",
-  "library",
+  "snapshot",
+  "assets",
+  "components",
   "plan",
   "sessions",
 ] as const;
@@ -21,7 +23,7 @@ export function isTourId(value: string): value is TourId {
 // themselves in one click and can undo the same way — a pane that opens, a
 // drawer that expands. Arming Inspect is deliberately not one of these: a tip
 // must not put the app into a mode nobody asked for.
-export type TourReveal = "assets" | "plan";
+export type TourReveal = "assets" | "components" | "plan";
 
 export interface TourAction {
   readonly label: string;
@@ -57,18 +59,34 @@ export const TOUR_TIPS: readonly TourTip[] = [
   {
     action: null,
     align: "end",
-    body: "Inspect picks an element out of the frame, so you can say what should change about that exact thing. Snapshot sends the frame — or a part of it you drag — into the message. Export renders the mp4.",
+    body: "Inspect picks an element out of the frame, so you can say what should change about that exact thing. Export renders the mp4 through the project’s own Remotion.",
     id: "preview-tools",
     side: "bottom",
     title: "Point at the picture instead of describing it",
   },
   {
+    action: null,
+    align: "end",
+    body: "Click the frame to capture the whole picture, or drag a rectangle for just the part you mean. It lands in the message as [Image #1], ready for “why does this look wrong?”.",
+    id: "snapshot",
+    side: "bottom",
+    title: "Send the frame itself",
+  },
+  {
     action: { label: "Show me", reveal: "assets" },
     align: "start",
     body: "Assets holds pictures, clips and finished components outside any one project. Drop a file on this pane, or ask the agent to save an animation, and it is one click away in the next video.",
-    id: "library",
+    id: "assets",
     side: "right",
     title: "Save it once, use it in every video",
+  },
+  {
+    action: { label: "Show me", reveal: "components" },
+    align: "start",
+    body: "A dictionary of ready-made motion — entrances, emphasis, exits, scene effects and transitions. Pick one to hand it to the agent, or ask it to save its own work here and the dictionary grows.",
+    id: "components",
+    side: "right",
+    title: "Motion you never have to describe twice",
   },
   {
     action: { label: "Show me", reveal: "plan" },
@@ -115,9 +133,12 @@ export function isAvailable(tip: TourTip, stage: TourStage): boolean {
     case "composer":
       return true;
     case "preview-tools":
+    case "snapshot":
       return stage.hasPreviewTools;
-    case "library":
+    case "assets":
       return stage.isPaneShown && stage.hasMedia;
+    case "components":
+      return stage.isPaneShown;
     case "plan":
       return stage.hasPlan;
     default:

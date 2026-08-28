@@ -69,6 +69,7 @@ export function PreviewPane() {
             aria-disabled={!snapshot.canSnapshot}
             aria-pressed={snapshot.isArmed}
             className="aria-disabled:opacity-50"
+            data-tour="snapshot"
             onClick={snapshot.toggle}
             size="sm"
             title={snapshot.unavailable ?? "Capture the frame, or part of it"}

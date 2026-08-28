@@ -186,8 +186,8 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
   // function over them.
   const onReveal = useCallback(
     (reveal: TourReveal) => {
-      if (reveal === "assets") {
-        showPane("assets");
+      if (reveal === "assets" || reveal === "components") {
+        showPane(reveal);
       }
     },
     [showPane]

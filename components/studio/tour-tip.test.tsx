@@ -74,10 +74,10 @@ describe("TourCard", () => {
   });
 
   it("offers Show me only for a tip that has something to show", () => {
-    anchor("library");
+    anchor("assets");
     const reveal = vi.fn();
     const { rerender } = render(
-      <TourCard tours={tours({ reveal, tip: tipOf("library") })} />
+      <TourCard tours={tours({ reveal, tip: tipOf("assets") })} />
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Show me" }));

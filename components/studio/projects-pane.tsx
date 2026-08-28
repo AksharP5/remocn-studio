@@ -74,8 +74,13 @@ const VIEW_ITEMS: readonly {
     tour: "sessions",
     view: "videos",
   },
-  { icon: LibraryBigIcon, label: "Assets", tour: "library", view: "assets" },
-  { icon: ComponentIcon, label: "Components", view: "components" },
+  { icon: LibraryBigIcon, label: "Assets", tour: "assets", view: "assets" },
+  {
+    icon: ComponentIcon,
+    label: "Components",
+    tour: "components",
+    view: "components",
+  },
 ];
 
 export function ProjectsPane() {

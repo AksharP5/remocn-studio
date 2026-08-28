@@ -52,22 +52,46 @@ describe("isAvailable", () => {
       when: "the preview is playing",
     },
     {
-      id: "library",
+      id: "snapshot",
+      is: false,
+      stage: OPEN,
+      when: "the preview has not compiled yet",
+    },
+    {
+      id: "snapshot",
+      is: true,
+      stage: { ...OPEN, hasPreviewTools: true },
+      when: "the preview is playing",
+    },
+    {
+      id: "assets",
       is: false,
       stage: { ...OPEN, hasMedia: true },
       when: "the pane it points at is hidden",
     },
     {
-      id: "library",
+      id: "assets",
       is: false,
       stage: { ...OPEN, isPaneShown: true },
       when: "no media has been attached yet",
     },
     {
-      id: "library",
+      id: "assets",
       is: true,
       stage: { ...OPEN, hasMedia: true, isPaneShown: true },
       when: "a picture or a clip is in the message",
+    },
+    {
+      id: "components",
+      is: false,
+      stage: OPEN,
+      when: "the pane it points at is hidden",
+    },
+    {
+      id: "components",
+      is: true,
+      stage: { ...OPEN, isPaneShown: true },
+      when: "the pane is on screen",
     },
     {
       id: "plan",
@@ -148,8 +172,11 @@ describe("nextTip", () => {
 
     expect(nextTip(everything, ["composer"])?.id).toBe("preview-tools");
     expect(nextTip(everything, ["composer", "preview-tools"])?.id).toBe(
-      "library"
+      "snapshot"
     );
+    expect(
+      nextTip(everything, ["composer", "preview-tools", "snapshot"])?.id
+    ).toBe("assets");
   });
 
   it("skips a tip whose feature is not available, without stopping there", () => {
