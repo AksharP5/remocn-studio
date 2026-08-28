@@ -48,34 +48,53 @@ const manifest: { version: string } = JSON.parse(
 );
 const release = crashRelease(manifest.version);
 
-if (token === "" || org === "" || project === "" || dsn === "") {
-  console.log(
-    "sourcemaps: nothing uploaded — SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT and NEXT_PUBLIC_SENTRY_DSN are what turn this on"
-  );
-} else {
-  // Both bundles go up under one release, which is what makes a crash that
-  // starts in the webview and ends in the sidecar read as one story.
-  for (const dir of [EXPORT_DIR, SIDECAR_DIR]) {
-    // biome-ignore lint/performance/noAwaitInLoops: a release step, and the upload has to follow this directory's own inject
-    await sentry(["sourcemaps", "inject", dir]);
-    await sentry([
-      "sourcemaps",
-      "upload",
-      "--release",
-      release,
-      "--strip-common-prefix",
-      dir,
-    ]);
+try {
+  if (token === "" || org === "" || project === "" || dsn === "") {
+    console.log(
+      "sourcemaps: nothing uploaded — SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT and NEXT_PUBLIC_SENTRY_DSN are what turn this on"
+    );
+  } else {
+    // Both bundles go up under one release, which is what makes a crash that
+    // starts in the webview and ends in the sidecar read as one story.
+    for (const dir of [EXPORT_DIR, SIDECAR_DIR]) {
+      // biome-ignore lint/performance/noAwaitInLoops: a release step, and the upload has to follow this directory's own inject
+      await sentry(["sourcemaps", "inject", dir]);
+      await sentry([
+        "sourcemaps",
+        "upload",
+        "--release",
+        release,
+        "--strip-common-prefix",
+        dir,
+      ]);
+    }
   }
+} catch (cause) {
+  // Loud, but not fatal. An expired token or a Sentry outage would otherwise
+  // mean no release at all, and the same trade is already made for the Pexels
+  // key one step above: the build succeeds and the release is the poorer for
+  // it. What it costs is unsymbolicated frames for this one version — the
+  // warning below is what says so, in the job log, next to the upload that
+  // did not happen.
+  console.warn(
+    `sourcemaps: NOT UPLOADED — ${cause instanceof Error ? cause.message : String(cause)}`
+  );
+  console.warn(
+    `sourcemaps: ${release} will report minified frames until its maps are uploaded by hand`
+  );
+} finally {
+  // A `finally`, and not merely the next statement. This is the only part of
+  // the script that is not optional: the static export *is* the app bundle, so
+  // a `.map` left in `out/` ships the studio's own sources inside every
+  // release. The catch above swallows today, so the two would run either way —
+  // but the day someone decides a failed upload should fail the build, the
+  // maps must still go, and a `finally` is what keeps that true without anyone
+  // having to notice. The sidecar's map is already safe, since
+  // `tauri.conf.json` names `main.js` as a resource and not the file beside
+  // it, and is removed for tidiness rather than for that reason.
+  await removeMaps(EXPORT_DIR);
+  await removeMaps(SIDECAR_DIR);
 }
-
-// Unconditional, and the only part of this script that is not optional. The
-// static export *is* the app bundle, so a `.map` left in `out/` ships the
-// studio's own sources inside every release. The sidecar's map is already
-// safe — `tauri.conf.json` names `main.js` as a resource and not the file
-// beside it — and is removed for the same reason rather than a different one.
-await removeMaps(EXPORT_DIR);
-await removeMaps(SIDECAR_DIR);
 
 function sentry(args: readonly string[]): Promise<void> {
   const child = spawn("bunx", [SENTRY_CLI, ...args], {
