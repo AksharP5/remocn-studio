@@ -1195,6 +1195,7 @@ export type AppEnvironment = (typeof AppEnvironment)["Type"];
 
 export const StudioBuild = Schema.Struct({
   environment: AppEnvironment,
+  os: Schema.String,
   version: Schema.String,
 });
 

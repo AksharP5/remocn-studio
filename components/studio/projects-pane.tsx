@@ -4,6 +4,7 @@ import {
   ClapperboardIcon,
   ComponentIcon,
   LibraryBigIcon,
+  MessageSquareIcon,
   PanelLeftCloseIcon,
   PlusIcon,
   SettingsIcon,
@@ -91,6 +92,7 @@ export function ProjectsPane() {
     composer,
     drops,
     expandedVideos,
+    feedback,
     folderError,
     groups,
     isLoadingProjects,
@@ -245,6 +247,15 @@ export function ProjectsPane() {
         <SidebarMenu>
           <SidebarMenuItem>
             <UpdateStatus />
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              className="text-muted-foreground"
+              onClick={feedback.send}
+            >
+              <MessageSquareIcon />
+              Send feedback
+            </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
