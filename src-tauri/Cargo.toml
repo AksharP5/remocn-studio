@@ -28,6 +28,23 @@ serde_json = "1"
 time = { version = "0.3", features = ["formatting"] }
 tokio = { version = "1", features = ["io-util", "process", "rt", "sync", "time"] }
 tauri-plugin-updater = "2.10.1"
+# Off by default, and deliberately: nothing in CI compiles this crate — the
+# Rust is only ever built by the release job — so an unbuildable dependency
+# tree would first be found while cutting a release. `contexts` stays on for
+# the os/device context (`server_name` is overridden in `crash.rs`, which is
+# the only part of it that is PII); `release-health`, `logs` and `metrics` are
+# off because this reports crashes and nothing else.
+sentry = { version = "0.49", optional = true, default-features = false, features = [
+    "backtrace",
+    "contexts",
+    "debug-images",
+    "panic",
+    "transport",
+] }
+
+[features]
+default = []
+crash-reports = ["dep:sentry"]
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

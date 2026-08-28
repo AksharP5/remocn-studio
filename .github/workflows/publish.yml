@@ -154,6 +154,28 @@ jobs:
           # secret the build still succeeds — the release just ships with stock
           # search asking for a personal key.
           REMOCN_STUDIO_PEXELS_KEY: ${{ secrets.REMOCN_STUDIO_PEXELS_KEY }}
+          # Crash reporting (REM-268). A DSN is public by design — it can only
+          # write into one project — so it is a secret here for tidiness, not
+          # for safety. Both are baked at build time: the sidecar's by
+          # `bun build --env`, the webview's by Next.
+          #
+          # All four together are what turn the upload on. With any of them
+          # unset — which is every build until the Sentry project exists —
+          # `release:sourcemaps` says so and uploads nothing, and the app
+          # initialises no SDK at all, whatever the person set in Settings. So
+          # a release cut today behaves exactly as it does now.
+          #
+          # The upload runs inside `tauri:before-build`, not as a step of its
+          # own, and it has to: Sentry matches a minified frame by a debug id
+          # written into the built JavaScript, so the inject must be the last
+          # thing that touches those bytes, and `tauri-action` offers no hook
+          # between its `beforeBuildCommand` and the bundling that copies them
+          # into the `.app`.
+          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          REMOCN_STUDIO_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
         with:
           tagName: v${{ needs.version.outputs.version }}
           releaseName: remocn studio v${{ needs.version.outputs.version }}
@@ -170,5 +192,19 @@ jobs:
           # `.app.tar.gz` it points at.
           releaseDraft: false
           prerelease: false
-          args: --target ${{ matrix.target }}
+          # `crash-reports` turns on the core's own half of REM-268 — the panic
+          # hook and the supervisor's sidecar-crash note. It is off in
+          # `Cargo.toml` and switched on here rather than by `default`, so a
+          # local `cargo build` still compiles neither `sentry` nor its
+          # transport; the webview and the sidecar carry their own SDKs and
+          # need no flag.
+          #
+          # **This job is the only place any Rust is compiled in CI**, so a
+          # break here is found while cutting a release. `cargo check --features
+          # crash-reports` on a Mac is what stands in for that.
+          #
+          # `--features` takes a *list*, so it goes first and `--target` ends
+          # it: a flag terminates the list, where anything tauri-action might
+          # append after ours would be swallowed as another feature name.
+          args: --features crash-reports --target ${{ matrix.target }}
           uploadUpdaterJson: true

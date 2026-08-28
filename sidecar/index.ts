@@ -1,6 +1,7 @@
 import { Cause, Effect, Exit } from "effect";
 import { SIDECAR_PROTOCOL } from "@/shared/ipc";
 import { layerProcess, SidecarChannel } from "./channel";
+import { startCrashReporting } from "./crash";
 import { handlers } from "./handlers";
 import { ProjectStore } from "./history/projects";
 import { openStores } from "./history/sqlite";
@@ -33,7 +34,7 @@ const sidecar = Effect.gen(function* () {
   yield* channel.log(reason);
 }).pipe(Effect.scoped, Effect.provide(layerProcess));
 
-const main = (() => {
+const chosen = (() => {
   if (process.argv.includes(PREVIEW_HOST_FLAG)) {
     return runPreviewHost;
   }
@@ -42,6 +43,11 @@ const main = (() => {
   }
   return sidecar;
 })();
+
+// Ahead of all three, because all three are this same bundle: the preview
+// host's webpack compile and the tool host's gateway crash the same way the
+// sidecar does, and one call covers them because they share an environment.
+const main = Effect.andThen(startCrashReporting, chosen);
 
 const exit = await Effect.runPromiseExit(main);
 

@@ -9,9 +9,11 @@ use std::{
 use tauri::{AppHandle, Manager};
 use tokio::process::{Child, Command};
 
+use crate::crash;
 use crate::ipc::{
-    DATA_DIR_ENV, GRAB_SCRIPT_ENV, HOST_PID_ENV, LIBRARY_DIR_ENV, PLUGIN_DIR_ENV,
-    PREVIEW_ENTRY_ENV, REMOCN_DIR_ENV, TEMPLATE_DIR_ENV,
+    APP_ENVIRONMENT_ENV, APP_VERSION_ENV, CRASH_CONSENT_ENV, DATA_DIR_ENV, GRAB_SCRIPT_ENV,
+    HOST_PID_ENV, LIBRARY_DIR_ENV, PLUGIN_DIR_ENV, PREVIEW_ENTRY_ENV, REMOCN_DIR_ENV,
+    TEMPLATE_DIR_ENV,
 };
 
 const BUN_ENV: &str = "REMOCN_STUDIO_BUN";
@@ -181,6 +183,12 @@ pub fn resolve_library_dir(app: &AppHandle) -> Result<PathBuf, String> {
 
 pub struct Launch<'a> {
     pub bun: &'a Path,
+    // What `settings.json` said when this session started. The sidecar has to
+    // be told *something* at spawn — a crash in its first seconds is exactly
+    // the kind nobody writes in about, and no webview has connected yet to
+    // say anything. Changing the switch afterwards travels over the
+    // `crash.consent` method instead of waiting for a relaunch.
+    pub crash_consent: bool,
     pub data_dir: &'a Path,
     pub grab_script: Option<&'a Path>,
     pub library_dir: Option<&'a Path>,
@@ -189,11 +197,13 @@ pub struct Launch<'a> {
     pub remocn_dir: Option<&'a Path>,
     pub script: &'a Path,
     pub template_dir: Option<&'a Path>,
+    pub version: &'a str,
 }
 
 pub fn launch(paths: Launch<'_>) -> Result<Child, String> {
     let Launch {
         bun,
+        crash_consent,
         data_dir,
         grab_script,
         library_dir,
@@ -202,6 +212,7 @@ pub fn launch(paths: Launch<'_>) -> Result<Child, String> {
         remocn_dir,
         script,
         template_dir,
+        version,
     } = paths;
 
     let mut command = Command::new(bun);
@@ -246,6 +257,12 @@ pub fn launch(paths: Launch<'_>) -> Result<Child, String> {
         .env("PATH", child_path(bun))
         .env(HOST_PID_ENV, std::process::id().to_string())
         .env(DATA_DIR_ENV, data_dir)
+        .env(
+            CRASH_CONSENT_ENV,
+            if crash_consent { "enabled" } else { "disabled" },
+        )
+        .env(APP_ENVIRONMENT_ENV, crash::environment_name())
+        .env(APP_VERSION_ENV, version)
         .kill_on_drop(true)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

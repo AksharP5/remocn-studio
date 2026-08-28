@@ -23,6 +23,7 @@ import {
   requestSourceAsset,
 } from "./agent/source";
 import { pipelineBrief } from "./claude/conventions";
+import { applyCrashConsent, isReporting } from "./crash";
 import { checksFor } from "./environment";
 import { type FilesError, listFolder, projectFiles } from "./files";
 import { ProjectStore } from "./history/projects";
@@ -347,6 +348,21 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
       Effect.map((matched) => ({ matched })),
       Effect.mapError((error) => new HandlerError({ message: error.message }))
     ),
+
+  // The live half of the consent. Rust already read `settings.json` at spawn;
+  // this is what makes the switch bite now rather than at the next launch,
+  // and it answers what the sidecar is *actually* doing — a build with no DSN
+  // reports nothing however the switch is set.
+  "crash.consent": ({ log, params }) =>
+    Effect.suspend(() => {
+      const decision = applyCrashConsent(params.enabled);
+
+      return log(
+        decision.started
+          ? "crash reports are on"
+          : `crash reports are off (${decision.reason})`
+      ).pipe(Effect.as({ reporting: isReporting() }));
+    }),
 
   "files.list": ({ params }) =>
     listFolder(params.path).pipe(Effect.mapError(unlisted)),
