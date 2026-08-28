@@ -305,9 +305,24 @@ never reported.
 - **The Rust half is behind an off-by-default Cargo feature (`crash-reports`).**
   No workflow in this repo compiles the Rust except the release job, so an
   unbuildable dependency tree would first be discovered while cutting a release.
-  Everything else — consent, the env vars, the sidecar-crash report — compiles
-  and runs today; turning the feature on is the last step, once a DSN exists and
-  someone can watch an event arrive.
+  Turning the feature on is the last step, once a DSN exists.
+- **`ClientOptions` is `#[non_exhaustive]`**, so it is built by assignment
+  rather than a struct literal — `..Default::default()` buys no exemption from
+  that outside the declaring crate. `before_send` also needs
+  `Event<'static>` spelled out, because the type carries a lifetime and an
+  elided one is a fresh variable to unify rather than the one the callback is
+  typed on.
+- **The Rust half was measured against the same sink, in isolation from Tauri.**
+  `sentry` does not depend on Tauri, so the two functions were compiled and run
+  in a throwaway crate carrying this exact feature set, in a release profile
+  with the DSN baked by `option_env!`. A panic arrives as `level: fatal`,
+  `release: v0.4.1`, `environment: production`, with the home directory
+  rewritten to `<home>` and the ordinary words of the message intact;
+  `note_sidecar_crash` arrives as its own message event; `server_name` is the
+  constant rather than the hostname, the contexts are architecture and OS only,
+  and there are no breadcrumbs. What that leaves unverified is the app as a
+  whole — the crate compiling beside `tauri` on macOS, which is what
+  `cargo check --features crash-reports` answers.
 - **The sourcemap step is a line of `tauri:before-build`, and it has to be.**
   Sentry matches a minified frame by a debug id written into the built
   JavaScript, so the inject must be the last thing that touches those bytes —

@@ -107,47 +107,50 @@ pub fn start(version: &str) -> Option<Reporter> {
 
     let home = env::var("HOME").unwrap_or_default();
 
-    Some(sentry::init((
-        dsn,
-        sentry::ClientOptions {
-            attach_stacktrace: true,
-            before_send: Some(std::sync::Arc::new(
-                move |mut event: sentry::protocol::Event| {
-                    // A Rust stack frame carries the path the *build machine*
-                    // compiled from, not the person's; what can carry theirs is
-                    // the panic message, which is routinely a failed path. The
-                    // home prefix is all this needs to remove, and a plain
-                    // replace is all it takes to remove it.
-                    if !home.is_empty() {
-                        if let Some(message) = event.message.take() {
-                            event.message = Some(message.replace(&home, "<home>"));
-                        }
-                        for exception in &mut event.exception.values {
-                            exception.value = exception
-                                .value
-                                .take()
-                                .map(|value| value.replace(&home, "<home>"));
-                        }
-                    }
-                    Some(event)
-                },
-            )),
-            // Explicit, though `apply_defaults` would derive the same value
-            // from `debug_assertions`: the release, the environment and the
-            // consent all come from one place in this app.
-            environment: Some(Cow::Borrowed(environment_name())),
-            // Breadcrumbs are the one part of an event that records what the
-            // person was doing rather than what broke.
-            max_breadcrumbs: 0,
-            release: Some(Cow::Owned(format!("v{version}"))),
-            send_default_pii: false,
-            // Set, and not left to be filled in: `sentry-contexts` — a default
-            // feature of the crate — puts `hostname::get()` here when it is
-            // `None`, and a personal Mac's hostname is its owner's name.
-            server_name: Some(Cow::Borrowed("remocn-studio")),
-            ..sentry::ClientOptions::default()
+    // Built by assignment rather than a struct literal: `ClientOptions` is
+    // `#[non_exhaustive]`, so a literal is refused outside the crate that
+    // declares it — `..Default::default()` does not buy an exemption.
+    let mut options = sentry::ClientOptions::default();
+
+    options.attach_stacktrace = true;
+    // `Event<'static>` spelled out: the type carries a lifetime and
+    // `before_send` is typed on the `'static` one, so an elided `Event` here
+    // would be a fresh anonymous lifetime to unify rather than the one wanted.
+    options.before_send = Some(std::sync::Arc::new(
+        move |mut event: sentry::protocol::Event<'static>| {
+            // A Rust stack frame carries the path the *build machine* compiled
+            // from, not the person's; what can carry theirs is the panic
+            // message, which is routinely a failed path. The home prefix is all
+            // this needs to remove, and a plain replace is all it takes.
+            if !home.is_empty() {
+                if let Some(message) = event.message.take() {
+                    event.message = Some(message.replace(&home, "<home>"));
+                }
+                for exception in &mut event.exception.values {
+                    exception.value = exception
+                        .value
+                        .take()
+                        .map(|value| value.replace(&home, "<home>"));
+                }
+            }
+            Some(event)
         },
-    )))
+    ));
+    // Explicit, though `apply_defaults` would derive the same value from
+    // `debug_assertions`: the release, the environment and the consent all come
+    // from one place in this app.
+    options.environment = Some(Cow::Borrowed(environment_name()));
+    // Breadcrumbs are the one part of an event that records what the person was
+    // doing rather than what broke.
+    options.max_breadcrumbs = 0;
+    options.release = Some(Cow::Owned(format!("v{version}")));
+    options.send_default_pii = false;
+    // Set, and not left to be filled in: `sentry-contexts` — a default feature
+    // of the crate — puts `hostname::get()` here when it is `None`, and a
+    // personal Mac's hostname is its owner's name.
+    options.server_name = Some(Cow::Borrowed("remocn-studio"));
+
+    Some(sentry::init((dsn, options)))
 }
 
 #[cfg(not(feature = "crash-reports"))]
