@@ -84,6 +84,9 @@ async function openSettings() {
   return await screen.findByRole("dialog");
 }
 
+const OPT_IN_WORDING = /Off unless you turn it on/;
+const NEVER_SENT_WORDING = /prompts, your conversations with the agent/;
+
 describe("the settings dialog", () => {
   let written: [string, unknown][];
 
@@ -117,7 +120,25 @@ describe("the settings dialog", () => {
     expect(screen.getByText("Installed")).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: "Behavior" }));
-    expect(screen.getByRole("switch")).toBeVisible();
+    expect(
+      screen.getByRole("switch", { name: "Library suggestions" })
+    ).toBeVisible();
+  });
+
+  // Opt-in, and the wording that earns the switch is part of what is being
+  // pinned: an app whose promise is that nothing reaches a third party has to
+  // say what would, and what never would.
+  it("offers crash reports off, and says what they carry", async () => {
+    await renderShell();
+    await openSettings();
+
+    fireEvent.click(screen.getByRole("button", { name: "Behavior" }));
+
+    expect(
+      screen.getByRole("switch", { name: "Send crash reports" })
+    ).not.toBeChecked();
+    expect(screen.getByText(OPT_IN_WORDING)).toBeVisible();
+    expect(screen.getByText(NEVER_SENT_WORDING)).toBeVisible();
   });
 
   it("lists every provider with its probe's answer", async () => {

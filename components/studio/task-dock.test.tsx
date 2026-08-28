@@ -11,6 +11,7 @@ const SETTINGS: StudioSettings = {
   claudeModel: null,
   codexModel: null,
   copilotModel: null,
+  crashReports: null,
   expandedVideos: [],
   grokModel: null,
   legacyProjectFolder: null,

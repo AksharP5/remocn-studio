@@ -14,6 +14,12 @@ const nextConfig = {
     unoptimized: true,
   },
   output: "export",
+  // Tied to the DSN rather than to a flag of its own: no DSN means no crash
+  // reporting, and a map nothing will ever be uploaded against is only build
+  // time spent. `scripts/sourcemaps.ts` deletes what this emits after it has
+  // been uploaded — the static export *is* the app bundle, so a `.map` left
+  // in `out/` would ship the studio's sources inside every release.
+  productionBrowserSourceMaps: Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN),
   turbopack: {
     // Pinned explicitly: an unrelated lockfile sits above this repo in the
     // filesystem, and Turbopack's root inference would otherwise walk up to it.

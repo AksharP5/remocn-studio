@@ -3,6 +3,7 @@
 import { createContext, use, useCallback, useMemo } from "react";
 import { type ClaudeEffort, useClaudeEffort } from "@/hooks/use-claude-effort";
 import { type Composer, useComposer } from "@/hooks/use-composer";
+import { useCrashReporting } from "@/hooks/use-crash-reporting";
 import { type Environment, useEnvironment } from "@/hooks/use-environment";
 import { type FileDrops, useFileDrops } from "@/hooks/use-file-drops";
 import { useHydratedSettings } from "@/hooks/use-hydrated-settings";
@@ -74,6 +75,17 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
   const preferences = usePreferences(settings);
   const settingsDialog = useSettingsDialog();
   const updates = useUpdates();
+
+  // The build reading is the updater's, and it is deliberately shared: the two
+  // features ask the same question — is this a released build, and which one —
+  // and a second `studio_build` invoke would let them answer it differently.
+  useCrashReporting({
+    consent: preferences.crashReports,
+    environment: updates.environment,
+    isHydrated: settings !== null,
+    version: updates.version,
+  });
+
   const panes = usePanes(
     settings,
     workspace.projects.length > 0,

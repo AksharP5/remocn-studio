@@ -23,6 +23,7 @@ use tokio::{
     time::{sleep, timeout_at, Instant},
 };
 
+use crate::crash;
 use crate::ipc::{
     HostFrame, SidecarFrame, SidecarNotification, SidecarPhase, SidecarStatus, NOTIFY_EVENT,
     PROTOCOL, STATUS_EVENT,
@@ -278,6 +279,12 @@ async fn supervise(inner: Arc<Inner>) {
 
         if session.was_ready {
             tries = 0;
+            // The one crash in this app that nothing else can report: the
+            // sidecar died after it had been serving, so it was not a bad
+            // launch, and whatever killed it took its own reporter with it.
+            // Today this is a line in `sidecar.log` on a machine nobody can
+            // reach — which is the gap #268 exists to close.
+            crash::note_sidecar_crash(&session.reason);
         }
 
         if tries >= MAX_ATTEMPTS {
@@ -358,9 +365,9 @@ async fn run_session(inner: &Arc<Inner>) -> Session {
     let remocn_dir = match spawn::resolve_remocn_dir(&inner.app) {
         Ok(path) => Some(path),
         Err(reason) => {
-            inner
-                .log
-                .host(format!("the bundled remocn components are unavailable: {reason}"));
+            inner.log.host(format!(
+                "the bundled remocn components are unavailable: {reason}"
+            ));
             None
         }
     };
@@ -375,12 +382,19 @@ async fn run_session(inner: &Arc<Inner>) -> Session {
         }
     };
 
+    // Read per session rather than once at startup, so a consent given or
+    // withdrawn while the app was running is what a restarted sidecar is told
+    // — the same file the webview writes, read at the moment it matters.
+    let crash_consent = crash::consent_in(&data_dir);
+    let version = inner.app.package_info().version.to_string();
+
     inner
         .log
         .host(format!("starting {} {}", bun.display(), script.display()));
 
     let mut child = match spawn::launch(spawn::Launch {
         bun: &bun,
+        crash_consent,
         data_dir: &data_dir,
         grab_script: grab_script.as_deref(),
         library_dir: library_dir.as_deref(),
@@ -389,6 +403,7 @@ async fn run_session(inner: &Arc<Inner>) -> Session {
         remocn_dir: remocn_dir.as_deref(),
         script: &script,
         template_dir: template_dir.as_deref(),
+        version: &version,
     }) {
         Ok(child) => child,
         Err(reason) => return stillborn(reason),
@@ -452,9 +467,9 @@ async fn read_frames(stdout: ChildStdout, inner: Arc<Inner>, was_ready: Arc<Atom
                 }
                 match serde_json::from_str::<SidecarFrame>(&line) {
                     Ok(frame) => handle_frame(&inner, frame, &was_ready),
-                    Err(err) => inner
-                        .log
-                        .host(format!("dropped a frame it could not parse ({err}): {line}")),
+                    Err(err) => inner.log.host(format!(
+                        "dropped a frame it could not parse ({err}): {line}"
+                    )),
                 }
             }
             Ok(None) => break,

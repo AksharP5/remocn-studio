@@ -26,6 +26,13 @@ export const LIBRARY_DIR_ENV = "REMOCN_STUDIO_LIBRARY_DIR";
 export const REMOCN_DIR_ENV = "REMOCN_STUDIO_REMOCN_DIR";
 export const PEXELS_KEY_ENV = "REMOCN_STUDIO_PEXELS_KEY";
 
+// What the core knows about its own build and the sidecar cannot work out for
+// itself: in a release the sidecar is one bundled `main.js` with no
+// package.json beside it, and in debug it runs from the repo, where a DSN in
+// `.env` would otherwise make a developer's own tree report as production.
+export const APP_ENVIRONMENT_ENV = "REMOCN_STUDIO_ENVIRONMENT";
+export const APP_VERSION_ENV = "REMOCN_STUDIO_VERSION";
+
 export const CANCELLED = "cancelled";
 
 const RequestId = Schema.NonEmptyString;
@@ -35,6 +42,7 @@ export const METHOD_NAMES = [
   "agent.permission",
   "agent.prompt",
   "agent.source",
+  "crash.consent",
   "files.list",
   "history.blocks",
   "history.mode",
@@ -360,6 +368,18 @@ export const StockProgress = Schema.Struct({
   total: Schema.NullOr(Schema.Int),
 });
 
+// Consent reaches the sidecar twice, and the two are not redundant. Rust
+// reads `settings.json` and passes the answer as an env var at spawn, so a
+// crash in the first seconds — before any webview has connected — is still
+// reported when it was consented to. This method is the *live* half: turning
+// the switch off has to stop the sending now, not at the next launch.
+export const CrashConsent = Schema.Struct({ enabled: Schema.Boolean });
+
+// What the sidecar is actually doing, which is not the same as what it was
+// told: consent is one of three conditions, and a build with no DSN or a
+// development one reports nothing however the switch is set.
+export const CrashReporting = Schema.Struct({ reporting: Schema.Boolean });
+
 export const PipelineState = Schema.Struct({
   sessionId: Schema.NonEmptyString,
   stages: Schema.Array(PipelineStage),
@@ -391,6 +411,8 @@ export type StockQuery = (typeof StockQuery)["Type"];
 export type StockKeyChange = (typeof StockKeyChange)["Type"];
 export type StockConfigured = (typeof StockConfigured)["Type"];
 export type StockProgress = (typeof StockProgress)["Type"];
+export type CrashConsent = (typeof CrashConsent)["Type"];
+export type CrashReporting = (typeof CrashReporting)["Type"];
 export type PromptFrame = (typeof PromptFrame)["Type"];
 export type PipelineState = (typeof PipelineState)["Type"];
 export type PipelineStageChange = (typeof PipelineStageChange)["Type"];
@@ -851,6 +873,11 @@ export const SIDECAR_METHODS = {
   "agent.source": {
     params: SourceAssetParams,
     result: SourceAssetAnswer,
+    stream: Schema.Never,
+  },
+  "crash.consent": {
+    params: CrashConsent,
+    result: CrashReporting,
     stream: Schema.Never,
   },
   "files.list": {

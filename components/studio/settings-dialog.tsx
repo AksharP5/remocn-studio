@@ -29,7 +29,7 @@ import {
   useThemeChoice,
 } from "@/hooks/use-theme-choice";
 import { cn } from "@/lib/utils";
-import type { EnvironmentCheck } from "@/shared/ipc";
+import type { AppEnvironment, EnvironmentCheck } from "@/shared/ipc";
 import {
   AGENT_PROVIDERS,
   type AgentProvider,
@@ -283,7 +283,7 @@ function AppearanceSection() {
 }
 
 function BehaviorSection() {
-  const { preferences, tours } = useStudio();
+  const { preferences, tours, updates } = useStudio();
 
   return (
     <div className="flex flex-col gap-6">
@@ -326,6 +326,60 @@ function BehaviorSection() {
           Replay tips
         </Button>
       </div>
+
+      <CrashReportsRow
+        environment={updates.environment}
+        onChange={preferences.setCrashReports}
+        value={preferences.crashReports}
+      />
+    </div>
+  );
+}
+
+// Off until it is switched on, and the wording has to earn the switch rather
+// than reassure past it: what is sent, what is never sent, and — where the
+// studio can already say so — that this particular build would send nothing
+// whatever the switch says.
+function CrashReportsRow({
+  environment,
+  onChange,
+  value,
+}: {
+  environment: AppEnvironment | null;
+  onChange: (enabled: boolean) => void;
+  value: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-start justify-between gap-6">
+        <div className="flex min-w-0 flex-col gap-1">
+          <Label className="text-sm" htmlFor="settings-crash-reports">
+            Send crash reports
+          </Label>
+          <p className="text-muted-foreground text-xs leading-snug">
+            When the studio, its agent process or its preview crashes, send the
+            error and where in the code it happened. Off unless you turn it on.
+          </p>
+        </div>
+        <Switch
+          checked={value}
+          className="mt-0.5"
+          id="settings-crash-reports"
+          onCheckedChange={onChange}
+        />
+      </div>
+
+      <p className="text-muted-foreground text-xs leading-snug">
+        Your prompts, your conversations with the agent and the contents of your
+        project files are never included, and paths are stripped of your home
+        folder before anything is sent.
+      </p>
+
+      {environment === "development" ? (
+        <p className="text-muted-foreground text-xs leading-snug">
+          This is a development build — it reports nothing either way.
+        </p>
+      ) : null}
     </div>
   );
 }

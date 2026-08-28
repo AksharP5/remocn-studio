@@ -2,6 +2,7 @@ import { load } from "@tauri-apps/plugin-store";
 import { Effect } from "effect";
 import type { LayoutStorage } from "react-resizable-panels";
 import { isPaneView, type PaneView } from "@/lib/studio/pane-view";
+import { crashConsentValue } from "@/shared/crash";
 import { type EffortLevel, isEffortLevel } from "@/shared/ipc";
 import type { AgentProvider } from "@/shared/providers";
 
@@ -14,6 +15,7 @@ const COPILOT_MODEL_KEY = "copilotModel";
 const GROK_MODEL_KEY = "grokModel";
 const CLAUDE_EFFORT_KEY = "claudeEffort";
 const ASSET_OFFERS_KEY = "assetOffers";
+const CRASH_REPORTS_KEY = "crashReports";
 const PREVIEW_PANE_KEY = "previewPane";
 const PROJECTS_PANE_KEY = "projectsPane";
 const TASK_DOCK_KEY = "taskDock";
@@ -33,6 +35,7 @@ export interface StudioSettings {
   claudeModel: string | null;
   codexModel: string | null;
   copilotModel: string | null;
+  crashReports: boolean | null;
   expandedVideos: readonly string[];
   grokModel: string | null;
   legacyProjectFolder: string | null;
@@ -59,6 +62,7 @@ export const hydrateSettings: Effect.Effect<StudioSettings> = openStore.pipe(
       claudeModel: cache.get(CLAUDE_MODEL_KEY) ?? null,
       codexModel: cache.get(CODEX_MODEL_KEY) ?? null,
       copilotModel: cache.get(COPILOT_MODEL_KEY) ?? null,
+      crashReports: enabledOf(cache.get(CRASH_REPORTS_KEY)),
       expandedVideos: idsOf(cache.get(EXPANDED_VIDEOS_KEY)),
       grokModel: cache.get(GROK_MODEL_KEY) ?? null,
       legacyProjectFolder: cache.get(PROJECT_FOLDER_KEY) ?? null,
@@ -180,6 +184,14 @@ export function savePaneView(view: PaneView): Effect.Effect<void> {
 
 export function saveAssetOffers(enabled: boolean): Effect.Effect<void> {
   return remember(ASSET_OFFERS_KEY, enabled ? "enabled" : "disabled");
+}
+
+// The one setting the Rust core reads too — it opens this file itself at
+// spawn to decide what the sidecar is told, so the value on disk is the
+// contract rather than an internal spelling. `crashConsentValue` is what
+// writes it, in `shared/crash.ts`, beside the reader both sides use.
+export function saveCrashReports(enabled: boolean): Effect.Effect<void> {
+  return remember(CRASH_REPORTS_KEY, crashConsentValue(enabled));
 }
 
 export function saveClaudeEffort(

@@ -12,6 +12,7 @@ import { panelIdsOf } from "@/lib/studio/panes";
 import { layoutStorage } from "@/lib/studio/settings";
 import { cn } from "@/lib/utils";
 import { ChatPane } from "./chat-pane";
+import { CrashBoundary } from "./crash-boundary";
 import { PreviewPane } from "./preview-pane";
 import { ProjectsPane } from "./projects-pane";
 import { QuitGuard } from "./quit-guard";
@@ -24,18 +25,20 @@ const SHELL_LAYOUT_ID = "shell";
 
 export function AppShell() {
   return (
-    <StudioProvider>
-      <TooltipProvider delay={500}>
-        <ToastProvider>
-          <AnchoredToastProvider>
-            <ShellLayout />
-            <SettingsDialog />
-            <TourTip />
-            <QuitGuard />
-          </AnchoredToastProvider>
-        </ToastProvider>
-      </TooltipProvider>
-    </StudioProvider>
+    <CrashBoundary>
+      <StudioProvider>
+        <TooltipProvider delay={500}>
+          <ToastProvider>
+            <AnchoredToastProvider>
+              <ShellLayout />
+              <SettingsDialog />
+              <TourTip />
+              <QuitGuard />
+            </AnchoredToastProvider>
+          </ToastProvider>
+        </TooltipProvider>
+      </StudioProvider>
+    </CrashBoundary>
   );
 }
 

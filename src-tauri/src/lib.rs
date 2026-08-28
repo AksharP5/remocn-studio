@@ -1,4 +1,5 @@
 mod commands;
+mod crash;
 mod ipc;
 mod paste;
 mod sidecar;
@@ -22,6 +23,22 @@ fn asked_to_quit() -> bool {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // `generate_context!()` is bound rather than passed straight to `build`,
+    // because the consent has to be read before the builder runs — a panic
+    // while the app is being built is one of the crashes this exists to catch,
+    // and there is no `AppHandle` yet to ask where the data directory is. The
+    // identifier in the context is what locates it.
+    let context = tauri::generate_context!();
+    let version = context.package_info().version.to_string();
+
+    // Held for the life of the process: dropping the guard flushes the queue
+    // and shuts the transport down. `None` — no DSN, a development build, or
+    // the feature off — means nothing was started at all, which is the shape
+    // #268 asks for: not initialised-and-silent.
+    let _crash_reporter = crash::data_dir_for(&context.config().identifier)
+        .filter(|data_dir| crash::consent_in(data_dir))
+        .and_then(|_| crash::start(&version));
+
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -50,7 +67,7 @@ pub fn run() {
             app.manage(Sidecar::start(app.handle().clone()));
             Ok(())
         })
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("error while building tauri application");
 
     app.run(|app, event| match event {
