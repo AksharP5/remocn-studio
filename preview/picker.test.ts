@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   climb,
+  covers,
   hasBorder,
   isDrawing,
   isInlineWrapper,
@@ -298,5 +299,50 @@ describe("svg, which is a picture and not a wrapper", () => {
 
     expect(isDrawing(pick("#inner"))).toBe(false);
     expect(svgRootOf(pick("#inner"))).toBeNull();
+  });
+});
+
+describe("covers", () => {
+  function sized(box: {
+    height: number;
+    left: number;
+    top: number;
+    width: number;
+  }): Element {
+    mount("<div id='box'></div>");
+    const element = pick("#box");
+
+    Object.defineProperty(element, "getBoundingClientRect", {
+      value: () => ({
+        ...box,
+        bottom: box.top + box.height,
+        right: box.left + box.width,
+      }),
+    });
+
+    return element;
+  }
+
+  it("takes a point over the box, even when another element is on top", () => {
+    const box = sized({ height: 100, left: 10, top: 20, width: 200 });
+
+    expect(covers(box, 10, 20)).toBe(true);
+    expect(covers(box, 210, 120)).toBe(true);
+    expect(covers(box, 110, 115)).toBe(true);
+  });
+
+  it("leaves a point outside the box alone", () => {
+    const box = sized({ height: 100, left: 10, top: 20, width: 200 });
+
+    expect(covers(box, 9, 60)).toBe(false);
+    expect(covers(box, 211, 60)).toBe(false);
+    expect(covers(box, 110, 19)).toBe(false);
+    expect(covers(box, 110, 121)).toBe(false);
+  });
+
+  it("never claims a box that is not laid out", () => {
+    const box = sized({ height: 0, left: 0, top: 0, width: 0 });
+
+    expect(covers(box, 0, 0)).toBe(false);
   });
 });

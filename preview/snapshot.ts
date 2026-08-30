@@ -1,6 +1,6 @@
 import { post } from "./bridge";
 import { ACCENT, ACCENT_SOFT, canvas, TOP } from "./inspect";
-import { OVERLAY_ATTR } from "./picker";
+import { covers, OVERLAY_ATTR } from "./picker";
 
 export const DRAG_THRESHOLD = 6;
 
@@ -117,7 +117,7 @@ function start(container: HTMLElement, frame: Frame): Session {
   container.style.cursor = "crosshair";
 
   const onDown = (event: PointerEvent) => {
-    if (!container.contains(event.target as Node)) {
+    if (!covers(container, event.clientX, event.clientY)) {
       return;
     }
 
@@ -166,8 +166,8 @@ function start(container: HTMLElement, frame: Frame): Session {
     }
   };
 
-  const swallow = (event: Event) => {
-    if (container.contains(event.target as Node)) {
+  const swallow = (event: MouseEvent) => {
+    if (covers(container, event.clientX, event.clientY)) {
       event.preventDefault();
       event.stopPropagation();
     }
