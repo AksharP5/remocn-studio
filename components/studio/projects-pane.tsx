@@ -41,7 +41,6 @@ import { stockKindOf, useAssetsScope } from "@/hooks/use-assets-scope";
 
 import { useNow } from "@/hooks/use-now";
 import { usePickAsset } from "@/hooks/use-pick-asset";
-import type { ProjectCommands } from "@/hooks/use-project-menu";
 import type { ScaffoldState } from "@/hooks/use-scaffold";
 import type { VideoCommands } from "@/hooks/use-video-menu";
 import { type PaneGroup, paneSections } from "@/lib/studio/groups";
@@ -53,7 +52,6 @@ import { AssetsPane } from "./assets-pane";
 import { AssetsScopeSwitch } from "./assets-scope";
 import { ComponentsPane } from "./components-pane";
 import { LogoWordmark } from "./logo-mark";
-import { ProjectSwitcher } from "./project-switcher";
 import { StockPane } from "./stock-pane";
 import { useStudio } from "./studio-provider";
 import { UpdateStatus } from "./update-status";
@@ -98,27 +96,20 @@ export function ProjectsPane() {
     isLoadingProjects,
     isLoadingVideos,
     library,
-    newProject,
     newVideo,
     onNewSession,
     onRemoveSession,
     onRetryScaffold,
     onSelectSession,
     onToggleVideo,
-    openFolder,
     paneSlide,
     paneView,
-    projects,
     projectsError,
-    relocateProject,
     registerVideo,
     reloadVideos,
-    removeProject,
     removeVideo,
-    renameProject,
     renameVideo,
     scaffolds,
-    selectProject,
     sessionsError,
     settingsDialog,
     showPane,
@@ -128,10 +119,6 @@ export function ProjectsPane() {
 
   const now = useNow();
   const paneError = actionError ?? folderError;
-  const commands: ProjectCommands = useMemo(
-    () => ({ relocateProject, removeProject, renameProject }),
-    [relocateProject, removeProject, renameProject]
-  );
   const videoCommands: VideoCommands = useMemo(
     () => ({ registerVideo, removeVideo, renameVideo }),
     [registerVideo, removeVideo, renameVideo]
@@ -156,14 +143,6 @@ export function ProjectsPane() {
   let content = (
     <>
       <h2 className="sr-only">Videos</h2>
-      <ProjectSwitcher
-        commands={commands}
-        onNewProject={newProject.open}
-        onOpenFolder={openFolder}
-        onSelect={selectProject}
-        project={activeProject}
-        projects={projects}
-      />
       <NewVideoAction
         isDisabled={activeProject === null || activeProject.missing}
         onNewVideo={newVideo.open}
@@ -404,15 +383,15 @@ function NewVideoAction({
   onNewVideo: () => void;
 }) {
   return (
-    <div className="px-2 pb-2">
+    <div className="px-2 pt-1 pb-4">
       <Button
-        className="w-full bg-input/30"
+        className="w-full"
         disabled={isDisabled}
         onClick={onNewVideo}
-        variant="secondary"
+        variant="default"
       >
         <PlusIcon data-icon="inline-start" />
-        New Video
+        New video
       </Button>
     </div>
   );
@@ -508,7 +487,7 @@ function VideosBody({
   return (
     <>
       {active.length === 0 ? null : (
-        <SidebarMenu>{active.map(item)}</SidebarMenu>
+        <SidebarMenu className="gap-1">{active.map(item)}</SidebarMenu>
       )}
 
       {active.length === 0 && gone.length === 0 ? (

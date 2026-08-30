@@ -1,12 +1,6 @@
 "use client";
 
 import {
-  EllipsisIcon,
-  FolderSearchIcon,
-  PencilLineIcon,
-  Trash2Icon,
-} from "lucide-react";
-import {
   AlertDialog,
   AlertDialogClose,
   AlertDialogDescription,
@@ -25,64 +19,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { type ProjectCommands, useProjectMenu } from "@/hooks/use-project-menu";
-import { fileManagerName } from "@/lib/studio/platform";
+import type { ProjectMenu } from "@/hooks/use-project-menu";
 import type { Project } from "@/shared/ipc";
 
-export function ProjectMenu({
-  commands,
+// The project's actions live in the native Project menu now; what stays in the
+// webview is only what a native menu cannot draw — the rename form and the
+// remove confirmation.
+export function ProjectDialogs({
+  menu,
   project,
 }: {
-  commands: ProjectCommands;
-  project: Project;
+  menu: ProjectMenu;
+  project: Project | null;
 }) {
-  const menu = useProjectMenu(project, commands);
+  if (project === null) {
+    return null;
+  }
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={`Options for ${project.name}`}
-              className="relative after:absolute after:-inset-y-1 after:-right-1 after:left-0"
-              size="icon-xs"
-              variant="ghost"
-            />
-          }
-        >
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-52">
-          <DropdownMenuItem onClick={menu.openRename}>
-            <PencilLineIcon />
-            Rename…
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={menu.locate}>
-            <FolderSearchIcon />
-            {project.missing ? "Locate…" : "Move…"}
-          </DropdownMenuItem>
-          {project.missing ? null : (
-            <DropdownMenuItem onClick={menu.reveal}>
-              <FolderSearchIcon />
-              Reveal in {fileManagerName()}
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onClick={menu.openRemove} variant="destructive">
-            <Trash2Icon />
-            Remove from studio
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
       <Dialog onOpenChange={menu.setRenaming} open={menu.isRenaming}>
         <DialogContent>
           <DialogHeader>

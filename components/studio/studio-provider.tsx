@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, use, useCallback, useMemo } from "react";
+import { useAppMenu } from "@/hooks/use-app-menu";
 import { type ClaudeEffort, useClaudeEffort } from "@/hooks/use-claude-effort";
 import { type Composer, useComposer } from "@/hooks/use-composer";
 import { useCrashReporting } from "@/hooks/use-crash-reporting";
@@ -16,6 +17,7 @@ import { type OpenTurn, useOpenTurn } from "@/hooks/use-open-turn";
 import { type Panes, usePanes } from "@/hooks/use-panes";
 import { type Preferences, usePreferences } from "@/hooks/use-preferences";
 import { usePreview } from "@/hooks/use-preview";
+import { useProjectMenu } from "@/hooks/use-project-menu";
 import {
   type Accounts,
   useProviderAccounts,
@@ -30,12 +32,14 @@ import { type Tools, useTools } from "@/hooks/use-tools";
 import { type Tours, useTours } from "@/hooks/use-tours";
 import { type Updates, useUpdates } from "@/hooks/use-updates";
 import { useWorkspace, type Workspace } from "@/hooks/use-workspace";
+import type { AppMenuModel } from "@/lib/studio/app-menu";
 import type { VideoFormat } from "@/lib/studio/formats";
 import type { StudioSettings } from "@/lib/studio/settings";
 import { currentTasks } from "@/lib/studio/tasks";
 import type { TourReveal } from "@/lib/studio/tours";
 import type { ProjectDraft, PromptFrame } from "@/shared/ipc";
 import { PROVIDER_INFO } from "@/shared/providers";
+import { ProjectDialogs } from "./project-dialogs";
 
 export type Studio = ClaudeEffort &
   StudioModels &
@@ -123,6 +127,65 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
   );
 
   const newVideo = useNewVideo(addAndShow);
+
+  const {
+    activeProject,
+    openFolder,
+    projects,
+    relocateProject,
+    removeProject,
+    renameProject,
+    selectProject,
+  } = workspace;
+
+  const projectCommands = useMemo(
+    () => ({ relocateProject, removeProject, renameProject }),
+    [relocateProject, removeProject, renameProject]
+  );
+  const projectMenu = useProjectMenu(activeProject, projectCommands);
+
+  const menuModel = useMemo<AppMenuModel>(
+    () => ({
+      canCreateVideo: activeProject !== null && !activeProject.missing,
+      onLocateProject: projectMenu.locate,
+      onNewProject: newProject.open,
+      onNewVideo: newVideo.open,
+      onOpenFolder: openFolder,
+      onRemoveProject: projectMenu.openRemove,
+      onRenameProject: projectMenu.openRename,
+      onRevealProject: projectMenu.reveal,
+      onSelectProject: selectProject,
+      open:
+        activeProject === null
+          ? null
+          : {
+              id: activeProject.id,
+              isActive: true,
+              isMissing: activeProject.missing,
+              name: activeProject.name,
+            },
+      projects: projects.map((row) => ({
+        id: row.id,
+        isActive: row.id === activeProject?.id,
+        isMissing: row.missing,
+        name: row.name,
+      })),
+    }),
+    [
+      activeProject,
+      newProject.open,
+      newVideo.open,
+      openFolder,
+      projectMenu.locate,
+      projectMenu.openRemove,
+      projectMenu.openRename,
+      projectMenu.reveal,
+      projects,
+      selectProject,
+    ]
+  );
+  useAppMenu(menuModel);
+
   const library = useLibrary(workspace.hasRunningTurns);
 
   const previewProjectId = previewTarget(workspace);
@@ -277,7 +340,12 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     return <div className="h-full bg-background" data-tauri-drag-region />;
   }
 
-  return <StudioContext value={studio}>{children}</StudioContext>;
+  return (
+    <StudioContext value={studio}>
+      {children}
+      <ProjectDialogs menu={projectMenu} project={activeProject} />
+    </StudioContext>
+  );
 }
 
 function playingFrame(
