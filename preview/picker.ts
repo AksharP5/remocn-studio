@@ -170,6 +170,19 @@ export function climb(element: Element, container: Element): Element {
   return current;
 }
 
+export function covers(container: Element, x: number, y: number): boolean {
+  const rect = container.getBoundingClientRect();
+
+  return (
+    rect.width > 0 &&
+    rect.height > 0 &&
+    x >= rect.left &&
+    x <= rect.right &&
+    y >= rect.top &&
+    y <= rect.bottom
+  );
+}
+
 export function pickAt(
   x: number,
   y: number,

@@ -1,5 +1,5 @@
 import { post } from "./bridge";
-import { OVERLAY_ATTR, pickAt } from "./picker";
+import { covers, OVERLAY_ATTR, pickAt } from "./picker";
 import {
   absolutise,
   formatFrame,
@@ -176,7 +176,7 @@ function start(container: HTMLElement, stage: Stage): Session {
   };
 
   const onDown = (event: PointerEvent) => {
-    if (frozen || !container.contains(event.target as Node)) {
+    if (frozen || !covers(container, event.clientX, event.clientY)) {
       return;
     }
 
@@ -191,8 +191,8 @@ function start(container: HTMLElement, stage: Stage): Session {
     }
   };
 
-  const swallow = (event: Event) => {
-    if (!frozen && container.contains(event.target as Node)) {
+  const swallow = (event: MouseEvent) => {
+    if (!frozen && covers(container, event.clientX, event.clientY)) {
       event.preventDefault();
       event.stopPropagation();
     }

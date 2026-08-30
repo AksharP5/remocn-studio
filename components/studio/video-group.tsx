@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ChevronDown,
   ChevronRight,
   CircleAlertIcon,
   CircleQuestionMarkIcon,
@@ -64,11 +63,6 @@ function VideoGroupBlock({
         onClick={onToggle}
         value={video.id}
       >
-        {isExpanded ? (
-          <ChevronDown className="text-muted-foreground" />
-        ) : (
-          <ChevronRight className="text-muted-foreground" />
-        )}
         {/* Only the name dims for a video the bundle no longer names: its
             chats are still worth reading, so the chevron and the menu keep
             full contrast. */}
@@ -94,6 +88,12 @@ function VideoGroupBlock({
           </Tooltip>
         ) : null}
         {isExpanded ? null : <Rollup rollup={group.rollup} />}
+        <ChevronRight
+          className={cn(
+            "size-3 shrink-0 text-muted-foreground/70 transition-transform duration-150 ease-out",
+            isExpanded && "rotate-90"
+          )}
+        />
       </SidebarMenuButton>
 
       {/* `has-[[data-popup-open]]` keeps the cluster visible while its menu is

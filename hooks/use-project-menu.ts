@@ -30,17 +30,19 @@ export interface ProjectMenu {
 }
 
 export function useProjectMenu(
-  project: Project,
+  project: Project | null,
   commands: ProjectCommands
 ): ProjectMenu {
   const [isRenaming, setRenaming] = useState(false);
   const [isRemoving, setRemoving] = useState(false);
-  const [name, setName] = useState(project.name);
-  const { reveal } = useRevealInFinder(project.missing ? null : project.path);
+  const [name, setName] = useState(project?.name ?? "");
+  const { reveal } = useRevealInFinder(
+    project === null || project.missing ? null : project.path
+  );
 
   const { relocateProject, removeProject, renameProject } = commands;
-  const { id } = project;
-  const given = project.name;
+  const id = project?.id ?? null;
+  const given = project?.name ?? "";
   const { locate } = useLocateProject(id, relocateProject);
 
   const openRename = useCallback(() => {
@@ -57,7 +59,7 @@ export function useProjectMenu(
   const trimmed = name.trim();
 
   const submitRename = useCallback(async () => {
-    if (trimmed.length === 0) {
+    if (trimmed.length === 0 || id === null) {
       return;
     }
     setRenaming(false);
@@ -66,7 +68,9 @@ export function useProjectMenu(
 
   const confirmRemove = useCallback(async () => {
     setRemoving(false);
-    await removeProject(id);
+    if (id !== null) {
+      await removeProject(id);
+    }
   }, [id, removeProject]);
 
   const onRenameSubmit = useCallback(

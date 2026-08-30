@@ -20,7 +20,6 @@ const SESSION_ROW = /^A promo for the launch/;
 const PRODUCT_DEMO_ROW = /^Product demo/;
 const LAUNCH_TEASER_ROW = /^Launch teaser/;
 const WORDMARK = /^emocn/;
-const SWITCHER = /No project open|my-video/;
 const STARTUP = "Make a video by describing it";
 
 const SIDECAR_READY = {
@@ -122,11 +121,13 @@ async function renderShell() {
   await screen.findByRole("heading", { name: "Videos" });
 }
 
-// The sidebar's route to another project runs through the switcher now, so
-// this opens it and hands back the menu item rather than a bare button.
+// Picking a folder moved to the native File menu, which jsdom cannot open, so
+// the route these tests drive is the startup screen's own button — on screen
+// in every projectless shell.
 async function openFolderButton() {
-  fireEvent.click(await screen.findByRole("button", { name: SWITCHER }));
-  return await screen.findByRole("menuitem", { name: "Open a folder…" });
+  return await screen.findByRole("button", {
+    name: "Open an existing project",
+  });
 }
 
 // The preview leaves once the project list comes back empty, so its own
@@ -189,7 +190,7 @@ describe("app shell", () => {
   it("lights the band once there is a project", async () => {
     mockStudio({ projects: [PROJECT] });
     const { container } = render(<Page />);
-    await screen.findByText("my-video");
+    await screen.findByText("My video");
 
     expect(
       container.querySelector('[data-slot="titlebar-mood"]')
@@ -214,7 +215,7 @@ describe("app shell", () => {
   it("lets the project list be dismissed and brought back", async () => {
     mockStudio({ projects: [PROJECT], sessions: [STORED_SESSION] });
     await renderShell();
-    await screen.findByText("my-video");
+    await screen.findByText("My video");
 
     fireEvent.click(
       screen.getByRole("button", { name: "Hide the project list" })
@@ -223,14 +224,14 @@ describe("app shell", () => {
     await waitForElementToBeRemoved(() =>
       screen.queryByRole("heading", { name: "Videos" })
     );
-    expect(screen.queryByText("my-video")).not.toBeInTheDocument();
+    expect(screen.queryByText("My video")).not.toBeInTheDocument();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Show the project list" })
     );
 
     expect(screen.getByRole("heading", { name: "Videos" })).toBeVisible();
-    expect(await screen.findByText("my-video")).toBeVisible();
+    expect(await screen.findByText("My video")).toBeVisible();
   });
 
   it("keeps the chat clear of the window buttons on its own", async () => {
@@ -289,7 +290,11 @@ describe("app shell", () => {
     // The lockup spells the name with the mark as its "R", so the text beside
     // the glyph starts at "emocn" — nothing else in the shell draws that.
     expect(await screen.findByText(WORDMARK)).toBeVisible();
-    expect(screen.getAllByText("my-video")).toHaveLength(1);
+
+    // The open project's name lives in the native File menu now, so the
+    // sidebar never spells a folder at all — only the videos inside it.
+    await screen.findByText("My video");
+    expect(screen.queryByText("my-video")).not.toBeInTheDocument();
   });
 
   it("opens the picked folder into the pane", async () => {
@@ -298,7 +303,7 @@ describe("app shell", () => {
 
     fireEvent.click(await openFolderButton());
 
-    expect(await screen.findByText("my-video")).toBeVisible();
+    expect(await screen.findByText("My video")).toBeVisible();
     expect(
       screen.queryByRole("heading", { name: STARTUP })
     ).not.toBeInTheDocument();
@@ -313,7 +318,7 @@ describe("app shell", () => {
     fireEvent.click(await openFolderButton());
 
     expect(await screen.findByRole("heading", { name: STARTUP })).toBeVisible();
-    expect(screen.queryByText("my-video")).not.toBeInTheDocument();
+    expect(screen.queryByText("My video")).not.toBeInTheDocument();
   });
 
   it("lists stored sessions and opens the one that is clicked", async () => {
@@ -326,7 +331,7 @@ describe("app shell", () => {
       })
     );
 
-    expect(await screen.findByText("my-video")).toBeVisible();
+    expect(await screen.findByText("My video")).toBeVisible();
     expect(
       await screen.findByRole("heading", { name: "A promo for the launch" })
     ).toBeVisible();
