@@ -57,7 +57,13 @@ export function DockSection({
   return (
     <div>
       {isExpanded ? (
-        <div className="max-h-64 overflow-y-auto p-1.5 pb-0">{children}</div>
+        <div className="grid animate-drawer-in grid-rows-[1fr]">
+          <div className="min-h-0 overflow-hidden">
+            <div className="max-h-64 overflow-y-auto p-1.5 pb-0">
+              {children}
+            </div>
+          </div>
+        </div>
       ) : null}
 
       <button

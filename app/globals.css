@@ -70,6 +70,9 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
   --animate-titlebar: titlebar-in 900ms ease-out both;
+  --animate-card-in: card-in 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-drawer-in: drawer-in 200ms cubic-bezier(0.25, 1, 0.5, 1) both;
+  --animate-stage-in: titlebar-in 200ms ease-out both;
   --animate-screen-in: screen-in 200ms cubic-bezier(0.32, 0.72, 0, 1) both;
   --animate-screen-back: screen-back 200ms cubic-bezier(0.32, 0.72, 0, 1) both;
   --animate-skeleton: skeleton 2s -1s infinite linear;
@@ -92,6 +95,22 @@
   @keyframes skeleton {
     to {
       background-position: -200% 0;
+    }
+  }
+  /* From-only, so `both` has no `to` frame to hold: once the entrance ends
+     the element carries no translate, and nothing inside the card can hit
+     the transformed-ancestor containing-block trap the pane slides had. */
+  @keyframes card-in {
+    from {
+      opacity: 0;
+      translate: 0 0.5rem;
+    }
+  }
+  /* The dock drawer opens; closing is an instant unmount on purpose — a
+     dismissal should feel decisive, and the tests pin that contract. */
+  @keyframes drawer-in {
+    from {
+      grid-template-rows: 0fr;
     }
   }
   @keyframes caret-blink {
@@ -426,9 +445,12 @@
     animation: none;
   }
   /* Switching the sidebar's view still has to read as a change, so the slide
-     degrades to a crossfade rather than to nothing. */
+     degrades to a crossfade rather than to nothing. A card asking for an
+     answer degrades the same way: appearing still has to read as an event. */
   [data-pane-slide].animate-screen-back,
-  [data-pane-slide].animate-screen-in {
+  [data-pane-slide].animate-screen-in,
+  .animate-card-in,
+  .animate-drawer-in {
     animation: titlebar-in 150ms ease-out both;
   }
 }
@@ -455,6 +477,14 @@
        and a band there would drop its header below every other pane's. This is
        the width they need instead: their own inset plus the three of them. */
     --titlebar-inline-inset: 5rem;
+  }
+
+  :root[data-platform="linux"],
+  :root[data-platform="windows"] {
+    /* Native decorations draw their own title bar and buttons, so nothing in
+       the window has to keep clear of them. */
+    --titlebar-block-inset: 0rem;
+    --titlebar-inline-inset: 0rem;
   }
 
   /* This is an app window, not a web page: the shell owns the viewport and the

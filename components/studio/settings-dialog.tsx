@@ -30,6 +30,7 @@ import {
   type ThemeChoice,
   useThemeChoice,
 } from "@/hooks/use-theme-choice";
+import { modKeyLabel } from "@/lib/studio/platform";
 import { cn } from "@/lib/utils";
 import type { AppEnvironment, EnvironmentCheck } from "@/shared/ipc";
 import {
@@ -190,7 +191,7 @@ function SectionRail({
 
       <p className="mt-auto flex items-center gap-1.5 whitespace-nowrap px-2 text-muted-foreground text-xs">
         <KbdGroup>
-          <Kbd>⌘</Kbd>
+          <Kbd>{modKeyLabel()}</Kbd>
           <Kbd>,</Kbd>
         </KbdGroup>
         opens Settings
