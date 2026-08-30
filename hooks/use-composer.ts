@@ -16,6 +16,7 @@ import { type PickedAssets, usePickedAssets } from "@/hooks/use-picked-assets";
 import { type Selections, useSelections } from "@/hooks/use-selections";
 import { imageFilesOf } from "@/lib/studio/clipboard";
 import { insertMention, type Mention, openFolder } from "@/lib/studio/mentions";
+import { currentPlatform } from "@/lib/studio/platform";
 import type { PreviewRect } from "@/lib/studio/preview";
 import { firstPlaceholder } from "@/lib/studio/templates";
 import type { QueuedMessage } from "@/lib/studio/turns";
@@ -97,6 +98,7 @@ function deleting(
     (!forward && event.key !== "Backspace") ||
     event.altKey ||
     event.metaKey ||
+    (event.ctrlKey && currentPlatform() !== "mac") ||
     field.selectionStart !== field.selectionEnd
   ) {
     return null;

@@ -1,3 +1,5 @@
+import { modKeyCombo } from "@/lib/studio/platform";
+
 // The tips are data, not code scattered across the panes: one catalog, one
 // availability rule per entry, and a pure choice of which single tip is worth
 // showing right now. Nothing here renders, so the rules are pinned by a table
@@ -51,7 +53,7 @@ export const TOUR_TIPS: readonly TourTip[] = [
   {
     action: null,
     align: "center",
-    body: "Describe the scene and the agent writes the Remotion code for it. ⌘V pastes a picture straight into the message, “+” attaches a video or a sound, and the chips underneath set the mode, the model and how hard it thinks.",
+    body: `Describe the scene and the agent writes the Remotion code for it. ${modKeyCombo("V")} pastes a picture straight into the message, “+” attaches a video or a sound, and the chips underneath set the mode, the model and how hard it thinks.`,
     id: "composer",
     side: "top",
     title: "This is where a video starts",

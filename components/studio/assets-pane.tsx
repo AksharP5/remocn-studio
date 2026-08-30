@@ -16,6 +16,7 @@ import {
   SidebarMenuSkeleton,
 } from "@/components/ui/sidebar";
 import { useAssetSearch } from "@/hooks/use-asset-search";
+import { fileManagerName } from "@/lib/studio/platform";
 import { cn } from "@/lib/utils";
 import type { Asset } from "@/shared/library";
 import { AssetGrid } from "./asset-grid";
@@ -163,9 +164,9 @@ function AssetsBody({
         <EmptyHeader>
           <EmptyTitle className="text-base">Nothing saved yet</EmptyTitle>
           <EmptyDescription className="text-pretty">
-            Drag pictures, video or sound here from Finder, or ask Claude to put
-            an animation you like into the library. Everything here can be
-            dropped into any other video.
+            Drag pictures, video or sound here from {fileManagerName()}, or ask{" "}
+            Claude to put an animation you like into the library. Everything
+            here can be dropped into any other video.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>

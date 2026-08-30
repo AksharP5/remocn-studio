@@ -34,6 +34,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { type ProjectCommands, useProjectMenu } from "@/hooks/use-project-menu";
+import { fileManagerName } from "@/lib/studio/platform";
 import type { Project } from "@/shared/ipc";
 
 export function ProjectMenu({
@@ -72,7 +73,7 @@ export function ProjectMenu({
           {project.missing ? null : (
             <DropdownMenuItem onClick={menu.reveal}>
               <FolderSearchIcon />
-              Reveal in Finder
+              Reveal in {fileManagerName()}
             </DropdownMenuItem>
           )}
           <DropdownMenuItem onClick={menu.openRemove} variant="destructive">

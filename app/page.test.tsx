@@ -1,5 +1,11 @@
 import { mockIPC } from "@tauri-apps/api/mocks";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitForElementToBeRemoved,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import Page from "@/app/page";
 import type {
@@ -149,9 +155,9 @@ describe("app shell", () => {
     await renderShell();
     await showPreviewButton();
 
-    expect(
+    await waitForElementToBeRemoved(() =>
       screen.queryByRole("heading", { name: "Preview" })
-    ).not.toBeInTheDocument();
+    );
   });
 
   it("brings the preview back, and lets it be dismissed again", async () => {
@@ -161,9 +167,9 @@ describe("app shell", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Hide the preview" }));
 
-    expect(
+    await waitForElementToBeRemoved(() =>
       screen.queryByRole("heading", { name: "Preview" })
-    ).not.toBeInTheDocument();
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Show the preview" }));
 
@@ -214,9 +220,9 @@ describe("app shell", () => {
       screen.getByRole("button", { name: "Hide the project list" })
     );
 
-    expect(
+    await waitForElementToBeRemoved(() =>
       screen.queryByRole("heading", { name: "Videos" })
-    ).not.toBeInTheDocument();
+    );
     expect(screen.queryByText("my-video")).not.toBeInTheDocument();
 
     fireEvent.click(

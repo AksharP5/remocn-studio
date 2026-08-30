@@ -9,7 +9,7 @@ export function AboveComposer({
   className?: string;
 }) {
   return (
-    <div className="mb-2 shrink-0 px-4 pt-1">
+    <div className="mb-2 shrink-0 animate-card-in px-4 pt-1">
       <div className={cn("mx-auto w-full max-w-2xl", className)}>
         {children}
       </div>

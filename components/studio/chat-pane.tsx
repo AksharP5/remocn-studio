@@ -35,6 +35,7 @@ import type { OpenTurn } from "@/hooks/use-open-turn";
 import type { Queue } from "@/hooks/use-queue";
 import type { StudioSettings } from "@/lib/studio/settings";
 import { currentTasks } from "@/lib/studio/tasks";
+import { cn } from "@/lib/utils";
 import type { HistorySession, Project } from "@/shared/ipc";
 import { AssetOfferCard } from "./asset-offer-card";
 import { AssetSourceCard } from "./asset-source-card";
@@ -86,11 +87,22 @@ export function ChatPane() {
   return (
     <Pane>
       <PaneHeader
-        className={isProjectsShown ? undefined : "pl-(--titlebar-inline-inset)"}
+        className={cn(
+          "transition-[padding] duration-250 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none",
+          isProjectsShown ? undefined : "pl-(--titlebar-inline-inset)"
+        )}
         data-tauri-drag-region
       >
         <div className="flex min-w-0 items-center gap-1">
-          {isProjectsShown ? null : (
+          <div
+            className={cn(
+              "flex shrink-0 items-center overflow-hidden transition-[width,margin,opacity,scale] duration-250 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none",
+              isProjectsShown
+                ? "-mr-1 w-0 scale-75 opacity-0"
+                : "mr-0 w-8 scale-100 opacity-100 sm:w-7"
+            )}
+            inert={isProjectsShown}
+          >
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -109,7 +121,7 @@ export function ChatPane() {
                 Show the project list
               </TooltipContent>
             </Tooltip>
-          )}
+          </div>
           <PaneTitle>{titleOf(openedProject, activeSession)}</PaneTitle>
         </div>
         {isPreviewShown ? null : (

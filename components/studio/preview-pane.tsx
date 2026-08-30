@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { Preview } from "@/hooks/use-preview";
 import { exportLabel } from "@/lib/studio/export";
+import { fileManagerName } from "@/lib/studio/platform";
 import { ExportButton } from "./export-button";
 import { InspectOverlay } from "./inspect-overlay";
 import { Pane, PaneActions, PaneBody, PaneHeader, PaneTitle } from "./pane";
@@ -160,7 +161,7 @@ export function PreviewPane() {
               </span>
               <Button onClick={exporting.reveal} size="xs" variant="ghost">
                 <FolderOpenIcon data-icon="inline-start" />
-                Show in Finder
+                Show in {fileManagerName()}
               </Button>
             </div>
           )}
@@ -196,7 +197,7 @@ function Stage({
     return (
       <iframe
         allow="autoplay; fullscreen"
-        className="h-full w-full border-0"
+        className="h-full w-full animate-stage-in border-0"
         ref={stage}
         src={preview.url}
         title="Remotion preview"
