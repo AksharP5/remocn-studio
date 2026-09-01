@@ -103,15 +103,29 @@ you animate, so the check can see whether the camera ever moved.
 A component you write new must be tunable by someone who does not read code.
 Everything a person might want to change — texts, colors, durations, amplitudes
 — is a typed prop, with its default written inline where the prop is declared,
-never a constant buried in the body. Describe those props with a Zod schema
-exported next to the component (colors as \`zColor()\` from
-\`@remotion/zod-types\`); a custom effect describes its parameters with an
-\`InteractivitySchema\` from \`remotion\`, giving every parameter a type, a
-range, a default and a description. This is for components you create: do not
-rewrite an existing component around a schema unless the person asks for that.
-When the project's Remotion is too old to export what this needs, keep the same
-props-with-inline-defaults discipline and skip the part its version cannot
-express — never fail the turn over it.
+never a constant buried in the body. Keep top-level composition input props in a
+Zod schema (colors as \`zColor()\` from \`@remotion/zod-types\`). Every nested
+scene, element and transition wrapper you write declares an
+\`InteractivitySchema\` from \`remotion\`, exports through
+\`Interactive.withSchema()\`, accepts its generated \`controls\` prop, and
+passes it to its owning \`<Sequence controls={controls}>\` — always, not only
+when the person asks to tune something: a component that skips this cannot be
+selected in the preview at all, so its props are unreachable to everyone who
+does not read code. A custom effect
+describes its parameters with the same \`InteractivitySchema\`, giving every
+parameter a type, range, default and description. Every animated component you
+create exposes its easing the same way — always, not only when asked: a prop
+named \`easing\` (or ending in \`Easing\`), with an inline default, routed into
+the component's own \`interpolate()\` calls. It is **always a four-number
+cubic-bezier array**, declared as \`type: "array"\` with \`minLength\` and
+\`maxLength\` of 4 and a \`number\` item, defaulting inline to something like
+\`[0, 0, 0.58, 1]\`, and spread into \`Easing.bezier(...easing)\`. Never an enum
+of easing names: the studio draws that array as a timing curve whose handles
+are **dragged** to shape the motion, and an enum can hold one of its own names
+and nothing else, so it turns the curve into a picture you cannot edit. An
+easing left as a constant in the body cannot be tuned at all. This is for components you create: do not rewrite an existing component around a schema unless the person asks for that. When the project's Remotion is too old to export what this needs,
+keep the same props-with-inline-defaults discipline and skip the part its version
+cannot express — never fail the turn over it.
 
 A message may carry \`[Element #N]\` tokens. Each one is a thing the person
 pointed at in the running preview, and the block for it at the end of the
@@ -176,9 +190,19 @@ skill contradicts it, the lessons win.`;
 const INTERACTIVITY = `When you write or restructure Remotion markup, invoke the bundled
 \`${INTERACTIVITY_SKILL}\` skill and shape the markup the way it says: styles inline on
 the element with no spreads, constants or math; animations as inline \`interpolate()\`
-calls with hardcoded ranges and easing; \`scale\`, \`rotate\` and \`translate\` instead
-of \`transform\`; a descriptive \`name\` on interactive elements. Markup written that way
-is what the studio can make editable without you.`;
+calls with hardcoded input and output ranges; \`scale\`, \`rotate\` and \`translate\`
+instead of \`transform\`; a descriptive \`name\` on interactive elements.
+
+**The one place that skill is wrong for this studio is the easing**, and it says so
+plainly — "the output range, easing, extrapolation and \`output\` property should use
+hardcoded values". Follow it for everything on that list except the easing. It is
+written for Remotion Studio, which edits the call site in your source; this studio
+edits *props* at runtime, so an \`easing:\` written as a constant — \`Easing.out(...)\`,
+\`Easing.bezier(0.42, 0, 0.58, 1)\`, \`Easing.linear\` — is a curve the person can never
+touch. Every \`interpolate()\` you write takes its easing from the component's own
+\`easing\` prop instead, spread in as \`Easing.bezier(...easing)\`. Hardcoding it does
+not make the panel pick the curve up; it is the one thing that stops the panel picking
+it up.`;
 
 // The video is named rather than described, because "exactly one" is only
 // actionable once the turn knows which one. A row we could not read costs the

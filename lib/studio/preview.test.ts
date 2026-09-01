@@ -3,11 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   decodePreviewCommand,
   decodePreviewMessage,
-  freezeCommand,
   inspectCommand,
   originOf,
   seekCommand,
   snapshotCommand,
+  tuneResetCommand,
+  tuneSetCommand,
 } from "./preview";
 
 const picked = {
@@ -45,6 +46,7 @@ const selected = {
   },
   rect: { height: 0.2, width: 0.5, x: 0.25, y: 0.4 },
   source: "remocn-preview",
+  tuning: [],
   type: "selection",
 };
 
@@ -268,6 +270,22 @@ describe("decodePreviewMessage", () => {
       )
     ).toBe(true);
   });
+
+  it("accepts the acknowledgement for an interactive change", () => {
+    const decoded = decodePreviewMessage({
+      error: null,
+      ok: true,
+      requestId: "tune-1",
+      source: "remocn-preview",
+      type: "tune.result",
+    });
+
+    expect(
+      Exit.isSuccess(decoded) &&
+        decoded.value.type === "tune.result" &&
+        decoded.value.ok
+    ).toBe(true);
+  });
 });
 
 describe("decodePreviewCommand", () => {
@@ -295,10 +313,19 @@ describe("decodePreviewCommand", () => {
     expect(Exit.isSuccess(decoded) && decoded.value.type).toBe("snapshot");
   });
 
-  it("accepts freezing the frame while a card is open", () => {
-    expect(Exit.isSuccess(decodePreviewCommand(freezeCommand(true)))).toBe(
-      true
-    );
+  // Hover is never suppressed now, so nothing sends a freeze and the command
+  // is gone: with the pane beside the frame rather than over it, the highlight
+  // is what shows the next thing to pick.
+  it("no longer knows how to freeze the frame", () => {
+    expect(
+      Exit.isFailure(
+        decodePreviewCommand({
+          frozen: true,
+          source: "remocn-studio",
+          type: "freeze",
+        })
+      )
+    ).toBe(true);
   });
 
   it("accepts a seek back to the frame a selection was made on", () => {
@@ -309,6 +336,31 @@ describe("decodePreviewCommand", () => {
         decoded.value.type === "seek" &&
         decoded.value.frame
     ).toBe(42);
+  });
+
+  it("accepts a typed live tuning update", () => {
+    expect(
+      Exit.isSuccess(
+        decodePreviewCommand(
+          tuneSetCommand("tune-1", "target-1", "style.scale", 1.2)
+        )
+      )
+    ).toBe(true);
+  });
+
+  it("accepts resetting either one field or an entire target", () => {
+    expect(
+      Exit.isSuccess(
+        decodePreviewCommand(
+          tuneResetCommand("tune-1", "target-1", ["style.scale"])
+        )
+      )
+    ).toBe(true);
+    expect(
+      Exit.isSuccess(
+        decodePreviewCommand(tuneResetCommand("tune-2", "target-1", []))
+      )
+    ).toBe(true);
   });
 
   it("refuses a fractional frame", () => {
@@ -345,5 +397,71 @@ describe("originOf", () => {
 
   it("has no origin for something that is not a url", () => {
     expect(originOf("not a url")).toBeNull();
+  });
+});
+
+describe("the selection's Interactive chain", () => {
+  const target = {
+    componentName: "<Interactive.Div>",
+    fields: [
+      {
+        arrayItemType: null,
+        description: null,
+        group: "Layer",
+        label: "Opacity",
+        max: 1,
+        maxLength: null,
+        min: 0,
+        minLength: null,
+        newItemDefault: null,
+        options: [],
+        path: "style.opacity",
+        step: 0.01,
+        targetId: "div-1",
+        type: "number",
+        value: 1,
+      },
+    ],
+    targetId: "div-1",
+  };
+
+  it("decodes the chain the page posts, innermost first", () => {
+    const decoded = decodePreviewMessage({
+      ...selected,
+      tuning: [target, { ...target, componentName: "Title", targetId: "t-1" }],
+    });
+
+    expect(
+      Exit.isSuccess(decoded) &&
+        decoded.value.type === "selection" &&
+        decoded.value.tuning.map((each) => each.targetId)
+    ).toEqual(["div-1", "t-1"]);
+  });
+
+  // Every field says which target owns it, or an edit could not be routed.
+  it("refuses a field with no target of its own", () => {
+    const { targetId, ...orphan } = target.fields[0] as Record<string, unknown>;
+
+    expect(
+      Exit.isFailure(
+        decodePreviewMessage({
+          ...selected,
+          tuning: [{ ...target, fields: [orphan] }],
+        })
+      )
+    ).toBe(true);
+    expect(targetId).toBe("div-1");
+  });
+
+  it("reads a page that sent no chain at all as an empty one", () => {
+    const { tuning, ...withoutTuning } = selected;
+    const decoded = decodePreviewMessage(withoutTuning);
+
+    expect(
+      Exit.isSuccess(decoded) &&
+        decoded.value.type === "selection" &&
+        decoded.value.tuning
+    ).toEqual([]);
+    expect(tuning).toEqual([]);
   });
 });

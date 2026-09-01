@@ -1,4 +1,5 @@
 "use client";
+import dynamic from "next/dynamic";
 import { memo } from "react";
 import { useDefaultLayout } from "react-resizable-panels";
 import {
@@ -27,6 +28,12 @@ import { Titlebar } from "./titlebar";
 import { TourTip } from "./tour-tip";
 
 const SHELL_LAYOUT_ID = "shell";
+
+// DialKit and Motion are needed only after Inspect finds a tunable component.
+// Keep that control stack out of the editor's initial client bundle.
+const PropsPane = dynamic(() =>
+  import("./props-pane").then((module) => module.PropsPane)
+);
 
 export function AppShell() {
   usePlatformAttribute();
@@ -90,12 +97,16 @@ function ShellPanes({
   className?: string;
   isSliding: boolean;
 }) {
-  const { isPreviewShown } = useStudio();
+  const { isPreviewShown, tools } = useStudio();
   const collapse = usePreviewCollapse(isPreviewShown);
+  // The pane exists while there is something to tune in it. A rail that is
+  // usually empty is the thing a properties panel must not be.
+  const isPropsShown =
+    isPreviewShown && (tools.inspect.card?.tuning ?? null) !== null;
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: SHELL_LAYOUT_ID,
     onlySaveAfterUserInteractions: true,
-    panelIds: panelIdsOf(true),
+    panelIds: panelIdsOf(true, isPropsShown),
     storage: layoutStorage,
   });
 
@@ -140,6 +151,20 @@ function ShellPanes({
           </FrozenPane>
         ) : null}
       </ResizablePanel>
+
+      {isPropsShown ? (
+        <>
+          <ResizableHandle className="bg-pane-border" />
+          <ResizablePanel
+            defaultSize="340px"
+            id="props"
+            maxSize="560px"
+            minSize="280px"
+          >
+            <PropsPane />
+          </ResizablePanel>
+        </>
+      ) : null}
     </ResizablePanelGroup>
   );
 }

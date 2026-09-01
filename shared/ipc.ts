@@ -199,6 +199,22 @@ export const ElementScene = Schema.Struct({
   name: Schema.String,
 });
 
+export const TuningValue = Schema.Union([
+  Schema.Finite,
+  Schema.String,
+  Schema.Boolean,
+  Schema.Null,
+  Schema.Array(
+    Schema.Union([Schema.Finite, Schema.String, Schema.Boolean, Schema.Null])
+  ),
+]);
+
+export const TuningChange = Schema.Struct({
+  from: TuningValue,
+  path: Schema.NonEmptyString,
+  to: TuningValue,
+});
+
 export const PromptElement = Schema.Struct({
   column: Schema.NullOr(Schema.Int),
   component: Schema.NullOr(Schema.String),
@@ -210,6 +226,7 @@ export const PromptElement = Schema.Struct({
   line: Schema.NullOr(Schema.Int),
   scene: Schema.NullOr(ElementScene),
   stack: Schema.Array(Schema.String),
+  tuningChanges: Schema.optionalKey(Schema.Array(TuningChange)),
 });
 
 const elements = Schema.Array(PromptElement).pipe(
@@ -726,6 +743,8 @@ export type PromptAttachment = (typeof PromptAttachment)["Type"];
 export type PromptMedia = (typeof PromptMedia)["Type"];
 export type ElementScene = (typeof ElementScene)["Type"];
 export type PromptElement = (typeof PromptElement)["Type"];
+export type TuningChange = (typeof TuningChange)["Type"];
+export type TuningValue = (typeof TuningValue)["Type"];
 export type Project = (typeof Project)["Type"];
 export type ProjectRef = (typeof ProjectRef)["Type"];
 export type ProjectPath = (typeof ProjectPath)["Type"];

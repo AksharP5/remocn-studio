@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import type { Asset } from "@/shared/library";
 import type { PipelineStage } from "@/shared/pipeline";
-import { executeTool, type TurnTools } from "./execute";
+import { type DesignCalls, executeTool, type TurnTools } from "./execute";
 
 const CWD = "/videos/promo";
 
@@ -32,6 +32,7 @@ function tools(shape: Partial<TurnTools> = {}): TurnTools {
     cwd: CWD,
     design: {
       check: () => Promise.reject(new Error("no design check in this test")),
+      sources: () => Promise.resolve([]),
     },
     library: {
       list: () => Promise.resolve([]),
@@ -243,6 +244,7 @@ describe("executeTool", () => {
               width: 1920,
             });
           },
+          sources: () => Promise.resolve([]),
         },
       })
     );
@@ -291,6 +293,7 @@ describe("executeTool", () => {
               width: 1920,
             });
           },
+          sources: () => Promise.resolve([]),
         },
       })
     );
@@ -328,6 +331,7 @@ describe("executeTool", () => {
         asked.push(video);
         return Promise.resolve(report);
       },
+      sources: () => Promise.resolve([]),
     };
 
     await executeTool(
@@ -607,5 +611,85 @@ describe("executeTool", () => {
       isError: true,
       text: "session s-1 has no pipeline",
     });
+  });
+});
+
+// A rendered frame cannot answer whether the person will be able to edit the
+// motion, and instructions alone did not: the vendored interactivity skill
+// tells the agent to hardcode the easing, and it did. So the gate the
+// conventions already require reports it mechanically.
+describe("design_check reports untunable easings", () => {
+  const report = {
+    composition: "Main",
+    findings: [],
+    frames: [30, 90],
+    height: 1080,
+    snapshots: [],
+    summary: { errors: 0, info: 0, warnings: 0 },
+    width: 1920,
+  };
+
+  function design(
+    sources: readonly { path: string; source: string }[]
+  ): DesignCalls {
+    return {
+      check: () => Promise.resolve(report) as never,
+      sources: () => Promise.resolve(sources),
+    };
+  }
+
+  it("names the file and line of every curve nailed shut", async () => {
+    const answer = await executeTool(
+      "remocn-design",
+      "design_check",
+      { frames: [30, 90] },
+      tools({
+        design: design([
+          {
+            path: "CurveLanes.tsx",
+            source: "  easing: Easing.out(Easing.cubic),\n",
+          },
+        ]),
+      })
+    );
+
+    expect(answer.text).toContain("CurveLanes.tsx:1");
+    expect(answer.text).toContain("cannot be edited in the properties panel");
+    expect(answer.text).toContain("Easing.bezier(...easing)");
+  });
+
+  it("says nothing extra when every curve comes from a prop", async () => {
+    const answer = await executeTool(
+      "remocn-design",
+      "design_check",
+      { frames: [30, 90] },
+      tools({
+        design: design([
+          { path: "Title.tsx", source: "easing: Easing.bezier(...easing),\n" },
+        ]),
+      })
+    );
+
+    expect(answer.text).not.toContain("properties panel");
+    expect(JSON.parse(answer.text)).toMatchObject({ composition: "Main" });
+  });
+
+  // The check is a courtesy on top of the real one; a project it cannot read
+  // must not fail the design check the agent is waiting on.
+  it("still answers when the source cannot be read", async () => {
+    const answer = await executeTool(
+      "remocn-design",
+      "design_check",
+      { frames: [30, 90] },
+      tools({
+        design: {
+          check: () => Promise.resolve(report) as never,
+          sources: () => Promise.reject(new Error("gone")),
+        },
+      })
+    );
+
+    expect(answer.isError).toBe(false);
+    expect(JSON.parse(answer.text)).toMatchObject({ composition: "Main" });
   });
 });

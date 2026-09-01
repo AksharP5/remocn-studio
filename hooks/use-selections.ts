@@ -1,13 +1,20 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import type { PreviewRect } from "@/lib/studio/preview";
-import type { PromptElement } from "@/shared/ipc";
+import type { PreviewRect, TuningTarget } from "@/lib/studio/preview";
+import type { PromptElement, TuningValue } from "@/shared/ipc";
+
+export interface SelectionTuning {
+  originals: Readonly<Record<string, TuningValue>>;
+  target: TuningTarget;
+}
 
 export interface Selection {
   element: PromptElement;
   id: string;
   rect: PreviewRect;
+  stale: boolean;
+  tuning: SelectionTuning | null;
 }
 
 export interface Added {
@@ -16,9 +23,14 @@ export interface Added {
 }
 
 export interface Selections {
-  add: (element: PromptElement, rect: PreviewRect) => Added;
+  add: (
+    element: PromptElement,
+    rect: PreviewRect,
+    tuning?: SelectionTuning | null
+  ) => Added;
   clear: () => void;
   items: Selection[];
+  markStale: () => void;
   removeAt: (index: number) => void;
   restore: (elements: readonly PromptElement[]) => void;
 }
@@ -36,10 +48,14 @@ export function useSelections(): Selections {
   }, []);
 
   const add = useCallback(
-    (element: PromptElement, rect: PreviewRect): Added => {
+    (
+      element: PromptElement,
+      rect: PreviewRect,
+      tuning: SelectionTuning | null = null
+    ): Added => {
       minted.current += 1;
       const id = `selection-${minted.current}`;
-      commit([...held.current, { element, id, rect }]);
+      commit([...held.current, { element, id, rect, stale: false, tuning }]);
       return { id, index: held.current.length - 1 };
     },
     [commit]
@@ -54,6 +70,14 @@ export function useSelections(): Selections {
 
   const clear = useCallback(() => commit([]), [commit]);
 
+  const markStale = useCallback(() => {
+    commit(
+      held.current.map((item) =>
+        item.tuning === null ? item : { ...item, stale: true }
+      )
+    );
+  }, [commit]);
+
   const restore = useCallback(
     (elements: readonly PromptElement[]) => {
       commit(
@@ -63,6 +87,8 @@ export function useSelections(): Selections {
             element,
             id: `selection-${minted.current}`,
             rect: OFF_FRAME,
+            stale: false,
+            tuning: null,
           };
         })
       );
@@ -71,7 +97,7 @@ export function useSelections(): Selections {
   );
 
   return useMemo(
-    () => ({ add, clear, items, removeAt, restore }),
-    [add, clear, items, removeAt, restore]
+    () => ({ add, clear, items, markStale, removeAt, restore }),
+    [add, clear, items, markStale, removeAt, restore]
   );
 }

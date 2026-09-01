@@ -1,12 +1,14 @@
 import "@remotion/studio/renderEntry";
 import { Player, type PlayerRef } from "@remotion/player";
-import { useContext, useEffect, useRef } from "react";
+import { useContext, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { Internals } from "remotion";
-import { onCommand, post } from "./bridge";
+import { onCommand, type PreviewCommand, post } from "./bridge";
 import { connectHotReload } from "./hot";
-import { armInspect, freezeInspect, type Stage as Spot } from "./inspect";
+import { armInspect, highlightTarget, type Stage as Spot } from "./inspect";
+import { InteractivityRuntime } from "./interactivity";
 import { armSnapshot, type Frame } from "./snapshot";
+import { tune } from "./tuning-runtime";
 
 const MAIN_ID = "Main";
 
@@ -69,13 +71,34 @@ function Stage() {
     return null;
   }
 
+  return <InteractivePlayer metadata={picked.metadata} player={player} />;
+}
+
+function InteractivePlayer({
+  metadata,
+  player,
+}: {
+  readonly metadata: NonNullable<ReturnType<typeof measured>>;
+  readonly player: React.RefObject<PlayerRef | null>;
+}) {
   const { component, defaultProps, durationInFrames, fps, height, width } =
-    picked.metadata;
+    metadata;
+  const interactiveComponent = useMemo(() => {
+    const Composition = component;
+
+    return function InteractiveComposition(props: Record<string, unknown>) {
+      return (
+        <InteractivityRuntime>
+          <Composition {...props} />
+        </InteractivityRuntime>
+      );
+    };
+  }, [component]);
 
   return (
     <Player
       acknowledgeRemotionLicense
-      component={component}
+      component={interactiveComponent}
       compositionHeight={height}
       compositionWidth={width}
       controls
@@ -119,32 +142,23 @@ function usePreviewCommands(
   useEffect(
     () =>
       onCommand((command) => {
-        if (command.type === "inspect") {
-          if (command.armed) {
-            player.current?.pause();
-          }
-          post({
-            paused: player.current !== null,
-            status: armInspect(command.armed, spot.current),
-            type: "inspect",
-          });
+        if (inspectOrSnapshot(command, player, spot.current, frame.current)) {
           return;
         }
 
-        if (command.type === "snapshot") {
-          if (command.armed) {
-            player.current?.pause();
-          }
-          post({
-            paused: player.current !== null,
-            status: armSnapshot(command.armed, frame.current),
-            type: "snapshot",
-          });
+        if (command.type === "highlight") {
+          highlightTarget(command.targetId);
           return;
         }
 
-        if (command.type === "freeze") {
-          freezeInspect(command.frozen);
+        if (command.type === "tune.set" || command.type === "tune.reset") {
+          const result = tune(command);
+          post({
+            error: result.error,
+            ok: result.ok,
+            requestId: command.requestId,
+            type: "tune.result",
+          });
           return;
         }
 
@@ -153,6 +167,39 @@ function usePreviewCommands(
       }),
     [player]
   );
+}
+
+function inspectOrSnapshot(
+  command: PreviewCommand,
+  player: React.RefObject<PlayerRef | null>,
+  spot: Spot,
+  frame: Frame
+): boolean {
+  if (command.type === "inspect") {
+    if (command.armed) {
+      player.current?.pause();
+    }
+    post({
+      paused: player.current !== null,
+      status: armInspect(command.armed, spot),
+      type: "inspect",
+    });
+    return true;
+  }
+
+  if (command.type === "snapshot") {
+    if (command.armed) {
+      player.current?.pause();
+    }
+    post({
+      paused: player.current !== null,
+      status: armSnapshot(command.armed, frame),
+      type: "snapshot",
+    });
+    return true;
+  }
+
+  return false;
 }
 
 // Two different signals, deliberately not merged. `asked` is the video the pane

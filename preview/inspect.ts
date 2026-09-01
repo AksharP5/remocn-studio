@@ -1,4 +1,5 @@
 import { post } from "./bridge";
+import { displayName, fiberOf, nearestInFibers } from "./fiber";
 import { covers, OVERLAY_ATTR, pickAt } from "./picker";
 import {
   absolutise,
@@ -8,11 +9,12 @@ import {
   type StackFrame,
   truncateMarkup,
 } from "./source";
+import { controlsAt, controlsChain } from "./tuning";
+import { targetsOf } from "./tuning-runtime";
 
 const CANVAS = ".__remotion-player";
 const MARKUP_LIMIT = 4000;
 const PARENTS = 3;
-const FIBER_KEY = "__reactFiber$";
 // Hand-copied from --reference's dark value in app/globals.css — this file is
 // compiled by the project's webpack and cannot import the app's theme.
 export const ACCENT = "oklch(0.715 0.143 215.221)";
@@ -33,6 +35,11 @@ const WRAPPERS = new Set([
   "TransitionSeries",
 ]);
 
+// Remotion's own plumbing, by the shape of its names: the three
+// `*SequenceRefForwardingFunction`s every `<Sequence>` renders through, and
+// the higher-order component `Interactive.withSchema` wraps a component in.
+const INTERNAL = /RefForwardingFunction$|^withInteractivitySchema\(/;
+
 interface GrabSource {
   columnNumber: number | null;
   componentName: string | null;
@@ -49,12 +56,6 @@ interface GrabApi {
 interface GrabModule {
   getStack: (element: Element) => Promise<StackFrame[] | null>;
   init: (options: Record<string, unknown>) => GrabApi;
-}
-
-interface Fiber {
-  memoizedProps: Record<string, unknown> | null;
-  return: Fiber | null;
-  type: unknown;
 }
 
 export type InspectStatus = "armed" | "disarmed" | "no-canvas" | "no-grab";
@@ -82,10 +83,14 @@ interface Session {
 let api: GrabApi | null = null;
 let session: Session | null = null;
 let hovered: Element | null = null;
-let frozen = false;
 let exact = false;
 let point: { x: number; y: number } | null = null;
 let painting = 0;
+// Where each `Interactive` of the last selection sits, so switching in the
+// pane can point back at it. Captured at pick time, which is the only moment
+// the whole chain is known.
+let chain = new Map<string, Element>();
+let pinned: Element | null = null;
 
 export function canvas(): HTMLElement | null {
   return document.querySelector<HTMLElement>(CANVAS);
@@ -109,13 +114,17 @@ export function armInspect(armed: boolean, stage: Stage): InspectStatus {
   return grab() === null ? "no-grab" : "armed";
 }
 
-export function freezeInspect(next: boolean): void {
-  frozen = next;
-
-  if (frozen) {
-    hovered = null;
-    paint();
-  }
+/**
+ * Draw the box on one `Interactive` of the current selection, or clear it.
+ *
+ * The pane shows one link of the chain at a time, and nothing on screen said
+ * which — `<Series>` and `CameraRig` are names, not places. This paints inside
+ * the preview document, next to the hover box and for the same reason: it
+ * shares a document with the pixels, so it cannot drift from them.
+ */
+export function highlightTarget(targetId: string | null): void {
+  pinned = targetId === null ? null : (chain.get(targetId) ?? null);
+  paint();
 }
 
 function grab(): GrabApi | null {
@@ -153,8 +162,17 @@ function grab(): GrabApi | null {
   return api;
 }
 
+function forceHitTesting(): HTMLStyleElement {
+  const style = document.createElement("style");
+  style.setAttribute(OVERLAY_ATTR, "");
+  style.textContent = `${CANVAS}, ${CANVAS} * { pointer-events: auto !important; }`;
+  document.head.append(style);
+  return style;
+}
+
 function start(container: HTMLElement, stage: Stage): Session {
   const { box, label } = overlay();
+  const hitTesting = forceHitTesting();
 
   const onMove = (event: PointerEvent) => {
     point = { x: event.clientX, y: event.clientY };
@@ -176,7 +194,7 @@ function start(container: HTMLElement, stage: Stage): Session {
   };
 
   const onDown = (event: PointerEvent) => {
-    if (frozen || !covers(container, event.clientX, event.clientY)) {
+    if (!covers(container, event.clientX, event.clientY)) {
       return;
     }
 
@@ -191,8 +209,10 @@ function start(container: HTMLElement, stage: Stage): Session {
     }
   };
 
+  // A click that picks must never also reach Remotion's `clickToPlay`
+  // underneath it.
   const swallow = (event: MouseEvent) => {
-    if (!frozen && covers(container, event.clientX, event.clientY)) {
+    if (covers(container, event.clientX, event.clientY)) {
       event.preventDefault();
       event.stopPropagation();
     }
@@ -220,6 +240,7 @@ function start(container: HTMLElement, stage: Stage): Session {
       container.removeEventListener("pointerleave", onLeave);
       box.remove();
       label.remove();
+      hitTesting.remove();
     },
   };
 }
@@ -228,9 +249,10 @@ function close(): void {
   session?.stop();
   session = null;
   hovered = null;
+  pinned = null;
+  chain = new Map();
   point = null;
   exact = false;
-  frozen = false;
 }
 
 function schedule(container: HTMLElement): void {
@@ -241,7 +263,7 @@ function schedule(container: HTMLElement): void {
   painting = requestAnimationFrame(() => {
     painting = 0;
 
-    if (session === null || frozen || point === null) {
+    if (session === null || point === null) {
       return;
     }
 
@@ -289,14 +311,15 @@ function paint(): void {
   }
 
   const { box, label } = session;
+  const showing = hovered ?? pinned;
 
-  if (hovered === null) {
+  if (showing === null) {
     box.style.display = "none";
     label.style.display = "none";
     return;
   }
 
-  const rect = hovered.getBoundingClientRect();
+  const rect = showing.getBoundingClientRect();
 
   box.style.display = "block";
   box.style.left = `${rect.left}px`;
@@ -304,7 +327,7 @@ function paint(): void {
   box.style.width = `${rect.width}px`;
   box.style.height = `${rect.height}px`;
 
-  label.textContent = nameOf(hovered);
+  label.textContent = nameOf(showing);
   label.style.display = "block";
   label.style.left = `${Math.max(0, rect.left)}px`;
   label.style.top =
@@ -313,9 +336,32 @@ function paint(): void {
 
 function nameOf(element: Element): string {
   const tag = element.tagName.toLowerCase();
-  const component = api?.getDisplayName(element) ?? null;
+  const component =
+    componentAt(element) ?? api?.getDisplayName(element) ?? null;
 
   return component === null ? tag : `${component}.${tag}`;
+}
+
+/**
+ * The name of the thing you are pointing at, which is the component you could
+ * tune — not the machinery around it. Grab's own display name answers with
+ * whatever fiber is nearest, and inside a Remotion tree that is routinely
+ * `RegularSequenceRefForwardingFunction`: true, and useless to read.
+ */
+export function componentAt(element: Element): string | null {
+  const controls = controlsAt(element);
+
+  if (controls !== null) {
+    return controls.componentName;
+  }
+
+  return nearestInFibers(element, (fiber) => {
+    const name = displayName(fiber);
+
+    return name !== null && !WRAPPERS.has(name) && !INTERNAL.test(name)
+      ? name
+      : null;
+  });
 }
 
 async function report(element: Element, stage: Stage): Promise<void> {
@@ -327,6 +373,13 @@ async function report(element: Element, stage: Stage): Promise<void> {
     found === null ? null : found.getSource(element).catch(nothing),
     module === null ? null : module.getStack(element).catch(nothing),
   ]);
+
+  chain = new Map(
+    controlsChain(element).flatMap((link) =>
+      link.node === null ? [] : [[link.controls.overrideId, link.node]]
+    )
+  );
+  pinned = null;
 
   const stack = projectFrames(root, frames);
   const target = resolved(root, spot) ?? stack.at(0) ?? null;
@@ -346,6 +399,7 @@ async function report(element: Element, stage: Stage): Promise<void> {
       stack: parentsOf(stack, target).map(formatFrame),
     },
     rect: normalise(element.getBoundingClientRect()),
+    tuning: targetsOf(element),
     type: "selection",
   });
 }
@@ -434,29 +488,6 @@ function sequenceTiming(
 function labelOf(props: Record<string, unknown> | null): string | null {
   const name = props?.name;
   return typeof name === "string" && name.length > 0 ? name : null;
-}
-
-function displayName(fiber: Fiber): string | null {
-  const type = fiber.type as
-    | { displayName?: string; name?: string }
-    | string
-    | null;
-
-  if (type === null || typeof type === "string") {
-    return null;
-  }
-
-  const name = type.displayName ?? type.name;
-
-  return typeof name === "string" && name.length > 0 ? name : null;
-}
-
-function fiberOf(node: Element): Fiber | null {
-  const key = Object.keys(node).find((own) => own.startsWith(FIBER_KEY));
-
-  return key === undefined
-    ? null
-    : ((node as unknown as Record<string, Fiber>)[key] ?? null);
 }
 
 function grabModule(): GrabModule | null {

@@ -51,6 +51,63 @@ export const SnapshotStatus = Schema.Literals([
 
 const from = Schema.Literal(PREVIEW_MESSAGE_SOURCE);
 
+export const TuningValue = Schema.Union([
+  Schema.Finite,
+  Schema.String,
+  Schema.Boolean,
+  Schema.Null,
+  Schema.Array(
+    Schema.Union([Schema.Finite, Schema.String, Schema.Boolean, Schema.Null])
+  ),
+]);
+
+export const TuningFieldType = Schema.Literals([
+  "array",
+  "boolean",
+  "color",
+  "enum",
+  "number",
+  "rotation-css",
+  "rotation-degrees",
+  "scale",
+  "transform-origin",
+  "translate",
+  "uv-coordinate",
+]);
+
+export const TuningField = Schema.Struct({
+  arrayItemType: Schema.NullOr(TuningFieldType),
+  description: Schema.NullOr(Schema.String),
+  group: Schema.String,
+  label: Schema.String,
+  max: Schema.NullOr(Schema.Finite),
+  maxLength: Schema.NullOr(Schema.Int),
+  min: Schema.NullOr(Schema.Finite),
+  minLength: Schema.NullOr(Schema.Int),
+  newItemDefault: Schema.NullOr(TuningValue),
+  options: Schema.Array(Schema.String),
+  path: Schema.NonEmptyString,
+  step: Schema.NullOr(Schema.Finite),
+  // A merged list is edited through as many targets as it was built from, so
+  // the field says which `Interactive` in the chain owns it.
+  targetId: Schema.NonEmptyString,
+  type: TuningFieldType,
+  value: TuningValue,
+});
+
+export const TuningTarget = Schema.Struct({
+  componentName: Schema.NonEmptyString,
+  fields: Schema.Array(TuningField),
+  targetId: Schema.NonEmptyString,
+});
+
+// The chain of `Interactive`s around the picked element, innermost first. A
+// page from an older build sends nothing, and an empty chain is the same thing
+// as the element having none.
+const tuning = Schema.Array(TuningTarget).pipe(
+  Schema.withDecodingDefault(Effect.succeed([]))
+);
+
 export const PreviewMessage = Schema.Union([
   Schema.Struct({
     compositionId: Schema.NullOr(Schema.String),
@@ -65,6 +122,7 @@ export const PreviewMessage = Schema.Union([
     element: PromptElement,
     rect: PreviewRect,
     source: from,
+    tuning,
     type: Schema.Literal("selection"),
   }),
   Schema.Struct({
@@ -90,6 +148,13 @@ export const PreviewMessage = Schema.Union([
     source: from,
     type: Schema.Literal("rebuilt"),
   }),
+  Schema.Struct({
+    error: Schema.NullOr(Schema.String),
+    ok: Schema.Boolean,
+    requestId: Schema.NonEmptyString,
+    source: from,
+    type: Schema.Literal("tune.result"),
+  }),
 ]);
 
 const to = Schema.Literal(PREVIEW_COMMAND_SOURCE);
@@ -106,14 +171,29 @@ export const PreviewCommand = Schema.Union([
     type: Schema.Literal("snapshot"),
   }),
   Schema.Struct({
-    frozen: Schema.Boolean,
-    source: to,
-    type: Schema.Literal("freeze"),
-  }),
-  Schema.Struct({
     frame: Schema.Int,
     source: to,
     type: Schema.Literal("seek"),
+  }),
+  Schema.Struct({
+    source: to,
+    targetId: Schema.NullOr(Schema.NonEmptyString),
+    type: Schema.Literal("highlight"),
+  }),
+  Schema.Struct({
+    path: Schema.NonEmptyString,
+    requestId: Schema.NonEmptyString,
+    source: to,
+    targetId: Schema.NonEmptyString,
+    type: Schema.Literal("tune.set"),
+    value: TuningValue,
+  }),
+  Schema.Struct({
+    paths: Schema.Array(Schema.NonEmptyString),
+    requestId: Schema.NonEmptyString,
+    source: to,
+    targetId: Schema.NonEmptyString,
+    type: Schema.Literal("tune.reset"),
   }),
 ]);
 
@@ -124,12 +204,19 @@ export type PreviewMessage = (typeof PreviewMessage)["Type"];
 export type PreviewInspect = Extract<PreviewMessage, { type: "inspect" }>;
 export type PreviewSnapshot = Extract<PreviewMessage, { type: "snapshot" }>;
 export type PreviewCapture = Extract<PreviewMessage, { type: "capture" }>;
+export type PreviewTuneResult = Extract<
+  PreviewMessage,
+  { type: "tune.result" }
+>;
 export type PreviewCommand = (typeof PreviewCommand)["Type"];
 export type PreviewComposition = Extract<
   PreviewMessage,
   { type: "composition" }
 >;
 export type PreviewSelection = Extract<PreviewMessage, { type: "selection" }>;
+export type TuningField = (typeof TuningField)["Type"];
+export type TuningTarget = (typeof TuningTarget)["Type"];
+export type TuningValue = (typeof TuningValue)["Type"];
 
 export const decodePreviewMessage = Schema.decodeUnknownExit(PreviewMessage);
 export const decodePreviewCommand = Schema.decodeUnknownExit(PreviewCommand);
@@ -142,12 +229,43 @@ export function snapshotCommand(armed: boolean): PreviewCommand {
   return { armed, source: PREVIEW_COMMAND_SOURCE, type: "snapshot" };
 }
 
-export function freezeCommand(frozen: boolean): PreviewCommand {
-  return { frozen, source: PREVIEW_COMMAND_SOURCE, type: "freeze" };
+/** Point at one `Interactive` of the open selection, or at none. */
+export function highlightCommand(targetId: string | null): PreviewCommand {
+  return { source: PREVIEW_COMMAND_SOURCE, targetId, type: "highlight" };
 }
 
 export function seekCommand(frame: number): PreviewCommand {
   return { frame, source: PREVIEW_COMMAND_SOURCE, type: "seek" };
+}
+
+export function tuneSetCommand(
+  requestId: string,
+  targetId: string,
+  path: string,
+  value: TuningValue
+): PreviewCommand {
+  return {
+    path,
+    requestId,
+    source: PREVIEW_COMMAND_SOURCE,
+    targetId,
+    type: "tune.set",
+    value,
+  };
+}
+
+export function tuneResetCommand(
+  requestId: string,
+  targetId: string,
+  paths: readonly string[]
+): PreviewCommand {
+  return {
+    paths: [...paths],
+    requestId,
+    source: PREVIEW_COMMAND_SOURCE,
+    targetId,
+    type: "tune.reset",
+  };
 }
 
 export function originOf(url: string): string | null {

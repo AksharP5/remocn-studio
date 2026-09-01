@@ -29,6 +29,7 @@ import {
   TOOL_SPECS,
   type ToolServer,
 } from "./specs";
+import { easingFindings, easingReport } from "./tunability";
 
 export interface LibraryCalls {
   readonly list: () => Promise<readonly Asset[]>;
@@ -69,6 +70,11 @@ export interface DesignCalls {
     readonly motion: readonly MotionAssertion[];
     readonly video: VideoCheck | null;
   }) => Promise<DesignResult>;
+  // The video's own source, so the check can answer what a rendered frame
+  // never can: whether the person will be able to edit this motion.
+  readonly sources: () => Promise<
+    readonly { readonly path: string; readonly source: string }[]
+  >;
 }
 
 export interface TurnTools {
@@ -157,15 +163,22 @@ async function designCheck(
   const declared = args.video as
     | { camera?: string | null; scenes: VideoCheck["scenes"] }
     | undefined;
-  const result = await design.check({
-    frames: args.frames as number[],
-    motion: (args.motion as MotionAssertion[] | undefined) ?? [],
-    video:
-      declared === undefined
-        ? null
-        : { camera: declared.camera ?? null, scenes: declared.scenes },
-  });
-  return JSON.stringify(result, null, 2);
+  const [result, sources] = await Promise.all([
+    design.check({
+      frames: args.frames as number[],
+      motion: (args.motion as MotionAssertion[] | undefined) ?? [],
+      video:
+        declared === undefined
+          ? null
+          : { camera: declared.camera ?? null, scenes: declared.scenes },
+    }),
+    design.sources().catch(() => []),
+  ]);
+
+  const tunability = easingReport(easingFindings(sources));
+  const report = JSON.stringify(result, null, 2);
+
+  return tunability === null ? report : `${report}\n\n${tunability}`;
 }
 
 async function listAssets(library: LibraryCalls): Promise<string> {

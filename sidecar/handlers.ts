@@ -1,5 +1,5 @@
-import { mkdir, readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readdir, readFile } from "node:fs/promises";
+import { join, relative } from "node:path";
 import { Clock, Effect, Stream } from "effect";
 import { errorMessage } from "@/lib/error-message";
 import {
@@ -283,6 +283,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
                     video: sceneMap,
                   })
                 ),
+              sources: () => videoSources(project.path, video),
             },
             library: librarian(params),
             moodboard: {
@@ -749,6 +750,46 @@ function videoFolders(path: string): Effect.Effect<readonly string[]> {
       return [];
     }
   });
+}
+
+const SOURCE_FILE = /\.(tsx|ts|jsx|js)$/;
+
+// The turn's own video, and only it: the tunability check must never report on
+// a folder somebody else's chat is working in. A video the turn could not name
+// yields nothing rather than the whole project.
+async function videoSources(
+  path: string,
+  slug: string | null
+): Promise<readonly { path: string; source: string }[]> {
+  if (slug === null) {
+    return [];
+  }
+
+  const root = join(remotionRootOf(path), "src", VIDEOS_DIR, slug);
+
+  try {
+    const entries = await readdir(root, {
+      recursive: true,
+      withFileTypes: true,
+    });
+
+    const files = entries.filter(
+      (entry) => entry.isFile() && SOURCE_FILE.test(entry.name)
+    );
+
+    return await Promise.all(
+      files.map(async (entry) => {
+        const file = join(entry.parentPath, entry.name);
+
+        return {
+          path: relative(root, file),
+          source: await readFile(file, "utf8"),
+        };
+      })
+    );
+  } catch {
+    return [];
+  }
 }
 
 function clamp(value: number, low: number, high: number): number {

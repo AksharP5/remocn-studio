@@ -113,6 +113,33 @@ describe("conventionsFor", () => {
       expect(text).toContain("unless the person asks");
     }
   });
+
+  // The interpolation editor only ever renders what a schema declares, so the
+  // mandate is what makes the easing pane exist at all in agent-written code.
+  // A component that never reaches `Interactive.withSchema` carries no
+  // `controls`, and the preview has nothing to select — which is the other half
+  // of "the properties panel does not open".
+  it("makes the interactivity schema unconditional, not a thing to ask for", () => {
+    for (const text of [conventionsFor(true), conventionsFor(false)]) {
+      const compact = text.replaceAll("\n", " ");
+
+      expect(compact).toContain("Every nested scene, element and transition");
+      expect(compact).toContain("cannot be selected in the preview at all");
+    }
+  });
+
+  it("makes a tunable easing part of every animated component", () => {
+    for (const text of [conventionsFor(true), conventionsFor(false)]) {
+      const compact = text.replaceAll("\n", " ");
+
+      expect(compact).toContain("exposes its easing");
+      expect(compact).toContain("always, not only when asked");
+      expect(compact).toContain("ending in `Easing`");
+      expect(compact).toContain("always a four-number cubic-bezier array");
+      expect(compact).toContain("Never an enum of easing names");
+      expect(compact).toContain("Easing.bezier(...easing)");
+    }
+  });
 });
 
 describe("the movement taxonomy", () => {
