@@ -209,6 +209,7 @@ async function saveAsset(
   );
 
   const saved = await tools.library.save({
+    audiomap: null,
     dependencies: named.dependencies ?? [],
     description: named.description ?? "",
     duration: null,

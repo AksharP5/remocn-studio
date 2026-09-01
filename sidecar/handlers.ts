@@ -412,7 +412,12 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
     ),
 
   "library.preview": ({ params }) =>
-    attachPreview(params.slug, params.path).pipe(Effect.mapError(unlibraried)),
+    attachPreview(
+      params.slug,
+      params.path,
+      params.duration,
+      params.audiomap
+    ).pipe(Effect.mapError(unlibraried)),
 
   "library.proxy": ({ params }) =>
     attachProxy(params.slug, params.path).pipe(Effect.mapError(unlibraried)),

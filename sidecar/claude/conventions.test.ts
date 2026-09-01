@@ -163,6 +163,8 @@ describe("the movement taxonomy", () => {
 
   it("says which props a role expects and that an exit mirrors its entry", () => {
     expect(STUDIO_CONVENTIONS).toContain("durationInFrames, delay, stagger");
+    expect(STUDIO_CONVENTIONS).toContain("beat_cut");
+    expect(STUDIO_CONVENTIONS).toContain("phrase_flow");
     expect(STUDIO_CONVENTIONS).toContain("intensity, repeat, delay");
     expect(STUDIO_CONVENTIONS).toContain("exit mirrors the entry");
   });

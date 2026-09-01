@@ -26,6 +26,7 @@ import {
   sourceFor,
 } from "@/lib/studio/proxy";
 import { stillFor, ThumbnailError } from "@/lib/studio/thumbnail";
+import type { Audiomap } from "@/shared/audiomap";
 import type { PromptMedia } from "@/shared/ipc";
 import {
   type Asset,
@@ -60,11 +61,12 @@ interface Held {
 }
 
 interface Taken {
+  audiomap: Audiomap | null;
   duration: number | null;
   path: string;
 }
 
-const NOTHING: Taken = { duration: null, path: "" };
+const NOTHING: Taken = { audiomap: null, duration: null, path: "" };
 
 // The still is taken here, before the asset exists, so the sidecar has a picture
 // to file next to it. It is decoration: media that will not decode still goes
@@ -91,7 +93,11 @@ function takenStill(
                       message: `${name}'s still was not written.`,
                     })
                   )
-                : Effect.succeed({ duration: still.duration, path: written });
+                : Effect.succeed({
+                    audiomap: still.audiomap,
+                    duration: still.duration,
+                    path: written,
+                  });
             })
           )
         )
@@ -122,7 +128,8 @@ function useBackfilledThumbnails(
   useEffect(() => {
     const pending = assets.filter(
       (asset) =>
-        asset.preview === null &&
+        (asset.preview === null ||
+          (asset.type === "audio" && asset.audiomap === null)) &&
         stillFileOf(asset) !== null &&
         !attempted.current.has(asset.slug)
     );
@@ -144,7 +151,12 @@ function useBackfilledThumbnails(
               takenStill(asset.type, stillFileOf(asset) ?? "", asset.name)
             ),
             Effect.flatMap((taken) =>
-              previewAsset(asset.slug, taken.path, taken.duration)
+              previewAsset(
+                asset.slug,
+                taken.path,
+                taken.duration,
+                taken.audiomap
+              )
             ),
             Effect.tap((saved) => Effect.sync(() => held.current(saved))),
             Effect.ignore

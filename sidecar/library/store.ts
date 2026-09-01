@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { Clock, Data, Effect, Exit, Schema } from "effect";
 import { errorMessage } from "@/lib/error-message";
+import type { Audiomap } from "@/shared/audiomap";
 import { DATA_DIR_ENV, LIBRARY_DIR_ENV } from "@/shared/ipc";
 import {
   type Asset,
@@ -137,7 +138,8 @@ export function removeAsset(
 export function attachPreview(
   slug: string,
   from: string,
-  duration: number | null = null
+  duration: number | null = null,
+  audiomap: Audiomap | null = null
 ): Effect.Effect<Asset, LibraryError> {
   return attempt(async () => {
     const dir = join(libraryRoot(), ASSETS);
@@ -152,6 +154,7 @@ export function attachPreview(
       join(dir, slug, MANIFEST),
       stringify({
         ...manifest,
+        audiomap: audiomap ?? manifest.audiomap,
         duration: duration ?? manifest.duration,
         preview: PREVIEW,
       }),
@@ -312,6 +315,7 @@ async function write(draft: AssetDraft, now: number): Promise<Asset> {
   const preview = await copiedPreview(draft.preview, target);
 
   const manifest: AssetManifest = {
+    audiomap: draft.audiomap,
     createdAt: now,
     dependencies: draft.dependencies,
     description: draft.description,
@@ -387,6 +391,7 @@ function assetOf(dir: string, slug: string, manifest: AssetManifest): Asset {
   const clip = join(path, CLIP);
 
   return {
+    audiomap: manifest.audiomap,
     category: null,
     clip: existsSync(clip) ? clip : null,
     createdAt: manifest.createdAt,

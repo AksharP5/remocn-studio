@@ -160,6 +160,7 @@ export function saveMoodboard(
       }
 
       const asset = yield* saveAsset({
+        audiomap: null,
         dependencies: [],
         description:
           spec.keywords.length > 0

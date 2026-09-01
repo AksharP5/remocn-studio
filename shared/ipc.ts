@@ -1,4 +1,5 @@
 import { Effect, type Exit, Schema, type SchemaError } from "effect";
+import { Audiomap } from "./audiomap";
 import {
   Asset,
   AssetDraft,
@@ -187,6 +188,7 @@ export const PromptAttachment = Schema.Struct({
 });
 
 export const PromptMedia = Schema.Struct({
+  audiomap: Schema.optionalKey(Schema.NullOr(Audiomap)),
   mediaType: MediaType,
   name: Schema.NonEmptyString,
   path: Schema.NonEmptyString,
@@ -346,6 +348,9 @@ export const AssetName = Schema.Struct({
 export const AssetRemoved = Schema.Struct({ removed: Schema.Boolean });
 
 export const AssetPreview = Schema.Struct({
+  audiomap: Schema.NullOr(Audiomap).pipe(
+    Schema.withDecodingDefault(Effect.succeed(null))
+  ),
   duration: Schema.NullOr(Schema.Finite).pipe(
     Schema.withDecodingDefault(Effect.succeed(null))
   ),

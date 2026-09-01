@@ -361,6 +361,7 @@ export function saveStock(
       );
 
       return yield* saveAsset({
+        audiomap: null,
         dependencies: [],
         description: attributionOf(item),
         duration: item.duration,
