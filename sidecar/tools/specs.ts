@@ -56,7 +56,7 @@ export const TOOL_SPECS: Record<ToolServer, readonly ToolSpec[]> = {
   [DESIGN_SERVER]: [
     {
       description:
-        "Mechanically review 2–9 key frames of Main before calling a scene finished. It renders temporary snapshots and reports measurable WCAG contrast, clipped/occluded/out-of-frame text, and a timeline that did not visibly advance. Pass the movements video/motion.md promises as motion assertions so the check verifies the declared motion instead of guessing; a selector that matches nothing or several elements is its own finding, never a silent pass. In the choreography stage add `video` with the whole scene map: that runs a second, cheap pass over the composition end to end and answers what no single frame can — whether the scene durations carry a rhythm, whether anything lives across each cut, how long the frame stood completely still, and whether the camera ever moved. Fix every finding or explain why it is intentional; inspect the returned snapshot paths for design judgement the checks cannot make.",
+        "Mechanically review 2–9 key frames of this chat's video before calling a scene finished. It renders temporary snapshots and reports measurable WCAG contrast, clipped/occluded/out-of-frame text, and a timeline that did not visibly advance. Pass the movements video/motion.md promises as motion assertions so the check verifies the declared motion instead of guessing; a selector that matches nothing or several elements is its own finding, never a silent pass. In the choreography stage add `video` with the whole scene map: that runs a second, cheap pass over the composition end to end and answers what no single frame can — whether the scene durations carry a rhythm, whether anything lives across each cut, how long the frame stood completely still, and whether the camera ever moved. Fix every finding or explain why it is intentional; inspect the returned snapshot paths for design judgement the checks cannot make.",
       name: DESIGN_CHECK,
       shape: {
         frames: z
@@ -67,7 +67,7 @@ export const TOOL_SPECS: Record<ToolServer, readonly ToolSpec[]> = {
             message: "frames must be distinct",
           })
           .describe(
-            "Two to nine distinct key frames from Main, normally the settled hero moments and one motion-separated pair."
+            "Two to nine distinct key frames from this chat's video, normally the settled hero moments and one motion-separated pair."
           ),
         motion: z
           .array(
