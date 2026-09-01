@@ -56,6 +56,11 @@ const MODES = SESSION_MODES.map((mode) => ({
   value: mode,
 }));
 
+const COLLAPSE = {
+  early: "@max-md/composer:hidden",
+  late: "@max-[23rem]/composer:hidden",
+} as const;
+
 const EFFORTS = [
   { label: "Default", value: DEFAULT },
   { label: "Low", value: "low" },
@@ -216,101 +221,107 @@ function ComposerBlock({
           </div>
 
           <InputGroupAddon align="block-end">
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    aria-label="Add to this message"
-                    className="relative after:absolute after:-inset-1"
-                    disabled={isLocked}
-                    size="icon-sm"
-                    variant="ghost"
-                  />
-                }
-              >
-                <PlusIcon />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-auto min-w-56">
-                <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={composer.add}>
-                    <ImagePlusIcon />
-                    Add image
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={composer.addMedia}>
-                    <FilmIcon />
-                    Add video or audio
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onSaveScene}>
-                    <LibraryBigIcon />
-                    Save the last animation to the library
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <div className="ml-auto flex items-center gap-1">
-              {context === null ? null : <ContextMeter usage={context} />}
-
-              {capabilities.modes ? (
-                <MenuChip
-                  icon={ShieldIcon}
-                  items={MODES}
-                  label={labelOf(MODES, mode)}
-                  onChange={onModeChange}
-                  title="Mode"
-                  value={mode}
-                />
-              ) : null}
-
-              <ModelMenu
-                accounts={accounts.rows}
-                canPickProvider={canPickProvider}
-                models={models}
-                onPick={pickModel}
-                provider={provider}
-              />
-
-              {capabilities.effort ? (
-                <MenuChip
-                  icon={SettingsIcon}
-                  items={EFFORTS}
-                  label={labelOf(EFFORTS, claudeEffort)}
-                  onChange={onEffortChange}
-                  title="Effort"
-                  value={claudeEffort}
-                />
-              ) : null}
-
-              {isRunning ? (
-                <>
-                  {composer.canSubmit ? (
+            <div className="@container/composer flex w-full min-w-0 items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
                     <Button
-                      className="gap-1"
-                      disabled={cannotSend}
-                      onClick={composer.submit}
-                      size="sm"
-                      variant="outline"
-                    >
-                      <ListPlusIcon />
-                      Queue
-                    </Button>
-                  ) : null}
-                  <Button onClick={onStop} size="icon-sm" variant="outline">
-                    <SquareIcon />
-                    <span className="sr-only">Stop</span>
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  disabled={cannotSend || !composer.canSubmit}
-                  onClick={composer.submit}
-                  size="icon-sm"
-                  variant="default"
+                      aria-label="Add to this message"
+                      className="relative after:absolute after:-inset-1"
+                      disabled={isLocked}
+                      size="icon-sm"
+                      variant="ghost"
+                    />
+                  }
                 >
-                  <ArrowUpIcon />
-                  <span className="sr-only">Send</span>
-                </Button>
-              )}
+                  <PlusIcon />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-auto min-w-56">
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onClick={composer.add}>
+                      <ImagePlusIcon />
+                      Add image
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={composer.addMedia}>
+                      <FilmIcon />
+                      Add video or audio
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onSaveScene}>
+                      <LibraryBigIcon />
+                      Save the last animation to the library
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <div className="ml-auto flex min-w-0 items-center gap-1">
+                {context === null ? null : <ContextMeter usage={context} />}
+
+                {capabilities.modes ? (
+                  <MenuChip
+                    collapse="late"
+                    icon={ShieldIcon}
+                    items={MODES}
+                    label={labelOf(MODES, mode)}
+                    onChange={onModeChange}
+                    title="Mode"
+                    value={mode}
+                  />
+                ) : null}
+
+                <ModelMenu
+                  accounts={accounts.rows}
+                  canPickProvider={canPickProvider}
+                  models={models}
+                  onPick={pickModel}
+                  provider={provider}
+                />
+
+                {capabilities.effort ? (
+                  <MenuChip
+                    collapse="early"
+                    icon={SettingsIcon}
+                    items={EFFORTS}
+                    label={labelOf(EFFORTS, claudeEffort)}
+                    onChange={onEffortChange}
+                    title="Effort"
+                    value={claudeEffort}
+                  />
+                ) : null}
+
+                {isRunning ? (
+                  <>
+                    {composer.canSubmit ? (
+                      <Button
+                        aria-label="Queue"
+                        className="gap-1"
+                        disabled={cannotSend}
+                        onClick={composer.submit}
+                        size="sm"
+                        title="Queue this message"
+                        variant="outline"
+                      >
+                        <ListPlusIcon />
+                        <span className={COLLAPSE.early}>Queue</span>
+                      </Button>
+                    ) : null}
+                    <Button onClick={onStop} size="icon-sm" variant="outline">
+                      <SquareIcon />
+                      <span className="sr-only">Stop</span>
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    disabled={cannotSend || !composer.canSubmit}
+                    onClick={composer.submit}
+                    size="icon-sm"
+                    variant="default"
+                  >
+                    <ArrowUpIcon />
+                    <span className="sr-only">Send</span>
+                  </Button>
+                )}
+              </div>
             </div>
           </InputGroupAddon>
         </InputGroup>
@@ -333,6 +344,7 @@ function ComposerBlock({
 export const Composer = memo(ComposerBlock);
 
 function MenuChip({
+  collapse,
   icon: Icon,
   items,
   label,
@@ -340,6 +352,7 @@ function MenuChip({
   title,
   value,
 }: {
+  collapse: keyof typeof COLLAPSE;
   icon: typeof SparklesIcon;
   items: readonly { label: string; value: string }[];
   label: string;
@@ -351,11 +364,16 @@ function MenuChip({
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button aria-label={`${title}: ${label}`} size="sm" variant="ghost" />
+          <Button
+            aria-label={`${title}: ${label}`}
+            size="sm"
+            title={`${title}: ${label}`}
+            variant="ghost"
+          />
         }
       >
         <Icon />
-        {label}
+        <span className={COLLAPSE[collapse]}>{label}</span>
         <ChevronDownIcon className="text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-auto min-w-44">

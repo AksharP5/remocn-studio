@@ -53,11 +53,17 @@ export function ModelMenu({
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button aria-label={`Model: ${label}`} size="sm" variant="ghost" />
+          <Button
+            aria-label={`Model: ${label}`}
+            className="min-w-0 shrink"
+            size="sm"
+            title={`Model: ${label}`}
+            variant="ghost"
+          />
         }
       >
         <ProviderIcon provider={provider} />
-        {label}
+        <span className="truncate">{label}</span>
         <ChevronDownIcon className="text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-auto min-w-56">
