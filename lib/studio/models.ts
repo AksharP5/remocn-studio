@@ -6,6 +6,7 @@ export interface ModelChoice {
 }
 
 export const CLAUDE_MODELS: readonly ModelChoice[] = [
+  { label: "Fable 5.1", value: "claude-fable-5-1" },
   { label: "Fable 5", value: "claude-fable-5" },
   { label: "Opus 5", value: "claude-opus-5" },
   { label: "Sonnet 5", value: "claude-sonnet-5" },
