@@ -10,7 +10,7 @@ import { relativeTo } from "@/lib/studio/activity";
 import { boxOf, cardPlacement } from "@/lib/studio/card";
 import type { PromptElement } from "@/shared/ipc";
 
-const CARD = { height: 148, width: 288 };
+const COMPACT_CARD = { height: 148, width: 288 };
 
 export function InspectOverlay({
   card,
@@ -33,16 +33,18 @@ export function InspectOverlay({
         <ElementMarker key={marker.id} marker={marker} />
       ))}
 
-      {card === null ? null : (
+      {/* A tunable element is answered by the properties pane, which has the
+          room this card never had; the card stays for everything else. */}
+      {card === null || card.tuning !== null ? null : (
         <CommentCard
+          card={card}
           cwd={cwd}
-          element={card.element}
           onCancel={onCancel}
           onSubmit={onSubmit}
           placement={cardPlacement(
             boxOf(card.rect, stage.size),
             stage.size,
-            CARD
+            COMPACT_CARD
           )}
         />
       )}
@@ -69,19 +71,20 @@ function ElementMarker({ marker }: { marker: Marker }) {
 }
 
 function CommentCard({
+  card,
   cwd,
-  element,
   onCancel,
   onSubmit,
   placement,
 }: {
+  card: PendingComment;
   cwd: string | null;
-  element: PromptElement;
   onCancel: () => void;
   onSubmit: (comment: string) => void;
   placement: { x: number; y: number };
 }) {
   const comment = useComment(onSubmit, onCancel);
+  const { element } = card;
 
   return (
     <div
@@ -89,7 +92,7 @@ function CommentCard({
       style={{
         left: `${placement.x}px`,
         top: `${placement.y}px`,
-        width: `${CARD.width}px`,
+        width: `${COMPACT_CARD.width}px`,
       }}
     >
       <p

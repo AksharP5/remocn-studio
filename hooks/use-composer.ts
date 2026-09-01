@@ -13,7 +13,11 @@ import { type Caret, useCaret } from "@/hooks/use-caret";
 import { type Media, useMedia } from "@/hooks/use-media";
 import { type Mentions, useMentions } from "@/hooks/use-mentions";
 import { type PickedAssets, usePickedAssets } from "@/hooks/use-picked-assets";
-import { type Selections, useSelections } from "@/hooks/use-selections";
+import {
+  type Selections,
+  type SelectionTuning,
+  useSelections,
+} from "@/hooks/use-selections";
 import { imageFilesOf } from "@/lib/studio/clipboard";
 import { insertMention, type Mention, openFolder } from "@/lib/studio/mentions";
 import { currentPlatform } from "@/lib/studio/platform";
@@ -79,7 +83,8 @@ export interface Composer {
   select: (
     element: PromptElement,
     rect: PreviewRect,
-    comment: string
+    comment: string,
+    tuning?: SelectionTuning | null
   ) => string;
   selections: Selections;
   submit: () => void;
@@ -211,11 +216,16 @@ export function useComposer({
   );
 
   const select = useCallback(
-    (element: PromptElement, rect: PreviewRect, comment: string) => {
+    (
+      element: PromptElement,
+      rect: PreviewRect,
+      comment: string,
+      tuning: SelectionTuning | null = null
+    ) => {
       const field = caret.ref.current;
       const text = field?.value ?? latest.current;
       const at = field?.selectionStart ?? text.length;
-      const added = selections.add(element, rect);
+      const added = selections.add(element, rect, tuning);
 
       const written = insertAt(text, at, comment.trim());
       const next = insertReferences(

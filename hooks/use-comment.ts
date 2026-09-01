@@ -36,8 +36,12 @@ export function useComment(
     setValue(event.target.value);
   }, []);
 
+  // The field empties itself, because the card it lives in may well still be
+  // open afterwards — and a comment left behind would go out again on the
+  // next Add.
   const submit = useCallback(() => {
     onSubmit(value);
+    setValue("");
   }, [onSubmit, value]);
 
   const keep = useCallback(() => {
@@ -47,6 +51,7 @@ export function useComment(
         ? SAVE_ELEMENT_PROMPT
         : `${written} ${SAVE_ELEMENT_PROMPT}`
     );
+    setValue("");
   }, [onSubmit, value]);
 
   const onKeyDown = useCallback(

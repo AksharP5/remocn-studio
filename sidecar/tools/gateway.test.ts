@@ -23,6 +23,7 @@ function tools(): TurnTools {
     cwd: "/videos/promo",
     design: {
       check: () => Promise.reject(new Error("unused")),
+      sources: () => Promise.resolve([]),
     },
     library: {
       list: () => Promise.resolve([]),

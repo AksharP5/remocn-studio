@@ -1246,6 +1246,13 @@ by cutting the text at each reference and splicing the image in there (#13).
     style that changes width — weight, tracking, size, family, padding — desyncs the two,
     and the error *accumulates*: `font-medium` on the span put the caret a character off
     after four references. Colour is the only property that costs nothing here.
+- **The colour picker opens on a real click, not a scripted one.** dialkit hides its
+  `<input type="color">` at zero size with `pointer-events: none` and asks the swatch to
+  `.click()` it — which WebKit ignores, so the swatch did nothing at all here. The input
+  is put back over the swatch in `app/globals.css`: invisible, but the thing the pointer
+  actually lands on, and the swatch behind it wears the focus ring since the input cannot.
+  That is the arrangement the pane's own colour control used before dialkit, and it is why
+  that one worked.
 - **Previews come from the asset protocol**, enabled in `tauri.conf.json` with the
   `protocol-asset` cargo feature; no ACL permission is involved, since Tauri 2 gates it by
   configuration alone. The scope is `**` on purpose: an attachment can be picked from
@@ -1661,6 +1668,59 @@ alongside `[Image #N]` (#18). The message is still sent by hand.
   transition series the inner sequence element is created by Remotion, so the nearest
   injected stack resolves into Remotion's code. The scene component's location is already
   correct in the element's own stack, which is where it comes from.
+- **The schema comes from the fiber too, and `refForOutline` was the wrong door.** An
+  element's `Interactive` is found by walking `fiber.return` for a `controls` prop
+  (`controlsAt` in `preview/tuning.ts`, over the one `preview/fiber.ts` walk that
+  `sceneOf` and the label share). It used to be found by DOM containment against the
+  sequence's `refForOutline` — and **Remotion resolves that to `null` for a
+  `<Sequence layout="none">` unless the author passed `outlineRef` themselves**
+  (measured in `Sequence.js`: the `wrapperRefForOutline` fallback exists only for the
+  other layouts). Our template passes it; an agent-written component that declares a
+  schema, passes its `controls` and animates correctly does not — so the properties
+  pane silently never opened for it, which is exactly the shape of "the agent says it
+  added easing and inspect selects a bare div". `controls` is a prop, so it is on the
+  fiber whatever the author remembered to wire. `nearestInteractive` stays as the
+  fallback, and because a component may now be selectable without having registered a
+  sequence carrying its controls, the runtime remembers the controls of everything
+  selected so a later edit can still find its schema by id — the overrides themselves
+  ride on the node path we mint, which owes the registry nothing.
+- **The pane opens on what you pointed at, and offers its `Interactive` ancestors.** The
+  studio's own conventions ask for `Interactive.Div` and its siblings around the markup
+  (so styles are editable) **and** `Interactive.withSchema` around the component (so its
+  own parameters are), so every agent-written component nests at least two. Selecting the
+  nearest alone gave Remotion's element primitive every time — its built-in style schema
+  is the Transform / Layer / Typography / Fill / Stroke groups — while the author's
+  schema, one level out, covered the same pixels and could never be pointed at. Folding
+  the chain into one list was the first fix and it was **wrong**: pointing at a word then
+  showed the parameters of every component above it, up to the `CameraRig` framing the
+  whole scene, and titled the pane after it. So `controlsChain` collects them
+  innermost-first, the selection carries all of them (`tuning` is an array), and the pane
+  renders one at a time with a switcher — `TargetChain`, labelled by `chainLabel`, which
+  strips Remotion's `<Interactive.…>` spelling down to `Div`. It renders only when there
+  is more than one, so the ordinary case gains no chrome.
+  - **Switching is a read, not a commit.** The whole chain arrives with the selection, so
+    changing target is a local index move with no round trip. Consequently everything that
+    spans the selection has to span the chain: `originals` is keyed per target (two of them
+    may declare `style.opacity`), the Add count and the `tuningChanges` sent to the agent
+    walk every target, and `resetTuning()` with no paths fans out one command per target —
+    an edit made before the switch is still an edit. A per-row reset stays on the open one.
+  - A `TuningField` therefore carries its own `targetId`, and `byTarget` routes a reset to
+    the component that owns each path. `tune.set`/`tune.reset` already took a `targetId`,
+    so the protocol did not move.
+  - **Switching points at the thing on screen.** `<Series>` and `CameraRig` are names, not
+    places, so the open link is boxed in the preview: `highlightTarget` paints **inside the
+    preview document**, beside the hover box and for the same reason — it shares a document
+    with the pixels, so it cannot drift from them, and no rectangle has to cross the wire.
+    The nodes come from `hostOf`, the first DOM element each `Interactive`'s fiber renders,
+    captured at pick time because the page is frozen for exactly as long as the card is
+    open. The `highlight` command is keyed on the target id alone, so editing a value does
+    not repaint the box, and closing the card clears it.
+- **The hover label names what you could tune, not what is holding it.** Grab's display
+  name is the nearest fiber's, which inside a Remotion tree is routinely
+  `RegularSequenceRefForwardingFunction` — true, and useless to read. `componentAt`
+  answers with the interactive component's own `componentName` when there is one, and
+  otherwise the nearest fiber whose name is neither a `WRAPPERS` entry nor Remotion
+  plumbing (`*RefForwardingFunction`, `withInteractivitySchema(…)`).
 - **Hit-testing and the hover box are ours; grab is only a source resolver.** Grab's overlay
   is taken down wholesale (`theme.enabled: false`) and `activate()` is never called, so what
   is left of it is `getSource`, `getStack` and `getDisplayName`. `preview/picker.ts` picks
@@ -1699,11 +1759,50 @@ alongside `[Image #N]` (#18). The message is still sent by hand.
   captured on `window` and stopped inside the canvas — otherwise Remotion's `clickToPlay`
   would toggle playback under every pick. Hover is recomputed on a `requestAnimationFrame`
   tick rather than per event.
+- **Arming forces the canvas hit-testable, and without that a real project is unpickable.**
+  `elementsFromPoint` skips a whole `pointer-events: none` subtree, and scenes routinely put
+  that on an overlay layer so a title cannot eat `clickToPlay` — so a click on the words
+  fell *through* them and picked the scene underneath, with nothing on screen to say why.
+  `armInspect` therefore injects `.__remotion-player, .__remotion-player * { pointer-events:
+  auto !important }` for the life of the session and removes it on disarm. It costs the page
+  nothing, because every pointer event over the canvas is already swallowed by the rule
+  above; a picker that reads the DOM cannot see what the DOM refuses to hit-test.
 - **Markers and the comment card render in the app window**, over the iframe, in an
   `inset-0 pointer-events-none` overlay so hover and click still reach the page. Marker
   geometry is **normalised to the preview page's viewport**, which is exactly the iframe
   element's box, so a resize keeps markers on their elements; `cardPlacement` is a pure
   function over three rectangles and is tested without rendering anything.
+- **Nothing freezes the frame any more, and picking is a mode rather than a modal.**
+  The card used to send `freeze`, which stopped the picker tracking "so the frame does not
+  flicker with highlights while you type" — reasoning written when the card floated *over*
+  the frame. With a pane beside it the premise is gone: the pointer does not move while
+  someone types, and the highlight under the cursor is the only thing that says what the
+  next click would take. It also took the click with it, so the only way to reach the next
+  element was to close the pane and arm again. The command is deleted rather than left
+  unsent — a mechanism nothing sends is worse than no mechanism. What remains: a click
+  inside the canvas is swallowed either way, or it would reach Remotion's `clickToPlay`
+  underneath.
+  - **Picking elsewhere abandons what was pending, exactly as Cancel does.** The drafts
+    live in the preview keyed by target, so a card dropped without reverting would leave
+    the frame showing values the pane no longer lists and the agent will never be told
+    about. Picking the *same* element again is a no-op rather than a revert, since a stray
+    second click must not cost the work.
+  - **The card outlives both the mode and the message.** Turning Inspect off means "stop
+    picking", and Add means "send this" — neither means "close the pane", and closing it
+    would silently revert work nobody asked to undo. Only Cancel closes, and its tooltip
+    already says it restores the originals. Add therefore **rebases the baseline** to the
+    values it just sent: without that a second Add would ask for the first one's change
+    all over again. It reads the card through the ref rather than through state, so an Add
+    made in the same tick as the last drag still carries it, and the comment field empties
+    itself, since it is no longer unmounted between messages.
+  - **Abandoning is only for what was never sent.** Picking elsewhere reverts a card that
+    still has changes; a card whose changes have been added is left alone, because those
+    values are what its message asks for and reverting them would leave the frame
+    contradicting the request.
+  - The chain strip takes a wheel sideways (`useWheelScroll` over the pure `wheelScroll`),
+    because it scrolls only that way and carries no scrollbar to grab — a plain mouse would
+    otherwise never reach the chips clipped off the edge. It declines the gesture when it
+    cannot move, so a row two chips wide never swallows the wheel of the pane beneath it.
 - **The card is not a Popover on purpose.** A popover brings Esc-to-close, outside-click-to-
   close and a focus trap, and outside-click in this mode means "select the next element".
   While it is open the page is sent `freeze`, which stops the picker tracking and ignores
@@ -1739,6 +1838,152 @@ alongside `[Image #N]` (#18). The message is still sent by hand.
   source".
 - **The first resolution after a rebuild costs ~210 ms** — the sourcemap fetch and parse —
   and every one after it is 0 ms, so arming warms it up with a throwaway `getStack`.
+
+### Tuning what you pointed at
+
+Clicking an element that declares an `InteractivitySchema` — `Interactive.withSchema()`, its
+`controls` passed to its own `<Sequence>` (REM-6) — opens a **properties pane** to the right of
+the preview. Every supported field rerenders the preview as it changes; `Add` keeps that live
+result on screen and hands the agent a `{path, from, to}` diff to write into the TSX.
+
+- **It is a pane, not a card over the frame, and that reverses the design's own first
+  answer.** #6 said "no fourth global panel" and grew the anchored comment card into an
+  inspector instead; on a real project that card was too small to work in, needed scrolling for
+  three fields, and covered the frame whose change you were judging. So the inspector is a
+  fourth `ResizablePanel` beside chat and preview — full height, dragged to width, remembered
+  by the layout store like the other two. `panelIdsOf` gains the combination rather than a
+  flag, because the stored layout is keyed by the id list and a two-pane width must not be
+  read back into a three-pane window.
+- **The pane exists while there is something in it.** It is mounted by a selection carrying a
+  schema and unmounted by Cancel, so it is never an empty rail taking a third of the window.
+  Closing it *is* Cancel — the originals go back — which is why the × says so on its tooltip.
+- **An element with no schema keeps the compact card over the frame.** Two surfaces for one
+  selection is a real cost, and it buys the case that matters: a quick comment on something
+  that has nothing to tune should not move the whole window.
+- **It is shaped like a design tool's inspector, because that is what people already know
+  how to use.** The row is two columns — the name outside the control, the value inside it
+  and left-aligned — and every control is the same compact `h-7 rounded-md control-surface`
+  field, so a section reads as a column of names beside a column of values rather than a
+  stack of self-contained widgets. Sections carry a sentence-case heading in the foreground
+  colour, separated by rules that run the full width of the pane, ordered the way an
+  inspector orders them: Transform, Layer, Typography, Fill, Stroke, the component's own
+  Parameters, then Entry/Exit/Effects and Timing last. `control-surface` and
+  `--elevation-control` are lifted from remocn.dev's component customizer.
+- **Every number is one control, and it takes all three gestures.** `Scrubber` is a Base UI
+  `NumberField` whose whole surface is the scrub area: dragging anywhere changes the value,
+  pointer-locked with a cursor of its own; arrows step, shift steps by ten (`largeStep`),
+  alt steps finely (`smallStep`). A click that never moved drops into typing — Base UI
+  focuses the input on pointerdown and re-dispatches the click that pointer lock swallowed,
+  and the field answers by taking its overlay off the input until it blurs. A *bounded*
+  number paints how far along it is as a fill behind the value (`fractionOf`), because "how
+  far along is this" is a question a number alone cannot answer at a glance — the separate
+  track beside the field was the first version, and it read as two controls for one value.
+- **Easing is an interpolation editor, not a dropdown.** A field whose path ends in
+  `easing`/`ease` gets a curve card: the bezier drawn in a 100×100 view with headroom for
+  overshoot (`lib/studio/easing.ts` holds the geometry, the name→bezier lookup — CSS names
+  plus the Penner families in any casing — and the preset table), a preview dot whose
+  `animation-timing-function` *is* the value being edited, and a preset picker. What is
+  editable follows what the component can hold: a **four-number array** drags its handles
+  (`useBezierDrag`, x clamped to [0,1] as `cubic-bezier()` requires, y allowed overshoot)
+  and edits the four numbers as scrubbers; an **enum** of names can hold one of its own
+  options and nothing else, so its curve is a reading and the picker is what changes it —
+  and handles are drawn *only* where they can be dragged, or the card would show a grab
+  target that does not move. That is why the conventions require the array and forbid the
+  enum: the shape of the prop is what decides whether the curve is an instrument or a
+  picture. A spring is deliberately not a tab here — it is ordinary damping/stiffness
+  props, which already render as numbers.
+- **Telling the agent was not enough, because a bundled skill tells it the opposite.**
+  `remotion-interactivity`'s own words are *"the output range, easing, extrapolation and
+  `output` property should use hardcoded values"* — right for Remotion Studio, which
+  rewrites the call site, and wrong here, where the panel edits props at runtime. Given
+  both, an agent wrote a whole video of `easing: Easing.out(Easing.cubic)` and left a
+  comment saying that was *"the only shape the panel can pick up and edit"*: confidently
+  backwards. The vendored tree cannot be edited (`skills:check` reads any change as
+  drift), so the conventions now name the disagreement and overrule it on that one line,
+  and — because an instruction contradicting a loaded skill is a coin flip —
+  `sidecar/tools/tunability.ts` scans the video's own source for constant easings and
+  `design_check` reports them as findings. That gate was chosen over a new tool precisely
+  because the conventions already require calling it before finishing: a tool the agent
+  may forget is no gate at all. It reads only the turn's own video folder, never a
+  sibling's, and a source it cannot read costs nothing — the design check the agent is
+  waiting on must not fail over a courtesy.
+- **A composite control is a stack, not a row, and it shares the pane's edge.** dialkit's
+  convention is a self-contained pill — label inside, value inside, one surface — and the
+  easing editor cannot be one: it is a canvas, a picker and four numbers. Forcing it into
+  the old row grid reserved a label column the pills do not have, so the whole block sat
+  in a narrower second column and the pane read as two competing alignments. It now uses
+  `dialkit-composite-control`, which the X/Y pairs had already settled: the label on its
+  own line, everything under it at the pane's own edge, and the reset action in the same
+  slot every other control puts it in. Two supports: the row gap is wider than the gap a
+  description keeps to its control, so the prose reads as belonging to the row above it
+  rather than floating between two; and the `title` that gives a clipped label back lives
+  on the pill, not on the row, or hovering the curve would raise a tooltip for a label
+  that was never clipped.
+- **A label is one clipped line; the sentence goes under the control.** A schema's
+  `description` used to *be* the label, which was right for Remotion's own built-ins — they
+  describe themselves in two words ("Font size", "Opacity") and read better than the path
+  would — and wrong for everything an agent writes, which is prose: *"Frames per drift
+  cycle — kept coprime with the ambient periods"* wrapped out of dialkit's 36px row and
+  landed under the next control. `labelFor` takes the description only while it is short
+  enough to be one (24 characters), and otherwise humanises the prop's own name; the
+  description then renders as prose below the row, where it has the pane's width to wrap in.
+  Two supports under that: `labelOf` is sentence case, because Remotion's descriptions are
+  and the two share a column; and dialkit's labels are clipped in `app/globals.css` —
+  `.dialkit-slider-label` is positioned absolutely with no width of its own, and
+  `.dialkit-labeled-control-label` is a flex child that refuses to shrink, so both had to
+  be told. Clipping never loses the text: the row carries the label as its `title`.
+- **A value that is really two numbers is edited as two numbers.** `lib/studio/tuning.ts`
+  parses `"−12px 8px"`, `"50% 50%"` and `[0.5, 0.5]` into labelled axes and writes the
+  chosen one back in the shape it arrived in, unit and all. Two subtleties are pinned by
+  tests: a one-token value (`translate: 10px`) means x-only and CSS reads the other half as
+  zero, so the panel offers both; and a bare `0` may legally drop its unit where a non-zero
+  may not, so writing takes the unit from whichever half declared one and from the type when
+  neither did. A value it cannot parse — `calc(100% - 4px)` — falls back to a plain text
+  field rather than being guessed at.
+- **Opacity reads as a percentage and is stored as a fraction**, named by path rather than
+  inferred from a 0–1 range, or every normalised parameter in a project would silently grow
+  a percent sign.
+- **`hiddenFromList` is honoured.** Remotion marks `from`, `durationInFrames`, `trimBefore`
+  and `freeze` as belonging to a timeline rather than a property list; the panel is not a
+  timeline, so it obeys, and those stay a sentence in the chat.
+- **Colour is a swatch with an oversized native picker behind it plus an editable hex**, and
+  a switch is the one control with no field behind it: it is already a surface, and a box
+  inside a box is what that would be. Bare `<input type="number">` rows were the first
+  version of all this and they read as a form rather than an instrument.
+- **Focus is an `outline`, never a `ring`.** `control-surface` *is* a `box-shadow`, and a
+  Tailwind ring utility sets `box-shadow` in the utilities layer — it would replace the
+  surface and take the elevation with it. The inputs inside a field carry `outline-none`, so
+  the field itself shows `focus-within` instead; dropping that would have been the one real
+  accessibility regression in this pass.
+- **Base UI keeps a slider's real control visually hidden**, so it carries no accessible name
+  of its own and a role query cannot reach it: the thumb is named through `getAriaLabel`, and
+  the test finds it by `input[type="range"]`.
+
+- **Remotion's own interactivity runtime does the rendering, not a fiber-props mutation.**
+  `preview/interactivity.tsx` provides three of the contexts the Studio would: a
+  `RemotionEnvironment` claiming `isStudio` (which is the whole reason
+  `withInteractivitySchema` hands a component its `controls` at all inside a Player), a
+  synthetic `overrideId → nodePath` mapping, and the drag overrides themselves. The pixels
+  stay the project's.
+- **A drag override alone changes nothing, and that is the one thing to know here.**
+  `computeEffectiveSchemaValuesDotNotation` reads `overrideValues[key]` only for a key that
+  *also* carries a **prop status**; with `propStatus?.[key] ?? null` coming back null it takes
+  `currentValue[key]` and the override is dropped on the floor. In the real Studio those
+  statuses come from the server's analysis of the call site — inside a Player nothing
+  publishes them, so the first version set overrides faithfully and moved nothing at all, in
+  silence. `overridePlan` therefore publishes `{status: "static", codeValue}` for **exactly**
+  the keys being overridden, and withdraws them with the override: a status left on a key
+  with no override pins that prop to `codeValue` and freezes whatever animates it. It is a
+  pure function so the pairing is a test rather than a thing to remember.
+- **A runtime that cannot do it says so.** `setPropStatuses` missing means an override that
+  merges nowhere, so `set` answers with a sentence instead of a cheerful `ok`, and a refused
+  change now prints its reason on the card — reverting the row in silence is the same failure
+  wearing a different coat.
+- **`overrideId` is per call site, not per element.** `withInteractivitySchema` keys it off
+  the JSX `stack` through a module-level map, so two `<Title>` in a file are two instances
+  and two ids, while one `<Title>` inside a `.map()` is one id for every row it renders. That
+  is Remotion's model and it is the right one: the edit is ultimately going to be written
+  back into that one call site.
 
 ### Taking a picture of the frame, and sending it
 

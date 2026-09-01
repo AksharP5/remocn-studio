@@ -37,6 +37,15 @@ function describe(element: PromptElement, index: number): string {
     lines.push(`rendered through: ${element.stack.join(" ← ")}`);
   }
 
+  if ((element.tuningChanges?.length ?? 0) > 0) {
+    lines.push("Requested changes:");
+    for (const change of element.tuningChanges ?? []) {
+      lines.push(
+        `- ${change.path}: ${JSON.stringify(change.from)} → ${JSON.stringify(change.to)}`
+      );
+    }
+  }
+
   lines.push(`markup: ${truncate(element.html)}`);
 
   return lines.join("\n");

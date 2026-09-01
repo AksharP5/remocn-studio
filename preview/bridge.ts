@@ -1,11 +1,31 @@
 export const MESSAGE_SOURCE = "remocn-preview";
 export const COMMAND_SOURCE = "remocn-studio";
 
+export type TuningValue =
+  | boolean
+  | number
+  | string
+  | null
+  | readonly (boolean | number | string | null)[];
+
 export type PreviewCommand =
   | { armed: boolean; type: "inspect" }
   | { armed: boolean; type: "snapshot" }
   | { frame: number; type: "seek" }
-  | { frozen: boolean; type: "freeze" };
+  | { targetId: string | null; type: "highlight" }
+  | {
+      path: string;
+      requestId: string;
+      targetId: string;
+      type: "tune.set";
+      value: TuningValue;
+    }
+  | {
+      paths: readonly string[];
+      requestId: string;
+      targetId: string;
+      type: "tune.reset";
+    };
 
 export function post(message: Record<string, unknown>): void {
   window.parent.postMessage({ ...message, source: MESSAGE_SOURCE }, "*");

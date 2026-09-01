@@ -175,7 +175,9 @@ function ComposerBlock({
               <SelectionRow
                 cwd={cwd}
                 items={composer.selections.items}
+                onOpen={tools.inspect.openSelection}
                 onRemove={composer.onRemoveSelection}
+                onReset={tools.inspect.resetSelection}
                 onSeek={tools.inspect.seek}
               />
             </InputGroupAddon>
