@@ -9,7 +9,12 @@ import {
   StockPage,
 } from "./library";
 import { PipelineStage, PipelineStageId, PipelineStatus } from "./pipeline";
-import { AgentProvider, DEFAULT_AGENT_PROVIDER, ToolVerb } from "./providers";
+import {
+  AgentProvider,
+  DEFAULT_AGENT_PROVIDER,
+  ProviderStep,
+  ToolVerb,
+} from "./providers";
 
 export const SIDECAR_PROTOCOL = 23;
 
@@ -577,6 +582,10 @@ export const EnvironmentFix = Schema.Union([
   Schema.Struct({
     command: Schema.NonEmptyString,
     type: Schema.Literal("command"),
+  }),
+  Schema.Struct({
+    step: ProviderStep,
+    type: Schema.Literal("provider"),
   }),
 ]);
 

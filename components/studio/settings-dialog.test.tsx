@@ -25,7 +25,7 @@ const CLAUDE_ROW: EnvironmentCheck = {
 
 const CODEX_ROW: EnvironmentCheck = {
   detail: "Sign in with codex login.",
-  fix: { command: "codex login", type: "command" },
+  fix: { step: "signin", type: "provider" },
   id: "codex",
   state: "failed",
   title: "Codex is not logged in",

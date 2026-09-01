@@ -1,4 +1,5 @@
 import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { Data, Effect, type Scope } from "effect";
@@ -116,4 +117,21 @@ export function revealInFinder(path: string): Effect.Effect<void, ShellError> {
     catch: fail,
     try: () => revealItemInDir(path),
   });
+}
+
+export function watchWindowFocus(
+  onFocus: () => void
+): Effect.Effect<void, ShellError, Scope.Scope> {
+  return Effect.acquireRelease(
+    Effect.tryPromise({
+      catch: fail,
+      try: async () =>
+        getCurrentWindow().onFocusChanged(({ payload }) => {
+          if (payload) {
+            onFocus();
+          }
+        }),
+    }),
+    (unlisten) => Effect.ignore(Effect.sync(unlisten))
+  ).pipe(Effect.asVoid);
 }

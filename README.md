@@ -80,17 +80,29 @@
 
   ## Works with the coding agent you already have
 
-  No API key, no separate token bill. Sign in once with the
-  subscription you
-  already pay for:
+  No API key, no separate token bill. The studio talks to
+  the coding agent's
+  own command-line tool, signed in with the subscription
+  you already pay for:
 
-  Claude Code · Codex · Gemini CLI · Grok · GitHub Copilot ·
-  and more
+  Claude Code · Codex · GitHub Copilot · Grok Build
 
   ## Requirements
 
   - macOS (Apple silicon or Intel)
-  - A subscription for a supported coding agent
+  - One of these, installed and signed in on this Mac:
+    - [Claude Code](https://docs.claude.com/en/docs/claude-code/setup)
+      (`claude auth login`) — being signed in to Claude
+      Desktop does not count
+    - [Codex CLI](https://developers.openai.com/codex/cli)
+      (`codex login`)
+    - [Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli)
+      (`copilot login`)
+    - [Grok Build](https://grok.com/build) (`grok login`)
+
+  The studio shows the exact install and sign-in commands
+  for each and can
+  open a Terminal window for you to paste them into.
 
   ## Built on
 

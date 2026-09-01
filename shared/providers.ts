@@ -126,3 +126,60 @@ export const TOOL_VERBS = [
 export const ToolVerb = Schema.Literals(TOOL_VERBS);
 
 export type ToolVerb = (typeof ToolVerb)["Type"];
+
+export const PROVIDER_STEPS = ["install", "signin"] as const;
+
+export const ProviderStep = Schema.Literals(PROVIDER_STEPS);
+
+export type ProviderStep = (typeof ProviderStep)["Type"];
+
+export interface SetupStep {
+  readonly command: string;
+  readonly url: string | null;
+}
+
+export interface ProviderSetup {
+  readonly cli: string;
+  readonly install: SetupStep;
+  readonly note: string | null;
+  readonly signin: SetupStep;
+}
+
+export const PROVIDER_SETUP: Record<AgentProvider, ProviderSetup> = {
+  claude: {
+    cli: "Claude Code",
+    install: {
+      command: "curl -fsSL https://claude.ai/install.sh | bash",
+      url: "https://docs.claude.com/en/docs/claude-code/setup",
+    },
+    note: "Being signed in to Claude Desktop does not count: Claude Code is a separate app with its own login.",
+    signin: { command: "claude auth login", url: null },
+  },
+  codex: {
+    cli: "Codex CLI",
+    install: {
+      command: "npm install -g @openai/codex",
+      url: "https://developers.openai.com/codex/cli",
+    },
+    note: null,
+    signin: { command: "codex login", url: null },
+  },
+  copilot: {
+    cli: "Copilot CLI",
+    install: {
+      command: "npm install -g @github/copilot",
+      url: "https://docs.github.com/copilot/how-tos/copilot-cli",
+    },
+    note: null,
+    signin: { command: "copilot login", url: null },
+  },
+  grok: {
+    cli: "Grok Build",
+    install: {
+      command: "curl -fsSL https://x.ai/cli/install.sh | bash",
+      url: "https://grok.com/build",
+    },
+    note: null,
+    signin: { command: "grok login", url: null },
+  },
+};

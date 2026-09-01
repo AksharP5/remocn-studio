@@ -16,7 +16,9 @@ import { useOnline } from "@/hooks/use-online";
 import { downloadPercent } from "@/lib/studio/environment";
 import { cn } from "@/lib/utils";
 import type { EnvironmentCheck, EnvironmentState } from "@/shared/ipc";
+import { isAgentProvider } from "@/shared/providers";
 import { AboveComposer, NoticeCard } from "./notice-card";
+import { ProviderSteps } from "./provider-steps";
 
 // Shared with the Settings dialog's AI accounts section, so a state reads
 // the same everywhere it appears.
@@ -171,6 +173,10 @@ function CheckRow({
               {copied === check.fix.command ? "Copied" : "Copy"}
             </Button>
           </div>
+        ) : null}
+
+        {check.fix?.type === "provider" && isAgentProvider(check.id) ? (
+          <ProviderSteps provider={check.id} row={check} />
         ) : null}
 
         {check.fix?.type === "node" ? (

@@ -8,7 +8,8 @@ import type {
 import { PROVIDER_INFO } from "@/shared/providers";
 import type { AgentAdapter, TurnServices } from "../agent/adapter";
 import { announce, locateBundle } from "../agent/knowledge";
-import { accountCheck } from "./account";
+import { accountCheck, missingRow } from "./account";
+import { findClaude } from "./cli";
 import { eventsOf } from "./events";
 import { failureFromText, failureOf } from "./failure";
 import { permissionGuard } from "./guard";
@@ -21,6 +22,18 @@ export const claudeAdapter: AgentAdapter = {
 
   turn: (params: PromptParams, services: TurnServices) =>
     Effect.gen(function* () {
+      const executable = findClaude();
+      if (executable === null) {
+        return {
+          context: null,
+          failure: {
+            kind: "auth",
+            message: missingRow().detail ?? "Claude Code is not installed.",
+          },
+          sessionId: params.sessionId,
+        } satisfies PromptResult;
+      }
+
       const sessionId = yield* Ref.make(params.sessionId);
       const failure = yield* Ref.make<AgentFailure | null>(null);
       const context = yield* Ref.make<ContextUsage | null>(null);
@@ -40,6 +53,7 @@ export const claudeAdapter: AgentAdapter = {
             turnId: services.turnId,
           }),
           cwd: services.cwd,
+          executable,
           knowledge,
           log: (line) => Effect.runSync(services.log(line)),
           media: services.briefs.media,

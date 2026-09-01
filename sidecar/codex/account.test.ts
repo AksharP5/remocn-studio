@@ -17,7 +17,7 @@ describe("accountRow", () => {
 
     expect(check.state).toBe("failed");
     expect(check.detail).toBe(NOT_AUTHENTICATED);
-    expect(check.fix).toEqual({ command: "codex login", type: "command" });
+    expect(check.fix).toEqual({ step: "signin", type: "provider" });
   });
 
   it("keeps a CLI that answered garbage distinct from one that is logged out", () => {
@@ -31,7 +31,7 @@ describe("accountRow", () => {
     const check = missingRow();
 
     expect(check.state).toBe("failed");
-    expect(check.detail).toContain("npm install -g @openai/codex");
+    expect(check.fix).toEqual({ step: "install", type: "provider" });
   });
 });
 

@@ -2222,10 +2222,28 @@ of the way" means. It re-runs on opening a project, on Recheck and after an inst
   `subscriptionType` + `apiProvider` and **no `tokenSource` at all**, so `tokenSource === "none"` is
   the discriminator and everything else is authenticated. A non-`firstParty` `apiProvider` is
   authenticated externally (AWS creds, gcloud ADC) and says so.
-- **"claude on PATH" is not the check, because the SDK carries its own CLI** (`extractFromBunfs.js`
-  and `manifest.zst.json`; `pathToClaudeCodeExecutable` is only an override). #228's two distinct
-  states are therefore *could not start* and *not logged in* — a launch failure and a login failure,
-  which is the split that matters since the fixes differ.
+- **`claude` is the person's own Claude Code, resolved and never bundled** (REM-309). The
+  SDK's `pathToClaudeCodeExecutable` is only an override, and without it the SDK looks for
+  its optional-dependency binary — which the release `.app` does not carry, so a clean Mac
+  failed every turn with *Native CLI binary for darwin-arm64 not found*; it worked on the
+  developer's machine only through the bun-cache fallthrough recorded below. `findClaude`
+  in `sidecar/claude/cli.ts` walks `$REMOCN_STUDIO_CLAUDE` → `$PATH` → `~/.local/bin` (the
+  native installer's target), `~/.claude/local`, `~/.bun/bin`, `~/.npm-global/bin`, Homebrew
+  and `/usr/local/bin`, and both the account probe and the turn pass the answer to the SDK.
+  No version check on purpose: people update Claude Code often, and a mismatch surfaces as
+  the SDK's own error under *could not start*. The four resolvers share `findExecutable` in
+  `sidecar/agent/cli.ts`, which takes its host so the walk is tested without a filesystem.
+- **A provider row is three steps, not a sentence.** `PROVIDER_SETUP` in `shared/providers.ts`
+  is the static table — install command and page, sign-in command, and Claude's note that
+  Claude Desktop does not count — and a provider row's `fix` is `{ type: "provider", step }`
+  naming only the step that is not passed; `stageStates` in `lib/studio/setup.ts` turns that
+  into ticks. **The studio signs nobody in**: Anthropic does not allow third-party claude.ai
+  login, so *Open in Terminal* copies the command and opens an empty window through
+  `osascript` (`terminal.rs`) and the card says "⌘V, then Enter". Nothing is executed,
+  no Accessibility permission is asked for. While a provider row is failed the window's
+  focus forces a recheck (`useRecheckOnFocus`, once per five seconds), so coming back from
+  Terminal turns the row green without a button. The model menu's failed group is a link to
+  Settings › AI Accounts on that provider rather than a disabled row with a label.
 - **Only being logged out locks the composer.** A folder that is not a Remotion project does not:
   asking Claude to set one up is a reasonable next move, and refusing to talk to it would remove the
   only tool that could fix it.

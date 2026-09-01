@@ -12,8 +12,10 @@ import {
   unresolved,
 } from "@/lib/studio/environment";
 import type { PreviewComposition } from "@/lib/studio/preview";
+import { failedProviders } from "@/lib/studio/setup";
 import type { EnvironmentCheck, NodeDownload } from "@/shared/ipc";
 import type { AgentProvider } from "@/shared/providers";
+import { useRecheckOnFocus } from "./use-recheck-on-focus";
 
 export interface Environment {
   checks: readonly EnvironmentCheck[];
@@ -170,6 +172,8 @@ export function useEnvironment(
   }, [isInstallingNode]);
 
   const shown = useMemo(() => merged(checks, pick), [checks, pick]);
+
+  useRecheckOnFocus(failedProviders(shown).length > 0, recheck);
 
   return useMemo(
     () => ({

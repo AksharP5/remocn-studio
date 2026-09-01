@@ -8,7 +8,7 @@ import type { AgentFailure, AgentFailureKind } from "@/shared/ipc";
 import { flatten } from "./events";
 
 export const NOT_AUTHENTICATED =
-  "Claude Code is not authenticated. Run `claude` in a terminal, log in with your Pro or Max account, then try again.";
+  "Claude Code is not signed in. Run `claude auth login` in a terminal, sign in with your Pro or Max account, then try again. Being signed in to Claude Desktop does not count.";
 
 const UNKNOWN = "Claude stopped without saying why.";
 
