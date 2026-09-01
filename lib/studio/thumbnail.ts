@@ -1,5 +1,7 @@
 import { Data, Effect } from "effect";
 import { errorMessage } from "@/lib/error-message";
+import { audiomapFrom } from "@/lib/studio/audiomap";
+import type { Audiomap } from "@/shared/audiomap";
 import type { AssetType } from "@/shared/library";
 
 export class ThumbnailError extends Data.TaggedError("ThumbnailError")<{
@@ -48,6 +50,7 @@ export function firstFrameAt(duration: number): number {
 }
 
 export interface Still {
+  audiomap: Audiomap | null;
   duration: number | null;
   file: File;
 }
@@ -126,6 +129,7 @@ async function grab(url: string, name: string): Promise<Still> {
     await painted;
 
     return {
+      audiomap: null,
       duration: Number.isFinite(video.duration) ? video.duration : null,
       file: await paint(video, name),
     };
@@ -182,12 +186,69 @@ async function draw(url: string, name: string): Promise<Still> {
 
   try {
     const sound = await context.decodeAudioData(bytes);
-    const peaks = peaksFrom(sound.getChannelData(0), WAVEFORM_BARS);
+    const mono = monoOf(sound);
+    const peaks = peaksFrom(mono, WAVEFORM_BARS);
 
-    return { duration: sound.duration, file: bars(peaks, name) };
+    return {
+      audiomap: audiomapFrom(mono, sound.sampleRate),
+      duration: sound.duration,
+      file: bars(peaks, name),
+    };
   } finally {
     await context.close().catch(ignore);
   }
+}
+
+export function monoOf(sound: AudioBuffer): Float32Array {
+  const first = sound.getChannelData(0);
+  if (sound.numberOfChannels === 1) {
+    return first;
+  }
+
+  const mono = new Float32Array(first.length);
+  for (let channel = 0; channel < sound.numberOfChannels; channel += 1) {
+    const data = sound.getChannelData(channel);
+    for (let at = 0; at < mono.length; at += 1) {
+      mono[at] += (data[at] ?? 0) / sound.numberOfChannels;
+    }
+  }
+  return mono;
+}
+
+export function audiomapOf(
+  url: string,
+  name: string
+): Effect.Effect<Audiomap, ThumbnailError> {
+  return Effect.tryPromise({
+    catch: (cause) => new ThumbnailError({ message: errorMessage(cause) }),
+    try: async () => {
+      const Context = window.AudioContext;
+      if (Context === undefined) {
+        throw new Error("This window cannot decode sound.");
+      }
+
+      const bytes = await fetch(url).then((answer) => answer.arrayBuffer());
+      const context = new Context();
+
+      try {
+        const sound = await context.decodeAudioData(bytes);
+        return audiomapFrom(monoOf(sound), sound.sampleRate);
+      } finally {
+        await context.close().catch(ignore);
+      }
+    },
+  }).pipe(
+    Effect.timeout(DECODE_TIMEOUT),
+    Effect.catch((cause) =>
+      Effect.fail(
+        cause instanceof ThumbnailError
+          ? cause
+          : new ThumbnailError({
+              message: `${name} did not decode within ${DECODE_TIMEOUT}.`,
+            })
+      )
+    )
+  );
 }
 
 function bars(peaks: readonly number[], name: string): File {

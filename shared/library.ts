@@ -1,4 +1,5 @@
 import { Effect, Schema } from "effect";
+import { Audiomap } from "./audiomap";
 import { MotionRole } from "./motion";
 
 export const ASSET_TYPES = ["img", "video", "audio", "component"] as const;
@@ -108,6 +109,9 @@ export function assetTypeOfStock(kind: StockKind): AssetType {
 export const PROXY_HEIGHT = 1080;
 
 export const AssetManifest = Schema.Struct({
+  audiomap: Schema.NullOr(Audiomap).pipe(
+    Schema.withDecodingDefault(Effect.succeed(null))
+  ),
   createdAt: Schema.Int.pipe(Schema.withDecodingDefault(Effect.succeed(0))),
   dependencies: names,
   description: Schema.String.pipe(
@@ -140,6 +144,9 @@ export const AssetManifest = Schema.Struct({
 export type AssetManifest = (typeof AssetManifest)["Type"];
 
 export const Asset = Schema.Struct({
+  audiomap: Schema.NullOr(Audiomap).pipe(
+    Schema.withDecodingDefault(Effect.succeed(null))
+  ),
   category: Schema.NullOr(Schema.NonEmptyString).pipe(
     Schema.withDecodingDefault(Effect.succeed(null))
   ),
@@ -173,6 +180,9 @@ export const PromptAsset = Schema.Struct({
 export type PromptAsset = (typeof PromptAsset)["Type"];
 
 export const AssetDraft = Schema.Struct({
+  audiomap: Schema.NullOr(Audiomap).pipe(
+    Schema.withDecodingDefault(Effect.succeed(null))
+  ),
   dependencies: Schema.Array(Schema.NonEmptyString),
   description: Schema.String,
   duration: Schema.NullOr(Schema.Finite).pipe(

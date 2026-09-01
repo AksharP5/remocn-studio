@@ -61,6 +61,17 @@ Anything meant to be reused between videos goes in \`src/shared/\`. Editing
 something there changes other people's videos, so say in your answer that you
 did.
 
+A music track the person attached or picked from the library arrives with an
+audiomap — the studio's own analysis, measured once — and its pacing verdict is
+the rule. \`beat_cut\` means the rhythm is clear: cut scenes on the hard stops
+and the energy jumps it lists, land key moments on beats, and derive each
+scene's durationInFrames from those intervals rather than round numbers — but
+never cut on every beat; the number of scenes follows the change of device, not
+the beat count. \`phrase_flow\` means the grid is a metronome imposed on calm
+music: ignore the beats, pace by the energy phases and the silences, and prefer
+slow changes to hard cuts. Never re-measure the track yourself. Times are
+seconds; multiply by the composition's fps.
+
 Keep the result editable. A scene is a named component in its own file with
 plain props and readable timing, not one long inline block — the person you are
 building for will open this code and change it.

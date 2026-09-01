@@ -11,6 +11,7 @@ const A_BADGE = /^\d+:\d\d$/;
 
 function asset(shape: Partial<Asset> = {}): Asset {
   return {
+    audiomap: null,
     category: null,
     clip: null,
     createdAt: 1,

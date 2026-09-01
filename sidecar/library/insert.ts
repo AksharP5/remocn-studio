@@ -3,6 +3,7 @@ import { copyFile, mkdir } from "node:fs/promises";
 import { basename, dirname, join, relative } from "node:path";
 import { Effect } from "effect";
 import { errorMessage } from "@/lib/error-message";
+import { type Audiomap, audiomapBrief } from "@/shared/audiomap";
 import type { PromptMedia } from "@/shared/ipc";
 import {
   type AssetType,
@@ -22,6 +23,7 @@ export const MEDIA_FOLDER = "public/library";
 export const COMPONENT_FOLDER = "src/library";
 
 export interface Placement {
+  readonly audiomap: Audiomap | null;
   readonly copied: readonly string[];
   readonly missing: readonly string[];
   readonly name: string;
@@ -56,6 +58,7 @@ export function placeMedia(
         ]);
 
         return {
+          audiomap: item.audiomap ?? null,
           copied: landed.copied,
           missing: [],
           name: item.name,
@@ -83,7 +86,10 @@ export function mediaBrief(placements: readonly Placement[]): string | null {
         ? "could not be copied into the project."
         : `sits at ${first} — reference it with staticFile(${JSON.stringify(relative("public", first))}).`;
 
-    return `${placement.name} (${placement.type}) ${where}`;
+    const head = `${placement.name} (${placement.type}) ${where}`;
+    return placement.audiomap === null
+      ? head
+      : `${head}\n${audiomapBrief(placement.audiomap)}`;
   });
 
   return `The person attached this media to the message. It is already copied into the project — use it where it now sits rather than looking for it anywhere else.\n\n${blocks.join("\n")}`;
@@ -139,6 +145,10 @@ function describe(placement: Placement, index: number, add: string): string {
     }
   }
 
+  if (placement.audiomap !== null) {
+    lines.push(audiomapBrief(placement.audiomap));
+  }
+
   if (placement.missing.length > 0) {
     lines.push(
       `not installed yet: ${placement.missing.join(", ")} — run ${add} for them before importing.`
@@ -159,6 +169,7 @@ function placeBundled(
   return Effect.flatMap(bundledPlan(bundledNameOf(asset.slug)), (plan) => {
     if (plan === null) {
       return Effect.succeed<Placement>({
+        audiomap: null,
         copied: [],
         missing: [],
         name: asset.name,
@@ -177,6 +188,7 @@ function placeBundled(
       try: () => copyPlanned(root, plan.files),
     }).pipe(
       Effect.map((landed) => ({
+        audiomap: null,
         copied: landed.copied,
         missing: plan.dependencies.filter((name) => !isInstalled(root, name)),
         name: plan.title,
@@ -200,6 +212,7 @@ function place(
   return Effect.flatMap(findAsset(asset.slug), (found) => {
     if (found === null) {
       return Effect.succeed<Placement>({
+        audiomap: null,
         copied: [],
         missing: [],
         name: asset.name,
@@ -222,6 +235,7 @@ function place(
       try: () => copyInto(found.path, root, folder, found.files),
     }).pipe(
       Effect.map((landed) => ({
+        audiomap: found.audiomap,
         copied: landed.copied,
         missing: found.dependencies.filter((name) => !isInstalled(root, name)),
         name: found.name,

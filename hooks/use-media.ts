@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { Effect } from "effect";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAsyncAction } from "@/hooks/use-async-action";
-import { isPlayable, mediaOf } from "@/lib/studio/attachments";
+import { isPlayable, mediaOf, previewUrl } from "@/lib/studio/attachments";
 import { pickPlayable } from "@/lib/studio/shell";
+import { audiomapOf } from "@/lib/studio/thumbnail";
 import type { PromptMedia } from "@/shared/ipc";
 
 export interface Media {
@@ -51,6 +53,8 @@ export function useMedia(): Media {
 
   const clear = useCallback(() => commit([]), [commit]);
 
+  useAnalysedAudio(items, commit, held);
+
   const restore = useCallback(
     (next: readonly PromptMedia[]) => commit([...next]),
     [commit]
@@ -60,6 +64,50 @@ export function useMedia(): Media {
     () => ({ add, attach, clear, error, items, removeAt, restore }),
     [add, attach, clear, error, items, removeAt, restore]
   );
+}
+
+// An attached sound is analysed once it lands, so the turn can carry its
+// audiomap; a message sent before the decode finishes simply goes without.
+function useAnalysedAudio(
+  items: readonly PromptMedia[],
+  commit: (next: PromptMedia[]) => void,
+  held: { current: PromptMedia[] }
+) {
+  const analysed = useRef(new Set<string>());
+
+  useEffect(() => {
+    const pending = items.filter(
+      (item) =>
+        item.mediaType.startsWith("audio/") &&
+        (item.audiomap ?? null) === null &&
+        !analysed.current.has(item.path)
+    );
+
+    for (const item of pending) {
+      analysed.current.add(item.path);
+      const url = previewUrl(item.path);
+      if (url === null) {
+        continue;
+      }
+
+      Effect.runFork(
+        audiomapOf(url, item.name).pipe(
+          Effect.tap((audiomap) =>
+            Effect.sync(() => {
+              if (held.current.some((entry) => entry.path === item.path)) {
+                commit(
+                  held.current.map((entry) =>
+                    entry.path === item.path ? { ...entry, audiomap } : entry
+                  )
+                );
+              }
+            })
+          ),
+          Effect.ignore
+        )
+      );
+    }
+  }, [items, commit, held]);
 }
 
 function arriving(

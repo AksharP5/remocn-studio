@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { Audiomap } from "@/shared/audiomap";
 import { LIBRARY_DIR_ENV, REMOCN_DIR_ENV } from "@/shared/ipc";
 import { type AssetDraft, promptAssetOf } from "@/shared/library";
 import {
@@ -36,6 +37,7 @@ function source(name: string, content: string): string {
 
 function draft(shape: Partial<AssetDraft> & { files: string[] }): AssetDraft {
   return {
+    audiomap: null,
     dependencies: [],
     description: "",
     duration: null,
@@ -217,6 +219,7 @@ describe("mediaBrief", () => {
   it("gives the staticFile path rather than the one on the person's disk", () => {
     const brief = mediaBrief([
       {
+        audiomap: null,
         copied: ["public/library/intro.mp4"],
         missing: [],
         name: "intro.mp4",
@@ -230,10 +233,43 @@ describe("mediaBrief", () => {
     expect(brief).toContain('staticFile("library/intro.mp4")');
     expect(brief).toContain("intro.mp4 (video)");
   });
+
+  it("carries the audiomap of an analysed track", () => {
+    const brief = mediaBrief([
+      {
+        audiomap: MAP,
+        copied: ["public/library/theme.wav"],
+        missing: [],
+        name: "theme.wav",
+        reason: null,
+        role: null,
+        skipped: [],
+        type: "audio",
+      },
+    ]);
+
+    expect(brief).toContain("pacing: beat_cut");
+    expect(brief).toContain("hard stops (s): 4.00");
+    expect(brief).toContain("beats (s): 0.00, 0.50");
+  });
 });
+
+const MAP: Audiomap = {
+  beats: [0, 0.5, 1, 1.5],
+  bpm: 120,
+  duration: 6,
+  hardStops: [4],
+  onsetRate: 2,
+  onsets: [0, 0.5, 1, 1.5],
+  pacing: "beat_cut",
+  phases: [{ from: 0, level: "high", to: 6 }],
+  silences: [],
+  version: 1,
+};
 
 describe("assetBrief", () => {
   const placement = (shape: Partial<Placement>): Placement => ({
+    audiomap: null,
     copied: [],
     missing: [],
     name: "Neon Title",
@@ -246,6 +282,23 @@ describe("assetBrief", () => {
 
   it("says nothing at all when no asset was referenced", () => {
     expect(assetBrief([], "bun add")).toBeNull();
+  });
+
+  it("adds the audiomap under a library track", () => {
+    const brief = assetBrief(
+      [
+        placement({
+          audiomap: MAP,
+          copied: ["public/library/theme.wav"],
+          name: "Theme",
+          type: "audio",
+        }),
+      ],
+      "bun add"
+    );
+
+    expect(brief).toContain("pacing: beat_cut");
+    expect(brief).toContain("multiply by the composition's fps");
   });
 
   it("numbers each block against the reference in the message", () => {

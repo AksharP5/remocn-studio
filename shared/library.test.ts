@@ -14,6 +14,7 @@ import {
 } from "@/shared/library";
 
 const ASSET: Asset = {
+  audiomap: null,
   category: null,
   clip: null,
   createdAt: 7,

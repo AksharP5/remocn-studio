@@ -275,14 +275,20 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
             cwd: project.path,
             design: {
               check: ({ frames, motion, video: sceneMap }) =>
-                Effect.runPromise(
-                  designFrom(params.projectId, {
-                    composition: "Main",
-                    frames,
-                    motion,
-                    video: sceneMap,
-                  })
-                ),
+                video === null
+                  ? Promise.reject(
+                      new Error(
+                        "This chat has no video to check: it is not attached to a composition."
+                      )
+                    )
+                  : Effect.runPromise(
+                      designFrom(params.projectId, {
+                        composition: video,
+                        frames,
+                        motion,
+                        video: sceneMap,
+                      })
+                    ),
               sources: () => videoSources(project.path, video),
             },
             library: librarian(params),
@@ -412,7 +418,12 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
     ),
 
   "library.preview": ({ params }) =>
-    attachPreview(params.slug, params.path).pipe(Effect.mapError(unlibraried)),
+    attachPreview(
+      params.slug,
+      params.path,
+      params.duration,
+      params.audiomap
+    ).pipe(Effect.mapError(unlibraried)),
 
   "library.proxy": ({ params }) =>
     attachProxy(params.slug, params.path).pipe(Effect.mapError(unlibraried)),

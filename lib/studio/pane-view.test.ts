@@ -10,6 +10,7 @@ import type { MotionRole } from "@/shared/motion";
 
 function asset(name: string, shape: Partial<Asset> = {}): Asset {
   return {
+    audiomap: null,
     category: null,
     clip: null,
     createdAt: 1,

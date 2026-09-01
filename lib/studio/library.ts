@@ -4,6 +4,7 @@ import {
   requestSidecar,
   type SidecarError,
 } from "@/lib/studio/sidecar";
+import type { Audiomap } from "@/shared/audiomap";
 import type { PromptMedia } from "@/shared/ipc";
 import type { Asset, AssetDraft } from "@/shared/library";
 
@@ -63,7 +64,8 @@ export function renameAsset(
 export function previewAsset(
   slug: string,
   path: string,
-  duration: number | null = null
+  duration: number | null = null,
+  audiomap: Audiomap | null = null
 ): Effect.Effect<Asset, SidecarError> {
   return Effect.gen(function* () {
     const id = yield* newRequestId;
@@ -71,7 +73,7 @@ export function previewAsset(
     return yield* requestSidecar({
       id,
       method: "library.preview",
-      params: { duration, path, slug },
+      params: { audiomap, duration, path, slug },
     });
   });
 }
@@ -140,12 +142,17 @@ export function dismissAttachments(
 export function draftFromAttachment(
   attachment: PromptMedia,
   type: AssetDraft["type"],
-  still: { duration: number | null; path: string } = {
+  still: {
+    audiomap?: Audiomap | null;
+    duration: number | null;
+    path: string;
+  } = {
     duration: null,
     path: "",
   }
 ): AssetDraft {
   return {
+    audiomap: still.audiomap ?? null,
     dependencies: [],
     description: "",
     duration: still.duration,

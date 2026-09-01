@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { LIBRARY_DIR_ENV } from "@/shared/ipc";
 import type { AssetDraft } from "@/shared/library";
 import {
+  attachPreview,
   dismissPaths,
   findAsset,
   layoutOf,
@@ -28,6 +29,7 @@ function file(name: string, content: string): string {
 
 function draft(shape: Partial<AssetDraft> & { files: string[] }): AssetDraft {
   return {
+    audiomap: null,
     dependencies: [],
     description: "",
     duration: null,
@@ -109,6 +111,75 @@ describe("saveAsset", () => {
     expect(await run(findAsset("reveal")).then((found) => found?.role)).toBe(
       "entry"
     );
+  });
+
+  it("keeps the audiomap and reads a manifest without one as unanalysed", async () => {
+    const saved = await run(
+      saveAsset(
+        draft({
+          audiomap: {
+            beats: [0, 0.5],
+            bpm: 120,
+            duration: 1,
+            hardStops: [],
+            onsetRate: 2,
+            onsets: [0, 0.5],
+            pacing: "beat_cut",
+            phases: [{ from: 0, level: "high", to: 1 }],
+            silences: [],
+            version: 1,
+          },
+          files: [file("theme.wav", "riff")],
+          name: "Theme",
+          type: "audio",
+        })
+      )
+    );
+
+    expect(saved.audiomap?.bpm).toBe(120);
+
+    const manifest = join(library, "assets", saved.slug, "manifest.json");
+    const stored = JSON.parse(readFileSync(manifest, "utf8")) as Record<
+      string,
+      unknown
+    >;
+    stored.audiomap = undefined;
+    writeFileSync(manifest, JSON.stringify(stored), "utf8");
+
+    const reread = await run(findAsset(saved.slug));
+    expect(reread?.audiomap).toBeNull();
+    expect(reread?.duration).toBeNull();
+  });
+
+  it("files an audiomap beside a preview taken later", async () => {
+    const saved = await run(
+      saveAsset(
+        draft({
+          files: [file("late.wav", "riff")],
+          name: "Late",
+          type: "audio",
+        })
+      )
+    );
+
+    const still = file("late.png", "png");
+    const previewed = await run(
+      attachPreview(saved.slug, still, 3, {
+        beats: [],
+        bpm: null,
+        duration: 3,
+        hardStops: [],
+        onsetRate: 0,
+        onsets: [],
+        pacing: "phrase_flow",
+        phases: [{ from: 0, level: "mid", to: 3 }],
+        silences: [],
+        version: 1,
+      })
+    );
+
+    expect(previewed.duration).toBe(3);
+    expect(previewed.audiomap?.pacing).toBe("phrase_flow");
   });
 
   it("reads an asset written before roles existed as having none", async () => {

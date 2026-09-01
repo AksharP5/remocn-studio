@@ -107,6 +107,7 @@ function assetOf(
   const clip = join(path, CLIP);
 
   return {
+    audiomap: null,
     category: manifest.category,
     clip: existsSync(clip) ? clip : null,
     createdAt: 0,
