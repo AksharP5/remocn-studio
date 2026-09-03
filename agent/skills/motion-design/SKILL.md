@@ -1,81 +1,56 @@
 ---
 name: motion-design
 description: >
-  How a video frame should look and move — scale, layers, color presence, framing and
-  motion choreography, written for Remotion's interpolate/spring. Read BEFORE designing
-  any scene or composition, and again when a result comes out generic: web-sized text,
-  an empty centered layout, decoration nobody can see, motion that reads as static.
-  These are design rules, not incident fixes — production failures live in video-lessons.
+  Video-scale defaults for a Remotion frame — type and opacity at video size, a
+  produced, composed layout, a palette with presence, choreographed motion and the
+  recipe behind every movement-dictionary name. Read BEFORE designing any scene, and
+  again when a result reads generic: web-sized text, centered empty layout,
+  invisible decoration, static motion.
 ---
 
 # Motion design
 
-**A video frame is not a web page.** Every generic result traces back to web habits:
-web type sizes, web opacity, web centering, web restraint. This skill is the set of
-video habits to replace them with.
+Numbers here are starting values, calibrated for 30fps at 1920×1080 — scale durations
+with fps and sizes with resolution.
 
-Numbers here are starting values, calibrated for 30fps at 1920×1080. Scale durations
-with fps and sizes with resolution. Where `remocn-studio:video-lessons` disagrees with
-anything here, **video-lessons wins** — its rules are measured on this studio's own
-renders, these are design defaults.
+## 1. Video-scale
 
-The deep reference lives in `rules/` next to this file — per-question files with exact
-curve values, thresholds and provenance (see §12). This document carries the defaults;
-`rules/` carries the evidence and the edge cases.
+| Element | Web habit | Video |
+| --- | --- | --- |
+| Headlines | 32–48px | 64–120px |
+| Body text | 14–16px | 28–42px |
+| Labels, metadata | 12px | 18–24px |
+| Decorative opacity | 3–8% | 12–25% |
+| Borders | 1px | 2–4px |
+| Container padding | 16–32px | 60–140px |
 
----
+- **A font size under 24px carries a written justification** — fine print (a
+  registration mark, a monospace readout) is a garnish, never the message.
+- **Decorative opacity starts at 12%, confirmed on a Snapshot still** rather than the
+  browser: under 10% H.264 eats it — a 6% glow that reads on your monitor is gone.
+- **Fills stronger, shadows real, borders bolder** — a web card, a 1px border and a 4px
+  shadow at 6% black, vanishes at video distance.
 
-## 1. Scale: everything is bigger than you think
+## 2. Layers: a produced frame
 
-Web sizes are invisible on video. The viewer sits farther away, the encoder eats fine
-detail, and nothing can be hovered or zoomed.
+A produced frame carries six to ten elements in three roles; three read as a page that
+failed to load.
 
-| Element            | Web habit | Video    |
-| ------------------ | --------- | -------- |
-| Headlines          | 32–48px   | 64–120px |
-| Body text          | 14–16px   | 28–42px  |
-| Labels, metadata   | 12px      | 18–24px  |
-| Decorative opacity | 3–8%      | 12–25%   |
-| Borders            | 1px       | 2–4px    |
-| Container padding  | 16–32px   | 60–140px |
-
-Two hard checks before writing a value:
-
-- **A font size under 24px needs a written justification.** Fine print exists on video —
-  a registration mark, a monospace coordinate readout — but it is a deliberate garnish,
-  never the message.
-- **Decorative opacity under 10% is invisible.** A 6% glow that reads on your monitor
-  disappears under H.264. Start at 12% and confirm on a real render (a Snapshot still),
-  not in the browser.
-
-A web UI card — `border: 1px solid`, a 4px shadow at 6% black — is invisible at video
-distance. Bolder borders, stronger fills, real shadows.
-
-## 2. Layers: three roles, six to ten elements
-
-A frame with three elements looks broken, like a page that failed to load. A produced
-frame carries six to ten visual elements in three roles:
-
-- **Background** — never a flat solid. A radial glow, oversized ghost type bleeding off
-  the frame, a color panel, grain, a grid. This layer is what keeps the frame alive
-  while foreground content is still staggering in.
-- **Midground** — the message itself: the headline, the card, the stat, the code block.
+- **Background** — textured, always: a radial glow, oversized ghost type bleeding off
+  the frame, a color panel, grain, a grid.
+- **Midground** — the message: the headline, the card, the stat, the code block.
 - **Foreground accents** — hairline rules, dividers, small labels, data bars, monospace
-  metadata. The details that make a frame feel produced rather than generated.
+  metadata.
 
-Two of those elements should be decoration nobody asked for. Add them anyway: empty
-frames read as bugs.
-
-**The decoration recipe:** 2–5 decorative elements per scene, all riding one shared,
-slow ambient motion — a breath, a drift. One motion across several elements is the
-point; five decoratives each doing their own thing is noise, and one lone decorative is
-an under-dressed frame. Static decoration is worse than none — at 30fps it reads as a
-rendering mistake.
+**Ambient** is the decoration's one shared slow motion — a breath, a drift. Every scene
+has 2–5 decoratives riding it, at least two of them nobody asked for. One motion across
+several is the point — five each on their own are
+noise, a lone one is an under-dressed frame, and a static one reads at 30fps as a
+rendering mistake, worse than none.
 
 ```tsx
-// The body of a schema component: one slow drift shared by the ghost type and
-// the glow, on a curve the pane can drag. `driftEasing` defaults inline to
-// [0.37, 0, 0.63, 1] — sine-in-out — in the component's InteractivitySchema.
+// One drift shared by the ghost type and the glow; `driftEasing` defaults inline
+// to [0.37, 0, 0.63, 1] (sine-in-out) in the InteractivitySchema.
 <Interactive.Div
   data-design-id={name}
   name={name}
@@ -99,37 +74,32 @@ rendering mistake.
 
 ## 3. Color: muted is fine, flat is not
 
-Every scene needs at least one color that pulls the eye.
+Every scene has one color that pulls the eye, visibly: 15–25% opacity for an
+atmospheric wash, full saturation for a focal hit.
 
-- **The accent must be visible.** 15–25% opacity for atmospheric washes, full
-  saturation for focal hits. A 5% glow is not brand presence, it is a no-op.
-- **Light canvases are not dark canvases with the values flipped.** On dark, an accent
-  glow pops by itself. On light, glows die: reach for bolder solid borders (2px+),
-  strong structural rules and dividers, and full-saturation accent hits instead — and
-  give the background texture (grain, a faint pattern), or it reads as a blank slide.
-  If the palette is light, make light cinematic; never silently switch to dark.
-- **No full-screen linear gradients on a dark background.** They band visibly under
-  H.264. Use a radial gradient, a solid, or a solid plus a localized glow.
-- **Tint neutrals toward the accent hue.** Dead gray reads as undesigned. A warm or
-  cool cast on every neutral is what makes a palette feel intentional.
+- **A light canvas stays light, made cinematic its own way.** On dark an accent glow
+  pops by itself; on light glows die, so presence is bolder solid borders (2px+),
+  strong structural rules and dividers, full-saturation accent hits and a textured
+  background (grain, a faint pattern) — a blank slide otherwise.
+- **A dark background is a radial gradient, a solid, or a solid plus a localized glow.**
+  A full-screen linear gradient bands under H.264.
+- **Neutrals are tinted toward the accent hue.** A warm or cool cast on every neutral
+  reads as intentional; dead gray reads as undesigned.
 
-## 4. Framing: anchor, split, travel
+## 4. Framing: composed, not centered
 
-Centered-and-floating is a web layout. Video frames are composed:
-
-- **Two focal points minimum.** The eye needs somewhere to travel. A single text block
-  in empty space is a slide, not a frame.
-- **Fill the frame.** Hero text spans 60–80% of the frame width.
-- **Anchor to edges.** Pin content to left/top or right/bottom. The empty diagonal is
-  where the decoration and the second focal point live.
-- **Split layouts.** A data panel left and content right; a metadata bar on top and
-  full-width content below. Zones, not centered stacks.
-- **Structural elements earn their place twice.** Rules, dividers and border panels
-  create paths for the eye — and they animate well:
+- **Two focal points minimum** — one text block in empty space is a slide.
+- **Fill the frame** — hero text spans 60–80% of the width.
+- **Anchor to edges** — left/top or right/bottom; the empty diagonal holds the
+  decoration and the second focal point.
+- **Split into zones** — a data panel left and content right; a metadata bar on top
+  and full-width content below.
+- **Structural elements earn their place twice** — rules, dividers and border panels
+  give the eye a path, and they animate well:
 
 ```tsx
 // `drawEasing` is a prop of the rule's own schema, defaulting inline to
-// [0.33, 1, 0.68, 1] — cubic-out. `name` is unique in the frame.
+// [0.33, 1, 0.68, 1] (cubic-out). `name` is unique in the frame.
 <Interactive.Div
   data-design-id={name}
   name={name}
@@ -149,96 +119,75 @@ Centered-and-floating is a web layout. Video frames are composed:
 
 ## 5. Concept before markup
 
-Declare the design before writing a line of JSX:
+Declare before the first line of JSX:
 
-1. **Interpret the prompt into real content.** A recipe scene lists real ingredients; a
-   dashboard shows real readouts. Placeholder content produces placeholder design.
-2. **Declare the palette** — one background, one foreground, one accent — and whether
-   the canvas is light or dark. Food, wellness, kids lean light; tech, cinema, finance
-   lean dark. One accent hue for the whole film; the background stays the same across
-   scenes. Never invent colors per element.
-3. **Declare the typefaces.** Headlines at weight 700–900, body at 300–400 — the
-   contrast between the two is the typography. Pair a serif with a sans rather than two
-   sans faces. If the brand ships only one weight, emphasis comes from size and color.
+1. **Real content** — real ingredients on a recipe scene, real readouts on a dashboard;
+   placeholder content produces placeholder design.
+2. **The palette** — one background, one foreground, one accent — and whether the
+   canvas is light or dark: food, wellness and kids lean light; tech, cinema and
+   finance lean dark. One accent hue for the whole film, one background across every
+   scene, one palette serving every element.
+3. **The typefaces** — weight contrast is the typography, headlines at 700–900 over
+   body at 300–400, a serif over a sans rather than two sans; a one-weight brand takes
+   its emphasis from size and color.
 
 ## 6. Motion: subtle reads as static
 
-At 30fps, restraint disappears. Err toward more movement than feels safe — every
-decorative element carries ambient motion, every entrance is choreographed.
+At 30fps restraint disappears: err toward more movement than feels safe.
 
 ### Direction is grammar
 
-- **Entering elements decelerate** — fast start, soft landing. `Easing.out(...)` or a
-  clamped spring. This is the default.
-- **Exiting elements accelerate** — slow start, thrown off frame. `Easing.in(...)`.
-- **Elements moving between positions** ease both ends: `Easing.inOut(...)`.
-
-Getting this backwards is the commonest motion bug: an ease-in entrance feels sluggish,
-an ease-out exit feels reluctant.
+- **Entering decelerates** — fast start, soft landing: `Easing.out(...)` or a clamped
+  spring. The default.
+- **Exiting accelerates** — slow start, thrown off frame: `Easing.in(...)`.
+- **Moving between positions** eases both ends: `Easing.inOut(...)`.
 
 ### Speed is weight
 
-| Feel                              | Duration @30fps | Seconds   |
-| --------------------------------- | --------------- | --------- |
-| Energy, urgency, confidence       | 5–9 frames      | 0.15–0.3s |
-| Professional default              | 9–15 frames     | 0.3–0.5s  |
-| Gravity, luxury, contemplation    | 15–24 frames    | 0.5–0.8s  |
-| Cinematic, atmospheric            | 24–60 frames    | 0.8–2.0s  |
+| Feel | Duration @30fps | Seconds |
+| --- | --- | --- |
+| Energy, urgency, confidence | 5–9 frames | 0.15–0.3s |
+| Professional default | 9–15 frames | 0.3–0.5s |
+| Gravity, luxury, contemplation | 15–24 frames | 0.5–0.8s |
+| Cinematic, atmospheric | 24–60 frames | 0.8–2.0s |
 
-The slowest motion in a film should be about three times slower than the fastest. A
-composition where everything takes 12 frames has no dynamics.
+The slowest motion in a film is about three times slower than the fastest — everything
+at 12 frames has no dynamics.
 
 ### Every scene: build, breathe, resolve
 
-- **Build (first ~30%)** — elements enter, staggered by importance. Never everything at
-  once.
-- **Breathe (middle ~40%)** — content holds, kept alive by the one shared ambient
-  motion on the decoratives.
+- **Build (first ~30%)** — elements enter, staggered by importance.
+- **Breathe (middle ~40%)** — content holds, the ambient keeping it alive.
 - **Resolve (last ~30%)** — a deliberate exit or a decisive hold.
 
-The commonest failure is dumping everything into the build and leaving a dead frame for
-two thirds of the scene.
+### Choreographed
 
-### Choreography rules
+- **The first mover reads as the most important** — stagger by meaning, not DOM order.
+- **Overlap entrances** — element two starts while element one is still landing.
+- **Vary or die** — at least 3 different easings and 3 entrance directions per scene
+  (from left, from right, from scale, opacity-only).
+- **Vary the ambient per scene** — drift here, breathe there, stillness after motion is
+  itself a move; the same ambient zoom everywhere is wallpaper.
 
-- **The first mover reads as the most important.** Stagger in order of meaning, not DOM
-  order.
-- **Overlap entrances** — element two starts while element one is still landing. The
-  whole stagger sequence fits in ~15 frames regardless of how many items enter.
-- **Exits are faster than entrances.** What takes 12 frames to arrive leaves in 7.
-- **Never start at frame 0.** Offset the first animation by 3–9 frames; a zero-frame
-  start reads as a jump cut from the previous scene.
-- **Vary or die.** At least 3 different easings per scene, at least 3 entrance
-  directions (from left, from right, from scale, opacity-only). If every element enters
-  the same way, the scene has no choreography — and per video-lessons, text travels on
-  X only, never Y.
-- **Vary the ambient motion per scene** — drift here, breathe there, stillness after
-  motion is itself a move. The same ambient zoom on every scene is wallpaper.
+### The vocabulary
 
-### The vocabulary, in Remotion terms
+| Intent | Penner name | Array default of the `easing` prop |
+| --- | --- | --- |
+| Standard entrance | quad-out | `[0.25, 0.46, 0.45, 0.94]` |
+| Standard entrance, softer | cubic-out | `[0.33, 1, 0.68, 1]` |
+| Punchy title landing | quart-out | `[0.25, 1, 0.5, 1]`, or a stiff spring |
+| Dramatic, premium reveal | expo-out | `[0.16, 1, 0.3, 1]` |
+| Calm ambient drift, breathe | sine-in-out | `[0.37, 0, 0.63, 1]` over the whole scene |
+| Physical element transforms | — | `spring()` with `damping`/`stiffness` props |
+| One deliberate playful pop | — | `spring()` with visible overshoot — at most once per film |
+| Mechanical motion, typing | linear | `[0, 0, 1, 1]`, or stepped via a frame threshold |
 
-Every one of these is the **inline default of the component's own `easing` prop**,
-spread in as `Easing.bezier(...easing)` — never a constant in the body, which is
-a curve the properties pane can render and can never edit.
-
-| Intent                       | Penner name        | Array default of the `easing` prop        |
-| ---------------------------- | ------------------ | ----------------------------------------- |
-| Standard entrance            | quad-out           | `[0.25, 0.46, 0.45, 0.94]`                |
-| Standard entrance, softer    | cubic-out          | `[0.33, 1, 0.68, 1]`                      |
-| Punchy title landing         | quart-out          | `[0.25, 1, 0.5, 1]`, or a stiff spring    |
-| Dramatic, premium reveal     | expo-out           | `[0.16, 1, 0.3, 1]`                       |
-| Calm ambient drift, breathe  | sine-in-out        | `[0.37, 0, 0.63, 1]` over the whole scene |
-| Physical element transforms  | —                  | `spring()` with `damping`/`stiffness` props |
-| One deliberate playful pop   | —                  | `spring()` with visible overshoot — at most once per film |
-| Mechanical motion, typing    | linear             | `[0, 0, 1, 1]`, or stepped via a frame threshold |
-
-An entrance combines transforms — but **opacity and transform never share a curve or a
-length** (video-lessons): give each its own range.
+An entrance combines transforms, and **opacity and transform each get their own range**
+(video-lessons):
 
 ```tsx
-// One run of text is one named text primitive whose direct child is the
-// string, with typography as literals and the curve as a prop. The full
-// component this is the body of is in `rules/tunable-text.md`.
+// One run of text: one named text primitive, the string its direct child, typography
+// as literals, the curve a prop. Whole component: `rules/tunable-text.md`.
 <Interactive.H1
   data-design-id={name}
   name={name}
@@ -265,159 +214,116 @@ length** (video-lessons): give each its own range.
 
 ## 7. The movement dictionary
 
-Every movement has a **role**: when in the life of the thing it is attached to it runs.
-The studio speaks these five words everywhere — the conventions, the Components pane,
-and the props a component exposes — so name movement with them rather than describing
-it fresh each time.
-
-| Role         | Answers                        | Runs                                            |
-| ------------ | ------------------------------ | ----------------------------------------------- |
-| `entry`      | how it arrives                 | at the start of the element's life              |
-| `emphasis`   | how it draws the eye           | in the middle, while it is on screen            |
-| `exit`       | how it leaves                  | at the end                                      |
-| `scene`      | what holds the frame           | the whole scene — backdrops, filters, overlays  |
-| `transition` | how one scene becomes the next | across the cut                                  |
-
-The rule that settles the hard cases: a behaviour that **replaces content in place** is
-emphasis — the element was there before and is there after. A behaviour that brings
-content **out of nothing** is entry, and so is a number that counts to the value it
-lands on. Components the person inserts from the studio's own set arrive already
-classified this way, in the `[Asset #N]` block at the end of their message.
+Every movement has a role — the conventions' `entry`, `emphasis`, `exit`, `scene`,
+`transition` — and a dictionary name. The settling rule: a behaviour that
+**replaces content in place** is emphasis — there before, there after; one that brings
+content **out of nothing** is entry, a number counting to its landing value included.
+A component from the studio's own set arrives classified in its `[Asset #N]` block. A
+`scene` behaviour takes `speed`, `intensity`; a `transition` `direction`,
+`durationInFrames`, `easing`.
 
 ### Entry — 12–18 frames, decelerating
 
-The default entrance is 12–18 frames (0.4–0.6s at 30fps) on `Easing.out(...)`, offset
-3–9 frames from the start of the scene. Opacity and transform get their own ranges,
-never one shared curve.
+0.4–0.6s on `Easing.out(...)`; the scene's first starts at frame 3–9, since frame 0
+reads as a jump cut.
 
-| Name          | What it is                                            | Recipe                                                                                 |
-| ------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `fade-in`     | opacity alone, when the thing must not move            | `opacity: interpolate(frame, [6, 16], [0, 1], clamped)`                                   |
-| `rise-in`     | comes up from below as it fades — panels, cards, media | `translate: interpolate(frame, [6, 22], ['0px 28px', '0px 0px'], easeOutCubic)`            |
-| `slide-in`    | travels in from an edge — **the text entrance**        | `translate: interpolate(frame, [6, 22], ['-64px 0px', '0px 0px'], easeOutCubic)`           |
-| `blur-in`     | resolves out of blur as it fades                       | a `filter: blur(Npx)` template string over `interpolate(frame, [6, 20], [12, 0], clamped)` |
-| `scale-in`    | lands from just under or over 1                        | `scale: spring({frame: frame - 6, fps, config: {damping: 200}, ...})`                     |
-| `mask-reveal` | wiped in behind a window that does not move            | a fixed `overflow: hidden` box; the content translates inside it                          |
-| `type-on`     | characters appear on a stepped clock                   | `text.slice(0, Math.floor((frame - 6) / 2))` — no per-glyph transforms                    |
-| `draw-on`     | a stroke draws itself — a rule, an underline, a path   | `scale: interpolate(...)` on a `transformOrigin: 'left center'` bar, or `strokeDashoffset` |
-| `count-in`    | a number rolls to the value it lands on                | `Math.round(interpolate(frame, [6, 30], [0, 1240], clamped))`, `tabular-nums`              |
-| `decode-in`   | scrambled characters resolve into the real ones        | per-character: settled when `frame > start + index * 2`, random glyph before              |
+| Name | What it is | Recipe |
+| --- | --- | --- |
+| `fade-in` | opacity alone, when the thing must not move | `opacity: interpolate(frame, [6, 16], [0, 1], clamped)` |
+| `rise-in` | comes up from below as it fades — panels, cards, media | `translate: interpolate(frame, [6, 22], ['0px 28px', '0px 0px'], easeOutCubic)` |
+| `slide-in` | travels in from an edge — **the text entrance** | `translate: interpolate(frame, [6, 22], ['-64px 0px', '0px 0px'], easeOutCubic)` |
+| `blur-in` | resolves out of blur as it fades | a `filter: blur(Npx)` template string over `interpolate(frame, [6, 20], [12, 0], clamped)` |
+| `scale-in` | lands from just under or over 1 | `scale: spring({frame: frame - 6, fps, config: {damping: 200}, ...})` |
+| `mask-reveal` | wiped in behind a window that does not move | a fixed `overflow: hidden` box; the content translates inside it |
+| `type-on` | characters appear on a stepped clock | `text.slice(0, Math.floor((frame - 6) / 2))` — glyphs appear in place, untransformed |
+| `draw-on` | a stroke draws itself — a rule, an underline, a path | `scale: interpolate(...)` on a `transformOrigin: 'left center'` bar, or `strokeDashoffset` |
+| `count-in` | a number rolls to the value it lands on | `Math.round(interpolate(frame, [6, 30], [0, 1240], clamped))`, `tabular-nums` |
+| `decode-in` | scrambled characters resolve into the real ones | per-character: settled when `frame > start + index * 2`, random glyph before |
 
-Stagger, at 30fps: **1 frame per character** (0.04s), 2–3 per word, 4–6 per line — and
-the whole sequence still fits in about 15 frames however many items enter. Past that,
-cut the per-item step rather than the count.
+Stagger, at 30fps: **1 frame per character** (0.04s), 2–3 per word, 4–6 per line; the
+whole run fits in about 15 frames however many items enter — past that, shrink the
+step, keep the count.
 
-**Text is the exception that keeps coming back**: a text entrance travels on X or not at
-all, because a Y translate snaps glyph baselines and the line jitters (`video-lessons`
-§2). So text uses `slide-in`, `fade-in`, `blur-in`, `type-on` or `mask-reveal`;
-`rise-in` is for panels, cards and images.
+**Text travels on X, or holds still** — a Y translate snaps glyph baselines and the line
+jitters (`video-lessons` §2): text enters by `slide-in`, `fade-in`, `blur-in`, `type-on`
+or `mask-reveal`; `rise-in` is for panels, cards and images.
 
 ### Emphasis — earned, once per scene
 
-Emphasis is spent on the one thing that matters. Two emphasised elements in a frame
-means neither is emphasised.
+Two emphasised elements in a frame means neither is. The ambient belongs to the decoration (§2): the emphasised element holds still
+between its moves — UI neither breathes nor pulses (`video-lessons` §1).
 
-| Name       | What it is                                                | Recipe                                                                    |
-| ---------- | --------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `highlight` | a ground or a color change on the phrase itself           | a marker block scaling from `transformOrigin: 'left'`, text color crossing |
-| `mark`     | a hand-drawn annotation around it — circle, arrow, rule    | a stroke drawn on its own curve, landing after the phrase has settled      |
-| `shimmer`  | light sweeps across the surface once                       | a moving `linear-gradient` under `background-clip: text`                   |
-| `glitch`   | a short corruption burst, 4–8 frames, then clean           | two offset copies on a frame threshold, not a continuous jitter            |
-| `swap`     | the content is replaced in place                           | old and new share the box; opacity crosses, an X slide carries the change  |
-| `burst`    | particles fired at one moment — confetti, sparks           | seeded so every render is identical; fired on a frame, never looping       |
-
-No breathing or pulsing on UI: `video-lessons` §1 bans it. Ambient motion belongs to
-decoration (§2 here), not to the element you are emphasising.
+| Name | What it is | Recipe |
+| --- | --- | --- |
+| `highlight` | a ground or a color change on the phrase itself | a marker block scaling from `transformOrigin: 'left'`, text color crossing |
+| `mark` | a hand-drawn annotation around it — circle, arrow, rule | a stroke drawn on its own curve, landing after the phrase has settled |
+| `shimmer` | light sweeps across the surface once | a moving `linear-gradient` under `background-clip: text` |
+| `glitch` | a short corruption burst, 4–8 frames, then clean | two offset copies on a frame threshold, held clean between bursts |
+| `swap` | the content is replaced in place | old and new share the box; opacity crosses, an X slide carries the change |
+| `burst` | particles fired at one moment — confetti, sparks | seeded so every render is identical; fired once, on a frame |
 
 ### Exit — the entry, mirrored
 
-An exit is the entry it answers, reversed: the same props, `Easing.in(...)` instead of
-`Easing.out(...)`, and about two thirds of the frames — what arrives in 12 leaves in 7.
-`fade-out`, `blur-out`, `slide-out`, `scale-out` mirror their entries one for one. An
-element still on screen when the scene ends needs no exit; the transition is its exit.
+About two thirds of the entry's frames — what arrives in 12 leaves in 7; `fade-out`,
+`blur-out`, `slide-out` and `scale-out` mirror their entries one for one.
 
-### The props a role expects
+## 8. Every image moves
 
-A behaviour the dictionary does not have is still a behaviour of a role, and its props
-say which one it is — this is what lets the studio put knobs on it later:
+A raw rectangle is a placeholder; every image gets one treatment:
 
-- **entry / exit** — `direction`, `durationInFrames`, `delay`, `stagger`, `easing`.
-- **emphasis** — `intensity`, `repeat`, `delay`.
-- **scene** — `speed`, `intensity`.
-- **transition** — `direction`, `durationInFrames`, `easing`.
-
-Every one of them is a typed prop with its default inline, described by the component's
-Zod schema. A behaviour worth keeping is one the person can save to the library with
-its role, and the dictionary grows by exactly that.
-
-## 8. Images are never flat
-
-A raw rectangular image dropped into a frame reads as a placeholder. Every image gets a
-motion treatment:
-
-- **Slow push (Ken Burns)** — scale 1 → 1.04 over the beat. The cheapest way to make a
-  photo cinematic.
+- **Slow push (Ken Burns)** — scale 1 → 1.04 over the beat.
 - **Perspective tilt** — a slight `rotate` with `perspective` on the parent, plus a real
-  shadow, turns a screenshot into an object.
-- **Device or panel frame** — wrap it in a rounded, shadowed shell.
+  shadow.
+- **Device or panel frame** — a rounded, shadowed shell.
 - **Clipped scroll reveal** — a fixed window the image travels through: the mask stays
   still, the content moves.
 
 ## 9. Transitions carry meaning
 
-- **Crossfade** says "this continues".
-- **Hard cut** says "wake up" — disruption, a register shift.
-- **Slow dissolve** says "drift with me".
-
-Crossfading everything is the tell of an unchoreographed film. Spend hard cuts on the
-moments that turn.
+A **crossfade** says "this continues"; a **hard cut** says "wake up" — disruption, a
+register shift; a **slow dissolve** says "drift with me". Hard cuts are spent on the
+moments that turn; a film that crossfades everything is unchoreographed.
 
 ## 10. The brand spec is brand, not layout
 
-A design spec says what the brand **looks like** — it does not say how to compose a
-video frame.
+**Strict:** hex values (background included), font families, weight relationships, the
+do's and don'ts. **Adapted for video:** type sizes, spacing, decorative opacity, border
+weights, component treatments — brand colors at web-UI intensity are invisible here;
+the color is sacred, the application is yours.
 
-- **Strict from the spec:** hex values (background included), font families, weight
-  relationships, the do's and don'ts. A light canvas the person chose stays light.
-- **Yours to adapt for video:** type sizes, spacing, decorative opacity, border
-  weights, component treatments. Brand colors at web-UI intensity are invisible on
-  video; the color is sacred, the application is yours.
+## 11. The AI tells
 
-## 11. Anti-patterns: the AI tells
+Default, then tell — a tell is a deliberate, argued choice for this specific content,
+or absent:
 
-Each of these is the first thing a model reaches for. Using one is only acceptable as a
-deliberate, argued choice for this specific content — never as a default:
-
-- Gradient text (`background-clip: text`).
-- A left-edge accent stripe on a card or callout.
-- Cyan-on-dark, purple-to-blue gradients, neon accents.
-- Pure `#000` or `#fff` — tint toward the accent hue instead.
-- A grid of identical same-size cards.
-- Everything centered with equal weight — lead the eye somewhere.
-- The same ease on every animation, the same entrance on every element, the same
-  stagger in every scene.
-- Static decoration, or no decoration at all.
-- For audio-driven scenes: equalizer bars, spectrum analyzers, waveforms, strobing.
-  Audio supplies timing and intensity; the visual vocabulary still comes from the brand.
+- Solid-color type — gradient text (`background-clip: text`).
+- A callout framed by its ground or a rule — the left-edge accent stripe.
+- Content-specific color — cyan-on-dark, purple-to-blue gradients, neon accents.
+- Tinted neutrals — pure `#000` or `#fff`.
+- Cards of differing size and weight — a grid of identical cards.
+- An eye led somewhere — everything centered at equal weight.
+- An ease, an entrance and a stagger that change per element and per scene — the same
+  ones everywhere.
+- Decoration that moves — static decoration, or none.
+- An audio-driven scene drawn in the brand's own vocabulary, audio supplying timing and
+  intensity — equalizer bars, spectrum analyzers, waveforms, strobing.
 
 ## 12. The rules corpus
 
-`rules/` next to this file is the source of truth behind the defaults above: one file
-per decision, every number with its source and an `[unverified]` marker until a
-snapshot has confirmed it at video scale. Read the file whose question you are about
-to answer — with the Read tool, before writing the code, not after:
+`rules/` is the source of truth: one file per decision, every number with its source
+and an `[unverified]` marker until a Snapshot has confirmed it at video scale. Read the
+file whose question you are answering — with the Read tool, before the code:
 
-| File                     | The question it answers                                        |
-| ------------------------ | -------------------------------------------------------------- |
-| `rules/timing.md`        | How many frames does this entry, exit, move or hold get?        |
-| `rules/easing.md`        | What curve — exact beziers, spring configs, linear exceptions.  |
-| `rules/tunable-text.md`  | What shape a run of text takes so the pane can name and edit it. |
-| `rules/staging.md`       | What enters when, from where, in what order, staggered how?     |
-| `rules/alive.md`         | What happens after the entrance settles — holds, drift, counts. |
-| `rules/continuity.md`    | How one scene becomes the next; the whole video's rhythm.       |
-| `rules/camera.md`        | When may the whole frame move, and how.                         |
-| `rules/anti-patterns.md` | The consolidated cliché blocklist — scan after drafting.        |
+| File | The question it answers |
+| --- | --- |
+| `rules/timing.md` | How many frames does this entry, exit, move or hold get? |
+| `rules/easing.md` | What curve — exact beziers, spring configs, linear exceptions. |
+| `rules/tunable-text.md` | What shape a run of text takes so the pane can name and edit it. |
+| `rules/staging.md` | What enters when, from where, in what order, staggered how? |
+| `rules/alive.md` | What happens after the entrance settles — holds, drift, counts. |
+| `rules/continuity.md` | How one scene becomes the next; the whole video's rhythm. |
+| `rules/camera.md` | When may the whole frame move, and how. |
+| `rules/anti-patterns.md` | The consolidated cliché blocklist — scan after drafting. |
 | `rules/product-launch.md` | Measured scene rhythm, cut mix, beat alignment and holds for product launches. |
 
-When a rule here and a rule in `rules/` disagree on a number, `rules/` wins — it
-carries the provenance. `remocn-studio:video-lessons` still outranks both.
+On a number, `rules/` outranks this file; `remocn-studio:video-lessons` outranks both.
