@@ -10,6 +10,7 @@ import {
   isBlocked,
   merged,
   unresolved,
+  upgradeProject,
 } from "@/lib/studio/environment";
 import type { PreviewComposition } from "@/lib/studio/preview";
 import { failedProviders } from "@/lib/studio/setup";
@@ -27,9 +28,23 @@ export interface Environment {
   isChecking: boolean;
   isInstalling: boolean;
   isInstallingNode: boolean;
+  isUpgrading: boolean;
   output: string | null;
   recheck: () => void;
   troubles: readonly EnvironmentCheck[];
+  upgrade: () => void;
+}
+
+export function upgradeFix(
+  checks: readonly EnvironmentCheck[]
+): { packages: readonly string[]; version: string } | null {
+  for (const check of checks) {
+    if (check.fix?.type === "upgrade") {
+      return { packages: check.fix.packages, version: check.fix.version };
+    }
+  }
+
+  return null;
 }
 
 const NONE: readonly EnvironmentCheck[] = [];
@@ -47,6 +62,7 @@ export function useEnvironment(
   const [isInstalling, setIsInstalling] = useState(false);
   const [output, setOutput] = useState<string | null>(null);
   const [isInstallingNode, setIsInstallingNode] = useState(false);
+  const [isUpgrading, setIsUpgrading] = useState(false);
   const [download, setDownload] = useState<NodeDownload | null>(null);
   const running = useRef<Running | null>(null);
 
@@ -173,6 +189,41 @@ export function useEnvironment(
 
   const shown = useMemo(() => merged(checks, pick), [checks, pick]);
 
+  const upgrade = useCallback(() => {
+    const fix = upgradeFix(shown);
+
+    if (projectId === null || isUpgrading || fix === null) {
+      return;
+    }
+
+    setIsUpgrading(true);
+    setOutput(null);
+
+    Effect.runFork(
+      upgradeProject(projectId, fix.packages, fix.version, (event) => {
+        setOutput(event.line);
+      }).pipe(
+        Effect.onExit((exit) =>
+          Effect.sync(() => {
+            setIsUpgrading(false);
+            setOutput(null);
+
+            if (Exit.isSuccess(exit)) {
+              setError(null);
+              check(projectId, true);
+              return;
+            }
+
+            const message = causeMessage(exit.cause);
+            if (message !== null) {
+              setError(message);
+            }
+          })
+        )
+      )
+    );
+  }, [check, isUpgrading, projectId, shown]);
+
   useRecheckOnFocus(failedProviders(shown).length > 0, recheck);
 
   return useMemo(
@@ -186,9 +237,11 @@ export function useEnvironment(
       isChecking,
       isInstalling,
       isInstallingNode,
+      isUpgrading,
       output,
       recheck,
       troubles: unresolved(shown),
+      upgrade,
     }),
     [
       download,
@@ -198,10 +251,12 @@ export function useEnvironment(
       isChecking,
       isInstalling,
       isInstallingNode,
+      isUpgrading,
       output,
       provider,
       recheck,
       shown,
+      upgrade,
     ]
   );
 }

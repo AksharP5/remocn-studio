@@ -12,6 +12,7 @@ import type {
   Installed,
   NodeDownload,
   NodeInstaller,
+  Upgraded,
 } from "@/shared/ipc";
 import type { AgentProvider } from "@/shared/providers";
 import type { PreviewComposition } from "./preview";
@@ -44,6 +45,24 @@ export function installProject(
       method: "project.install",
       onStream: onEvent,
       params: { projectId },
+    }).pipe(Effect.onInterrupt(() => Effect.ignore(cancelSidecarRequest(id))));
+  });
+}
+
+export function upgradeProject(
+  projectId: string,
+  packages: readonly string[],
+  version: string,
+  onEvent: (event: InstallEvent) => void
+): Effect.Effect<Upgraded, SidecarError> {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+
+    return yield* requestSidecar({
+      id,
+      method: "project.upgrade",
+      onStream: onEvent,
+      params: { packages, projectId, version },
     }).pipe(Effect.onInterrupt(() => Effect.ignore(cancelSidecarRequest(id))));
   });
 }
@@ -134,6 +153,12 @@ export function unresolved(
   return checks.filter(
     (check) => check.state === "failed" || check.state === "warn"
   );
+}
+
+export function troubleHeading(troubles: readonly EnvironmentCheck[]): string {
+  return troubles.every((check) => check.state === "warn")
+    ? "This project has one thing worth fixing"
+    : "This project is not ready to run";
 }
 
 // Only the session's own provider being logged out locks the composer: the
