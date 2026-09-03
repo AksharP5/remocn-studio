@@ -27,8 +27,8 @@ export function accountCheck(): Effect.Effect<EnvironmentCheck> {
 export function missingRow(): EnvironmentCheck {
   return {
     detail:
-      "The copilot command is not on this machine. Install it with `npm install -g @github/copilot`, run `copilot login`, then recheck.",
-    fix: { command: "npm install -g @github/copilot", type: "command" },
+      "The copilot command is not on this machine. Install the Copilot CLI, sign in with your GitHub account, then come back.",
+    fix: { step: "install", type: "provider" },
     id: "copilot",
     state: "failed",
     title: "Copilot is not installed",
@@ -38,7 +38,7 @@ export function missingRow(): EnvironmentCheck {
 export function signInRow(): EnvironmentCheck {
   return {
     detail: NOT_AUTHENTICATED,
-    fix: { command: "copilot login", type: "command" },
+    fix: { step: "signin", type: "provider" },
     id: "copilot",
     state: "failed",
     title: "Copilot is not logged in",
@@ -58,7 +58,7 @@ export function okRow(version: string | null): EnvironmentCheck {
 export function unreachableRow(message: string): EnvironmentCheck {
   return {
     detail: `${message}\n\nRun copilot in a terminal to see what it says.`,
-    fix: { command: "copilot", type: "command" },
+    fix: { step: "install", type: "provider" },
     id: "copilot",
     state: "failed",
     title: "Copilot could not start",

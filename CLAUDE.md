@@ -1290,6 +1290,32 @@ exist — see *Registering a video without touching `Root.tsx`*.
 - **The linter has one exception for the template.** `useFilenamingConvention` is off
   under `templates/**`: every Remotion project has `src/Root.tsx`, and a scaffolded
   project spelled `root.tsx` would look wrong to anyone who has seen another one.
+- **The pin is 4.0.520, and it moved on the owner's call rather than on the gate.** The
+  properties pane needs 4.0.513 for text and type: below it, `Interactive.js` builds an
+  element's schema from `baseSchema + transformSchema` alone, so no primitive anywhere can
+  carry a font size, a weight or a colour — measured, and the reason a click on a real
+  video's text opened a pane with nothing typographic in it. What the move is *not* backed
+  by is a running Player: the four runtime claims — `controls` non-null on an
+  `Interactive.Div`, a `style.fontSize` drag moving pixels, typing in `Text` moving the
+  frame, a snapshot still staying byte-identical to `npx remotion still` — are still the
+  owner's to confirm in the app, and until they are, a new project scaffolds onto a
+  Remotion this studio has previewed only in pieces. What *was* checked first, against the
+  real 4.0.520 installed in a scratch copy of the videos project: `textSchema` and
+  `textContentSchema` are spread onto every text tag (`Interactive.js:75-82`); the controls
+  object still carries exactly the four fields `SequenceControls` declares, so `asControls`
+  needed no optional fields after all; every override seam the runtime drives
+  (`setPropStatuses`, `clearDragOverrides`, `setDragOverrides`,
+  `overrideIdToNodePathMappings`, `getDragOverrides`,
+  `computeEffectiveSchemaValuesDotNotation`) is present; and `SUPPORTED` covers every field
+  type 4.0.520 emits except `remotion-captions`, which has no control behind it. The video
+  template typechecks against those real types — verified with a `tsc` run whose
+  `node_modules` is that copy's.
+- **`Interactive.H1` is not what the pin buys, and that is worth knowing.** The text tags
+  exist on 4.0.481 too, so the template's `<h1>` could have been one all along and the
+  change typechecks on both versions; what 4.0.520 adds is the *schema* behind them. The
+  template's title therefore carries `name` and a matching `data-design-id` — the shape the
+  conventions now ask of every agent-written text run — and `RisingText` takes the name as
+  a prop rather than reaching for the one the `<Sequence>` already had.
 
 ### What the agent knows
 
@@ -1297,9 +1323,13 @@ What makes this remocn studio and not a generic Claude Code GUI (#225). `agent/`
 **plugin** checked in here and mapped into the bundle by `tauri.conf.json`; Rust resolves it
 the way it resolves the template and passes it as `REMOCN_STUDIO_PLUGIN_DIR`. It carries three
 vendored skills — `remocn`, `remotion-best-practices` and `remotion-interactivity` — and two of
-our own, `video-lessons` and `motion-design`. **All four providers load all five** (REM-293),
-each through its own native mechanism, out of the one `agent/skills/` — see *One bundle, four
-runtimes*.
+our own, `video-lessons` and `motion-design`, the latter now carrying
+`rules/tunable-text.md`: one worked `Headline` component, typechecked against
+Remotion 4.0.481 and pinned as a fixture that scores **zero** against the
+tunability rule set, plus the several-named-components-rather-than-a-`.map()`
+rule and what the shape cannot give you below 4.0.513. **All four providers load all
+five** (REM-293), each through its own native mechanism, out of the one `agent/skills/`
+— see *One bundle, four runtimes*.
 
 - **`video-lessons` is ours, and it sits *beside* the vendored three rather than inside one.**
   `skills:check` walks each vendored skill and reports any file upstream does not have as
@@ -1333,12 +1363,21 @@ runtimes*.
 - **AI-written components must be tunable without code.** `STUDIO_CONVENTIONS` requires every
   *new* component to expose its knobs as typed props with inline defaults, a Zod schema
   beside the component (`zColor()` for colors), and an `InteractivitySchema` for a custom
-  effect's parameters — the foundation the props panel (REM-6) will read instead of guessing
-  by fiber. Edits to existing components are deliberately exempt: nothing is rewritten around
-  a schema unless the person asks. The convention degrades in words on an old Remotion rather
-  than failing the turn, and `templates/remotion` ships `zod` + `@remotion/zod-types` so the
-  first schema needs no `bun add` card. (`Interactive`/`InteractivitySchema` are exported at
-  least since 4.0.481, the template's pin — measured against the published package.)
+  effect's parameters — the foundation the props panel (REM-6) reads instead of guessing
+  by fiber. Since that pane shipped it also says what shape a *run of text* takes: one named
+  `Interactive.H1`/`P`/`Span` whose direct child is the string, typography as literals in
+  that element's own `style`, a `name` unique in the frame and equal to its `data-design-id`
+  (carrying the index or the content inside a `.map()`), and a component that splits a run
+  into words keeping the split inside behind one `text` prop — declared `type: "text-content"`
+  from Remotion 4.0.513, where the pane can then edit the string live. The old sentence *"a
+  component that skips this cannot be selected in the preview at all"* is gone, because the
+  runtime proves it false: any DOM node is selectable, and what `withSchema` buys is the
+  component's own props. Edits to existing components are deliberately exempt: nothing is
+  rewritten around a schema unless the person asks. The convention degrades in words on an
+  old Remotion rather than failing the turn, and `templates/remotion` ships `zod` +
+  `@remotion/zod-types` so the first schema needs no `bun add` card.
+  (`Interactive`/`InteractivitySchema` are exported at least since 4.0.481, the template's
+  pin — measured against the published package.)
 - **`"../agent": "agent"` maps the whole folder** in `tauri.conf.json`, so a new skill needs no
   resource entry — unlike `preview/`, which is listed file by file.
 
@@ -1680,10 +1719,24 @@ alongside `[Image #N]` (#18). The message is still sent by hand.
   pane silently never opened for it, which is exactly the shape of "the agent says it
   added easing and inspect selects a bare div". `controls` is a prop, so it is on the
   fiber whatever the author remembered to wire. `nearestInteractive` stays as the
-  fallback, and because a component may now be selectable without having registered a
-  sequence carrying its controls, the runtime remembers the controls of everything
-  selected so a later edit can still find its schema by id — the overrides themselves
-  ride on the node path we mint, which owes the registry nothing.
+  fallback, and a component selectable without having registered a sequence carrying its
+  controls is **found again** rather than remembered: `rebind` in `preview/tuning.ts` walks
+  every live target on *every* registration, resolving its anchor back to a node, then that
+  node's `refForOutline` owners, and falling back to the fiber chain when none of them
+  claim it. A cache of the controls of everything ever selected was the first version, and
+  it is exactly wrong for a Player that unmounts a scene on every loop — the ids it held
+  were dead by the time the next edit used them. `sameMappings` is what keeps rebinding
+  idempotent: the synthetic `overrideId → nodePath` map is republished only when it really
+  changed, or every registration would restart the render.
+- **A `targetId` is `anchor::componentName`; an `instanceId` is the bare anchor.** They look
+  redundant and are not. `controlsChain` routinely returns two links whose `hostOf` is the
+  *same* DOM node — an `Interactive.Div` and the `withSchema` wrapper immediately around it
+  render one element — so keying a target on the bare anchor would merge them into one card
+  and lose the author's own schema behind Remotion's built-in style one; the component name
+  is what separates them, with a positional `::<index>` behind that for the case where even
+  that collides. `instanceId` stays the bare anchor because its job is the opposite question
+  — *which instance of this element* — which is what the ordinal and the `PropsPanel` key
+  are about.
 - **The pane opens on what you pointed at, and offers its `Interactive` ancestors.** The
   studio's own conventions ask for `Interactive.Div` and its siblings around the markup
   (so styles are editable) **and** `Interactive.withSchema` around the component (so its
@@ -1695,9 +1748,21 @@ alongside `[Image #N]` (#18). The message is still sent by hand.
   showed the parameters of every component above it, up to the `CameraRig` framing the
   whole scene, and titled the pane after it. So `controlsChain` collects them
   innermost-first, the selection carries all of them (`tuning` is an array), and the pane
-  renders one at a time with a switcher — `TargetChain`, labelled by `chainLabel`, which
-  strips Remotion's `<Interactive.…>` spelling down to `Div`. It renders only when there
-  is more than one, so the ordinary case gains no chrome.
+  renders one at a time with a switcher — `TargetChain`. It renders only when there is
+  more than one, so the ordinary case gains no chrome. A link whose whole schema is
+  `hidden` and `layout` — the `<Series>` chip, whose two controls hide the whole film —
+  is dropped from the chain unless it is the innermost (`isPlumbing` in
+  `preview/tuning.ts`).
+  - **The agent's own name is what the pane is titled by, not the component's.** Remotion
+    already delivers it: `withInteractivitySchema` appends a hidden `name` field to every
+    schema and reads it into `controls.currentRuntimeValueDotNotation`, and
+    `preview/tuning.ts` used to drop it with the rest of the hidden fields — which is why
+    two clicks on two different claim lines drew byte-identical panes. `titleOf` is that
+    `name`; `subtitleOf` is the line under it, `Div in WordPush ·
+    src/components/WordPush.tsx:245`, reading the *link's* own location rather than the
+    picked element's. The chips read `name ?? chainLabel(componentName)` and carry the raw
+    component name as their `title`, `chainLabel` still stripping Remotion's
+    `<Interactive.…>` spelling down to `Div`.
   - **Switching is a read, not a commit.** The whole chain arrives with the selection, so
     changing target is a local index move with no round trip. Consequently everything that
     spans the selection has to span the chain: `originals` is keyed per target (two of them
@@ -1713,8 +1778,12 @@ alongside `[Image #N]` (#18). The message is still sent by hand.
     with the pixels, so it cannot drift from them, and no rectangle has to cross the wire.
     The nodes come from `hostOf`, the first DOM element each `Interactive`'s fiber renders,
     captured at pick time because the page is frozen for exactly as long as the card is
-    open. The `highlight` command is keyed on the target id alone, so editing a value does
-    not repaint the box, and closing the card clears it.
+    open. The `highlight` command is keyed on the open link's **anchor** where it has one
+    and its `overrideId` otherwise, so editing a value does not repaint the box; a key the
+    chain does not know puts the box back on the node that was clicked, and only a rebuild
+    clears the selection (`clearSelection()`, called from the hot-reload path in
+    `preview/entry.tsx`). Disarming keeps it: turning Inspect off means stop picking, not
+    forget what I picked.
 - **The hover label names what you could tune, not what is holding it.** Grab's display
   name is the nearest fiber's, which inside a Remotion tree is routinely
   `RegularSequenceRefForwardingFunction` — true, and useless to read. `componentAt`
@@ -1724,32 +1793,82 @@ alongside `[Image #N]` (#18). The message is still sent by hand.
 - **Hit-testing and the hover box are ours; grab is only a source resolver.** Grab's overlay
   is taken down wholesale (`theme.enabled: false`) and `activate()` is never called, so what
   is left of it is `getSource`, `getStack` and `getDisplayName`. `preview/picker.ts` picks
-  the element and `preview/inspect.ts` draws the box, **inside the preview document**, so the
-  highlight still shares a document with the cursor and cannot lag. Grab's own hit-test could
-  not be steered: `Options` exposes no filter, its `ElementAtPointOptions.filter` is internal,
-  and its arrow keys are *spatial* navigation between neighbours, not a climb to the parent.
-- **The picker answers two questions grab got wrong.** First, *what is actually under the
+  the element and `preview/inspect.ts` draws **two** boxes, **inside the preview document**,
+  so the highlight still shares a document with the cursor and cannot lag: a thin hover box
+  that lives and dies with the armed session, and a solid selection box that is module-level,
+  made once and never taken down. `paint()` draws both, always. The selection box used to
+  *be* the hover box (`hovered ?? pinned`), so what you had picked was visible only while the
+  pointer was off the canvas, and a click the app then discarded made it vanish — which reads
+  as a deselect. `onDown` sets the selection synchronously, before `report()` is awaited, and
+  `report()` never nulls it. Grab's own hit-test could not be steered: `Options` exposes no
+  filter, its `ElementAtPointOptions.filter` is internal, and its arrow keys are *spatial*
+  navigation between neighbours, not a climb to the parent.
+- **Selection identity is the picked DOM node, not Remotion's `overrideId`.** Every
+  `Interactive.*` rendered from one JSX call site shares one id in this preview — the bundler
+  injects a `stack` prop and `with-interactivity-schema.js` keys the id on it in a
+  module-level map; measured, five instances, one id. So `sameElement` comparing `targetId`
+  made four claim lines one element and threw away every click after the first.
+  `preview/anchor.ts` mints an anchor instead — the nearest `data-design-id` plus `:nth-child`
+  steps, falling back to the canvas — which is per instance and survives a remount of the same
+  tree. The **edit** still lands on the call site, because one node path per `overrideId` is
+  the whole of Remotion's override model; what changes is that the pane can say `2 of 4` about
+  which instance was meant. `countedIn` orders same-id instances by their index into
+  `container.querySelectorAll("*")` rather than by `compareDocumentPosition`, which biome's
+  `noBitwiseOperators` forbids, and an instance whose `refForOutline` is null — the normal
+  case for a `<Sequence layout="none">` — sorts after every placeable one on a single total
+  key, because a comparator that switched between DOM order and registration order was
+  non-transitive and let the engine decide the ordinal.
+- **A re-click on the instance already open is not a new selection.** It posts `repeat: true`,
+  which pulses the box (a class the selection stylesheet defines, and which
+  `prefers-reduced-motion` turns off) and changes nothing else — reverting what had been
+  tuned and reopening the chain at the innermost link is a punishing answer to a stray second
+  click. But only while a card is open. Cancel never reaches the page, so the node it last
+  picked is still what it compares against and the very next click on that element arrives as
+  a repeat; with no card open that has to reopen, or the pane could never be brought back on
+  the element it was closed on.
+- **The picker answers three questions grab got wrong.** First, *what is actually under the
   cursor*: it walks `elementsFromPoint` and takes the first element that **paints something
-  at that point** — a background, a border, a shadow, a replaced element, or a text node whose
-  own client rect contains the point — instead of the topmost transparent wrapper. Grab
-  already drops `display:none`, `visibility:hidden` and `opacity:0`, and transparent overlays
-  — but only ones covering ≥90% of the viewport on both axes, which a mid-sized animated
-  wrapper sails past. Second, *how much of it you meant*: `climb` walks up while the element
-  is an **inline wrapper** — inline-level and painting no surface of its own — and stops at
-  the first block-level element, which is the line. That is deliberately *not* "a short
-  element with siblings sharing its tag": that earlier rule missed the two commonest shapes
-  a text animation actually has — a word wrapped in a wrapper of its own
+  at that point** — a background, a border, a shadow, a replaced element, or text near the
+  point — instead of the topmost transparent wrapper, where painting now excludes what the
+  frame does not show. An element whose computed `opacity` is below 0.05, or whose
+  `visibility` is not `visible`, paints nothing, so an unrevealed word before its entry frame
+  is not pickable; a **masked** element (`maskImage`/`webkitMaskImage` other than `none`)
+  paints only where it shows text, because a mask can hide any part of a surface and text is
+  the one thing it is known to show. Grab already drops `display:none`,
+  `visibility:hidden` and `opacity:0`, and transparent overlays — but only ones covering
+  ≥90% of the viewport on both axes, which a mid-sized animated wrapper sails past, so
+  those three tests are ours now, at our own thresholds (0.05 alpha, 80% of the container).
+  Second, *how much of a click a surface deserves*: a candidate covering text beats one that
+  merely paints a surface, and a surface whose box covers at least 80% of the container on
+  **both** axes — a full-frame glow, a scene backdrop — loses to any later candidate under
+  the same point that paints and covers less. The text test decides first and returns, so an
+  ordinary hover pays no whole-scene text walk twice. Third, *how much of it you meant*:
+  `climb` walks up while the element is an **inline wrapper** — inline-level and painting no
+  surface of its own — and stops at the first block-level element, which is the line. That is
+  deliberately *not* "a short element with siblings sharing its tag": that earlier rule
+  missed the two commonest shapes a text animation actually has — a word wrapped in a
+  wrapper of its own
   (`<span class=word><span>mind</span></span>`, where the inner span has no siblings) and a
   line that is one word long. Painting its own surface is what stops the climb at a
   highlighted chip inside a sentence, and block-level is what keeps a grid of cards from
-  collapsing into the grid. Holding **Alt** turns both rules off and picks the literal
+  collapsing into the grid. Holding **Alt** turns every rule off and picks the literal
   topmost node. The rules are pure over the DOM and tested in jsdom.
+- **The text test is not element-own, and the widening is the word gap.** `nearText` walks
+  every descendant text node with a `TreeWalker`, skipping text hidden by its own element or
+  by an ancestor up to the candidate, and widens each text rect *horizontally* by 0.35 × the
+  font size of its parent — so a click between two `inline-block` words lands on their line
+  rather than on the marker or the backdrop behind it. `coversText` remains as `nearText`
+  with an allowance of 0. The 0.35 is calibrated against WordPush's `0.22em` word margin;
+  whether it is generous enough for looser trackings is a judgement to make on real scenes,
+  not a measurement.
 - **Tags are compared by `localName`, never `tagName`, because of SVG.** `tagName` upper-cases
   HTML elements but leaves SVG ones as authored, so `<svg>` reports `"svg"` and a set of
   upper-cased names misses every icon in the project. That single mistake broke both halves
   at once: an icon counted as painting nothing, so the hit test walked past it, and it
   computed to `display: inline`, so `climb` stepped straight over it. Anything in the SVG
-  namespace is now **a drawing**: it always paints — the browser's own SVG hit-testing is
+  namespace is now **a drawing**: it always paints once it is on screen — the visibility test
+  above runs first, so an `<svg>` at `opacity: 0` is no more pickable than a faded word — and
+  the browser's own SVG hit-testing is
   `visiblePainted`, so being returned by `elementsFromPoint` already proves the point is on
   drawn geometry, and `fill` would never show up as a `background-color` anyway — it is never
   an inline wrapper, and `climb` folds any shape inside it up to the outermost `<svg>`,
@@ -1780,8 +1899,15 @@ alongside `[Image #N]` (#18). The message is still sent by hand.
   next click would take. It also took the click with it, so the only way to reach the next
   element was to close the pane and arm again. The command is deleted rather than left
   unsent — a mechanism nothing sends is worse than no mechanism. What remains: a click
-  inside the canvas is swallowed either way, or it would reach Remotion's `clickToPlay`
-  underneath.
+  *on the frame itself* is swallowed either way, or it would reach Remotion's
+  `clickToPlay` underneath — and only on the frame itself. The swallow used to test the
+  canvas **rectangle**, which is also the rectangle the Player's transport bar is drawn
+  over: the bar appeared on hover and did nothing when clicked, because every one of its
+  clicks and drags was eaten by a picker that never wanted them. `overCanvas` now asks
+  `document.elementsFromPoint` what is actually under the point and stops the event only
+  when the canvas contains it, which costs picking nothing — the overlays are
+  `pointer-events: none` — and hands the transport bar back. A document that cannot
+  hit-test at all falls back to the rectangle, which is what jsdom does.
   - **Picking elsewhere abandons what was pending, exactly as Cancel does.** The drafts
     live in the preview keyed by target, so a card dropped without reverting would leave
     the frame showing values the pane no longer lists and the agent will never be told
@@ -1822,6 +1948,9 @@ alongside `[Image #N]` (#18). The message is still sent by hand.
   about the new one, and the page that comes back has forgotten it was armed. Unsent
   references and whatever was being typed are untouched — an agent saving a file must not
   delete your draft. Marking references *stale* per changed file is deliberately deferred.
+  **Disarming does not.** Add's markers and the open card both outlive the mode, so
+  `InspectOverlay` is mounted whenever there is a card or a marker rather than only while
+  armed; the overlay is `pointer-events-none`, so clicks are unaffected.
 - **A selection with no source is still usable**, travelling with markup, component name and
   frame, and says so on its chip. Failing closed would make the feature intermittently and
   silently useless.
@@ -1838,6 +1967,60 @@ alongside `[Image #N]` (#18). The message is still sent by hand.
   source".
 - **The first resolution after a rebuild costs ~210 ms** — the sourcemap fetch and parse —
   and every one after it is 0 ms, so arming warms it up with a throwaway `getStack`.
+- **A curve is inert at a settled frame, so the pane moves the frame.** Every generated
+  `interpolate` clamps both sides, so outside an element's own window every bezier yields the
+  same constant — which is why dragging an easing looked like nothing happening, and why the
+  agent itself wrote *"Set from the preview. Still inert"* into
+  `need-sponsor/scenes/AskScene.tsx`. The selection now carries `window`, the element's own
+  sequence span from `preview/timing.ts`, and the pane leads with a time strip: the frozen
+  frame in mono, a range over `[from, until]` that seeks, and Replay. An edit to a field in
+  Entry, Exit, Effects or Timing, or to anything whose path ends in `easing`, schedules **one**
+  replay 250 ms after the last flush — a forked `Effect.sleep` each flush interrupts and
+  re-forks, never a `setTimeout` — and is skipped outright while the preview is already
+  playing. **Picking still does not seek**: the paused frame is the one being judged.
+- **The playhead crosses the wire, and the boxes repaint with it.** The entry subscribes to the
+  Player's own `frameupdate`/`play`/`pause` and posts `playhead` at most once per animation
+  frame while playing, immediately on play, pause and seek; every `frameupdate` also calls
+  `repaint()`, so the selection box tracks an element that is moving instead of lying about
+  where it was. While armed the canvas wears a crosshair, restored on disarm, and the status
+  slot under the frame reads `Inspect on · f 412` whenever nothing more urgent is using it.
+  - **The live frame is deliberately not in the context value.** `usePreview` used to hold it
+    in React state, which was free while it moved only on `selection`, `capture` and `rebuilt`
+    — and cost the whole application once a `playhead` arrived every animation frame: `frame`
+    is in `PreviewControl`'s memo, `PreviewControl` is in `tools`, `tools` is in the studio
+    context, and ten components read that context, so playing the preview re-rendered the
+    transcript, the sidebar and the composer sixty times a second. It is a ref with its own
+    listener set now, read through `usePreviewFrame` (a `useSyncExternalStore`) by exactly the
+    two things that draw it — the time strip and the armed readout — while the turn's
+    `playing` frame is a stable getter called at send time, which is also the more correct
+    moment to read it. The readout carries **no** `role="status"`: a number that changes every
+    frame must never be handed to a screen reader, the same rule the pane's running-time
+    ticker already follows.
+- **A static override on an animated key replaces the animation with a constant, and the pane
+  says so before you do it.** While a card is open and the playhead has moved off the frame it
+  was picked at, the app asks the runtime what it is really holding — `tuning.read`, throttled
+  to once per 250 ms with one trailing read when the frame settles, answered with
+  `tuning.values` off `currentRuntimeValueDotNotation`. That reading is the component's own
+  *incoming props* (`readValuesFromProps` in `with-interactivity-schema.js`), taken before
+  Remotion merges the drag overrides in, which is exactly what makes it an animation detector:
+  a key the code animates reports a different value at a different frame. A field whose reading
+  has moved off its `originals` entry is `animated` — its row wears that badge and the hint *a
+  fixed value here replaces the animation*, and the control stays editable. **The mark is
+  sticky**, because a key does not stop animating in code when somebody overrides it; making
+  it the latest read's answer instead cleared the badge the moment the field was edited, and
+  took `sampled` off the change with it.
+  - **What that reading cannot answer is whether an override bound**, and the first version
+    tried: a field with a draft whose reading differed from the draft was reported as *the
+    preview is no longer applying this value*. It differs **by construction** — the reading is
+    pre-override — so the refusal fired on every edited field the moment the playhead moved.
+    There is no merged reading to ask for: `computeEffectiveSchemaValuesDotNotation`'s result
+    stays inside the wrapper and `controls` carries only the pre-override values. The
+    detector is gone rather than left firing; a runtime that genuinely refuses an override
+    already says so in `tune.set`'s own answer, which is where the per-row refusal comes from.
+  - Because the `from` of an animated key is a runtime sample rather than a line of source, its
+    `TuningChange` carries `sampled: true` and reaches the agent as
+    `from (runtime value at frame N, animated in code; change the landing value, not the
+    frame)`.
 
 ### Tuning what you pointed at
 
@@ -1901,12 +2084,35 @@ result on screen and hands the agent a `{path, from, to}` diff to write into the
   backwards. The vendored tree cannot be edited (`skills:check` reads any change as
   drift), so the conventions now name the disagreement and overrule it on that one line,
   and — because an instruction contradicting a loaded skill is a coin flip —
-  `sidecar/tools/tunability.ts` scans the video's own source for constant easings and
-  `design_check` reports them as findings. That gate was chosen over a new tool precisely
+  `sidecar/tools/tunability.ts` scans the video's own source. It is **seven rules, not one
+  regex**: a constant easing (error), a spring whose physics are nailed shut (info), a run
+  of text in a plain `div`/`h1`/`p`/`span` with no `Interactive.` ancestor (warning), one
+  literal `name` shared by every instance a `.map()` renders (error), a curve whose window
+  defaults to zero and so is never sampled (info), a schema component that never forwards
+  its `controls` (error), and a raw export of the component `withSchema` wraps (error).
+  They are **merged into `design_check`'s own `findings` array**, with a `tunability_*`
+  code and their severity counted into its `summary` — prose appended after the JSON could
+  not be a finding, and the review stage's done-condition is "every mechanical finding
+  fixed or explained". That gate was chosen over a new tool precisely
   because the conventions already require calling it before finishing: a tool the agent
   may forget is no gate at all. It reads only the turn's own video folder, never a
   sibling's, and a source it cannot read costs nothing — the design check the agent is
   waiting on must not fail over a courtesy.
+- **The scanner is a mask plus a tag stack, never an AST.** An AST would cost the sidecar
+  bundle megabytes to answer shapes a mask already answers: comments are blanked and string
+  and template *bodies* replaced character-for-character with `x`, delimiters kept, so every
+  index and line number still lines up with the file the agent wrote. Three corpus shapes are
+  what it is written against and each is a test — a `>` inside `style={{ … }}`
+  (`enterBlur > 0`) is not the end of an open tag, a `.map(…).join(", ")` that finished
+  before an unrelated primitive is not an enclosing region, and an `Easing.bezier(` whose
+  arguments are all identifiers or a spread is prop-fed rather than constant. Two more are
+  the shapes a mask gets wrong if you let it: an open tag's children are sliced only to the
+  next `<`, so a `{list.map(…)}` child leaves an unmatched `{` behind and the residue must
+  be cut rather than read as a text run, and the literal-`name` test is anchored
+  `(?<![\w-])` so `data-name` cannot stand in for the primitive's own `name`. Measured over
+  the eleven videos of `remocn-news-videos`: **75 findings** — constant-easing 51,
+  constant-spring 9, inert-easing 8, plain-text-element 6, mapped-primitive-name 1, and zero
+  of the last two, because those videos were generated after the schema conventions landed.
 - **A composite control is a stack, not a row, and it shares the pane's edge.** dialkit's
   convention is a self-contained pill — label inside, value inside, one surface — and the
   easing editor cannot be one: it is a canvas, a picker and four numbers. Forcing it into
@@ -1940,6 +2146,44 @@ result on screen and hands the agent a `{path, from, to}` diff to write into the
   may not, so writing takes the unit from whichever half declared one and from the type when
   neither did. A value it cannot parse — `calc(100% - 4px)` — falls back to a plain text
   field rather than being guessed at.
+- **Nothing the schema declares is dropped in silence any more, and two of the rules are
+  coercions.** The pane whitelisted eleven field types and refused every value that did not
+  match its declared type — which is how `fontWeight: 800` (a number, against 4.0.520's enum
+  of *strings*) and `letterSpacing: "-0.03em"` (a unit string, against a number) vanished
+  with nothing on screen to say so. The list gains `text-content` and `font-family`, and
+  `readingOf` in `preview/tuning.ts` now answers for every value: a **number against an enum
+  of strings** whose `String()` is one of the options becomes that option and stays editable;
+  a **unit string against a number** keeps its row as a **read-only** one, so
+  `Letter spacing  -0.03em` is visible and cannot be dragged; a `text-content` whose runtime
+  value is not a string says *Text is built from parts — ask in words*; anything else keeps
+  its row as *value in code*, printed through a guarded `JSON.stringify` — the catch-all is
+  now on the path of every unreadable value, and a circular one (a React element carries
+  `_owner` in development) throwing there would cost not its row but the whole `selection`
+  message. The one thing still dropped is a key the runtime holds **no value for at all**: on
+  4.0.520 a text element declares eight typography keys, and a component that sets none of
+  them would otherwise draw eight rows reading `undefined`. `readOnly` rides the wire as an
+  optional key (`field.readOnly === true`), like `TuningChange.sampled` and for the same
+  reason — a decoding default would make it required in the decoded type.
+- **Typography is grouped by what a key means, not by whether it is spelled `style.`.**
+  `TYPOGRAPHY` matched `style.`-prefixed paths only, so a component's own
+  `fontSize`/`fontWeight` — which is how every agent-written video writes them — landed under
+  Parameters, one chip out from where anyone would look. Bare
+  `color|fontFamily|fontSize|fontStyle|fontWeight|letterSpacing|lineHeight|textAlign` now
+  group there too, `backgroundColor` falls to Fill, and a `children` field of the new
+  `text-content` type leads that group.
+- **Text is a field where the runtime has one, and a request where it does not.** Remotion
+  4.0.513 adds `textSchema` and a `children` field of type `text-content`; 4.0.481 — what the
+  template still pins — has no string field type at all, so nothing typographic can exist on
+  a primitive there by anyone. So the selection carries the element's own words (`text`,
+  non-null only when the innermost `Interactive`'s host node is one text node) and the loaded
+  families (`fonts`, from `document.fonts`), and the pane opens a **Text** section above
+  everything else labelled *sent to Claude, not previewed*. It changes no pixels and rides
+  `tuningChanges` as `{path: "children"}` with the innermost component as its owner, so the
+  agent is asked to change the words in the file. It exists **only** while the innermost
+  target declares no live `children` field: on a Remotion that has one, the live field is the
+  thing that moves the frame and a second textarea beside it would be a lie. Add rebases the
+  draft exactly as it rebases the tuned values, and a stored selection chip carries `window`,
+  `text` and `fonts` with it, so a reopened chip still has its time strip and its faces.
 - **Opacity reads as a percentage and is stored as a fraction**, named by path rather than
   inferred from a 0–1 range, or every normalised parameter in a project would silently grow
   a percent sign.
@@ -1984,6 +2228,58 @@ result on screen and hands the agent a `{path, from, to}` diff to write into the
   and two ids, while one `<Title>` inside a `.map()` is one id for every row it renders. That
   is Remotion's model and it is the right one: the edit is ultimately going to be written
   back into that one call site.
+- **The pane says when an edit is shared.** One nodePath per `overrideId` is that model seen
+  from the other side, so an edit on a primitive rendered from one call site genuinely moves
+  every sibling — and it cannot be made per-instance through the contexts a Player exposes,
+  because there is no per-instance key to publish an override against. `Shared by
+  ${instances} · a change here moves all of them` under the title is the pane saying so
+  rather than the person discovering it on the third line. `PropsPanel` is keyed on the
+  innermost target's `instanceId`, so the comment draft and the focus effect restart per
+  element instead of carrying a sentence typed for one line into the next.
+- **A reset names paths, never a target.** The preview reads an empty path list as "drop this
+  target's whole draft", and a `CameraRig` framing the scene is in *every* chain — so a card
+  let go of used to take a camera change another card had already Added. `changedPaths` in
+  `lib/studio/tuning.ts` is the one door every reset goes through: Cancel, Reset all, picking
+  elsewhere, a rebuild, and removing a chip from the composer all send only the paths that
+  card actually moved. `byTarget`'s empty-list branch — the last thing that could still emit
+  `[]` — is deleted rather than left for a future caller to find: a reset naming no paths now
+  sends nothing at all, which is the failure direction that keeps somebody else's work.
+- **Reverting unsent edits says so, with Undo.** Picking elsewhere with pending changes raises
+  a toast — `Reverted 2 changes on Pushed line` — whose Undo is a fiber interrupt on an
+  `Effect.sleep` window and re-sends every value it took back, reopening that card. Same shape
+  `hooks/use-library.ts` uses for a deleted asset, and the same ten seconds. Undo **abandons
+  whatever card is open before it restores**: without that, edits made on the element you had
+  moved to would be left live in the preview with nothing listing them — the exact failure
+  `abandon` exists to prevent, arriving by the back door. Cancel raises no toast, because the
+  × already says on its tooltip that it restores the originals.
+- **A refusal belongs to a row, not to the pane.** `tuningRefusal` carries
+  `{message, path, targetId}` and renders under the control that asked for it; only a refusal
+  with no path of its own — a reset, or a runtime that named no field — keeps the footer line.
+  A later `ok` clears it for that same target and path and nothing else, and an `ok` for a
+  request nothing recorded clears nothing at all: `abandon`, a rebuild and removing a chip all
+  mint request ids without registering them, so treating an untracked answer as good news let
+  an unrelated reset wipe a refusal the row was still showing.
+- **A refusal names the frame, and the window is read from Remotion rather than summed.** An
+  element off screen at the playhead cannot take an override, so the sentence is *This element
+  is not on screen at frame 42. Title runs from frame 30 to 120.* Two things in
+  `preview/timing.ts` are measured corrections to the obvious implementation. Summing
+  `memoizedProps.from` up the fiber chain **triple-counts** — an `Interactive.Div` is three
+  fibers deep (`withInteractivitySchema`, the inner `forwardRef`, the `Sequence`), so a
+  `from={30}` reads as 90 — which is why the window comes from Remotion's own
+  `SequenceContext` value, `cumulatedFrom + relativeFrom`, already absolute and counted once.
+  And capping the end at `min(duration, 60)` would report a 300-frame scene as ending 60
+  frames in, making the sentence lie about the one thing it exists to say; 60 survives only as
+  the fallback for a sequence with no finite duration.
+- **A stored selection keeps the whole chain**, not the one link that was edited:
+  `SelectionTuning` is `{open, originals: Record<targetId, Record<path, TuningValue>>,
+  targets}`, so reopening a chip lands on the link the message was written from, and removing
+  one resets every link it carried rather than only the one that happened to be on screen.
+- **The agent's block groups the changes by who owns them.** `TuningChange.owner` carries the
+  component, its `name`, and its file and line, and `sidecar/agent/prompt.ts` heads each run
+  with `Requested changes on Title ‹headline› (src/videos/intro/Title.tsx:24):`. A flat list
+  of paths taken off a three-link chain read as one component's props and sent the agent
+  editing the wrong file; the heading is what makes a chain's diff writable. `owner` is
+  `Schema.optionalKey`, so a turn stored before it existed still decodes.
 
 ### Taking a picture of the frame, and sending it
 
@@ -2222,13 +2518,60 @@ of the way" means. It re-runs on opening a project, on Recheck and after an inst
   `subscriptionType` + `apiProvider` and **no `tokenSource` at all**, so `tokenSource === "none"` is
   the discriminator and everything else is authenticated. A non-`firstParty` `apiProvider` is
   authenticated externally (AWS creds, gcloud ADC) and says so.
-- **"claude on PATH" is not the check, because the SDK carries its own CLI** (`extractFromBunfs.js`
-  and `manifest.zst.json`; `pathToClaudeCodeExecutable` is only an override). #228's two distinct
-  states are therefore *could not start* and *not logged in* — a launch failure and a login failure,
-  which is the split that matters since the fixes differ.
+- **`claude` is the person's own Claude Code, resolved and never bundled** (REM-309). The
+  SDK's `pathToClaudeCodeExecutable` is only an override, and without it the SDK looks for
+  its optional-dependency binary — which the release `.app` does not carry, so a clean Mac
+  failed every turn with *Native CLI binary for darwin-arm64 not found*; it worked on the
+  developer's machine only through the bun-cache fallthrough recorded below. `findClaude`
+  in `sidecar/claude/cli.ts` walks `$REMOCN_STUDIO_CLAUDE` → `$PATH` → `~/.local/bin` (the
+  native installer's target), `~/.claude/local`, `~/.bun/bin`, `~/.npm-global/bin`, Homebrew
+  and `/usr/local/bin`, and both the account probe and the turn pass the answer to the SDK.
+  No version check on purpose: people update Claude Code often, and a mismatch surfaces as
+  the SDK's own error under *could not start*. The four resolvers share `findExecutable` in
+  `sidecar/agent/cli.ts`, which takes its host so the walk is tested without a filesystem.
+- **A provider row is three steps, not a sentence.** `PROVIDER_SETUP` in `shared/providers.ts`
+  is the static table — install command and page, sign-in command, and Claude's note that
+  Claude Desktop does not count — and a provider row's `fix` is `{ type: "provider", step }`
+  naming only the step that is not passed; `stageStates` in `lib/studio/setup.ts` turns that
+  into ticks. **The studio signs nobody in**: Anthropic does not allow third-party claude.ai
+  login, so *Open in Terminal* copies the command and opens an empty window through
+  `osascript` (`terminal.rs`) and the card says "⌘V, then Enter". Nothing is executed,
+  no Accessibility permission is asked for. While a provider row is failed the window's
+  focus forces a recheck (`useRecheckOnFocus`, once per five seconds), so coming back from
+  Terminal turns the row green without a button. The model menu's failed group is a link to
+  Settings › AI Accounts on that provider rather than a disabled row with a label.
 - **Only being logged out locks the composer.** A folder that is not a Remotion project does not:
   asking Claude to set one up is a reasonable next move, and refusing to talk to it would remove the
   only tool that could fix it.
+- **A Remotion too old for the properties pane is a warning, and the studio never upgrades
+  silently.** Remotion only started declaring typography and text on its own elements in
+  4.0.513 (`textSchema`/`textContentSchema` on every text tag), so below that the pane can
+  edit neither text, weight, size nor colour — and saying nothing would leave a whole feature
+  quietly absent. The `remotion` row therefore warns, with an *Upgrade Remotion* button that
+  runs `project.upgrade`: `pmOf`'s manager, `bun add` / `npm install` / `pnpm add` /
+  `yarn add`, `name@4.0.520` for every `@remotion/*` the manifest declares plus `remotion`.
+  It is the same shape as the Node.js row and for the same reason (*A project installs with
+  its own package manager*): the studio names what it will run and the person presses it.
+  Three things about it are deliberate.
+  - **It reads what is installed, not what the range allows.** `installedVersion` walks up to
+    `node_modules/remotion/package.json` and the declared range is only the fallback, because
+    a project on `^4.0.481` with 4.0.520 actually resolved has a working pane and must not be
+    told otherwise. **A range it cannot read stays `ok`** — a caret, a tilde or a `>=` are
+    stripped, and `*`, `4.x` or `workspace:*` are given up on rather than guessed at, because
+    telling somebody their version is wrong when it cannot be read is worse than saying
+    nothing.
+  - **The `add` runs in the manifest the row read**, not in the lockfile's directory the way
+    `install` does. For a workspace member those differ, and adding at the workspace root
+    would write the pin into a `package.json` the row never looks at — the row would stay
+    amber after a successful upgrade — while `yarn add` at a workspace root refuses outright
+    without `-W`. `pmOf` still resolves the *manager* from the lockfile; only the working
+    directory moved.
+  - **`warn` does not lock the composer** — only a failed login does — and it no longer
+    claims the project is broken. The card's heading is `troubleHeading`: *This project has
+    one thing worth fixing* when every trouble is a `warn`, and the old *This project is not
+    ready to run* the moment one has failed. Without that, every project on 4.0.481 — which
+    today includes one scaffolded by this studio a second ago — wore a permanent banner
+    saying it could not run, about a project that compiles, previews and exports.
 - **`bun install --dry-run --frozen-lockfile` never looks at `node_modules`.** Measured: byte-identical
   output and exit 0 with `node_modules` deleted, because it only resolves the graph. It exits 1 for
   exactly one thing — `package.json` drifted from `bun.lock` — and it writes nothing at all, no
@@ -2777,7 +3120,8 @@ hooks/                all behaviour: no logic inline in components
 lib/                  cn helper, error formatting, lib/studio/* clients
 preview/              what the *project's* webpack compiles instead of Studio's UI:
                       entry.tsx, the two-way bridge, hot reload, grab, source paths,
-                      the element picker and the snapshot marquee
+                      the element picker, anchor.ts (the per-instance selector a
+                      selection is identified by) and the snapshot marquee
 shared/               crash.ts: the consent contract and the one path scrubber;
                       ipc.ts: the typed contract, and the media types it carries;
                       slug.ts: the one reader of a name into a composition id;

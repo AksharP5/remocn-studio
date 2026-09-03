@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Data, Effect } from "effect";
@@ -18,6 +18,14 @@ export class EnvironmentError extends Data.TaggedError("EnvironmentError")<{
 }> {}
 
 const NAMED_MISSING = 4;
+
+export const TUNABLE_TEXT_FLOOR = [4, 0, 513] as const;
+
+export const TUNABLE_TEXT_VERSION = "4.0.520";
+
+const RANGE = /^[\^~]?(\d+)\.(\d+)\.(\d+)$/;
+
+const GREATER_OR_EQUAL = ">=";
 
 export interface Manifest {
   dependencies: readonly string[];
@@ -93,6 +101,24 @@ export function remotionRow(
     };
   }
 
+  const resolved = installedVersion(root, "remotion");
+  const declared = resolved ?? versionOf(manifest.remotion);
+  const found = resolved === null ? manifest.remotion : resolved.join(".");
+
+  if (declared !== null && isBelow(declared, TUNABLE_TEXT_FLOOR)) {
+    return {
+      detail: `This project runs remotion ${found}. Remotion only started declaring typography and text on its elements in 4.0.513, so the properties pane cannot edit the text, weight, size or colour of anything here — those go to the agent in words instead.`,
+      fix: {
+        packages: upgradable(manifest),
+        type: "upgrade",
+        version: TUNABLE_TEXT_VERSION,
+      },
+      id: "remotion",
+      state: "warn",
+      title: `Text and type editing needs Remotion ${TUNABLE_TEXT_FLOOR.join(".")} or newer`,
+    };
+  }
+
   return {
     detail: `remotion ${manifest.remotion}`,
     fix: null,
@@ -100,6 +126,81 @@ export function remotionRow(
     state: "ok",
     title: "This folder is a Remotion project",
   };
+}
+
+export function installedVersion(
+  root: string,
+  name: string
+): readonly [number, number, number] | null {
+  let dir = root;
+
+  for (;;) {
+    const manifest = path.join(dir, "node_modules", name, "package.json");
+
+    if (existsSync(manifest)) {
+      try {
+        const read: unknown = JSON.parse(readFileSync(manifest, "utf8"));
+        const version =
+          typeof read === "object" && read !== null && "version" in read
+            ? read.version
+            : null;
+
+        return typeof version === "string" ? versionOf(version) : null;
+      } catch {
+        return null;
+      }
+    }
+
+    const parent = path.dirname(dir);
+    if (parent === dir) {
+      return null;
+    }
+
+    dir = parent;
+  }
+}
+
+export function versionOf(
+  range: string
+): readonly [number, number, number] | null {
+  const trimmed = range.trim();
+  const bare = trimmed.startsWith(GREATER_OR_EQUAL)
+    ? trimmed.slice(GREATER_OR_EQUAL.length).trim()
+    : trimmed;
+
+  const found = RANGE.exec(bare);
+
+  if (found === null) {
+    return null;
+  }
+
+  return [Number(found[1]), Number(found[2]), Number(found[3])];
+}
+
+function isBelow(
+  version: readonly [number, number, number],
+  floor: readonly [number, number, number]
+): boolean {
+  const [major, minor, patch] = version;
+  const [least, leastMinor, leastPatch] = floor;
+
+  if (major !== least) {
+    return major < least;
+  }
+
+  if (minor !== leastMinor) {
+    return minor < leastMinor;
+  }
+
+  return patch < leastPatch;
+}
+
+export function upgradable(manifest: Manifest): readonly string[] {
+  const scoped = manifest.dependencies
+    .filter((name) => name.startsWith("@remotion/"))
+    .sort();
+
+  return [...scoped, "remotion"];
 }
 
 export function dependencyRow(

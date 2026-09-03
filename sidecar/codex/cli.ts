@@ -1,13 +1,10 @@
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { delimiter, join } from "node:path";
+import { join } from "node:path";
+import { findExecutable, type LookupHost } from "../agent/cli";
 
 export const CODEX_ENV = "REMOCN_STUDIO_CODEX";
 
-// The app does not bundle Codex, exactly as it does not bundle bun or the
-// Claude CLI: the whole point is the user's own logged-in tool. A GUI-launched
-// app gets a minimal PATH, which is why the fallback list exists.
 const FALLBACK_DIRS = [
   join(homedir(), ".bun", "bin"),
   join(homedir(), ".npm-global", "bin"),
@@ -16,24 +13,11 @@ const FALLBACK_DIRS = [
   "/usr/local/bin",
 ];
 
-export function findCodex(): string | null {
-  const overridden = process.env[CODEX_ENV];
-  if (overridden !== undefined && overridden.length > 0) {
-    return existsSync(overridden) ? overridden : null;
-  }
-
-  const onPath = (process.env.PATH ?? "")
-    .split(delimiter)
-    .filter((dir) => dir.length > 0);
-
-  for (const dir of [...onPath, ...FALLBACK_DIRS]) {
-    const candidate = join(dir, "codex");
-    if (existsSync(candidate)) {
-      return candidate;
-    }
-  }
-
-  return null;
+export function findCodex(at?: LookupHost): string | null {
+  return findExecutable(
+    { env: CODEX_ENV, fallbacks: FALLBACK_DIRS, name: "codex" },
+    at
+  );
 }
 
 export interface CliRun {

@@ -23,6 +23,11 @@ const INLINE = new Set([
   "ruby",
 ]);
 
+const WORD_GAP = 0.35;
+const VISIBLE_ALPHA = 0.05;
+const DEFAULT_FONT_SIZE = 16;
+const FULL_FRAME = 0.8;
+
 const TRANSPARENT = new Set(["transparent", "rgba(0, 0, 0, 0)"]);
 const ZERO_ALPHA = /^rgba\([^)]*,\s*0(\.0+)?\)$/;
 
@@ -49,31 +54,95 @@ export function hasBorder(style: CSSStyleDeclaration): boolean {
   );
 }
 
-export function coversText(element: Element, x: number, y: number): boolean {
-  for (const node of element.childNodes) {
-    if (node.nodeType !== Node.TEXT_NODE) {
-      continue;
+function styleOf(element: Element): CSSStyleDeclaration | undefined {
+  return element.ownerDocument.defaultView?.getComputedStyle(element);
+}
+
+export function isHidden(style: CSSStyleDeclaration): boolean {
+  const opacity = Number.parseFloat(style.opacity ?? "");
+  const visibility = style.visibility ?? "";
+
+  return (
+    (Number.isFinite(opacity) && opacity < VISIBLE_ALPHA) ||
+    (visibility.length > 0 && visibility !== "visible")
+  );
+}
+
+export function isMasked(style: CSSStyleDeclaration): boolean {
+  const mask = style.maskImage ?? "none";
+  const webkit = style.webkitMaskImage ?? "none";
+
+  return (
+    (mask !== "none" && mask.length > 0) ||
+    (webkit !== "none" && webkit.length > 0)
+  );
+}
+
+function shown(element: Element | null, limit: Element): boolean {
+  let current = element;
+
+  while (current !== null) {
+    const style = styleOf(current);
+
+    if (style !== undefined && isHidden(style)) {
+      return false;
     }
-    if ((node.textContent ?? "").trim().length === 0) {
-      continue;
+    if (current === limit) {
+      return true;
     }
 
-    const range = element.ownerDocument.createRange();
-    range.selectNodeContents(node);
+    current = current.parentElement;
+  }
 
-    for (const rect of range.getClientRects()) {
-      if (
-        x >= rect.left &&
-        x <= rect.right &&
-        y >= rect.top &&
-        y <= rect.bottom
-      ) {
-        return true;
+  return true;
+}
+
+function fontSizeOf(element: Element | null): number {
+  const style = element === null ? undefined : styleOf(element);
+  const size = Number.parseFloat(style?.fontSize ?? "");
+
+  return Number.isFinite(size) ? size : DEFAULT_FONT_SIZE;
+}
+
+export function nearText(
+  element: Element,
+  x: number,
+  y: number,
+  allowance: number = WORD_GAP
+): boolean {
+  const document = element.ownerDocument;
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+
+  let node = walker.nextNode();
+
+  while (node !== null) {
+    const parent = node.parentElement;
+
+    if ((node.textContent ?? "").trim().length > 0 && shown(parent, element)) {
+      const slack = allowance * fontSizeOf(parent);
+      const range = document.createRange();
+      range.selectNodeContents(node);
+
+      for (const rect of range.getClientRects()) {
+        if (
+          x >= rect.left - slack &&
+          x <= rect.right + slack &&
+          y >= rect.top &&
+          y <= rect.bottom
+        ) {
+          return true;
+        }
       }
     }
+
+    node = walker.nextNode();
   }
 
   return false;
+}
+
+export function coversText(element: Element, x: number, y: number): boolean {
+  return nearText(element, x, y, 0);
 }
 
 export function paintsSurface(style: CSSStyleDeclaration): boolean {
@@ -118,17 +187,22 @@ export function svgRootOf(element: Element): Element | null {
 }
 
 export function paints(element: Element, x: number, y: number): boolean {
-  if (isDrawing(element) || REPLACED.has(element.localName)) {
-    return true;
-  }
-
-  const style = element.ownerDocument.defaultView?.getComputedStyle(element);
+  const style = styleOf(element);
 
   if (style === undefined) {
     return true;
   }
+  if (isHidden(style)) {
+    return false;
+  }
+  if (isDrawing(element) || REPLACED.has(element.localName)) {
+    return true;
+  }
+  if (isMasked(style)) {
+    return nearText(element, x, y);
+  }
 
-  return paintsSurface(style) || coversText(element, x, y);
+  return paintsSurface(style) || nearText(element, x, y);
 }
 
 export function isInlineWrapper(element: Element): boolean {
@@ -183,6 +257,33 @@ export function covers(container: Element, x: number, y: number): boolean {
   );
 }
 
+export function fillsFrame(element: Element, container: Element): boolean {
+  const box = element.getBoundingClientRect();
+  const frame = container.getBoundingClientRect();
+
+  if (frame.width <= 0 || frame.height <= 0) {
+    return false;
+  }
+
+  return (
+    box.width >= frame.width * FULL_FRAME &&
+    box.height >= frame.height * FULL_FRAME
+  );
+}
+
+function smallestPainter(
+  painters: Element[],
+  container: Element
+): Element | undefined {
+  const [first] = painters;
+
+  if (first === undefined || !fillsFrame(first, container)) {
+    return first;
+  }
+
+  return painters.find((element) => !fillsFrame(element, container)) ?? first;
+}
+
 export function pickAt(
   x: number,
   y: number,
@@ -205,9 +306,15 @@ export function pickAt(
     return topmost;
   }
 
-  const drawn = under.find((element) => paints(element, x, y)) ?? topmost;
+  const text = under.find((element) => nearText(element, x, y));
 
-  return climb(drawn, container);
+  if (text !== undefined) {
+    return climb(text, container);
+  }
+
+  const painters = under.filter((element) => paints(element, x, y));
+
+  return climb(smallestPainter(painters, container) ?? topmost, container);
 }
 
 export { OVERLAY_ATTR };

@@ -31,7 +31,7 @@ export function accountRow(
   if (LOGGED_OUT.test(said)) {
     return {
       detail: NOT_AUTHENTICATED,
-      fix: { command: "codex login", type: "command" },
+      fix: { step: "signin", type: "provider" },
       id: "codex",
       state: "failed",
       title: "Codex is not logged in",
@@ -40,7 +40,7 @@ export function accountRow(
 
   return {
     detail: `${said.length > 0 ? said : "Codex answered nothing."}\n\nRun codex login status in a terminal to see what it says.`,
-    fix: { command: "codex login", type: "command" },
+    fix: { step: "install", type: "provider" },
     id: "codex",
     state: "failed",
     title: "Codex could not answer",
@@ -50,8 +50,8 @@ export function accountRow(
 export function missingRow(): EnvironmentCheck {
   return {
     detail:
-      "The codex command is not on this machine. Install it with `npm install -g @openai/codex` (or `brew install codex`), run `codex login`, then recheck.",
-    fix: { command: "npm install -g @openai/codex", type: "command" },
+      "The codex command is not on this machine. Install the Codex CLI, sign in with your ChatGPT account, then come back.",
+    fix: { step: "install", type: "provider" },
     id: "codex",
     state: "failed",
     title: "Codex is not installed",

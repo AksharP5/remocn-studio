@@ -15,6 +15,9 @@ import {
   manifestOf,
   missingFrom,
   remotionRow,
+  TUNABLE_TEXT_VERSION,
+  upgradable,
+  versionOf,
 } from "./environment";
 
 let folder = "";
@@ -119,13 +122,113 @@ describe("remotionRow", () => {
     expect(check.detail).toContain("package.json");
   });
 
-  it("passes a real Remotion project", () => {
+  it("passes a Remotion new enough to declare its own typography", () => {
     const check = remotionRow(folder, {
       dependencies: ["remotion"],
-      remotion: "4.0.360",
+      remotion: "4.0.520",
+    });
+
+    expect(check).toMatchObject({ fix: null, state: "ok" });
+  });
+
+  it("passes a caret range at the floor itself", () => {
+    const check = remotionRow(folder, {
+      dependencies: ["remotion"],
+      remotion: "^4.0.513",
     });
 
     expect(check.state).toBe("ok");
+  });
+
+  it("warns below the floor and offers the upgrade, without blocking", () => {
+    const check = remotionRow(folder, {
+      dependencies: ["@remotion/cli", "@remotion/player", "react", "remotion"],
+      remotion: "4.0.481",
+    });
+
+    expect(check).toMatchObject({
+      fix: {
+        packages: ["@remotion/cli", "@remotion/player", "remotion"],
+        type: "upgrade",
+        version: TUNABLE_TEXT_VERSION,
+      },
+      state: "warn",
+    });
+    expect(check.detail).toContain("4.0.481");
+  });
+
+  it("reads what is installed rather than what the range allows", async () => {
+    const home = path.join(folder, "node_modules", "remotion");
+    await mkdir(home, { recursive: true });
+    await writeFile(
+      path.join(home, "package.json"),
+      JSON.stringify({ name: "remotion", version: "4.0.520" })
+    );
+
+    const check = remotionRow(folder, {
+      dependencies: ["remotion"],
+      remotion: "^4.0.481",
+    });
+
+    expect(check).toMatchObject({ fix: null, state: "ok" });
+  });
+
+  it("warns on a caret range whose installed copy is still below the floor", async () => {
+    const home = path.join(folder, "node_modules", "remotion");
+    await mkdir(home, { recursive: true });
+    await writeFile(
+      path.join(home, "package.json"),
+      JSON.stringify({ name: "remotion", version: "4.0.481" })
+    );
+
+    const check = remotionRow(folder, {
+      dependencies: ["remotion"],
+      remotion: "^4.0.500",
+    });
+
+    expect(check.state).toBe("warn");
+    expect(check.detail).toContain("4.0.481");
+  });
+
+  it("stays ok on a range it cannot read rather than guessing", () => {
+    const check = remotionRow(folder, {
+      dependencies: ["remotion"],
+      remotion: "workspace:*",
+    });
+
+    expect(check).toMatchObject({ fix: null, state: "ok" });
+  });
+});
+
+describe("versionOf", () => {
+  it("reads a plain version and the ranges a manifest usually carries", () => {
+    expect(versionOf("4.0.481")).toEqual([4, 0, 481]);
+    expect(versionOf("^4.0.513")).toEqual([4, 0, 513]);
+    expect(versionOf("~4.0.520")).toEqual([4, 0, 520]);
+    expect(versionOf(">= 4.0.520")).toEqual([4, 0, 520]);
+  });
+
+  it("gives up rather than guessing at anything else", () => {
+    expect(versionOf("*")).toBeNull();
+    expect(versionOf("4.x")).toBeNull();
+    expect(versionOf("workspace:*")).toBeNull();
+    expect(versionOf("npm:remotion@4.0.520")).toBeNull();
+  });
+});
+
+describe("upgradable", () => {
+  it("names every @remotion package the manifest declares, plus remotion", () => {
+    expect(
+      upgradable({
+        dependencies: [
+          "react",
+          "@remotion/zod-types",
+          "@remotion/bundler",
+          "remotion",
+        ],
+        remotion: "4.0.481",
+      })
+    ).toEqual(["@remotion/bundler", "@remotion/zod-types", "remotion"]);
   });
 });
 

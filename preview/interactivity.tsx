@@ -7,15 +7,23 @@ import {
   useState,
 } from "react";
 import { Internals } from "remotion";
+import { anchorContainer, anchorOf, resolveAnchor } from "./anchor";
 import type { TuningValue } from "./bridge";
+import { type TimeWindow, windowOf } from "./timing";
 import {
   controlsChain,
   describeTuning,
   fieldAt,
   type InteractivitySchema,
   isFieldValue,
+  isPlumbing,
+  nameIn,
   nearestInteractive,
   overridePlan,
+  plainName,
+  type Rebound,
+  rebind,
+  sameMappings,
   type TuningTarget,
 } from "./tuning";
 import {
@@ -43,92 +51,328 @@ interface NodePath {
   readonly sequenceKeys: readonly string[];
 }
 
+interface TargetEntry {
+  anchor: string;
+  componentName: string;
+  key: string;
+  label: string;
+  live: readonly string[];
+  node: Element | null;
+  nodePath: NodePath;
+  window: TimeWindow | null;
+}
+
+function countedIn(
+  sequences: readonly InteractiveSequence[],
+  overrideId: string,
+  node: Element | null
+): { instances: number; ordinal: number } {
+  const same = sequences.filter(
+    (sequence) => sequence.controls?.overrideId === overrideId
+  );
+
+  if (same.length < 2) {
+    return { instances: Math.max(1, same.length), ordinal: 1 };
+  }
+
+  const order = [...(anchorContainer()?.querySelectorAll("*") ?? [])];
+  const ordered = same
+    .map((sequence, registered) => {
+      const outline = sequence.refForOutline?.current ?? null;
+      const seen = outline === null ? -1 : order.indexOf(outline);
+
+      return {
+        node: outline,
+        rank: seen === -1 ? order.length + registered : seen,
+      };
+    })
+    .toSorted((first, second) => first.rank - second.rank);
+
+  const at =
+    node === null
+      ? -1
+      : ordered.findIndex(
+          (entry) =>
+            entry.node !== null &&
+            (entry.node === node || entry.node.contains(node))
+        );
+
+  return { instances: same.length, ordinal: at === -1 ? 1 : at + 1 };
+}
+
+function resolverFor(
+  entries: readonly TargetEntry[],
+  container: Element | null
+): (anchor: string) => Element | null {
+  const cache = new Map<string, Element | null>();
+
+  for (const entry of entries) {
+    if (entry.node?.isConnected) {
+      cache.set(entry.anchor, entry.node);
+    }
+  }
+
+  return (anchor) => {
+    const hit = cache.get(anchor);
+
+    if (hit !== undefined) {
+      return hit;
+    }
+
+    const found = container === null ? null : resolveAnchor(anchor, container);
+
+    cache.set(anchor, found);
+    return found;
+  };
+}
+
+function applyRebound(
+  registry: Map<string, TargetEntry>,
+  results: readonly Rebound[],
+  edited: (key: string) => boolean
+): TargetEntry[] {
+  const gained: TargetEntry[] = [];
+
+  for (const result of results) {
+    const entry = registry.get(result.key);
+
+    if (entry === undefined) {
+      continue;
+    }
+
+    const before = new Set(entry.live);
+    const was = entry.live;
+
+    entry.live = result.live;
+    entry.node = result.node;
+
+    if (debugging() && !sameIds(was, result.live)) {
+      console.log("remocn:rebind", entry.key, { now: result.live, was });
+    }
+
+    if (edited(result.key) && result.live.some((id) => !before.has(id))) {
+      gained.push(entry);
+    }
+  }
+
+  return gained;
+}
+
+function offscreen(entry: TargetEntry | undefined, at: number): string {
+  const head = `This element is not on screen at frame ${at}.`;
+
+  if (entry === undefined || entry.window === null) {
+    return head;
+  }
+
+  return `${head} ${entry.label} runs from frame ${entry.window.from} to ${entry.window.until}.`;
+}
+
+function mountedControls(entry: TargetEntry): SequenceControls | null {
+  const { node } = entry;
+
+  if (node === null || !node.isConnected) {
+    return null;
+  }
+
+  const links = controlsChain(node) as readonly {
+    controls: SequenceControls;
+  }[];
+
+  return (
+    links.find((link) => link.controls.componentName === entry.componentName)
+      ?.controls ?? null
+  );
+}
+
+function debugging(): boolean {
+  return (
+    (globalThis as unknown as { remocn_debug?: boolean }).remocn_debug === true
+  );
+}
+
+function sameIds(was: readonly string[], now: readonly string[]): boolean {
+  return was.length === now.length && was.every((id, at) => id === now[at]);
+}
+
+function reportPick(
+  key: string,
+  controls: SequenceControls,
+  sequences: readonly InteractiveSequence[]
+): void {
+  if (!debugging()) {
+    return;
+  }
+
+  console.log("remocn:pick", key, {
+    picked: controls.overrideId,
+    registered: sequences.flatMap((sequence) =>
+      sequence.controls?.componentName === controls.componentName
+        ? [sequence.controls.overrideId]
+        : []
+    ),
+  });
+}
+
 export function InteractivityRuntime({
   children,
+  frame,
 }: {
   readonly children: React.ReactNode;
+  readonly frame: () => number;
 }) {
   const { sequences } = useContext(Internals.SequenceManager);
   const setters = useContext(Internals.VisualModeSettersContext);
   const [mappings, setMappings] = useState<Record<string, NodePath>>({});
-  const mappingsRef = useRef(mappings);
+  const mappingsRef = useRef<Record<string, NodePath>>({});
   const drafts = useRef(new Map<string, Record<string, TuningValue>>());
-  // The controls of everything that has been selected, so an edit can find its
-  // schema by id even when the component never handed its `controls` to a
-  // `<Sequence>` and so registered with none. The overrides themselves ride on
-  // the node path we mint, which owes the registry nothing.
-  const seen = useRef(new Map<string, SequenceControls>());
-  mappingsRef.current = mappings;
+  const targets = useRef(new Map<string, TargetEntry>());
+  const minted = useRef(0);
 
   const interactive = sequences as unknown as readonly InteractiveSequence[];
 
+  const syncMappings = useCallback(() => {
+    const next: Record<string, NodePath> = {};
+
+    for (const entry of targets.current.values()) {
+      for (const id of entry.live) {
+        next[id] = entry.nodePath;
+      }
+    }
+
+    if (sameMappings(mappingsRef.current, next)) {
+      return;
+    }
+
+    mappingsRef.current = next;
+    setMappings(next);
+  }, []);
+
+  const entryFor = useCallback(
+    (key: string, anchor: string, componentName: string): TargetEntry => {
+      const found = targets.current.get(key);
+
+      if (found !== undefined) {
+        return found;
+      }
+
+      minted.current += 1;
+      const id = String(minted.current);
+      const created: TargetEntry = {
+        anchor,
+        componentName,
+        key,
+        label: componentName,
+        live: [],
+        node: null,
+        nodePath: {
+          absolutePath: `remocn.${id}`,
+          effectKeys: [],
+          nodePath: ["remocn", id],
+          sequenceKeys: [],
+        },
+        window: null,
+      };
+
+      targets.current.set(key, created);
+      return created;
+    },
+    []
+  );
+
   const controlsFor = useCallback(
-    (targetId: string): SequenceControls | null =>
-      interactive.find((sequence) => sequence.controls?.overrideId === targetId)
-        ?.controls ??
-      seen.current.get(targetId) ??
-      null,
+    (key: string): SequenceControls | null => {
+      const entry = targets.current.get(key);
+
+      if (entry === undefined) {
+        return null;
+      }
+
+      for (const id of entry.live) {
+        const found =
+          interactive.find((sequence) => sequence.controls?.overrideId === id)
+            ?.controls ?? null;
+
+        if (found !== null) {
+          return found;
+        }
+      }
+
+      return mountedControls(entry);
+    },
     [interactive]
   );
 
-  const nodePathFor = useCallback((targetId: string): NodePath => {
-    const current = mappingsRef.current[targetId];
-    if (current !== undefined) {
-      return current;
-    }
-
-    const next: NodePath = {
-      absolutePath: `remocn.${targetId}`,
-      effectKeys: [],
-      nodePath: ["remocn", targetId],
-      sequenceKeys: [],
-    };
-
-    setMappings((previous) => ({ ...previous, [targetId]: next }));
-    return next;
-  }, []);
-
   const valuesFor = useCallback(
-    (controls: SequenceControls | null): Record<string, unknown> =>
+    (
+      key: string,
+      controls: SequenceControls | null
+    ): Record<string, unknown> =>
       controls === null
         ? {}
         : {
             ...controls.currentRuntimeValueDotNotation,
-            ...drafts.current.get(controls.overrideId),
+            ...drafts.current.get(key),
           },
     []
+  );
+
+  const valuesOf = useCallback(
+    (key: string): Readonly<Record<string, unknown>> | null =>
+      controlsFor(key)?.currentRuntimeValueDotNotation ?? null,
+    [controlsFor]
   );
 
   const tunable = typeof setters.setPropStatuses === "function";
 
   const replay = useCallback(
-    (targetId: string, nodePath: NodePath) => {
-      const plan = overridePlan(drafts.current.get(targetId) ?? {});
+    (entry: TargetEntry) => {
+      const plan = overridePlan(drafts.current.get(entry.key) ?? {});
 
-      setters.clearDragOverrides(nodePath as never);
+      setters.clearDragOverrides(entry.nodePath as never);
 
       for (const { path, value } of plan.overrides) {
         setters.setDragOverrides(
-          nodePath as never,
+          entry.nodePath as never,
           path,
           Internals.makeStaticDragOverride(value)
         );
       }
 
-      setters.setPropStatuses(nodePath as never, () => plan.statuses as never);
+      setters.setPropStatuses(
+        entry.nodePath as never,
+        () => plan.statuses as never
+      );
     },
     [setters]
   );
 
+  useEffect(() => {
+    if (targets.current.size === 0) {
+      return;
+    }
+
+    const entries = [...targets.current.values()];
+    const gained = applyRebound(
+      targets.current,
+      rebind(entries, interactive, resolverFor(entries, anchorContainer())),
+      (key) => drafts.current.has(key)
+    );
+
+    syncMappings();
+
+    for (const entry of gained) {
+      replay(entry);
+    }
+  }, [interactive, replay, syncMappings]);
+
   const set = useCallback(
     (targetId: string, path: string, value: TuningValue): TuningReply => {
+      const entry = targets.current.get(targetId);
       const controls = controlsFor(targetId);
 
-      if (controls === null) {
-        return {
-          error: "This component instance is no longer mounted.",
-          ok: false,
-        };
+      if (entry === undefined || controls === null) {
+        return { error: offscreen(entry, frame()), ok: false };
       }
 
       if (!tunable) {
@@ -139,7 +383,12 @@ export function InteractivityRuntime({
         };
       }
 
-      const field = fieldAt(controls.schema, valuesFor(controls), path);
+      const field = fieldAt(
+        controls.schema,
+        valuesFor(targetId, controls),
+        path
+      );
+
       if (field === null || !isFieldValue(field, value)) {
         return {
           error: "That value is not valid for this control.",
@@ -151,29 +400,36 @@ export function InteractivityRuntime({
         ...drafts.current.get(targetId),
         [path]: value,
       });
-      replay(targetId, nodePathFor(targetId));
+
+      if (!entry.live.includes(controls.overrideId)) {
+        entry.live = [controls.overrideId, ...entry.live];
+        syncMappings();
+      }
+
+      replay(entry);
 
       return { error: null, ok: true };
     },
-    [controlsFor, nodePathFor, replay, tunable, valuesFor]
+    [controlsFor, frame, replay, syncMappings, tunable, valuesFor]
   );
 
   const reset = useCallback(
     (targetId: string, paths: readonly string[]): TuningReply => {
-      if (controlsFor(targetId) === null) {
-        return {
-          error: "This component instance is no longer mounted.",
-          ok: false,
-        };
+      const entry = targets.current.get(targetId);
+
+      if (entry === undefined) {
+        return { error: null, ok: true };
       }
 
       if (paths.length === 0) {
         drafts.current.delete(targetId);
       } else {
         const next = { ...drafts.current.get(targetId) };
+
         for (const path of paths) {
           delete next[path];
         }
+
         if (Object.keys(next).length === 0) {
           drafts.current.delete(targetId);
         } else {
@@ -181,11 +437,25 @@ export function InteractivityRuntime({
         }
       }
 
-      replay(targetId, nodePathFor(targetId));
+      replay(entry);
       return { error: null, ok: true };
     },
-    [controlsFor, nodePathFor, replay]
+    [replay]
   );
+
+  const clear = useCallback(() => {
+    const empty = overridePlan({}).statuses;
+
+    for (const entry of targets.current.values()) {
+      setters.clearDragOverrides(entry.nodePath as never);
+      setters.setPropStatuses(entry.nodePath as never, () => empty as never);
+    }
+
+    drafts.current.clear();
+    targets.current.clear();
+    mappingsRef.current = {};
+    setMappings({});
+  }, [setters]);
 
   const selectedTargets = useCallback(
     (element: Element): TuningTarget[] => {
@@ -196,32 +466,78 @@ export function InteractivityRuntime({
       // on; the ancestors are offered, not imposed.
       const chain = controlsChain(element) as readonly {
         controls: SequenceControls;
+        node: Element | null;
       }[];
-      const fallback =
-        nearestInteractive(interactive, element)?.controls ?? null;
-      const spare = fallback === null ? [] : [{ controls: fallback }];
+      const nearest = nearestInteractive(interactive, element);
+      const fallback = nearest?.controls ?? null;
+      const spare =
+        fallback === null
+          ? []
+          : [
+              {
+                controls: fallback as SequenceControls,
+                node: nearest?.refForOutline?.current ?? null,
+              },
+            ];
       const found = chain.length > 0 ? chain : spare;
+      const container = anchorContainer();
+      const used = new Set<string>();
+      const kept = new Set<string>();
 
-      return found.flatMap(({ controls }) => {
-        seen.current.set(controls.overrideId, controls);
-        nodePathFor(controls.overrideId);
+      const picked = found.flatMap(({ controls, node }, index) => {
+        const host = node ?? element;
+        const anchor = container === null ? "" : anchorOf(host, container);
+        const base =
+          anchor.length > 0
+            ? `${anchor}::${controls.componentName}`
+            : controls.overrideId;
+        const key = used.has(base) ? `${base}::${index}` : base;
 
+        used.add(key);
+
+        const values = valuesFor(key, controls);
         const part = describeTuning({
           componentName: controls.componentName,
+          instanceId: anchor,
           schema: controls.schema,
-          targetId: controls.overrideId,
-          values: valuesFor(controls),
+          targetId: key,
+          values,
+          ...countedIn(interactive, controls.overrideId, node),
         });
 
-        return part === null ? [] : [part];
+        if (part === null || (index > 0 && isPlumbing(part))) {
+          return [];
+        }
+
+        const entry = entryFor(key, anchor, controls.componentName);
+
+        entry.componentName = controls.componentName;
+        entry.label = nameIn(values) ?? plainName(controls.componentName);
+        entry.live = [controls.overrideId];
+        entry.node = host;
+        entry.window = windowOf(host);
+        kept.add(key);
+        reportPick(key, controls, interactive);
+
+        return [part];
       });
+
+      for (const key of [...targets.current.keys()]) {
+        if (!(kept.has(key) || drafts.current.has(key))) {
+          targets.current.delete(key);
+        }
+      }
+
+      syncMappings();
+
+      return picked;
     },
-    [interactive, nodePathFor, valuesFor]
+    [entryFor, interactive, syncMappings, valuesFor]
   );
 
   const runtime = useMemo<TuningRuntime>(
-    () => ({ reset, set, targetsOf: selectedTargets }),
-    [reset, selectedTargets, set]
+    () => ({ clear, reset, set, targetsOf: selectedTargets, valuesOf }),
+    [clear, reset, selectedTargets, set, valuesOf]
   );
 
   useEffect(() => activate(runtime), [runtime]);
@@ -237,10 +553,13 @@ export function InteractivityRuntime({
     []
   );
 
+  const mapping = useMemo(
+    () => ({ overrideIdToNodePathMappings: mappings }),
+    [mappings]
+  );
+
   return (
-    <Internals.OverrideIdsToNodePathsGettersContext.Provider
-      value={{ overrideIdToNodePathMappings: mappings }}
-    >
+    <Internals.OverrideIdsToNodePathsGettersContext.Provider value={mapping}>
       <Internals.RemotionEnvironmentContext.Provider value={environment}>
         {children}
       </Internals.RemotionEnvironmentContext.Provider>

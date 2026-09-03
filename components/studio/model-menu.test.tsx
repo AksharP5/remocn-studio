@@ -19,7 +19,7 @@ const HEALTHY: ProviderAccounts = {
 const SIGNED_OUT: ProviderAccounts = {
   codex: {
     detail: "Codex is not signed in.",
-    fix: { command: "codex login", type: "command" },
+    fix: { step: "signin", type: "provider" },
     id: "codex",
     state: "failed",
     title: "Codex is not logged in",
@@ -32,6 +32,7 @@ function renderMenu(shape: {
   provider?: "claude" | "codex" | "grok";
 }) {
   const onPick = vi.fn();
+  const onSignIn = vi.fn();
 
   render(
     <TooltipProvider>
@@ -40,6 +41,7 @@ function renderMenu(shape: {
         canPickProvider={shape.canPickProvider ?? true}
         models={{ claude: "claude-opus-5", codex: "", copilot: "", grok: "" }}
         onPick={onPick}
+        onSignIn={onSignIn}
         provider={shape.provider ?? "claude"}
       />
     </TooltipProvider>
@@ -47,7 +49,7 @@ function renderMenu(shape: {
 
   fireEvent.click(screen.getByRole("button", { name: MODEL_CHIP }));
 
-  return { onPick };
+  return { onPick, onSignIn };
 }
 
 describe("ModelMenu", () => {
@@ -67,13 +69,17 @@ describe("ModelMenu", () => {
     expect(screen.getAllByText("Experimental")).toHaveLength(3);
   });
 
-  it("tells a signed-out provider to sign in and refuses to pick it", () => {
-    renderMenu({ accounts: SIGNED_OUT });
+  it("tells a signed-out provider to sign in, and the row opens the accounts settings", () => {
+    const { onPick, onSignIn } = renderMenu({ accounts: SIGNED_OUT });
 
     expect(screen.getByText("Sign in")).toBeInTheDocument();
-    expect(
-      screen.getByText("Codex").closest("[role='menuitem']")
-    ).toHaveAttribute("aria-disabled", "true");
+
+    fireEvent.click(
+      screen.getByText("Codex").closest("[role='menuitem']") as Element
+    );
+
+    expect(onSignIn).toHaveBeenCalledWith("codex");
+    expect(onPick).not.toHaveBeenCalled();
   });
 
   it("keeps a healthy group free of tooltips, whose balloon would cover the submenu", () => {

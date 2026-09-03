@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { providerAccounts } from "@/lib/studio/agent";
 import type { EnvironmentCheck } from "@/shared/ipc";
 import type { AgentProvider } from "@/shared/providers";
+import { useRecheckOnFocus } from "./use-recheck-on-focus";
 
 export type ProviderAccounts = Partial<Record<AgentProvider, EnvironmentCheck>>;
 
@@ -65,6 +66,11 @@ export function useProviderAccounts(): Accounts {
   const recheck = useCallback(() => {
     ask(true);
   }, [ask]);
+
+  useRecheckOnFocus(
+    Object.values(rows).some((row) => row.state === "failed"),
+    recheck
+  );
 
   return useMemo(
     () => ({ isChecking, recheck, rows }),

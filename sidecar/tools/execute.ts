@@ -13,7 +13,11 @@ import { pipelineBrief } from "../claude/conventions";
 import type { MoodboardDraft, MoodboardRecord } from "../library/moodboard";
 import { moodboardBrief } from "../library/moodboard";
 import type { VideoCheck } from "../preview/choreography";
-import type { DesignResult, MotionAssertion } from "../preview/design";
+import type {
+  DesignFinding,
+  DesignResult,
+  MotionAssertion,
+} from "../preview/design";
 import {
   DESIGN_CHECK,
   DESIGN_SERVER,
@@ -29,7 +33,7 @@ import {
   TOOL_SPECS,
   type ToolServer,
 } from "./specs";
-import { easingFindings, easingReport } from "./tunability";
+import { tunabilityDesignFindings, tunabilityFindings } from "./tunability";
 
 export interface LibraryCalls {
   readonly list: () => Promise<readonly Asset[]>;
@@ -175,10 +179,26 @@ async function designCheck(
     design.sources().catch(() => []),
   ]);
 
-  const tunability = easingReport(easingFindings(sources));
-  const report = JSON.stringify(result, null, 2);
+  const found = tunabilityDesignFindings(tunabilityFindings(sources));
 
-  return tunability === null ? report : `${report}\n\n${tunability}`;
+  const merged: DesignResult = {
+    ...result,
+    findings: [...result.findings, ...found],
+    summary: {
+      errors: result.summary.errors + counted(found, "error"),
+      info: result.summary.info + counted(found, "info"),
+      warnings: result.summary.warnings + counted(found, "warning"),
+    },
+  };
+
+  return JSON.stringify(merged, null, 2);
+}
+
+function counted(
+  findings: readonly DesignFinding[],
+  severity: DesignFinding["severity"]
+): number {
+  return findings.filter((finding) => finding.severity === severity).length;
 }
 
 async function listAssets(library: LibraryCalls): Promise<string> {

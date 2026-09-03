@@ -8,6 +8,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { ProviderAccounts } from "@/hooks/use-provider-accounts";
 import { modelLabelOf, PROVIDER_MODELS } from "@/lib/studio/models";
+import { providerStatus } from "@/lib/studio/setup";
 import type { EnvironmentCheck } from "@/shared/ipc";
 import {
   AGENT_PROVIDERS,
@@ -39,12 +41,14 @@ export function ModelMenu({
   canPickProvider,
   models,
   onPick,
+  onSignIn,
   provider,
 }: {
   accounts: ProviderAccounts;
   canPickProvider: boolean;
   models: Record<AgentProvider, string>;
   onPick: (provider: AgentProvider, value: string) => void;
+  onSignIn: (provider: AgentProvider) => void;
   provider: AgentProvider;
 }) {
   const label = modelLabelOf(provider, models[provider]);
@@ -82,6 +86,7 @@ export function ModelMenu({
               key={candidate}
               locked={candidate !== provider && !canPickProvider}
               onPick={onPick}
+              onSignIn={onSignIn}
               value={candidate === provider ? models[candidate] : ELSEWHERE}
             />
           ))}
@@ -100,6 +105,7 @@ function ProviderGroup({
   disabled,
   locked,
   onPick,
+  onSignIn,
   value,
 }: {
   accounts: ProviderAccounts;
@@ -107,6 +113,7 @@ function ProviderGroup({
   disabled: boolean;
   locked: boolean;
   onPick: (provider: AgentProvider, value: string) => void;
+  onSignIn: (provider: AgentProvider) => void;
   value: string;
 }) {
   const info = PROVIDER_INFO[candidate];
@@ -116,7 +123,31 @@ function ProviderGroup({
     [candidate, onPick]
   );
 
+  const signIn = useCallback(() => onSignIn(candidate), [candidate, onSignIn]);
+
   const reason = disabledReason(locked, accounts[candidate]);
+  const row = accounts[candidate];
+
+  if (!locked && row !== undefined && row.state === "failed") {
+    const link = (
+      <DropdownMenuItem onClick={signIn}>
+        <ProviderIcon className="text-muted-foreground" provider={candidate} />
+        <span className="flex-1 whitespace-nowrap">{info.name}</span>
+        <StatusMark accounts={accounts} candidate={candidate} />
+      </DropdownMenuItem>
+    );
+
+    return reason === null ? (
+      link
+    ) : (
+      <Tooltip>
+        <TooltipTrigger render={link} />
+        <TooltipContent className="max-w-64" side="right">
+          {reason}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
 
   const trigger = (
     <DropdownMenuSubTrigger
@@ -179,12 +210,9 @@ function statusOf(
   candidate: AgentProvider,
   accounts: ProviderAccounts
 ): string | null {
-  const row = accounts[candidate];
-
-  if (row !== undefined && row.state === "failed") {
-    return row.fix?.type === "command" && row.fix.command.includes("login")
-      ? "Sign in"
-      : "Unavailable";
+  const status = providerStatus(accounts[candidate]);
+  if (status !== null) {
+    return status;
   }
 
   return PROVIDER_INFO[candidate].experimental ? "Experimental" : null;
@@ -201,7 +229,9 @@ function disabledReason(
     return LOCKED_REASON;
   }
   if (row !== undefined && row.state === "failed") {
-    return row.detail;
+    return row.detail === null
+      ? "Opens Settings › AI Accounts."
+      : `${row.detail}\n\nOpens Settings › AI Accounts.`;
   }
   return null;
 }

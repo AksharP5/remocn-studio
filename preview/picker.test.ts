@@ -2,11 +2,14 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   climb,
   covers,
+  coversText,
   hasBorder,
   isDrawing,
   isInlineWrapper,
   isTransparent,
+  nearText,
   paints,
+  pickAt,
   svgRootOf,
 } from "./picker";
 
@@ -344,5 +347,299 @@ describe("covers", () => {
     const box = sized({ height: 0, left: 0, top: 0, width: 0 });
 
     expect(covers(box, 0, 0)).toBe(false);
+  });
+});
+
+interface Box {
+  height: number;
+  left: number;
+  top: number;
+  width: number;
+}
+
+const FRAME: Box = { height: 600, left: 0, top: 0, width: 1000 };
+
+const textRects = new Map<Node, Box[]>();
+
+function rectOf(box: Box) {
+  return {
+    ...box,
+    bottom: box.top + box.height,
+    right: box.left + box.width,
+    x: box.left,
+    y: box.top,
+  };
+}
+
+function boxed(element: Element, box: Box): void {
+  Object.defineProperty(element, "getBoundingClientRect", {
+    configurable: true,
+    value: () => rectOf(box),
+  });
+}
+
+function textAt(element: Element, ...boxes: Box[]): void {
+  const node = element.firstChild;
+  if (node === null) {
+    throw new Error("the fixture element holds no text");
+  }
+  textRects.set(node, boxes);
+}
+
+function under(...elements: Element[]): void {
+  Object.defineProperty(document, "elementsFromPoint", {
+    configurable: true,
+    value: () => elements,
+  });
+}
+
+function stageFor(html: string): HTMLElement {
+  const stage = mount(html);
+  boxed(stage, FRAME);
+  return stage;
+}
+
+function installRects(): void {
+  textRects.clear();
+  Object.defineProperty(Range.prototype, "getClientRects", {
+    configurable: true,
+    value(this: Range) {
+      return (textRects.get(this.startContainer) ?? []).map(rectOf);
+    },
+  });
+}
+
+describe("nearText, which reads the words a line is made of", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    installRects();
+  });
+
+  it("takes a point in the gap between two words of one line", () => {
+    stageFor(
+      `<div id="line" style="display:block;font-size:40px"><span style="display:inline-block">Change</span><span style="display:inline-block">your</span></div>`
+    );
+    const line = pick("#line");
+    textAt(pick("span:nth-child(1)"), {
+      height: 50,
+      left: 100,
+      top: 100,
+      width: 100,
+    });
+    textAt(pick("span:nth-child(2)"), {
+      height: 50,
+      left: 220,
+      top: 100,
+      width: 80,
+    });
+
+    expect(nearText(line, 210, 120)).toBe(true);
+  });
+
+  it("keeps coversText literal, which is nearText with no allowance", () => {
+    stageFor(
+      `<div id="line" style="display:block;font-size:40px"><span style="display:inline-block">Change</span></div>`
+    );
+    const line = pick("#line");
+    textAt(pick("span"), { height: 50, left: 100, top: 100, width: 100 });
+
+    expect(coversText(line, 210, 120)).toBe(false);
+    expect(coversText(line, 150, 120)).toBe(true);
+  });
+
+  it("skips a word that has not been revealed yet", () => {
+    stageFor(
+      `<div id="line" style="display:block;font-size:40px"><span id="unrevealed" style="display:inline-block;opacity:0">Change</span></div>`
+    );
+    textAt(pick("#unrevealed"), {
+      height: 50,
+      left: 100,
+      top: 100,
+      width: 100,
+    });
+
+    expect(nearText(pick("#line"), 150, 120)).toBe(false);
+  });
+
+  it("skips a word whose line was hidden outright", () => {
+    stageFor(
+      `<div id="line" style="display:block;font-size:40px;visibility:hidden"><span style="display:inline-block">Change</span></div>`
+    );
+    textAt(pick("span"), { height: 50, left: 100, top: 100, width: 100 });
+
+    expect(nearText(pick("#line"), 150, 120)).toBe(false);
+  });
+});
+
+describe("paints, which refuses what the frame does not show", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    installRects();
+  });
+
+  it("refuses an element that has faded out", () => {
+    stageFor(
+      `<div id="glow" style="background-color:rgb(9,9,9);opacity:0.01"></div>`
+    );
+
+    expect(paints(pick("#glow"), 10, 10)).toBe(false);
+  });
+
+  it("refuses an element that is not visible", () => {
+    stageFor(
+      `<div id="glow" style="background-color:rgb(9,9,9);visibility:hidden"></div>`
+    );
+
+    expect(paints(pick("#glow"), 10, 10)).toBe(false);
+  });
+
+  it("refuses a masked surface where it shows no text", () => {
+    stageFor(
+      `<div id="ghost" style="background-color:rgb(20,20,20);mask-image:url(mark.png)"></div>`
+    );
+
+    expect(paints(pick("#ghost"), 10, 10)).toBe(false);
+  });
+
+  it("keeps a masked surface where it does show text", () => {
+    stageFor(
+      `<div id="ghost" style="background-color:rgb(20,20,20);font-size:40px;mask-image:url(mark.png)">mind</div>`
+    );
+    textAt(pick("#ghost"), { height: 50, left: 100, top: 100, width: 100 });
+
+    expect(paints(pick("#ghost"), 150, 120)).toBe(true);
+  });
+});
+
+describe("pickAt over the shapes the corpus really has", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    installRects();
+  });
+
+  it("WordPush: a point in a word gap picks the line, not the backdrop", () => {
+    const stage = stageFor(
+      `<div id="backdrop" style="background-color:rgb(10,10,10)"></div><div id="line" style="display:block;font-size:40px"><span id="w1" style="display:inline-block">Change</span><span id="w2" style="display:inline-block">your</span></div>`
+    );
+    const line = pick("#line");
+    const backdrop = pick("#backdrop");
+    boxed(backdrop, FRAME);
+    boxed(line, { height: 50, left: 100, top: 100, width: 200 });
+    textAt(pick("#w1"), { height: 50, left: 100, top: 100, width: 100 });
+    textAt(pick("#w2"), { height: 50, left: 220, top: 100, width: 80 });
+    under(line, backdrop, stage);
+
+    expect(pickAt(210, 120, stage, false)).toBe(line);
+  });
+
+  it("WordPush: a point on a word picks its line, and Alt keeps the word", () => {
+    const stage = stageFor(
+      `<div id="backdrop" style="background-color:rgb(10,10,10)"></div><div id="line" style="display:block;font-size:40px"><span id="w1" style="display:inline-block">Change</span><span id="w2" style="display:inline-block">your</span></div>`
+    );
+    const word = pick("#w1");
+    boxed(pick("#backdrop"), FRAME);
+    textAt(word, { height: 50, left: 100, top: 100, width: 100 });
+    under(word, pick("#line"), pick("#backdrop"), stage);
+
+    expect(pickAt(150, 120, stage, false)).toBe(pick("#line"));
+    expect(pickAt(150, 120, stage, true)).toBe(word);
+  });
+
+  it("Highlight: a glyph picks its line, bare marker picks the marker", () => {
+    const stage = stageFor(
+      `<div id="wrap" style="display:inline-flex;position:relative"><div id="marker" style="position:absolute;background-color:rgb(255,230,0)"></div><div id="copy" style="display:block;position:relative;font-size:40px"><span id="word" style="display:inline-block">mind</span></div></div>`
+    );
+    const marker = pick("#marker");
+    boxed(marker, { height: 60, left: 90, top: 95, width: 220 });
+    boxed(pick("#wrap"), { height: 60, left: 90, top: 95, width: 220 });
+    textAt(pick("#word"), { height: 50, left: 100, top: 100, width: 100 });
+
+    under(pick("#word"), pick("#copy"), marker, pick("#wrap"), stage);
+    expect(pickAt(150, 120, stage, false)).toBe(pick("#copy"));
+    expect(pickAt(150, 120, stage, true)).toBe(pick("#word"));
+
+    under(marker, pick("#wrap"), stage);
+    expect(pickAt(290, 120, stage, false)).toBe(marker);
+    expect(pickAt(290, 120, stage, true)).toBe(marker);
+  });
+
+  it("AmbientField: a line beats the full-frame glow behind it", () => {
+    const stage = stageFor(
+      `<div id="scene" style="background-color:rgb(5,5,5)"><div id="glow" style="background-image:radial-gradient(circle, red, transparent)"></div><div id="line" style="display:block;font-size:40px">Revenue</div></div>`
+    );
+    const line = pick("#line");
+    boxed(pick("#scene"), FRAME);
+    boxed(pick("#glow"), { height: 1120, left: -260, top: -260, width: 1520 });
+    boxed(line, { height: 50, left: 100, top: 280, width: 300 });
+    textAt(line, { height: 50, left: 100, top: 280, width: 300 });
+    under(line, pick("#glow"), pick("#scene"), stage);
+
+    expect(pickAt(300, 300, stage, false)).toBe(line);
+    expect(pickAt(300, 300, stage, true)).toBe(line);
+  });
+
+  it("AmbientField: empty canvas picks the glow itself", () => {
+    const stage = stageFor(
+      `<div id="scene" style="background-color:rgb(5,5,5)"><div id="glow" style="background-image:radial-gradient(circle, red, transparent)"></div></div>`
+    );
+    const glow = pick("#glow");
+    boxed(pick("#scene"), FRAME);
+    boxed(glow, { height: 1120, left: -260, top: -260, width: 1520 });
+    under(glow, pick("#scene"), stage);
+
+    expect(pickAt(900, 500, stage, false)).toBe(glow);
+    expect(pickAt(900, 500, stage, true)).toBe(glow);
+  });
+
+  it("AmbientField: a glow in front loses to the smaller card under it", () => {
+    const stage = stageFor(
+      `<div id="scene" style="background-color:rgb(5,5,5)"><div id="card" style="display:block;background-color:rgb(30,30,30)"></div><div id="glow" style="background-image:radial-gradient(circle, red, transparent)"></div></div>`
+    );
+    const card = pick("#card");
+    boxed(pick("#scene"), FRAME);
+    boxed(pick("#glow"), { height: 1120, left: -260, top: -260, width: 1520 });
+    boxed(card, { height: 200, left: 100, top: 100, width: 300 });
+    under(pick("#glow"), card, pick("#scene"), stage);
+
+    expect(pickAt(200, 200, stage, false)).toBe(card);
+    expect(pickAt(200, 200, stage, true)).toBe(pick("#glow"));
+  });
+
+  it("Backdrop: a masked ghost box lets through what is behind it", () => {
+    const stage = stageFor(
+      `<div id="behind" style="background-color:rgb(9,9,9)"></div><div id="ghost" style="background-color:rgb(20,20,20);mask-image:url(mark.png)"></div>`
+    );
+    const ghost = pick("#ghost");
+    const behind = pick("#behind");
+    boxed(behind, { height: 300, left: 400, top: 200, width: 300 });
+    boxed(ghost, { height: 400, left: 380, top: 180, width: 400 });
+    under(ghost, behind, stage);
+
+    expect(pickAt(500, 300, stage, false)).toBe(behind);
+    expect(pickAt(500, 300, stage, true)).toBe(ghost);
+  });
+
+  it("Unrevealed word: the surface behind is picked while nothing shows", () => {
+    const stage = stageFor(
+      `<div id="surface" style="background-color:rgb(9,9,9)"></div><div id="line" style="display:block;font-size:40px"><span id="unrevealed" style="display:inline-block;opacity:0">Change</span><span id="revealed" style="display:inline-block">your</span></div>`
+    );
+    const surface = pick("#surface");
+    boxed(surface, { height: 300, left: 0, top: 0, width: 400 });
+    boxed(pick("#line"), { height: 50, left: 100, top: 100, width: 200 });
+    textAt(pick("#unrevealed"), {
+      height: 50,
+      left: 100,
+      top: 100,
+      width: 100,
+    });
+    textAt(pick("#revealed"), { height: 50, left: 220, top: 100, width: 80 });
+
+    under(pick("#unrevealed"), pick("#line"), surface, stage);
+    expect(pickAt(120, 120, stage, false)).toBe(surface);
+    expect(pickAt(120, 120, stage, true)).toBe(pick("#unrevealed"));
+
+    under(pick("#revealed"), pick("#line"), surface, stage);
+    expect(pickAt(250, 120, stage, false)).toBe(pick("#line"));
+    expect(pickAt(250, 120, stage, true)).toBe(pick("#revealed"));
   });
 });

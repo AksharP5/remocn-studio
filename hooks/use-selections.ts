@@ -1,12 +1,20 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import type { PreviewRect, TuningTarget } from "@/lib/studio/preview";
+import type {
+  PreviewRect,
+  PreviewWindow,
+  TuningTarget,
+} from "@/lib/studio/preview";
 import type { PromptElement, TuningValue } from "@/shared/ipc";
 
 export interface SelectionTuning {
-  originals: Readonly<Record<string, TuningValue>>;
-  target: TuningTarget;
+  fonts: readonly string[];
+  open: number;
+  originals: Readonly<Record<string, Readonly<Record<string, TuningValue>>>>;
+  targets: readonly TuningTarget[];
+  text: string | null;
+  window: PreviewWindow | null;
 }
 
 export interface Selection {

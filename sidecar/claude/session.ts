@@ -31,6 +31,7 @@ export interface TurnCallbacks {
   readonly brief: string | null;
   readonly canUseTool: CanUseTool;
   readonly cwd: string;
+  readonly executable: string;
   readonly knowledge: KnowledgeBundle;
   readonly log: (line: string) => void;
   readonly media: string | null;
@@ -131,6 +132,7 @@ function optionsOf(params: PromptParams, callbacks: TurnCallbacks): Options {
         },
       ])
     ),
+    pathToClaudeCodeExecutable: callbacks.executable,
     permissionMode: params.mode,
     plugins,
     settingSources: ["project"],

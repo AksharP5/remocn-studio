@@ -14,7 +14,7 @@ import {
   SunMoonIcon,
 } from "lucide-react";
 import type { MouseEvent } from "react";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -24,6 +24,11 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { useCopyCommand } from "@/hooks/use-copy-command";
+import { useScrolledIntoView } from "@/hooks/use-scrolled-into-view";
+import {
+  isSettingsSection,
+  type SettingsSection,
+} from "@/hooks/use-settings-dialog";
 import { useStockKey } from "@/hooks/use-stock-key";
 import {
   isThemeChoice,
@@ -40,26 +45,11 @@ import {
 } from "@/shared/providers";
 import { CHECK_ICONS, CHECK_TONES } from "./environment-checklist";
 import { ProviderIcon } from "./provider-icon";
+import { ProviderSteps } from "./provider-steps";
 import { useStudio } from "./studio-provider";
 import { UpdatesBody } from "./update-status";
 
-const SECTION_IDS = [
-  "appearance",
-  "behavior",
-  "stock",
-  "updates",
-  "accounts",
-  "feedback",
-] as const;
-
-type SectionId = (typeof SECTION_IDS)[number];
-
-function isSectionId(value: unknown): value is SectionId {
-  return (
-    typeof value === "string" &&
-    (SECTION_IDS as readonly string[]).includes(value)
-  );
-}
+type SectionId = SettingsSection;
 
 const SECTIONS: readonly {
   description: string;
@@ -107,14 +97,17 @@ const SECTIONS: readonly {
 
 export function SettingsDialog() {
   const { settingsDialog } = useStudio();
-  const [section, setSection] = useState<SectionId>("appearance");
+  const { section, setSection } = settingsDialog;
 
-  const onPickSection = useCallback((event: MouseEvent<HTMLButtonElement>) => {
-    const picked = event.currentTarget.value;
-    if (isSectionId(picked)) {
-      setSection(picked);
-    }
-  }, []);
+  const onPickSection = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      const picked = event.currentTarget.value;
+      if (isSettingsSection(picked)) {
+        setSection(picked);
+      }
+    },
+    [setSection]
+  );
 
   const active = SECTIONS.find((entry) => entry.id === section) ?? SECTIONS[0];
 
@@ -434,7 +427,7 @@ function UpdatesSection() {
 }
 
 function AccountsSection() {
-  const { accounts } = useStudio();
+  const { accounts, settingsDialog } = useStudio();
 
   return (
     <div className="flex flex-col gap-1">
@@ -461,6 +454,7 @@ function AccountsSection() {
       {AGENT_PROVIDERS.map((provider) => (
         <AccountRow
           isChecking={accounts.isChecking}
+          isFocused={settingsDialog.provider === provider}
           key={provider}
           provider={provider}
           row={accounts.rows[provider]}
@@ -472,18 +466,28 @@ function AccountsSection() {
 
 function AccountRow({
   isChecking,
+  isFocused,
   provider,
   row,
 }: {
   isChecking: boolean;
+  isFocused: boolean;
   provider: AgentProvider;
   row: EnvironmentCheck | undefined;
 }) {
   const info = PROVIDER_INFO[provider];
   const StateIcon = row === undefined ? null : CHECK_ICONS[row.state];
+  const anchor = useScrolledIntoView<HTMLDivElement>(isFocused);
 
   return (
-    <div className="flex items-start gap-3 py-2.5">
+    <div
+      className={cn(
+        "flex items-start gap-3 rounded-md py-2.5",
+        isFocused && "-mx-2 bg-muted/50 px-2"
+      )}
+      data-provider={provider}
+      ref={anchor}
+    >
       <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-foreground">
         <ProviderIcon className="size-4" provider={provider} />
       </span>
@@ -498,7 +502,7 @@ function AccountRow({
           ) : null}
         </span>
 
-        <AccountStatus isChecking={isChecking} row={row} />
+        <AccountStatus isChecking={isChecking} provider={provider} row={row} />
       </div>
 
       {StateIcon === null || row === undefined ? null : (
@@ -515,9 +519,11 @@ function AccountRow({
 // as "signed out".
 function AccountStatus({
   isChecking,
+  provider,
   row,
 }: {
   isChecking: boolean;
+  provider: AgentProvider;
   row: EnvironmentCheck | undefined;
 }) {
   const { copied, onCopy } = useCopyCommand();
@@ -541,6 +547,10 @@ function AccountStatus({
           {row.detail}
         </span>
       )}
+
+      {row.fix?.type === "provider" ? (
+        <ProviderSteps provider={provider} row={row} />
+      ) : null}
 
       {row.fix?.type === "command" ? (
         <span className="mt-1 flex items-center gap-2">

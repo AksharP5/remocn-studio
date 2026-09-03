@@ -4,6 +4,7 @@ import {
   ChevronRightIcon,
   CornerDownLeftIcon,
   LibraryBigIcon,
+  PlayIcon,
   RotateCcwIcon,
   XIcon,
 } from "lucide-react";
@@ -17,13 +18,20 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useComment } from "@/hooks/use-comment";
-import type { PendingComment } from "@/hooks/use-inspect";
+import {
+  isFieldAnimated,
+  isTextChanged,
+  type PendingComment,
+  type TextDraft,
+  type TuningRefusal,
+} from "@/hooks/use-inspect";
+import { usePreviewFrame } from "@/hooks/use-preview";
+import { type TimeStrip, useTimeStrip } from "@/hooks/use-time-strip";
 import { useWheelScroll } from "@/hooks/use-wheel-scroll";
-import { relativeTo } from "@/lib/studio/activity";
 import type { TuningField, TuningTarget } from "@/lib/studio/preview";
-import { chainLabel } from "@/lib/studio/tuning";
+import { changedFields, subtitleOf, titleOf } from "@/lib/studio/tuning";
 import { cn } from "@/lib/utils";
-import type { PromptElement, TuningValue } from "@/shared/ipc";
+import type { TuningValue } from "@/shared/ipc";
 import { DialKitSurface } from "./dialkit-surface";
 import { Pane, PaneActions, PaneBody, PaneHeader, PaneTitle } from "./pane";
 import { useStudio } from "./studio-provider";
@@ -48,6 +56,7 @@ export function PropsPane() {
   const { openedProject, tools } = useStudio();
   const { inspect } = tools;
   const { card } = inspect;
+  const frame = usePreviewFrame(tools.preview);
 
   if (card === null || card.tuning === null) {
     return null;
@@ -57,14 +66,18 @@ export function PropsPane() {
     <PropsPanel
       card={card}
       cwd={openedProject?.path ?? null}
-      fields={card.tuning.fields}
-      name={card.tuning.componentName}
+      frame={frame}
+      key={card.targets.at(0)?.instanceId || "element"}
       onCancel={inspect.cancelComment}
       onChange={inspect.changeTuning}
+      onChangeText={inspect.changeText}
       onOpenTarget={inspect.openTarget}
+      onReplay={inspect.replay}
       onReset={inspect.resetTuning}
+      onSeek={inspect.seekTo}
       onSubmit={inspect.submitComment}
       refusal={inspect.tuningRefusal}
+      target={card.tuning}
     />
   );
 }
@@ -72,35 +85,58 @@ export function PropsPane() {
 export function PropsPanel({
   card,
   cwd,
-  fields,
-  name,
+  frame,
   onCancel,
   onChange,
+  onChangeText,
   onOpenTarget,
+  onReplay,
   onReset,
+  onSeek,
   onSubmit,
   refusal,
+  target,
 }: {
   card: PendingComment;
   cwd: string | null;
-  fields: readonly TuningField[];
-  name: string;
+  frame: number;
   onCancel: () => void;
   onChange: (path: string, value: TuningValue) => void;
+  onChangeText: (value: string) => void;
   onOpenTarget?: (index: number) => void;
+  onReplay: () => void;
   onReset: (paths?: readonly string[]) => void;
+  onSeek: (frame: number) => void;
   onSubmit: (comment: string) => void;
-  refusal: string | null;
+  refusal: TuningRefusal | null;
+  target: TuningTarget;
 }) {
   const comment = useComment(onSubmit, onCancel);
   const changes = countChanges(card);
-  const groups = groupsOf(fields);
+  const groups = groupsOf(target.fields);
   const resetAll = useCallback(() => onReset(), [onReset]);
+  const subtitle = subtitleOf(target, card.targets[card.open + 1] ?? null, cwd);
+  const strip = useTimeStrip({
+    frame,
+    onReplay,
+    onSeek,
+    span: card.window ?? null,
+  });
 
   return (
     <Pane>
       <PaneHeader>
-        <PaneTitle className="truncate">{name}</PaneTitle>
+        <div className="flex min-w-0 items-center gap-2">
+          <PaneTitle className="truncate">{titleOf(target)}</PaneTitle>
+          {target.instances < 2 ? null : (
+            <span
+              className="shrink-0 font-mono text-[10px] text-muted-foreground tabular-nums"
+              title={`One of ${target.instances} rendered from this call site`}
+            >
+              {target.ordinal} of {target.instances}
+            </span>
+          )}
+        </div>
         <PaneActions>
           <Tooltip>
             <TooltipTrigger
@@ -124,6 +160,14 @@ export function PropsPanel({
       </PaneHeader>
 
       <PaneBody className="gap-0 p-0">
+        <TimeStripRow strip={strip} />
+
+        {target.instances < 2 ? null : (
+          <p className="px-4 pb-2 text-muted-foreground text-xs">
+            Shared by {target.instances} · a change here moves all of them
+          </p>
+        )}
+
         {card.targets.length < 2 || onOpenTarget === undefined ? null : (
           <TargetChain
             onOpen={onOpenTarget}
@@ -135,9 +179,9 @@ export function PropsPanel({
         <div className="flex min-h-8 shrink-0 items-center gap-2 px-4 pb-2">
           <p
             className="min-w-0 flex-1 truncate text-muted-foreground text-xs"
-            title={whereOf(card.element, cwd)}
+            title={subtitle}
           >
-            {whereOf(card.element, cwd)}
+            {subtitle}
           </p>
           {changes === 0 ? null : (
             <Button
@@ -158,6 +202,9 @@ export function PropsPanel({
         >
           <ScrollArea className="min-h-0 flex-1">
             <div className="pb-4">
+              {card.text === null || card.text === undefined ? null : (
+                <TextSection onChange={onChangeText} text={card.text} />
+              )}
               {/* Full-width rules between sections, so the divider is a property
                   of the pane rather than an inset line inside the content. */}
               {groups.map(([group, grouped]) => (
@@ -171,11 +218,14 @@ export function PropsPanel({
                   <div className="flex flex-col gap-2.5">
                     {grouped.map((field) => (
                       <TuningRow
+                        animated={isFieldAnimated(card, field)}
                         field={field}
+                        fonts={card.fonts}
                         key={field.path}
                         onChange={onChange}
                         onReset={onReset}
                         original={card.originals[field.targetId]?.[field.path]}
+                        refusal={refusalFor(refusal, field)}
                       />
                     ))}
                   </div>
@@ -186,9 +236,9 @@ export function PropsPanel({
         </DialKitSurface>
 
         <div className="flex shrink-0 flex-col gap-2 border-t p-3">
-          {refusal === null ? null : (
+          {refusal === null || refusal.path !== null ? null : (
             <p className="text-destructive text-xs" role="alert">
-              {refusal}
+              {refusal.message}
             </p>
           )}
 
@@ -227,6 +277,78 @@ export function PropsPanel({
         </div>
       </PaneBody>
     </Pane>
+  );
+}
+
+function TextSection({
+  onChange,
+  text,
+}: {
+  onChange: (value: string) => void;
+  text: TextDraft;
+}) {
+  const write = useCallback(
+    (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+      onChange(event.currentTarget.value);
+    },
+    [onChange]
+  );
+
+  return (
+    <section className="border-border border-t px-4 py-3 first:border-t-0">
+      <h3 className="pb-2 font-medium text-foreground text-sm">Text</h3>
+      <Textarea
+        aria-label="Text"
+        className="max-h-24 min-h-14 resize-none text-xs"
+        onChange={write}
+        rows={2}
+        value={text.draft}
+      />
+      <p className="pt-1.5 text-2xs text-muted-foreground">
+        sent to Claude, not previewed
+      </p>
+    </section>
+  );
+}
+
+function TimeStripRow({ strip }: { strip: TimeStrip }) {
+  return (
+    <div className="flex min-h-8 shrink-0 items-center gap-2 px-4 pb-2">
+      <span className="shrink-0 font-mono text-[10px] text-muted-foreground tabular-nums">
+        {strip.label}
+      </span>
+
+      {strip.span === null ? null : (
+        <input
+          aria-label="Frame"
+          className="control-surface h-1.5 min-w-0 flex-1 cursor-pointer appearance-none rounded-full"
+          max={strip.max}
+          min={strip.min}
+          onChange={strip.onSeek}
+          step={1}
+          type="range"
+          value={Math.min(Math.max(strip.frame, strip.min), strip.max)}
+        />
+      )}
+
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              aria-disabled={!strip.canReplay}
+              className="ml-auto shrink-0 text-muted-foreground aria-disabled:opacity-50"
+              onClick={strip.replay}
+              size="xs"
+              variant="ghost"
+            />
+          }
+        >
+          <PlayIcon />
+          Replay
+        </TooltipTrigger>
+        <TooltipContent side="bottom">{strip.tooltip}</TooltipContent>
+      </Tooltip>
+    </div>
   );
 }
 
@@ -286,10 +408,11 @@ function TargetChain({
             )}
             onClick={choose}
             size="xs"
+            title={target.componentName}
             value={String(index)}
             variant={index === open ? "secondary" : "ghost"}
           >
-            {chainLabel(target.componentName)}
+            {titleOf(target)}
           </Button>
         </span>
       ))}
@@ -314,27 +437,16 @@ function groupsOf(fields: readonly TuningField[]): [string, TuningField[]][] {
 // Every target in the chain, not only the one on screen: an edit made before
 // the pane was switched still goes to the agent, so it still has to be counted.
 function countChanges(card: PendingComment): number {
-  return card.targets.reduce(
-    (total, target) =>
-      total +
-      target.fields.filter((field) => {
-        const original = card.originals[target.targetId]?.[field.path];
-
-        return (
-          original !== undefined &&
-          JSON.stringify(original) !== JSON.stringify(field.value)
-        );
-      }).length,
-    0
-  );
+  return changedFields(card).length + (isTextChanged(card) ? 1 : 0);
 }
 
-function whereOf(element: PromptElement, cwd: string | null): string {
-  if (element.file === null) {
-    return "no source";
-  }
-
-  const shown = relativeTo(element.file, cwd);
-
-  return element.line === null ? shown : `${shown}:${element.line}`;
+function refusalFor(
+  refusal: TuningRefusal | null,
+  field: TuningField
+): string | null {
+  return refusal !== null &&
+    refusal.path === field.path &&
+    refusal.targetId === field.targetId
+    ? refusal.message
+    : null;
 }

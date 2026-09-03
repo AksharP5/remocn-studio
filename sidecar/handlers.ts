@@ -70,7 +70,11 @@ import {
   stillFrom,
   warmFrom,
 } from "./preview/supervisor";
-import { installDependencies, installScaffold } from "./scaffold/install";
+import {
+  installDependencies,
+  installScaffold,
+  upgradeDependencies,
+} from "./scaffold/install";
 import { ensureRegistry } from "./scaffold/registry";
 import {
   expandTemplate,
@@ -623,6 +627,27 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
       yield* emit({ step: "install", type: "done" });
 
       return project;
+    }),
+
+  "project.upgrade": ({ emit, log, params }) =>
+    Effect.gen(function* () {
+      const project = yield* located(params.projectId);
+
+      yield* Effect.mapError(
+        upgradeDependencies(
+          project.path,
+          params.packages,
+          params.version,
+          (line) =>
+            Effect.andThen(
+              log(`upgrade: ${line}`),
+              emit({ line, type: "output" })
+            )
+        ),
+        unscaffolded
+      );
+
+      return { upgraded: true };
     }),
 
   "sidecar.emit": ({ emit, params }) =>

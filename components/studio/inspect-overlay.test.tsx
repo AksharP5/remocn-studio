@@ -28,7 +28,16 @@ const PLAIN: PendingComment = {
   tuning: null,
 };
 
-const TITLE = { componentName: "Title", fields: [], targetId: "title-1" };
+const TITLE = {
+  componentName: "Title",
+  fields: [],
+  instanceId: "",
+  instances: 1,
+  name: null,
+  ordinal: 1,
+  targetId: "title-1",
+  where: null,
+};
 
 const TUNABLE: PendingComment = {
   ...PLAIN,

@@ -11,12 +11,14 @@ import {
   Toggle as DialToggle,
 } from "dialkit";
 import { MinusIcon, PlusIcon, RotateCcwIcon } from "lucide-react";
+import { useCallback, useId } from "react";
 import { Button } from "@/components/ui/button";
 import {
   NumberField,
   NumberFieldInput,
   NumberFieldScrubArea,
 } from "@/components/ui/number-field";
+import { Textarea } from "@/components/ui/textarea";
 import { type BezierHandle, useBezierDrag } from "@/hooks/use-bezier-drag";
 import { useScrubEdit } from "@/hooks/use-scrub-edit";
 import {
@@ -73,17 +75,24 @@ const HANDLE =
 const NUMERIC = new Set(["number", "rotation-degrees", "scale"]);
 
 export function TuningRow({
+  animated,
   field,
+  fonts,
   onChange,
   onReset,
   original,
+  refusal,
 }: {
+  animated?: boolean;
   field: TuningField;
+  fonts?: readonly string[];
   onChange: Change;
   onReset: (paths: readonly string[]) => void;
   original: TuningValue | undefined;
+  refusal: string | null;
 }) {
   const changed =
+    field.readOnly !== true &&
     original !== undefined &&
     JSON.stringify(original) !== JSON.stringify(field.value);
 
@@ -106,9 +115,25 @@ export function TuningRow({
           )
         }
         field={field}
+        fonts={fonts}
         onChange={onChange}
         original={original}
       />
+
+      {refusal === null ? null : (
+        <p className="px-3 pt-1 text-destructive text-xs" role="alert">
+          {refusal}
+        </p>
+      )}
+
+      {animated === true ? (
+        <p className="flex items-center gap-1.5 px-3 pt-1 text-2xs text-muted-foreground">
+          <span className="shrink-0 rounded-sm bg-muted px-1 py-px font-medium text-[9px] uppercase tracking-wide">
+            animated
+          </span>
+          a fixed value here replaces the animation
+        </p>
+      ) : null}
 
       {/* The sentence a schema wrote lives here, under the control, where it
           has the pane's whole width to wrap in — it is prose, not a label. */}
@@ -125,14 +150,37 @@ export function TuningRow({
 function FieldControl({
   action,
   field,
+  fonts,
   onChange,
   original,
 }: {
   action: React.ReactNode;
   field: TuningField;
+  fonts?: readonly string[];
   onChange: Change;
   original: TuningValue | undefined;
 }) {
+  if (field.readOnly === true) {
+    return <ReadOnlyControl action={action} field={field} />;
+  }
+
+  if (field.type === "text-content") {
+    return (
+      <TextContentControl action={action} field={field} onChange={onChange} />
+    );
+  }
+
+  if (field.type === "font-family") {
+    return (
+      <FontFamilyControl
+        action={action}
+        field={field}
+        fonts={fonts ?? []}
+        onChange={onChange}
+      />
+    );
+  }
+
   const composite = compositeOf(field);
 
   if (composite !== null) {
@@ -241,6 +289,114 @@ function FieldControl({
         value={String(field.value)}
       />
     </DialControl>
+  );
+}
+
+function ReadOnlyControl({
+  action,
+  field,
+}: {
+  action: React.ReactNode;
+  field: TuningField;
+}) {
+  return (
+    <div className={ROW}>
+      <span className={LABEL} title={field.label}>
+        {field.label}
+      </span>
+      <span className={cn(FIELD, "text-muted-foreground")}>
+        <span className={cn(VALUE, "cursor-default")}>
+          {String(field.value)}
+        </span>
+      </span>
+      {action}
+    </div>
+  );
+}
+
+function TextContentControl({
+  action,
+  field,
+  onChange,
+}: {
+  action: React.ReactNode;
+  field: TuningField;
+  onChange: Change;
+}) {
+  const write = useCallback(
+    (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+      onChange(
+        event.currentTarget.dataset.path ?? "",
+        event.currentTarget.value
+      );
+    },
+    [onChange]
+  );
+
+  return (
+    <DialControl action={action}>
+      <div className="dialkit-composite-control">
+        <span className="dialkit-composite-label" title={field.label}>
+          {field.label}
+        </span>
+        <Textarea
+          aria-label={field.label}
+          className="max-h-24 min-h-14 resize-none text-xs"
+          data-path={field.path}
+          onChange={write}
+          rows={2}
+          value={String(field.value)}
+        />
+      </div>
+    </DialControl>
+  );
+}
+
+function FontFamilyControl({
+  action,
+  field,
+  fonts,
+  onChange,
+}: {
+  action: React.ReactNode;
+  field: TuningField;
+  fonts: readonly string[];
+  onChange: Change;
+}) {
+  const listId = useId();
+  const write = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      onChange(
+        event.currentTarget.dataset.path ?? "",
+        event.currentTarget.value
+      );
+    },
+    [onChange]
+  );
+
+  return (
+    <div className={ROW}>
+      <span className={LABEL} title={field.label}>
+        {field.label}
+      </span>
+      <span className={FIELD}>
+        <input
+          aria-label={field.label}
+          className={VALUE}
+          data-path={field.path}
+          list={listId}
+          onChange={write}
+          type="text"
+          value={String(field.value)}
+        />
+        <datalist id={listId}>
+          {fonts.map((family) => (
+            <option key={family} value={family} />
+          ))}
+        </datalist>
+      </span>
+      {action}
+    </div>
   );
 }
 
@@ -587,6 +743,10 @@ function EasingControl({
             }
           />
         )}
+
+        <p className="text-2xs text-muted-foreground">
+          A curve only shows while the element moves. Replay to watch it.
+        </p>
 
         {editable ? (
           <div className="dialkit-easing-handles">

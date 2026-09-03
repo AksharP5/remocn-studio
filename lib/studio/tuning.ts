@@ -1,4 +1,5 @@
-import type { TuningField } from "@/lib/studio/preview";
+import { relativeTo } from "@/lib/studio/activity";
+import type { TuningField, TuningTarget } from "@/lib/studio/preview";
 import type { TuningValue } from "@/shared/ipc";
 
 export interface Axis {
@@ -10,6 +11,19 @@ export interface Axis {
 export interface Composite {
   readonly axes: readonly Axis[];
   readonly kind: "array" | "number" | "string";
+}
+
+export interface TunedCard {
+  readonly originals: Readonly<
+    Record<string, Readonly<Record<string, TuningValue>>>
+  >;
+  readonly targets: readonly TuningTarget[];
+}
+
+export interface TunedField {
+  readonly field: TuningField;
+  readonly from: TuningValue;
+  readonly target: TuningTarget;
 }
 
 const TOKEN = /^(-?(?:\d+\.?\d*|\.\d+))([a-z%]*)$/i;
@@ -122,22 +136,13 @@ export function fromPercent(value: number): number {
 /**
  * Which target each path has to be sent to. The panel is one list built from a
  * chain of `Interactive`s, so "reset these paths" is as many commands as there
- * are components behind them — and no paths at all means every target resets
- * whole.
+ * are components behind them.
  */
 export function byTarget(
   fields: readonly TuningField[],
   paths: readonly string[]
 ): Map<string, string[]> {
   const out = new Map<string, string[]>();
-
-  if (paths.length === 0) {
-    for (const field of fields) {
-      out.set(field.targetId, []);
-    }
-
-    return out;
-  }
 
   for (const path of paths) {
     const owner = fields.find((field) => field.path === path);
@@ -148,6 +153,36 @@ export function byTarget(
   }
 
   return out;
+}
+
+export function changedPaths(card: TunedCard): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+
+  for (const { field, target } of changedFields(card)) {
+    out.set(target.targetId, [...(out.get(target.targetId) ?? []), field.path]);
+  }
+
+  return out;
+}
+
+/** Every field of every target that moved — the pane may have been switched. */
+export function changedFields(card: TunedCard): TunedField[] {
+  return card.targets.flatMap((target) =>
+    target.fields.flatMap((field) => {
+      const from = card.originals[target.targetId]?.[field.path];
+
+      return from === undefined || sameTuningValue(from, field.value)
+        ? []
+        : [{ field, from, target }];
+    })
+  );
+}
+
+export function sameTuningValue(
+  first: TuningValue,
+  second: TuningValue
+): boolean {
+  return JSON.stringify(first) === JSON.stringify(second);
 }
 
 export function targetOfPath(
@@ -205,4 +240,28 @@ const PRIMITIVE_NAME = /^<Interactive\.(.+)>$/;
 
 export function chainLabel(componentName: string): string {
   return PRIMITIVE_NAME.exec(componentName)?.[1] ?? componentName;
+}
+
+export function titleOf(target: TuningTarget): string {
+  return target.name ?? chainLabel(target.componentName);
+}
+
+export function subtitleOf(
+  target: TuningTarget,
+  owner: TuningTarget | null,
+  cwd: string | null
+): string {
+  const inside =
+    owner === null
+      ? null
+      : `${chainLabel(target.componentName)} in ${titleOf(owner)}`;
+  const where =
+    target.where === null
+      ? null
+      : `${relativeTo(target.where.file, cwd)}${
+          target.where.line === null ? "" : `:${target.where.line}`
+        }`;
+  const parts = [inside, where].filter((part) => part !== null);
+
+  return parts.length === 0 ? "no source" : parts.join(" · ");
 }

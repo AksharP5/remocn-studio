@@ -9,7 +9,7 @@ describe("accountRow", () => {
     });
 
     expect(check.state).toBe("failed");
-    expect(check.fix).toEqual({ command: "claude", type: "command" });
+    expect(check.fix).toEqual({ step: "signin", type: "provider" });
   });
 
   it("passes a logged-in account and shows the subscription", () => {

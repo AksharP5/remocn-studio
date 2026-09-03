@@ -639,7 +639,7 @@ describe("design_check reports untunable easings", () => {
     };
   }
 
-  it("names the file and line of every curve nailed shut", async () => {
+  it("merges each untunable curve into the findings the stage gates on", async () => {
     const answer = await executeTool(
       "remocn-design",
       "design_check",
@@ -654,12 +654,40 @@ describe("design_check reports untunable easings", () => {
       })
     );
 
-    expect(answer.text).toContain("CurveLanes.tsx:1");
-    expect(answer.text).toContain("cannot be edited in the properties panel");
-    expect(answer.text).toContain("Easing.bezier(...easing)");
+    const merged = JSON.parse(answer.text) as {
+      findings: { code: string; fix: string; observed: string }[];
+      summary: { errors: number; info: number; warnings: number };
+    };
+
+    expect(merged.findings).toHaveLength(1);
+    expect(merged.findings[0]?.code).toBe("tunability_constant_easing");
+    expect(merged.findings[0]?.observed).toContain("CurveLanes.tsx:1");
+    expect(merged.findings[0]?.fix).toContain("Easing.bezier(...easing)");
   });
 
-  it("says nothing extra when every curve comes from a prop", async () => {
+  it("counts what it merged, by severity", async () => {
+    const answer = await executeTool(
+      "remocn-design",
+      "design_check",
+      { frames: [30, 90] },
+      tools({
+        design: design([
+          { path: "Lane.tsx", source: "easing: Easing.linear,\n" },
+          {
+            path: "Headline.tsx",
+            source:
+              "export function H({ text }) {\n  return <h1>{text}</h1>;\n}\n",
+          },
+        ]),
+      })
+    );
+
+    expect(JSON.parse(answer.text)).toMatchObject({
+      summary: { errors: 1, info: 0, warnings: 1 },
+    });
+  });
+
+  it("adds no finding when every curve comes from a prop", async () => {
     const answer = await executeTool(
       "remocn-design",
       "design_check",
@@ -671,8 +699,11 @@ describe("design_check reports untunable easings", () => {
       })
     );
 
-    expect(answer.text).not.toContain("properties panel");
-    expect(JSON.parse(answer.text)).toMatchObject({ composition: "Main" });
+    expect(JSON.parse(answer.text)).toMatchObject({
+      composition: "Main",
+      findings: [],
+      summary: { errors: 0, info: 0, warnings: 0 },
+    });
   });
 
   // The check is a courtesy on top of the real one; a project it cannot read

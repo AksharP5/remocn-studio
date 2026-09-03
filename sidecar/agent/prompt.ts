@@ -1,4 +1,4 @@
-import type { PromptElement } from "@/shared/ipc";
+import type { PromptElement, TuningChange, TuningOwner } from "@/shared/ipc";
 import { referenceOf, segmentsOf } from "@/shared/references";
 
 const MARKUP_LIMIT = 2000;
@@ -37,18 +37,57 @@ function describe(element: PromptElement, index: number): string {
     lines.push(`rendered through: ${element.stack.join(" ← ")}`);
   }
 
-  if ((element.tuningChanges?.length ?? 0) > 0) {
-    lines.push("Requested changes:");
-    for (const change of element.tuningChanges ?? []) {
-      lines.push(
-        `- ${change.path}: ${JSON.stringify(change.from)} → ${JSON.stringify(change.to)}`
-      );
-    }
-  }
+  lines.push(...changeLines(element.tuningChanges ?? [], element.frame));
 
   lines.push(`markup: ${truncate(element.html)}`);
 
   return lines.join("\n");
+}
+
+function changeLines(
+  changes: readonly TuningChange[],
+  frame: number
+): string[] {
+  const grouped = new Map<string, string[]>();
+
+  for (const change of changes) {
+    const heading = headingFor(change.owner);
+    const rows = grouped.get(heading) ?? [];
+
+    rows.push(
+      `- ${change.path}: ${JSON.stringify(change.from)}${sampledNote(change, frame)} → ${JSON.stringify(change.to)}`
+    );
+    grouped.set(heading, rows);
+  }
+
+  return Array.from(grouped, ([heading, rows]) => [heading, ...rows]).flat();
+}
+
+function sampledNote(change: TuningChange, frame: number): string {
+  return change.sampled === true
+    ? ` (runtime value at frame ${frame}, animated in code; change the landing value, not the frame)`
+    : "";
+}
+
+function headingFor(owner: TuningOwner | undefined): string {
+  if (owner === undefined) {
+    return "Requested changes:";
+  }
+
+  const called =
+    owner.name === null || owner.name.length === 0 ? "" : ` ‹${owner.name}›`;
+
+  return `Requested changes on ${owner.component}${called}${locationOf(owner)}:`;
+}
+
+function locationOf(owner: TuningOwner): string {
+  if (owner.file === null) {
+    return "";
+  }
+
+  return owner.line === null
+    ? ` (${owner.file})`
+    : ` (${owner.file}:${owner.line})`;
 }
 
 function where(element: PromptElement): string {

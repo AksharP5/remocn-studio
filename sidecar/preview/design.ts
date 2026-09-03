@@ -12,6 +12,13 @@ export const DesignFindingCode = Schema.Literals([
   "text_occluded",
   "text_out_of_frame",
   "timeline_static",
+  "tunability_constant_easing",
+  "tunability_constant_spring",
+  "tunability_controls_not_forwarded",
+  "tunability_inert_easing",
+  "tunability_mapped_primitive_name",
+  "tunability_plain_text_element",
+  "tunability_raw_export",
   "video_boundary_dead",
   "video_frozen_run",
   "video_no_accent",
@@ -21,6 +28,11 @@ export const DesignFindingCode = Schema.Literals([
 ]);
 
 export type DesignFindingCode = (typeof DesignFindingCode)["Type"];
+
+export type RenderedFindingCode = Exclude<
+  DesignFindingCode,
+  "timeline_static" | `tunability_${string}`
+>;
 
 export const DesignSeverity = Schema.Literals(["error", "warning", "info"]);
 
@@ -156,7 +168,7 @@ export type DesignResult = (typeof DesignResult)["Type"];
 
 export interface BrowserDesignFinding {
   readonly bbox: DesignBox;
-  readonly code: Exclude<DesignFindingCode, "timeline_static">;
+  readonly code: RenderedFindingCode;
   readonly expected: string;
   readonly fix: string;
   readonly frame: number;
@@ -220,7 +232,7 @@ interface Rgba {
 
 interface CollapsedFinding {
   readonly bbox: DesignBox;
-  readonly code: Exclude<DesignFindingCode, "timeline_static">;
+  readonly code: RenderedFindingCode;
   readonly expected: string;
   readonly fix: string;
   readonly frames: readonly number[];

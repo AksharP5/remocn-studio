@@ -1,18 +1,29 @@
 import "@remotion/studio/renderEntry";
 import { Player, type PlayerRef } from "@remotion/player";
-import { useContext, useEffect, useMemo, useRef } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { Internals } from "remotion";
 import { onCommand, type PreviewCommand, post } from "./bridge";
 import { connectHotReload } from "./hot";
-import { armInspect, highlightTarget, type Stage as Spot } from "./inspect";
+import {
+  armInspect,
+  clearSelection,
+  highlightTarget,
+  repaint,
+  type Stage as Spot,
+} from "./inspect";
 import { InteractivityRuntime } from "./interactivity";
 import { armSnapshot, type Frame } from "./snapshot";
-import { tune } from "./tuning-runtime";
+import { clearTuning, tune, tuningValues } from "./tuning-runtime";
 
 const MAIN_ID = "Main";
 
-connectHotReload();
+connectHotReload(forget);
+
+function forget(): void {
+  clearSelection();
+  clearTuning();
+}
 
 Internals.waitForRoot((Root: React.FC) => {
   const element = Internals.getPreviewDomElement();
@@ -67,6 +78,11 @@ function Stage() {
     width: picked?.metadata?.width ?? 0,
   });
 
+  const mounted =
+    picked === null || picked.metadata === null ? null : picked.id;
+
+  usePlayhead(player, mounted);
+
   if (picked === null || picked.metadata === null) {
     return null;
   }
@@ -83,17 +99,21 @@ function InteractivePlayer({
 }) {
   const { component, defaultProps, durationInFrames, fps, height, width } =
     metadata;
+  const frame = useCallback(
+    () => player.current?.getCurrentFrame() ?? 0,
+    [player]
+  );
   const interactiveComponent = useMemo(() => {
     const Composition = component;
 
     return function InteractiveComposition(props: Record<string, unknown>) {
       return (
-        <InteractivityRuntime>
+        <InteractivityRuntime frame={frame}>
           <Composition {...props} />
         </InteractivityRuntime>
       );
     };
-  }, [component]);
+  }, [component, frame]);
 
   return (
     <Player
@@ -119,6 +139,56 @@ interface Playing {
   width: number;
 }
 
+function usePlayhead(
+  player: React.RefObject<PlayerRef | null>,
+  mounted: string | null
+) {
+  useEffect(() => {
+    const ref = player.current;
+
+    if (ref === null || mounted === null) {
+      return;
+    }
+
+    let queued = 0;
+
+    const announce = (playing: boolean) => {
+      post({ frame: ref.getCurrentFrame(), playing, type: "playhead" });
+    };
+
+    const onFrame = () => {
+      repaint();
+
+      if (queued !== 0) {
+        return;
+      }
+
+      queued = requestAnimationFrame(() => {
+        queued = 0;
+        announce(ref.isPlaying());
+      });
+    };
+
+    const onPlay = () => announce(true);
+    const onPause = () => announce(false);
+
+    ref.addEventListener("frameupdate", onFrame);
+    ref.addEventListener("play", onPlay);
+    ref.addEventListener("pause", onPause);
+    announce(ref.isPlaying());
+
+    return () => {
+      if (queued !== 0) {
+        cancelAnimationFrame(queued);
+      }
+
+      ref.removeEventListener("frameupdate", onFrame);
+      ref.removeEventListener("play", onPlay);
+      ref.removeEventListener("pause", onPause);
+    };
+  }, [mounted, player]);
+}
+
 function usePreviewCommands(
   player: React.RefObject<PlayerRef | null>,
   video: Playing
@@ -139,10 +209,16 @@ function usePreviewCommands(
     width: () => playing.current.width,
   });
 
+  const replaying = useRef<(() => void) | null>(null);
+
   useEffect(
     () =>
       onCommand((command) => {
         if (inspectOrSnapshot(command, player, spot.current, frame.current)) {
+          return;
+        }
+
+        if (playback(command, player, replaying)) {
           return;
         }
 
@@ -162,11 +238,74 @@ function usePreviewCommands(
           return;
         }
 
+        replaying.current?.();
+        replaying.current = null;
         player.current?.pause();
         player.current?.seekTo(command.frame);
       }),
     [player]
   );
+}
+
+function playback(
+  command: PreviewCommand,
+  player: React.RefObject<PlayerRef | null>,
+  replaying: React.RefObject<(() => void) | null>
+): boolean {
+  if (command.type === "pause") {
+    replaying.current?.();
+    replaying.current = null;
+    player.current?.pause();
+    return true;
+  }
+
+  if (command.type === "replay") {
+    startReplay(player.current, command.from, command.until, replaying);
+    return true;
+  }
+
+  if (command.type === "tuning.read") {
+    post({ type: "tuning.values", values: tuningValues(command.targetIds) });
+    return true;
+  }
+
+  return false;
+}
+
+function startReplay(
+  ref: PlayerRef | null,
+  at: number,
+  until: number,
+  replaying: React.RefObject<(() => void) | null>
+): void {
+  replaying.current?.();
+  replaying.current = null;
+
+  if (ref === null) {
+    return;
+  }
+
+  ref.pause();
+  ref.seekTo(at);
+
+  if (at >= until) {
+    return;
+  }
+
+  const settle = ({ detail }: { detail: { frame: number } }) => {
+    if (detail.frame < until) {
+      return;
+    }
+
+    replaying.current?.();
+    replaying.current = null;
+    ref.pause();
+    ref.seekTo(until);
+  };
+
+  replaying.current = () => ref.removeEventListener("frameupdate", settle);
+  ref.addEventListener("frameupdate", settle);
+  ref.play();
 }
 
 function inspectOrSnapshot(

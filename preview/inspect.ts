@@ -1,3 +1,4 @@
+import { anchorOf, CANVAS_SELECTOR } from "./anchor";
 import { post } from "./bridge";
 import { displayName, fiberOf, nearestInFibers } from "./fiber";
 import { covers, OVERLAY_ATTR, pickAt } from "./picker";
@@ -9,12 +10,22 @@ import {
   type StackFrame,
   truncateMarkup,
 } from "./source";
-import { controlsAt, controlsChain } from "./tuning";
+import { windowOf } from "./timing";
+import {
+  controlsAt,
+  controlsChain,
+  nameIn,
+  plainName,
+  type TargetWhere,
+  type TuningTarget,
+} from "./tuning";
 import { targetsOf } from "./tuning-runtime";
 
-const CANVAS = ".__remotion-player";
+const CANVAS = CANVAS_SELECTOR;
 const MARKUP_LIMIT = 4000;
 const PARENTS = 3;
+const SELECTION_ATTR = "data-remocn-selection";
+const PULSE_CLASS = "remocn-selection-pulse";
 // Hand-copied from --reference's dark value in app/globals.css — this file is
 // compiled by the project's webpack and cannot import the app's theme.
 export const ACCENT = "oklch(0.715 0.143 215.221)";
@@ -90,7 +101,9 @@ let painting = 0;
 // pane can point back at it. Captured at pick time, which is the only moment
 // the whole chain is known.
 let chain = new Map<string, Element>();
-let pinned: Element | null = null;
+let picked: Element | null = null;
+let selected: Element | null = null;
+let selection: { box: HTMLElement; tag: HTMLElement } | null = null;
 
 export function canvas(): HTMLElement | null {
   return document.querySelector<HTMLElement>(CANVAS);
@@ -123,7 +136,18 @@ export function armInspect(armed: boolean, stage: Stage): InspectStatus {
  * shares a document with the pixels, so it cannot drift from them.
  */
 export function highlightTarget(targetId: string | null): void {
-  pinned = targetId === null ? null : (chain.get(targetId) ?? null);
+  selected = targetId === null ? picked : (chain.get(targetId) ?? picked);
+  paint();
+}
+
+export function clearSelection(): void {
+  chain = new Map();
+  picked = null;
+  selected = null;
+  paint();
+}
+
+export function repaint(): void {
   paint();
 }
 
@@ -170,9 +194,22 @@ function forceHitTesting(): HTMLStyleElement {
   return style;
 }
 
+function overCanvas(container: HTMLElement, x: number, y: number): boolean {
+  if (!covers(container, x, y)) {
+    return false;
+  }
+
+  const [top] = document.elementsFromPoint?.(x, y) ?? [];
+
+  return top === undefined || container.contains(top);
+}
+
 function start(container: HTMLElement, stage: Stage): Session {
   const { box, label } = overlay();
   const hitTesting = forceHitTesting();
+  const { cursor } = container.style;
+
+  container.style.cursor = "crosshair";
 
   const onMove = (event: PointerEvent) => {
     point = { x: event.clientX, y: event.clientY };
@@ -194,25 +231,42 @@ function start(container: HTMLElement, stage: Stage): Session {
   };
 
   const onDown = (event: PointerEvent) => {
-    if (!covers(container, event.clientX, event.clientY)) {
+    if (
+      event.button !== 0 ||
+      !overCanvas(container, event.clientX, event.clientY)
+    ) {
       return;
     }
 
     event.preventDefault();
     event.stopPropagation();
 
-    const picked =
+    const found =
       pickAt(event.clientX, event.clientY, container, event.altKey) ?? hovered;
 
-    if (picked !== null) {
-      report(picked, stage).catch(nothing);
+    if (found === null) {
+      return;
     }
+
+    const repeat =
+      picked !== null &&
+      anchorOf(picked, container) === anchorOf(found, container);
+
+    picked = found;
+    selected = found;
+    paint();
+
+    if (repeat) {
+      pulse();
+    }
+
+    report(found, stage, repeat).catch(nothing);
   };
 
   // A click that picks must never also reach Remotion's `clickToPlay`
   // underneath it.
   const swallow = (event: MouseEvent) => {
-    if (covers(container, event.clientX, event.clientY)) {
+    if (overCanvas(container, event.clientX, event.clientY)) {
       event.preventDefault();
       event.stopPropagation();
     }
@@ -238,6 +292,7 @@ function start(container: HTMLElement, stage: Stage): Session {
       window.removeEventListener("keydown", onKey, true);
       window.removeEventListener("keyup", onKey, true);
       container.removeEventListener("pointerleave", onLeave);
+      container.style.cursor = cursor;
       box.remove();
       label.remove();
       hitTesting.remove();
@@ -249,10 +304,9 @@ function close(): void {
   session?.stop();
   session = null;
   hovered = null;
-  pinned = null;
-  chain = new Map();
   point = null;
   exact = false;
+  paint();
 }
 
 function schedule(container: HTMLElement): void {
@@ -273,47 +327,120 @@ function schedule(container: HTMLElement): void {
 }
 
 function overlay(): { box: HTMLElement; label: HTMLElement } {
-  const box = document.createElement("div");
-  const label = document.createElement("div");
+  const box = drawn(TOP);
+  const label = tagged(TOP + 1);
 
-  for (const node of [box, label]) {
-    node.setAttribute(OVERLAY_ATTR, "");
-    node.style.position = "fixed";
-    node.style.pointerEvents = "none";
-    node.style.display = "none";
-    node.style.left = "0";
-    node.style.top = "0";
-  }
-
-  box.style.zIndex = String(TOP);
-  box.style.boxSizing = "border-box";
   box.style.border = `1px solid ${ACCENT}`;
   box.style.background = ACCENT_SOFT;
-  box.style.borderRadius = "2px";
-
-  label.style.zIndex = String(TOP + 1);
-  label.style.background = ACCENT;
-  label.style.color = LABEL_INK;
-  label.style.borderRadius = "4px";
-  label.style.padding = "2px 6px";
-  label.style.font =
-    "500 11px ui-sans-serif, system-ui, -apple-system, sans-serif";
-  label.style.whiteSpace = "nowrap";
 
   document.body.append(box, label);
 
   return { box, label };
 }
 
+function selectionPair(): { box: HTMLElement; tag: HTMLElement } {
+  if (selection?.box.isConnected === true) {
+    return selection;
+  }
+
+  const box = drawn(TOP - 2);
+  const tag = tagged(TOP - 1);
+
+  box.setAttribute(SELECTION_ATTR, "");
+  box.style.border = `2px solid ${ACCENT}`;
+
+  document.head.append(pulseStyle());
+  document.body.append(box, tag);
+  selection = { box, tag };
+
+  return selection;
+}
+
+function pulseStyle(): HTMLStyleElement {
+  const style = document.createElement("style");
+  style.setAttribute(SELECTION_ATTR, "");
+  style.textContent = `@keyframes ${PULSE_CLASS} {
+  0% { outline: 0 solid ${ACCENT_SOFT}; }
+  40% { outline: 6px solid ${ACCENT_SOFT}; }
+  100% { outline: 0 solid ${ACCENT_SOFT}; }
+}
+[${SELECTION_ATTR}].${PULSE_CLASS} { animation: ${PULSE_CLASS} 250ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  [${SELECTION_ATTR}].${PULSE_CLASS} { animation: none; }
+}`;
+
+  return style;
+}
+
+function pulse(): void {
+  const { box } = selectionPair();
+
+  box.classList.remove(PULSE_CLASS);
+  requestAnimationFrame(() => box.classList.add(PULSE_CLASS));
+}
+
+function drawn(depth: number): HTMLElement {
+  const node = positioned(depth);
+
+  node.style.boxSizing = "border-box";
+  node.style.borderRadius = "2px";
+
+  return node;
+}
+
+function tagged(depth: number): HTMLElement {
+  const node = positioned(depth);
+
+  node.style.background = ACCENT;
+  node.style.color = LABEL_INK;
+  node.style.borderRadius = "4px";
+  node.style.padding = "2px 6px";
+  node.style.font =
+    "500 11px ui-sans-serif, system-ui, -apple-system, sans-serif";
+  node.style.whiteSpace = "nowrap";
+
+  return node;
+}
+
+function positioned(depth: number): HTMLElement {
+  const node = document.createElement("div");
+
+  node.setAttribute(OVERLAY_ATTR, "");
+  node.style.position = "fixed";
+  node.style.pointerEvents = "none";
+  node.style.display = "none";
+  node.style.left = "0";
+  node.style.top = "0";
+  node.style.zIndex = String(depth);
+
+  return node;
+}
+
 function paint(): void {
+  paintSelection();
+  paintHover();
+}
+
+function paintSelection(): void {
+  const { box, tag } = selectionPair();
+
+  place(box, tag, selected);
+}
+
+function paintHover(): void {
   if (session === null) {
     return;
   }
 
-  const { box, label } = session;
-  const showing = hovered ?? pinned;
+  place(session.box, session.label, hovered);
+}
 
-  if (showing === null) {
+function place(
+  box: HTMLElement,
+  label: HTMLElement,
+  showing: Element | null
+): void {
+  if (showing === null || !showing.isConnected) {
     box.style.display = "none";
     label.style.display = "none";
     return;
@@ -334,12 +461,18 @@ function paint(): void {
     rect.top > 20 ? `${rect.top - 19}px` : `${rect.bottom + 4}px`;
 }
 
-function nameOf(element: Element): string {
+export function nameOf(element: Element): string {
   const tag = element.tagName.toLowerCase();
-  const component =
-    componentAt(element) ?? api?.getDisplayName(element) ?? null;
+  const controls = controlsAt(element);
+  const label =
+    (controls === null
+      ? null
+      : nameIn(controls.currentRuntimeValueDotNotation)) ??
+    componentAt(element) ??
+    api?.getDisplayName(element) ??
+    null;
 
-  return component === null ? tag : `${component}.${tag}`;
+  return label === null ? tag : `${plainName(label)} · ${tag}`;
 }
 
 /**
@@ -364,22 +497,54 @@ export function componentAt(element: Element): string | null {
   });
 }
 
-async function report(element: Element, stage: Stage): Promise<void> {
+async function report(
+  element: Element,
+  stage: Stage,
+  repeat: boolean
+): Promise<void> {
   const module = grabModule();
   const found = grab();
   const root = rootPath();
+  const container = canvas();
+  const links = controlsChain(element);
 
-  const [spot, frames] = await Promise.all([
+  const [spot, frames, sources] = await Promise.all([
     found === null ? null : found.getSource(element).catch(nothing),
     module === null ? null : module.getStack(element).catch(nothing),
+    Promise.all(
+      links.map((link) =>
+        found === null || link.node === null
+          ? null
+          : found.getSource(link.node).catch(nothing)
+      )
+    ),
   ]);
 
-  chain = new Map(
-    controlsChain(element).flatMap((link) =>
-      link.node === null ? [] : [[link.controls.overrideId, link.node]]
-    )
-  );
-  pinned = null;
+  chain = new Map();
+
+  for (const { controls, node } of links) {
+    if (node === null) {
+      continue;
+    }
+
+    if (container !== null) {
+      chain.set(anchorOf(node, container), node);
+    }
+
+    chain.set(controls.overrideId, node);
+  }
+
+  const wheres = new Map<string, TargetWhere | null>();
+
+  for (const [at, link] of links.entries()) {
+    const where = whereOf(root, sources[at] ?? null);
+
+    if (container !== null && link.node !== null) {
+      wheres.set(anchorOf(link.node, container), where);
+    }
+
+    wheres.set(link.controls.overrideId, where);
+  }
 
   const stack = projectFrames(root, frames);
   const target = resolved(root, spot) ?? stack.at(0) ?? null;
@@ -398,10 +563,62 @@ async function report(element: Element, stage: Stage): Promise<void> {
       scene: sceneOf(element, frame),
       stack: parentsOf(stack, target).map(formatFrame),
     },
+    fonts: loadedFonts(),
     rect: normalise(element.getBoundingClientRect()),
-    tuning: targetsOf(element),
+    repeat,
+    text: directText(links.at(0)?.node ?? element),
+    tuning: located(targetsOf(element), wheres),
     type: "selection",
+    window: windowOf(element),
   });
+}
+
+function loadedFonts(): string[] {
+  const faces = (document as { fonts?: Iterable<{ family?: unknown }> }).fonts;
+
+  if (faces === undefined) {
+    return [];
+  }
+
+  const families = new Set<string>();
+
+  for (const face of faces) {
+    if (typeof face.family === "string" && face.family.length > 0) {
+      families.add(face.family);
+    }
+  }
+
+  return [...families];
+}
+
+function directText(node: Element | null): string | null {
+  if (node === null || node.childNodes.length !== 1) {
+    return null;
+  }
+
+  const child = node.firstChild;
+  const text =
+    child?.nodeType === Node.TEXT_NODE ? (child.nodeValue ?? "") : "";
+
+  return text.trim().length === 0 ? null : text;
+}
+
+function located(
+  targets: readonly TuningTarget[],
+  wheres: ReadonlyMap<string, TargetWhere | null>
+): TuningTarget[] {
+  return targets.map((target) => ({
+    ...target,
+    where: wheres.get(target.instanceId) ?? wheres.get(target.targetId) ?? null,
+  }));
+}
+
+function whereOf(root: string, spot: GrabSource | null): TargetWhere | null {
+  const found = resolved(root, spot);
+
+  return found === null
+    ? null
+    : { column: found.column, file: found.file, line: found.line };
 }
 
 function resolved(root: string, spot: GrabSource | null): SourceSpot | null {

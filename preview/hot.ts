@@ -8,10 +8,11 @@ declare const module: {
 
 export const HOT_PATH = "/__remocn/hot";
 
-export function connectHotReload(): void {
+export function connectHotReload(onRebuilt?: () => void): void {
   const source = new EventSource(HOT_PATH);
 
   source.addEventListener("rebuilt", () => {
+    onRebuilt?.();
     post({ type: "rebuilt" });
     apply();
   });

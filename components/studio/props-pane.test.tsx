@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PropsPanel } from "@/components/studio/props-pane";
-import type { PendingComment } from "@/hooks/use-inspect";
-import type { TuningField } from "@/lib/studio/preview";
+import type { PendingComment, TuningRefusal } from "@/hooks/use-inspect";
+import type { TuningField, TuningTarget } from "@/lib/studio/preview";
 import type { PromptElement } from "@/shared/ipc";
 
 const ELEMENT: PromptElement = {
@@ -39,20 +39,47 @@ function field(overrides: Partial<TuningField>): TuningField {
   };
 }
 
+const SHARED_LINE = /Shared by/;
+
+const WHERE = {
+  column: 7,
+  file: "/Users/me/projects/my-video/src/videos/intro/index.tsx",
+  line: 12,
+};
+
+function link(overrides: Partial<TuningTarget> = {}): TuningTarget {
+  return {
+    componentName: "Title",
+    fields: [],
+    instanceId: '[data-design-id="title"]',
+    instances: 1,
+    name: null,
+    ordinal: 1,
+    targetId: "title-1",
+    where: WHERE,
+    ...overrides,
+  };
+}
+
 function draw(
   fields: readonly TuningField[],
   handlers: Partial<{
     card: PendingComment;
+    frame: number;
     onCancel: () => void;
     onOpenTarget: (index: number) => void;
     onChange: (path: string, value: unknown) => void;
+    onChangeText: (value: string) => void;
+    onReplay: () => void;
     onReset: (paths?: readonly string[]) => void;
+    onSeek: (frame: number) => void;
     onSubmit: (comment: string) => void;
     originals: Record<string, unknown>;
-    refusal: string | null;
+    refusal: TuningRefusal | null;
+    target: TuningTarget;
   }> = {}
 ) {
-  const target = { componentName: "Title", fields, targetId: "title-1" };
+  const target = handlers.target ?? link({ fields });
   const card: PendingComment = {
     element: ELEMENT,
     open: 0,
@@ -63,20 +90,25 @@ function draw(
     rect: { height: 0.2, width: 0.4, x: 0.1, y: 0.1 },
     targets: [target],
     tuning: target,
+    window: { from: 30, until: 60 },
   };
+  const shown = handlers.card ?? card;
 
   return render(
     <PropsPanel
-      card={handlers.card ?? card}
+      card={shown}
       cwd="/Users/me/projects/my-video"
-      fields={fields}
-      name="Title"
+      frame={handlers.frame ?? 42}
       onCancel={handlers.onCancel ?? vi.fn()}
       onChange={(handlers.onChange ?? vi.fn()) as never}
+      onChangeText={handlers.onChangeText ?? vi.fn()}
       onOpenTarget={handlers.onOpenTarget}
+      onReplay={handlers.onReplay ?? vi.fn()}
       onReset={handlers.onReset ?? vi.fn()}
+      onSeek={handlers.onSeek ?? vi.fn()}
       onSubmit={handlers.onSubmit ?? vi.fn()}
       refusal={handlers.refusal ?? null}
+      target={shown.tuning ?? target}
     />
   );
 }
@@ -87,6 +119,37 @@ describe("PropsPanel", () => {
 
     expect(screen.getByText("Title")).toBeDefined();
     expect(screen.getByText("src/videos/intro/index.tsx:12")).toBeDefined();
+  });
+
+  it("titles itself with the name the agent wrote", () => {
+    draw([field({ label: "Font size", path: "size" })], {
+      target: link({
+        componentName: "<Interactive.Div>",
+        fields: [field({ label: "Font size", path: "size" })],
+        name: "Pushed line",
+      }),
+    });
+
+    expect(screen.getByText("Pushed line")).toBeDefined();
+    expect(screen.queryByText("<Interactive.Div>")).toBeNull();
+  });
+
+  it("badges which instance it opened on, and only when there are several", () => {
+    draw([field({ label: "Font size", path: "size" })], {
+      target: link({
+        fields: [field({ label: "Font size", path: "size" })],
+        instances: 4,
+        ordinal: 2,
+      }),
+    });
+
+    expect(screen.getByText("2 of 4")).toBeDefined();
+  });
+
+  it("shows no badge for the only instance there is", () => {
+    draw([field({ label: "Font size", path: "size" })]);
+
+    expect(screen.queryByText("1 of 1")).toBeNull();
   });
 
   // A design tool's order: where the thing is, then how it composites, then
@@ -396,12 +459,80 @@ describe("PropsPanel", () => {
 
   it("says why the preview refused a change instead of reverting in silence", () => {
     draw([field({ label: "Size", path: "size" })], {
-      refusal: "That value is not valid for this control.",
+      refusal: {
+        message: "That value is not valid for this control.",
+        path: null,
+        targetId: null,
+      },
     });
 
     expect(
       screen.getByText("That value is not valid for this control.")
     ).toBeDefined();
+  });
+
+  it("puts a refusal that named a row beside that row", () => {
+    const { container } = draw(
+      [
+        field({ label: "Size", path: "size" }),
+        field({ label: "Blur", path: "blur" }),
+      ],
+      {
+        refusal: {
+          message: "This element is not on screen at frame 300.",
+          path: "blur",
+          targetId: "title-1",
+        },
+      }
+    );
+
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toBe(
+      "This element is not on screen at frame 300."
+    );
+    const footer = screen.getByLabelText(
+      "What should change about this element?"
+    ).parentElement;
+    expect(footer?.contains(alert)).toBe(false);
+    expect(container.contains(alert)).toBe(true);
+  });
+
+  it("leaves the other rows unmarked", () => {
+    draw(
+      [
+        field({ label: "Size", path: "size" }),
+        field({ label: "Blur", path: "blur" }),
+      ],
+      {
+        refusal: {
+          message: "This element is not on screen at frame 300.",
+          path: "blur",
+          targetId: "another-target",
+        },
+      }
+    );
+
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("says when an edit reaches every instance of the element", () => {
+    draw([field({ label: "Size", path: "size" })], {
+      target: link({
+        fields: [field({ label: "Size", path: "size" })],
+        instances: 3,
+        ordinal: 1,
+      }),
+    });
+
+    expect(
+      screen.getByText("Shared by 3 · a change here moves all of them")
+    ).toBeDefined();
+  });
+
+  it("says nothing about sharing for the only instance there is", () => {
+    draw([field({ label: "Size", path: "size" })]);
+
+    expect(screen.queryByText(SHARED_LINE)).toBeNull();
   });
 
   it("cancels and submits from the footer", () => {
@@ -425,16 +556,18 @@ describe("PropsPanel", () => {
 // renders it — and carries its easing — is one level out. Merging the two was
 // the first answer and it put the whole scene's camera in the pane.
 describe("the Interactive chain", () => {
-  const inner = {
+  const inner = link({
     componentName: "<Interactive.Div>",
     fields: [field({ label: "Opacity", path: "style.opacity", value: 1 })],
+    instanceId: '[data-design-id="line-1"] > :nth-child(1)',
     targetId: "div-1",
-  };
-  const outer = {
+  });
+  const outer = link({
     componentName: "CameraRig",
     fields: [field({ label: "Easing", path: "easing", value: 2 })],
+    instanceId: '[data-design-id="line-1"]',
     targetId: "rig-1",
-  };
+  });
 
   function chained(open: number, onOpenTarget = vi.fn()) {
     const card: PendingComment = {
@@ -468,6 +601,29 @@ describe("the Interactive chain", () => {
 
     expect(screen.getByRole("button", { name: "Div" })).toBeDefined();
     expect(screen.getByRole("button", { name: "CameraRig" })).toBeDefined();
+  });
+
+  it("prefers the agent's own name on a chip", () => {
+    const card: PendingComment = {
+      element: ELEMENT,
+      open: 0,
+      originals: { "div-1": {}, "rig-1": {} },
+      rect: { height: 0.2, width: 0.4, x: 0.1, y: 0.1 },
+      targets: [{ ...inner, name: "Pushed line" }, outer],
+      tuning: { ...inner, name: "Pushed line" },
+    };
+
+    draw(inner.fields, { card, onOpenTarget: vi.fn() });
+
+    expect(screen.getByRole("button", { name: "Pushed line" })).toBeDefined();
+  });
+
+  it("says what it is inside, and where that is", () => {
+    chained(0);
+
+    expect(
+      screen.getByText("Div in CameraRig · src/videos/intro/index.tsx:12")
+    ).toBeDefined();
   });
 
   it("asks to switch when an ancestor is picked", () => {
@@ -537,5 +693,164 @@ describe("the easing block's structure", () => {
         ".dialkit-control-with-action > .dialkit-control-action"
       )
     ).not.toBeNull();
+  });
+});
+
+describe("the time strip", () => {
+  it("reads the frozen frame beside the element's own window", () => {
+    draw([field({ label: "Size", path: "size" })], { frame: 412 });
+
+    expect(screen.getByText("frame 412 · enters 30–60")).toBeDefined();
+    expect(screen.getByLabelText("Frame")).toBeDefined();
+  });
+
+  it("moves the frame from the range", () => {
+    const onSeek = vi.fn();
+    draw([field({ label: "Size", path: "size" })], { frame: 40, onSeek });
+
+    fireEvent.change(screen.getByLabelText("Frame"), {
+      target: { value: "48" },
+    });
+
+    expect(onSeek).toHaveBeenCalledWith(48);
+  });
+
+  it("plays the window on Replay", () => {
+    const onReplay = vi.fn();
+    draw([field({ label: "Size", path: "size" })], { onReplay });
+
+    fireEvent.click(screen.getByRole("button", { name: "Replay" }));
+    expect(onReplay).toHaveBeenCalled();
+  });
+
+  it("shows the frame alone, with Replay off, for an element with no window", () => {
+    const target = link({ fields: [field({ label: "Size", path: "size" })] });
+    const card: PendingComment = {
+      element: ELEMENT,
+      open: 0,
+      originals: { "title-1": {} },
+      rect: { height: 0.2, width: 0.4, x: 0.1, y: 0.1 },
+      targets: [target],
+      tuning: target,
+      window: null,
+    };
+
+    draw(target.fields, { card, frame: 412 });
+
+    expect(screen.getByText("frame 412")).toBeDefined();
+    expect(screen.queryByLabelText("Frame")).toBeNull();
+    expect(
+      screen
+        .getByRole("button", { name: "Replay" })
+        .getAttribute("aria-disabled")
+    ).toBe("true");
+  });
+
+  it("badges a row the runtime animates, and warns what a fixed value costs", () => {
+    const target = link({
+      fields: [field({ label: "Offset", path: "offset", value: 12 })],
+    });
+    const card: PendingComment = {
+      animated: new Set(["title-1 offset"]),
+      element: ELEMENT,
+      open: 0,
+      originals: { "title-1": { offset: 12 } },
+      rect: { height: 0.2, width: 0.4, x: 0.1, y: 0.1 },
+      targets: [target],
+      tuning: target,
+      window: { from: 30, until: 60 },
+    };
+
+    draw(target.fields, { card });
+
+    expect(screen.getByText("animated")).toBeDefined();
+    expect(
+      screen.getByText("a fixed value here replaces the animation")
+    ).toBeDefined();
+  });
+
+  it("leaves a row the runtime holds still unbadged", () => {
+    draw([field({ label: "Offset", path: "offset", value: 12 })]);
+
+    expect(screen.queryByText("animated")).toBeNull();
+  });
+
+  it("says out loud that a curve is only visible while the element moves", () => {
+    draw([
+      field({
+        label: "Easing",
+        options: ["linear", "ease-in"],
+        path: "easing",
+        type: "enum",
+        value: "linear",
+      }),
+    ]);
+
+    expect(
+      screen.getByText(
+        "A curve only shows while the element moves. Replay to watch it."
+      )
+    ).toBeDefined();
+  });
+});
+
+describe("the text a Remotion too old to declare it still shows", () => {
+  function withText(text: { draft: string; from: string } | null) {
+    const shown = [field({ label: "Size", path: "size" })];
+    const target = link({ fields: shown });
+
+    return {
+      card: {
+        element: ELEMENT,
+        open: 0,
+        originals: { "title-1": { size: 0 } },
+        rect: { height: 0.2, width: 0.4, x: 0.1, y: 0.1 },
+        targets: [target],
+        text,
+        tuning: target,
+        window: { from: 30, until: 60 },
+      } as PendingComment,
+      fields: shown,
+    };
+  }
+
+  it("offers the words, and says they are not previewed", () => {
+    const { card, fields } = withText({ draft: "Ship it", from: "Ship it" });
+    draw(fields, { card });
+
+    expect((screen.getByLabelText("Text") as HTMLTextAreaElement).value).toBe(
+      "Ship it"
+    );
+    expect(screen.getByText("sent to Claude, not previewed")).toBeDefined();
+  });
+
+  it("shows no Text section when the runtime carries the words itself", () => {
+    const { card, fields } = withText(null);
+    draw(fields, { card });
+
+    expect(screen.queryByLabelText("Text")).toBeNull();
+    expect(screen.queryByText("sent to Claude, not previewed")).toBeNull();
+  });
+
+  it("reports what was typed", () => {
+    const onChangeText = vi.fn();
+    const { card, fields } = withText({ draft: "Ship it", from: "Ship it" });
+    draw(fields, { card, onChangeText });
+
+    fireEvent.change(screen.getByLabelText("Text"), {
+      target: { value: "Ship it today" },
+    });
+
+    expect(onChangeText).toHaveBeenCalledWith("Ship it today");
+  });
+
+  it("counts an edited text among the changes on the Add button", () => {
+    const { card, fields } = withText({
+      draft: "Ship it today",
+      from: "Ship it",
+    });
+    draw(fields, { card });
+
+    expect(screen.getByText("Add 1")).toBeDefined();
   });
 });

@@ -5,10 +5,13 @@ import {
   decodePreviewMessage,
   inspectCommand,
   originOf,
+  pauseCommand,
+  replayCommand,
   seekCommand,
   snapshotCommand,
   tuneResetCommand,
   tuneSetCommand,
+  tuningReadCommand,
 } from "./preview";
 
 const picked = {
@@ -45,6 +48,7 @@ const selected = {
     stack: ["TitleCard (/Users/me/video/src/TitleCard.tsx:12:7)"],
   },
   rect: { height: 0.2, width: 0.5, x: 0.25, y: 0.4 },
+  repeat: false,
   source: "remocn-preview",
   tuning: [],
   type: "selection",
@@ -263,6 +267,114 @@ describe("decodePreviewMessage", () => {
     ).toBe(true);
   });
 
+  it("accepts the playhead the page posts as the frame moves", () => {
+    const decoded = decodePreviewMessage({
+      frame: 412,
+      playing: true,
+      source: "remocn-preview",
+      type: "playhead",
+    });
+
+    expect(
+      Exit.isSuccess(decoded) &&
+        decoded.value.type === "playhead" &&
+        decoded.value.frame
+    ).toBe(412);
+  });
+
+  it("refuses a playhead at a fractional frame", () => {
+    expect(
+      Exit.isFailure(
+        decodePreviewMessage({
+          frame: 4.5,
+          playing: false,
+          source: "remocn-preview",
+          type: "playhead",
+        })
+      )
+    ).toBe(true);
+  });
+
+  it("accepts the values the runtime reports for a target", () => {
+    const decoded = decodePreviewMessage({
+      source: "remocn-preview",
+      type: "tuning.values",
+      values: [
+        { path: "style.opacity", targetId: "anchor::Title", value: 0.4 },
+        { path: "easing", targetId: "anchor::Title", value: [0.2, 0, 0.1, 1] },
+      ],
+    });
+
+    expect(
+      Exit.isSuccess(decoded) &&
+        decoded.value.type === "tuning.values" &&
+        decoded.value.values.length
+    ).toBe(2);
+  });
+
+  it("refuses a reported value with no path to put it on", () => {
+    expect(
+      Exit.isFailure(
+        decodePreviewMessage({
+          source: "remocn-preview",
+          type: "tuning.values",
+          values: [{ path: "", targetId: "anchor::Title", value: 1 }],
+        })
+      )
+    ).toBe(true);
+  });
+
+  it("carries the element's own timed window on the selection", () => {
+    const decoded = decodePreviewMessage({
+      ...selected,
+      window: { from: 408, until: 424 },
+    });
+
+    expect(
+      Exit.isSuccess(decoded) &&
+        decoded.value.type === "selection" &&
+        decoded.value.window
+    ).toEqual({ from: 408, until: 424 });
+  });
+
+  it("reads a selection from an older build as having no window", () => {
+    const decoded = decodePreviewMessage(selected);
+
+    expect(
+      Exit.isSuccess(decoded) &&
+        decoded.value.type === "selection" &&
+        decoded.value.window
+    ).toBeNull();
+  });
+
+  it("carries the element's own text and the families the page loaded", () => {
+    const decoded = decodePreviewMessage({
+      ...selected,
+      fonts: ["Geist", "Inter"],
+      text: "Ship it",
+    });
+
+    expect(
+      Exit.isSuccess(decoded) &&
+        decoded.value.type === "selection" && {
+          fonts: decoded.value.fonts,
+          text: decoded.value.text,
+        }
+    ).toEqual({ fonts: ["Geist", "Inter"], text: "Ship it" });
+  });
+
+  it("reads a selection from an older build as having neither", () => {
+    const decoded = decodePreviewMessage(selected);
+
+    expect(
+      Exit.isSuccess(decoded) &&
+        decoded.value.type === "selection" && {
+          fonts: decoded.value.fonts,
+          text: decoded.value.text,
+        }
+    ).toEqual({ fonts: [], text: null });
+  });
+
   it("accepts the rebuild notice that clears the markers", () => {
     expect(
       Exit.isSuccess(
@@ -363,6 +475,42 @@ describe("decodePreviewCommand", () => {
     ).toBe(true);
   });
 
+  it("accepts a replay of the element's own window", () => {
+    const decoded = decodePreviewCommand(
+      replayCommand({ from: 408, until: 424 })
+    );
+
+    expect(
+      Exit.isSuccess(decoded) &&
+        decoded.value.type === "replay" && [
+          decoded.value.from,
+          decoded.value.until,
+        ]
+    ).toEqual([408, 424]);
+  });
+
+  it("accepts the bare pause", () => {
+    expect(Exit.isSuccess(decodePreviewCommand(pauseCommand()))).toBe(true);
+  });
+
+  it("accepts a read of what the runtime holds for a chain", () => {
+    const decoded = decodePreviewCommand(
+      tuningReadCommand(["anchor::Title", "anchor::CameraRig"])
+    );
+
+    expect(
+      Exit.isSuccess(decoded) &&
+        decoded.value.type === "tuning.read" &&
+        decoded.value.targetIds.length
+    ).toBe(2);
+  });
+
+  it("refuses a read naming a target with no id", () => {
+    expect(Exit.isFailure(decodePreviewCommand(tuningReadCommand([""])))).toBe(
+      true
+    );
+  });
+
   it("refuses a fractional frame", () => {
     expect(Exit.isFailure(decodePreviewCommand(seekCommand(4.5)))).toBe(true);
   });
@@ -422,7 +570,16 @@ describe("the selection's Interactive chain", () => {
         value: 1,
       },
     ],
+    instanceId: '[data-design-id="claim"] > :nth-child(2)',
+    instances: 4,
+    name: "Pushed line",
+    ordinal: 2,
     targetId: "div-1",
+    where: {
+      column: 11,
+      file: "/Users/me/video/src/components/WordPush.tsx",
+      line: 245,
+    },
   };
 
   it("decodes the chain the page posts, innermost first", () => {
@@ -436,6 +593,93 @@ describe("the selection's Interactive chain", () => {
         decoded.value.type === "selection" &&
         decoded.value.tuning.map((each) => each.targetId)
     ).toEqual(["div-1", "t-1"]);
+  });
+
+  it("decodes the anchored key the page now mints for a target", () => {
+    const key = `${target.instanceId}::<Interactive.Div>`;
+    const decoded = decodePreviewMessage({
+      ...selected,
+      tuning: [
+        {
+          ...target,
+          fields: [{ ...target.fields[0], targetId: key }],
+          targetId: key,
+        },
+      ],
+    });
+
+    expect(
+      Exit.isSuccess(decoded) &&
+        decoded.value.type === "selection" &&
+        decoded.value.tuning.at(0)
+    ).toMatchObject({ fields: [{ targetId: key }], targetId: key });
+  });
+
+  it("decodes the text and family fields a newer Remotion declares", () => {
+    const decoded = decodePreviewMessage({
+      ...selected,
+      tuning: [
+        {
+          ...target,
+          fields: [
+            {
+              ...target.fields[0],
+              path: "children",
+              type: "text-content",
+              value: "Ship it",
+            },
+            {
+              ...target.fields[0],
+              path: "style.fontFamily",
+              type: "font-family",
+              value: "Geist",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(
+      Exit.isSuccess(decoded) &&
+        decoded.value.type === "selection" &&
+        decoded.value.tuning.at(0)?.fields.map((each) => each.type)
+    ).toEqual(["text-content", "font-family"]);
+  });
+
+  it("decodes a field the pane may show and may not edit", () => {
+    const decoded = decodePreviewMessage({
+      ...selected,
+      tuning: [
+        {
+          ...target,
+          fields: [
+            {
+              ...target.fields[0],
+              path: "style.letterSpacing",
+              readOnly: true,
+              type: "text-content",
+              value: "-0.03em",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(
+      Exit.isSuccess(decoded) &&
+        decoded.value.type === "selection" &&
+        decoded.value.tuning.at(0)?.fields.at(0)?.readOnly
+    ).toBe(true);
+  });
+
+  it("reads a field from an older build as one it may edit", () => {
+    const decoded = decodePreviewMessage({ ...selected, tuning: [target] });
+
+    expect(
+      Exit.isSuccess(decoded) &&
+        decoded.value.type === "selection" &&
+        decoded.value.tuning.at(0)?.fields.at(0)?.readOnly
+    ).toBeUndefined();
   });
 
   // Every field says which target owns it, or an edit could not be routed.
@@ -463,5 +707,59 @@ describe("the selection's Interactive chain", () => {
         decoded.value.tuning
     ).toEqual([]);
     expect(tuning).toEqual([]);
+  });
+
+  it("carries the instance, its name, its ordinal and where it is", () => {
+    const decoded = decodePreviewMessage({ ...selected, tuning: [target] });
+
+    expect(
+      Exit.isSuccess(decoded) &&
+        decoded.value.type === "selection" &&
+        decoded.value.tuning.at(0)
+    ).toMatchObject({
+      instanceId: '[data-design-id="claim"] > :nth-child(2)',
+      instances: 4,
+      name: "Pushed line",
+      ordinal: 2,
+      where: { line: 245 },
+    });
+  });
+
+  it("defaults everything a page from an older build never sent", () => {
+    const { instanceId, instances, name, ordinal, where, ...older } = target;
+    const { repeat, ...withoutRepeat } = selected;
+    const decoded = decodePreviewMessage({
+      ...withoutRepeat,
+      tuning: [older],
+    });
+
+    expect(
+      Exit.isSuccess(decoded) &&
+        decoded.value.type === "selection" && {
+          repeat: decoded.value.repeat,
+          target: decoded.value.tuning.at(0),
+        }
+    ).toMatchObject({
+      repeat: false,
+      target: {
+        instanceId: "",
+        instances: 1,
+        name: null,
+        ordinal: 1,
+        where: null,
+      },
+    });
+    expect([instanceId, instances, name, ordinal, where, repeat]).toBeDefined();
+  });
+
+  it("refuses a location with no file to point at", () => {
+    expect(
+      Exit.isFailure(
+        decodePreviewMessage({
+          ...selected,
+          tuning: [{ ...target, where: { column: null, file: "", line: 1 } }],
+        })
+      )
+    ).toBe(true);
   });
 });

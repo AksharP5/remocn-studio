@@ -2,6 +2,7 @@
 
 import {
   AlertTriangleIcon,
+  ArrowUpCircleIcon,
   CheckIcon,
   CopyIcon,
   DownloadIcon,
@@ -13,10 +14,12 @@ import { Spinner } from "@/components/ui/spinner";
 import { useCopyCommand } from "@/hooks/use-copy-command";
 import type { Environment } from "@/hooks/use-environment";
 import { useOnline } from "@/hooks/use-online";
-import { downloadPercent } from "@/lib/studio/environment";
+import { downloadPercent, troubleHeading } from "@/lib/studio/environment";
 import { cn } from "@/lib/utils";
 import type { EnvironmentCheck, EnvironmentState } from "@/shared/ipc";
+import { isAgentProvider } from "@/shared/providers";
 import { AboveComposer, NoticeCard } from "./notice-card";
+import { ProviderSteps } from "./provider-steps";
 
 // Shared with the Settings dialog's AI accounts section, so a state reads
 // the same everywhere it appears.
@@ -50,7 +53,7 @@ export function EnvironmentChecklist({
       <NoticeCard aria-label="Environment checklist">
         <header className="flex items-center justify-between gap-3">
           <h3 className="font-medium text-xs">
-            This project is not ready to run
+            {troubleHeading(environment.troubles)}
           </h3>
           <Button
             disabled={environment.isChecking}
@@ -173,8 +176,35 @@ function CheckRow({
           </div>
         ) : null}
 
+        {check.fix?.type === "provider" && isAgentProvider(check.id) ? (
+          <ProviderSteps provider={check.id} row={check} />
+        ) : null}
+
         {check.fix?.type === "node" ? (
           <NodeFix environment={environment} />
+        ) : null}
+
+        {check.fix?.type === "upgrade" ? (
+          <div className="flex items-center gap-2">
+            <Button
+              disabled={environment.isUpgrading}
+              onClick={environment.upgrade}
+              size="xs"
+              variant="outline"
+            >
+              {environment.isUpgrading ? (
+                <Spinner className="size-3" data-icon="inline-start" />
+              ) : (
+                <ArrowUpCircleIcon data-icon="inline-start" />
+              )}
+              Upgrade Remotion
+            </Button>
+            {environment.output === null ? null : (
+              <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground text-xs">
+                {environment.output}
+              </span>
+            )}
+          </div>
         ) : null}
 
         {check.fix?.type === "install" ? (

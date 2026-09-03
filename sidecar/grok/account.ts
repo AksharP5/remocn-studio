@@ -23,8 +23,8 @@ export function accountCheck(): Effect.Effect<EnvironmentCheck> {
 export function missingRow(): EnvironmentCheck {
   return {
     detail:
-      "The grok command is not on this machine. Install Grok Build from grok.com/build, run `grok login`, then recheck.",
-    fix: { command: "grok login", type: "command" },
+      "The grok command is not on this machine. Install Grok Build, sign in with your grok.com account, then come back.",
+    fix: { step: "install", type: "provider" },
     id: "grok",
     state: "failed",
     title: "Grok is not installed",
@@ -34,7 +34,7 @@ export function missingRow(): EnvironmentCheck {
 export function signInRow(): EnvironmentCheck {
   return {
     detail: NOT_AUTHENTICATED,
-    fix: { command: "grok login", type: "command" },
+    fix: { step: "signin", type: "provider" },
     id: "grok",
     state: "failed",
     title: "Grok is not logged in",
@@ -54,7 +54,7 @@ export function okRow(version: string | null): EnvironmentCheck {
 export function unreachableRow(message: string): EnvironmentCheck {
   return {
     detail: `${message}\n\nRun grok in a terminal to see what it says.`,
-    fix: { command: "grok", type: "command" },
+    fix: { step: "install", type: "provider" },
     id: "grok",
     state: "failed",
     title: "Grok could not start",

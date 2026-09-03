@@ -3,6 +3,7 @@ mod crash;
 mod ipc;
 mod paste;
 mod sidecar;
+mod terminal;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -54,6 +55,7 @@ pub fn run() {
             commands::studio_build,
             paste::save_pasted_image,
             paste::save_proxy,
+            terminal::open_terminal,
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
