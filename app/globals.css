@@ -606,6 +606,109 @@
   }
 }
 
+@keyframes splash-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes splash-stroke-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes splash-fill {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes splash-wordmark {
+  from {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    clip-path: inset(0);
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes splash-out {
+  0% {
+    opacity: 1;
+  }
+
+  10% {
+    opacity: 0.96;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes splash-lockup-out {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(0.86);
+  }
+}
+
+.splash-glyph-stroke {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation:
+    splash-draw 700ms cubic-bezier(0.22, 1, 0.36, 1) both,
+    splash-stroke-out 250ms 525ms ease-out both;
+}
+
+.splash-glyph-fill {
+  opacity: 0;
+  animation: splash-fill 250ms 525ms ease-out both;
+}
+
+.splash-wordmark {
+  opacity: 0;
+  animation: splash-wordmark 350ms 420ms ease-out both;
+}
+
+[data-splash="leaving"].splash-surface {
+  pointer-events: none;
+  animation: splash-out 650ms cubic-bezier(0.25, 0.1, 0.25, 1) both;
+  will-change: opacity;
+}
+
+[data-splash="leaving"] .splash-lockup {
+  transform-origin: center;
+  animation: splash-lockup-out 600ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  will-change: transform;
+}
+
+/* The studio assembles beneath the opaque splash. Layout transitions during
+   that assembly have no explanatory value, and become visible as unrelated
+   half-finished motion once the splash fades. Keep those state changes
+   instant until the splash has fully left; later user-triggered collapses use
+   their normal transitions. */
+[data-studio-booting="true"] .studio-boot-transition {
+  transition-delay: 0ms !important;
+  transition-duration: 0ms !important;
+}
+
 /* The easing card's preview dot: the timing function is the value being
    edited, set inline per curve; the run pauses at the end so loops read as
    runs rather than a metronome. */
@@ -639,6 +742,22 @@
   .animate-card-in,
   .animate-drawer-in {
     animation: titlebar-in 150ms ease-out both;
+  }
+  .splash-glyph-stroke {
+    opacity: 0;
+    animation: none;
+  }
+  .splash-glyph-fill,
+  .splash-wordmark {
+    opacity: 1;
+    animation: titlebar-in 150ms ease-out both;
+  }
+  [data-splash="leaving"].splash-surface {
+    animation: splash-out 150ms ease-out both;
+  }
+  [data-splash="leaving"] .splash-lockup {
+    transform: none;
+    animation: none;
   }
 }
 

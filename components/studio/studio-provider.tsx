@@ -73,9 +73,46 @@ export function useStudio(): Studio {
   return value;
 }
 
-export function StudioProvider({ children }: { children: React.ReactNode }) {
+export function StudioProvider({
+  children,
+  settings,
+  workspace,
+}: {
+  children: React.ReactNode;
+  settings?: StudioSettings | null;
+  workspace?: Workspace;
+}) {
+  if (workspace === undefined) {
+    return <HydratedStudioProvider>{children}</HydratedStudioProvider>;
+  }
+
+  return (
+    <StudioStateProvider settings={settings ?? null} workspace={workspace}>
+      {children}
+    </StudioStateProvider>
+  );
+}
+
+function HydratedStudioProvider({ children }: { children: React.ReactNode }) {
   const settings = useHydratedSettings();
   const workspace = useWorkspace(settings);
+
+  return (
+    <StudioStateProvider settings={settings} workspace={workspace}>
+      {children}
+    </StudioStateProvider>
+  );
+}
+
+function StudioStateProvider({
+  children,
+  settings,
+  workspace,
+}: {
+  children: React.ReactNode;
+  settings: StudioSettings | null;
+  workspace: Workspace;
+}) {
   const model = useModels(settings);
   const accounts = useProviderAccounts();
   const effort = useClaudeEffort(settings);
@@ -339,7 +376,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
   );
 
   if (!workspace.isReady) {
-    return <div className="h-full bg-background" data-tauri-drag-region />;
+    return null;
   }
 
   return (

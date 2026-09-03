@@ -6,6 +6,7 @@ mod sidecar;
 mod terminal;
 
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use tauri::{Emitter, Manager, RunEvent, WindowEvent};
 
@@ -47,6 +48,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands::quit_studio,
+            commands::reveal_studio,
             commands::restart_studio,
             commands::sidecar_cancel,
             commands::sidecar_request,
@@ -67,6 +69,14 @@ pub fn run() {
         })
         .setup(|app| {
             app.manage(Sidecar::start(app.handle().clone()));
+
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(Duration::from_millis(1500)).await;
+                if let Some(window) = handle.get_webview_window("main") {
+                    let _ = window.show();
+                }
+            });
             Ok(())
         })
         .build(context)

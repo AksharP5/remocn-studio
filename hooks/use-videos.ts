@@ -25,6 +25,7 @@ export interface StudioVideos {
     format: VideoFormat
   ) => Promise<Video | null>;
   isLoadingVideos: boolean;
+  isVideosReady: boolean;
   reconcile: (projectId: string, compositions: readonly string[]) => void;
   registerVideo: (videoId: string) => Promise<boolean>;
   reloadVideos: () => void;
@@ -41,6 +42,7 @@ export function useVideos(projectId: string | null): StudioVideos {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [videosError, setVideosError] = useState<string | null>(null);
   const [isLoadingVideos, setIsLoadingVideos] = useState(false);
+  const [loadedProjectId, setLoadedProjectId] = useState<string | null>(null);
   const opened = useRef<string | null>(null);
 
   const load = useCallback((target: string) => {
@@ -58,7 +60,12 @@ export function useVideos(projectId: string | null): StudioVideos {
         Effect.catch((failure) =>
           Effect.sync(() => setVideosError(failure.message))
         ),
-        Effect.ensuring(Effect.sync(() => setIsLoadingVideos(false)))
+        Effect.ensuring(
+          Effect.sync(() => {
+            setLoadedProjectId(target);
+            setIsLoadingVideos(false);
+          })
+        )
       )
     );
   }, []);
@@ -205,6 +212,10 @@ export function useVideos(projectId: string | null): StudioVideos {
       activeVideo: videos.find((row) => row.id === activeId) ?? null,
       createVideo: create,
       isLoadingVideos,
+      // `isLoadingVideos` is still false in the render where a newly loaded
+      // project first becomes active. Matching the completed request to that
+      // project closes that one-render gap for the splash boot gate.
+      isVideosReady: projectId === null || loadedProjectId === projectId,
       reconcile,
       registerVideo: register,
       reloadVideos,
@@ -219,6 +230,8 @@ export function useVideos(projectId: string | null): StudioVideos {
       activeId,
       create,
       isLoadingVideos,
+      loadedProjectId,
+      projectId,
       reconcile,
       register,
       reloadVideos,

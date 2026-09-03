@@ -47,6 +47,14 @@ pub fn restart_studio(app: AppHandle) {
 }
 
 #[tauri::command]
+pub fn reveal_studio(app: AppHandle) -> Result<(), String> {
+    app.get_webview_window("main")
+        .ok_or_else(|| "the studio window is unavailable".to_string())?
+        .show()
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 pub fn studio_build(app: AppHandle) -> StudioBuild {
     StudioBuild {
         environment: if cfg!(debug_assertions) {

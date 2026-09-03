@@ -13,6 +13,8 @@
     "windows": [
       {
         "title": "remocn studio",
+        "visible": false,
+        "backgroundColor": "#111111",
         "width": 1440,
         "height": 900,
         "minWidth": 960,

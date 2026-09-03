@@ -44,6 +44,7 @@ export interface PreviewControl {
 }
 
 const IDLE: Preview = { phase: "idle" };
+const EMPTY_COMPOSITIONS_SETTLE_MS = 250;
 
 type Running = Fiber.Fiber<unknown, unknown>;
 
@@ -156,6 +157,34 @@ export function usePreview(
       return;
     }
 
+    let pendingEmpty: ReturnType<typeof setTimeout> | null = null;
+
+    const cancelPendingEmpty = () => {
+      if (pendingEmpty !== null) {
+        clearTimeout(pendingEmpty);
+        pendingEmpty = null;
+      }
+    };
+
+    const publish = (message: PreviewMessage) => {
+      if (message.type === "composition") {
+        setPick(message);
+      }
+
+      if (message.type === "playhead") {
+        setIsPlaying(message.playing);
+      }
+
+      const at = frameIn(message);
+      if (at !== null) {
+        setFrame(at);
+      }
+
+      for (const listen of [...listeners.current]) {
+        listen(message);
+      }
+    };
+
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== origin) {
         return;
@@ -166,27 +195,31 @@ export function usePreview(
         return;
       }
 
-      if (decoded.value.type === "composition") {
-        setPick(decoded.value);
+      const message = decoded.value;
+      if (message.type === "composition") {
+        cancelPendingEmpty();
+
+        // Remotion mounts its provider with no compositions before the Root
+        // registers the real list. Publishing that one transient snapshot
+        // makes the chat, player, and sidebar all render an empty-project
+        // error. A populated snapshot wins immediately; a genuinely empty
+        // project still becomes visible after this short settle window.
+        if (message.compositions.length === 0) {
+          pendingEmpty = setTimeout(() => {
+            pendingEmpty = null;
+            publish(message);
+          }, EMPTY_COMPOSITIONS_SETTLE_MS);
+          return;
+        }
       }
 
-      if (decoded.value.type === "playhead") {
-        setIsPlaying(decoded.value.playing);
-      }
-
-      const at = frameIn(decoded.value);
-      if (at !== null) {
-        setFrame(at);
-      }
-
-      for (const listen of [...listeners.current]) {
-        listen(decoded.value);
-      }
+      publish(message);
     };
 
     window.addEventListener("message", onMessage);
 
     return () => {
+      cancelPendingEmpty();
       window.removeEventListener("message", onMessage);
     };
   }, [origin, setFrame]);

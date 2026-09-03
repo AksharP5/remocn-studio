@@ -2,6 +2,7 @@
 
 import { NeuroNoise } from "@paper-design/shaders-react";
 import { useShaderBackdrop } from "@/hooks/use-shader-backdrop";
+import { cn } from "@/lib/utils";
 
 // The shader takes hex/rgb/hsl and the theme is authored in oklch, so these
 // cannot read the tokens. They are the primary violet and its light end,
@@ -18,11 +19,13 @@ const MAX_PIXELS = 1920 * 1080;
 
 export function ShaderField({
   brightness,
+  className,
   contrast,
   scale,
   speed,
 }: {
   brightness: number;
+  className?: string;
   contrast: number;
   scale: number;
   speed: number;
@@ -36,7 +39,7 @@ export function ShaderField({
   return (
     <NeuroNoise
       brightness={brightness}
-      className="size-full"
+      className={cn("size-full", className)}
       colorBack={BACK}
       colorFront={FRONT}
       colorMid={MID}

@@ -66,7 +66,7 @@ function mockStudio(
   options: {
     blocks?: TranscriptEntry[];
     folder?: string | null;
-    projects?: Project[];
+    projects?: Project[] | Promise<Project[]>;
     sessions?: HistorySession[];
     videos?: Video[];
   } = {}
@@ -159,6 +159,24 @@ describe("app shell", () => {
     await waitForElementToBeRemoved(() =>
       screen.queryByRole("heading", { name: "Preview" })
     );
+  });
+
+  it("does not reveal onboarding while stored projects are loading", async () => {
+    let finishLoading: (projects: Project[]) => void = () => undefined;
+    const projects = new Promise<Project[]>((resolve) => {
+      finishLoading = resolve;
+    });
+    mockStudio({ projects });
+
+    render(<Page />);
+    await screen.findByRole("heading", { name: "Chat" });
+
+    expect(
+      screen.queryByRole("heading", { name: STARTUP })
+    ).not.toBeInTheDocument();
+
+    finishLoading([PROJECT]);
+    expect(await screen.findByText("My video")).toBeVisible();
   });
 
   it("brings the preview back, and lets it be dismissed again", async () => {
@@ -289,7 +307,10 @@ describe("app shell", () => {
 
     // The lockup spells the name with the mark as its "R", so the text beside
     // the glyph starts at "emocn" — nothing else in the shell draws that.
-    expect(await screen.findByText(WORDMARK)).toBeVisible();
+    const wordmark = await screen.findByRole("img", {
+      name: "Remocn Studio",
+    });
+    expect(within(wordmark).getByText(WORDMARK)).toBeVisible();
 
     // The open project's name lives in the native File menu now, so the
     // sidebar never spells a folder at all — only the videos inside it.
