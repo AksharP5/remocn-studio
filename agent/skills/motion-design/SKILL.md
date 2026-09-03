@@ -73,9 +73,12 @@ an under-dressed frame. Static decoration is worse than none — at 30fps it rea
 rendering mistake.
 
 ```tsx
-// One slow drift shared by the ghost type and the glow — hardcoded, seek-safe
+// The body of a schema component: one slow drift shared by the ghost type and
+// the glow, on a curve the pane can drag. `driftEasing` defaults inline to
+// [0.37, 0, 0.63, 1] — sine-in-out — in the component's InteractivitySchema.
 <Interactive.Div
-  name="Ghost word"
+  data-design-id={name}
+  name={name}
   style={{
     position: 'absolute',
     left: -80,
@@ -84,7 +87,7 @@ rendering mistake.
     fontWeight: 900,
     opacity: 0.14,
     translate: interpolate(frame, [0, 240], ['0px 0px', '48px 0px'], {
-      easing: Easing.inOut(Easing.sin),
+      easing: Easing.bezier(...driftEasing),
       extrapolateLeft: 'clamp',
       extrapolateRight: 'clamp',
     }),
@@ -125,15 +128,18 @@ Centered-and-floating is a web layout. Video frames are composed:
   create paths for the eye — and they animate well:
 
 ```tsx
+// `drawEasing` is a prop of the rule's own schema, defaulting inline to
+// [0.33, 1, 0.68, 1] — cubic-out. `name` is unique in the frame.
 <Interactive.Div
-  name="Section rule"
+  data-design-id={name}
+  name={name}
   style={{
     height: 3,
     width: 640,
     backgroundColor: '#e8602c',
     transformOrigin: 'left center',
     scale: interpolate(frame, [8, 26], ['0 1', '1 1'], {
-      easing: Easing.out(Easing.cubic),
+      easing: Easing.bezier(...drawEasing),
       extrapolateLeft: 'clamp',
       extrapolateRight: 'clamp',
     }),
@@ -211,38 +217,50 @@ two thirds of the scene.
 
 ### The vocabulary, in Remotion terms
 
-| Intent                       | Recipe                                                              |
-| ---------------------------- | ------------------------------------------------------------------- |
-| Standard entrance            | `Easing.out(Easing.quad)` / `Easing.out(Easing.cubic)`              |
-| Punchy title landing         | `Easing.out(Easing.quart)` or a stiff clamped spring                |
-| Dramatic, premium reveal     | `Easing.out(Easing.exp)`                                            |
-| Calm ambient drift, breathe  | `Easing.inOut(Easing.sin)` over the whole scene                     |
-| Physical element transforms  | `spring()` with `overshootClamping: true` (the house default)       |
-| One deliberate playful pop   | `spring()` with visible overshoot — at most once per film           |
-| Mechanical motion, typing    | linear, or stepped via a frame threshold                            |
+Every one of these is the **inline default of the component's own `easing` prop**,
+spread in as `Easing.bezier(...easing)` — never a constant in the body, which is
+a curve the properties pane can render and can never edit.
+
+| Intent                       | Penner name        | Array default of the `easing` prop        |
+| ---------------------------- | ------------------ | ----------------------------------------- |
+| Standard entrance            | quad-out           | `[0.25, 0.46, 0.45, 0.94]`                |
+| Standard entrance, softer    | cubic-out          | `[0.33, 1, 0.68, 1]`                      |
+| Punchy title landing         | quart-out          | `[0.25, 1, 0.5, 1]`, or a stiff spring    |
+| Dramatic, premium reveal     | expo-out           | `[0.16, 1, 0.3, 1]`                       |
+| Calm ambient drift, breathe  | sine-in-out        | `[0.37, 0, 0.63, 1]` over the whole scene |
+| Physical element transforms  | —                  | `spring()` with `damping`/`stiffness` props |
+| One deliberate playful pop   | —                  | `spring()` with visible overshoot — at most once per film |
+| Mechanical motion, typing    | linear             | `[0, 0, 1, 1]`, or stepped via a frame threshold |
 
 An entrance combines transforms — but **opacity and transform never share a curve or a
 length** (video-lessons): give each its own range.
 
 ```tsx
-<Interactive.Div
-  name="Headline"
+// One run of text is one named text primitive whose direct child is the
+// string, with typography as literals and the curve as a prop. The full
+// component this is the body of is in `rules/tunable-text.md`.
+<Interactive.H1
+  data-design-id={name}
+  name={name}
   style={{
     fontSize: 96,
     fontWeight: 800,
+    letterSpacing: -1.5,
+    lineHeight: 0.95,
+    margin: 0,
     opacity: interpolate(frame, [6, 16], [0, 1], {
       extrapolateLeft: 'clamp',
       extrapolateRight: 'clamp',
     }),
     translate: interpolate(frame, [6, 22], ['-64px 0px', '0px 0px'], {
-      easing: Easing.out(Easing.cubic),
+      easing: Easing.bezier(...entryEasing),
       extrapolateLeft: 'clamp',
       extrapolateRight: 'clamp',
     }),
   }}
 >
-  Ship the film
-</Interactive.Div>
+  {text}
+</Interactive.H1>
 ```
 
 ## 7. The movement dictionary
@@ -393,6 +411,7 @@ to answer — with the Read tool, before writing the code, not after:
 | ------------------------ | -------------------------------------------------------------- |
 | `rules/timing.md`        | How many frames does this entry, exit, move or hold get?        |
 | `rules/easing.md`        | What curve — exact beziers, spring configs, linear exceptions.  |
+| `rules/tunable-text.md`  | What shape a run of text takes so the pane can name and edit it. |
 | `rules/staging.md`       | What enters when, from where, in what order, staggered how?     |
 | `rules/alive.md`         | What happens after the entrance settles — holds, drift, counts. |
 | `rules/continuity.md`    | How one scene becomes the next; the whole video's rhythm.       |

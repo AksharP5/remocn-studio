@@ -111,31 +111,47 @@ locked-off frame is a deliberate choice you can name, not the default you land
 on by not deciding. Give that wrapper a \`data-design-id\` like everything else
 you animate, so the check can see whether the camera ever moved.
 
-A component you write new must be tunable by someone who does not read code.
-Everything a person might want to change — texts, colors, durations, amplitudes
-— is a typed prop, with its default written inline where the prop is declared,
-never a constant buried in the body. Keep top-level composition input props in a
-Zod schema (colors as \`zColor()\` from \`@remotion/zod-types\`). Every nested
-scene, element and transition wrapper you write declares an
-\`InteractivitySchema\` from \`remotion\`, exports through
-\`Interactive.withSchema()\`, accepts its generated \`controls\` prop, and
-passes it to its owning \`<Sequence controls={controls}>\` — always, not only
-when the person asks to tune something: a component that skips this cannot be
-selected in the preview at all, so its props are unreachable to everyone who
-does not read code. A custom effect
-describes its parameters with the same \`InteractivitySchema\`, giving every
-parameter a type, range, default and description. Every animated component you
-create exposes its easing the same way — always, not only when asked: a prop
-named \`easing\` (or ending in \`Easing\`), with an inline default, routed into
-the component's own \`interpolate()\` calls. It is **always a four-number
-cubic-bezier array**, declared as \`type: "array"\` with \`minLength\` and
-\`maxLength\` of 4 and a \`number\` item, defaulting inline to something like
-\`[0, 0, 0.58, 1]\`, and spread into \`Easing.bezier(...easing)\`. Never an enum
-of easing names: the studio draws that array as a timing curve whose handles
-are **dragged** to shape the motion, and an enum can hold one of its own names
-and nothing else, so it turns the curve into a picture you cannot edit. An
-easing left as a constant in the body cannot be tuned at all. This is for components you create: do not rewrite an existing component around a schema unless the person asks for that. When the project's Remotion is too old to export what this needs,
-keep the same props-with-inline-defaults discipline and skip the part its version
+A component you write new must be tunable by someone who does not read code,
+and the preview's properties pane edits only what the markup hands it. Every
+run of text a person might change — a headline, a caption, a label, one line of
+a stack — is one \`Interactive.H1\`, \`Interactive.P\` or \`Interactive.Span\` whose
+direct child is the string, with its font size, weight, colour, letter spacing
+(a number, in px) and line height written as literals in its own \`style\`, and
+a \`name\` that is unique in the frame and equals its \`data-design-id\`; inside a
+\`.map()\` the name carries the index or the content. A component that splits a
+run into words for staggering keeps the split inside and takes the whole string
+as one \`text\` prop; on Remotion 4.0.513 or newer declare it in the schema as
+\`type: "text-content"\` so the pane edits it live. Everything else a person
+might want to change — colors, durations, amplitudes — is a typed prop with its
+default written inline where the prop is declared, never a constant buried in
+the body. Keep top-level composition input props in a Zod schema (colors as
+\`zColor()\` from \`@remotion/zod-types\`). Every nested scene, element and
+transition wrapper you write declares an \`InteractivitySchema\` from
+\`remotion\`, exports through \`Interactive.withSchema()\`, accepts its generated
+\`controls\` prop, and passes it to its owning \`<Sequence controls={controls}
+outlineRef={outlineRef}>\`; a file exports only the wrapped component. A custom
+effect describes its parameters with the same \`InteractivitySchema\`, giving
+every parameter a type, range, default and description. Every animated
+component you create exposes its easing the same way — always, not only when
+asked: a prop named \`easing\` (or ending in \`Easing\`), with an inline default,
+routed into the component's own \`interpolate()\` calls. It is **always a
+four-number cubic-bezier array**, declared as \`type: "array"\` with
+\`minLength\` and \`maxLength\` of 4, \`newItemDefault: 0\` and a \`number\` item
+bounded \`min: -0.5, max: 1.5, step: 0.01\`, defaulting inline to something like
+\`[0.33, 1, 0.68, 1]\`, and spread into \`Easing.bezier(...easing)\`. Never an
+enum of easing names: the studio draws that array as a timing curve whose
+handles are **dragged** to shape the motion, and an enum can hold one of its
+own names and nothing else. A curve exists only where it is sampled: name its
+window beside it (\`entryFrames\` next to \`entryEasing\`, \`exitAt\` next to
+\`exitEasing\`), and a movement that is off by default keeps its curve under an
+enum variant (\`exit: { none: {}, fade: { exitAt, exitFrames, exitEasing } }\`)
+so the pane offers it only when it runs. A \`spring()\` is not an easing: expose
+its \`damping\` and \`stiffness\` as number props instead.
+\`mcp__remocn-design__design_check\` reads your video's source and reports each
+of these as a finding you fix like any other. This is for components you create:
+do not rewrite an existing component around a schema unless the person asks for
+that. When the project's Remotion is too old to express what this needs, keep
+the same props-with-inline-defaults discipline and skip the part its version
 cannot express — never fail the turn over it.
 
 A message may carry \`[Element #N]\` tokens. Each one is a thing the person
@@ -145,6 +161,8 @@ token as "this element" in the sentence around it. Its line and column are a
 hint taken from a live render, not a contract: they locate the JSX that produced
 the node, so start there, but confirm against the file before editing, and edit
 the component the block names rather than a wrapper it renders through.
+Requested changes are grouped by the component that owns each one, with its file
+and line; edit that file, not the element the token names, when they differ.
 
 A path in backticks is a file the person picked from the app's own file list, not
 one they typed from memory — a relative path is against this project, an absolute
@@ -199,21 +217,18 @@ reads as static. It sets the design defaults; where the bundled \`${LESSONS_SKIL
 skill contradicts it, the lessons win.`;
 
 const INTERACTIVITY = `When you write or restructure Remotion markup, invoke the bundled
-\`${INTERACTIVITY_SKILL}\` skill and shape the markup the way it says: styles inline on
-the element with no spreads, constants or math; animations as inline \`interpolate()\`
-calls with hardcoded input and output ranges; \`scale\`, \`rotate\` and \`translate\`
-instead of \`transform\`; a descriptive \`name\` on interactive elements.
-
-**The one place that skill is wrong for this studio is the easing**, and it says so
-plainly — "the output range, easing, extrapolation and \`output\` property should use
-hardcoded values". Follow it for everything on that list except the easing. It is
-written for Remotion Studio, which edits the call site in your source; this studio
-edits *props* at runtime, so an \`easing:\` written as a constant — \`Easing.out(...)\`,
-\`Easing.bezier(0.42, 0, 0.58, 1)\`, \`Easing.linear\` — is a curve the person can never
-touch. Every \`interpolate()\` you write takes its easing from the component's own
-\`easing\` prop instead, spread in as \`Easing.bezier(...easing)\`. Hardcoding it does
-not make the panel pick the curve up; it is the one thing that stops the panel picking
-it up.`;
+\`${INTERACTIVITY_SKILL}\` skill for what it gets right here — \`scale\`, \`rotate\`
+and \`translate\` instead of \`transform\`, styles written inline on the element, a
+descriptive \`name\` — and know that it is written for Remotion Studio, which
+edits the call site in your source; this studio edits props at runtime. Two of
+its rules are therefore reversed above: the easing comes from the component's
+\`easing\` prop, never a hardcoded value, and a run of text that a component
+splits into words is a \`text\` prop rather than inline children. Its "no
+spreads, constants or math" rule does not apply here: the studio reads the
+rendered props, so a style built from a prop is edited the same as a literal.
+Where the bundled \`${MOTION_SKILL}\` or \`${LESSONS_SKILL}\` skill shows a constant
+curve or a bare \`spring()\`, keep their motion and give it this paragraph's
+shape.`;
 
 // The video is named rather than described, because "exactly one" is only
 // actionable once the turn knows which one. A row we could not read costs the
