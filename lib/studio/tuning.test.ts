@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { TuningField } from "@/lib/studio/preview";
+import type { TuningField, TuningTarget } from "@/lib/studio/preview";
 import {
   compositeOf,
   fractionOf,
   fromPercent,
   hexLabel,
   isPercent,
+  subtitleOf,
+  titleOf,
   toPercent,
   withAxis,
 } from "@/lib/studio/tuning";
@@ -186,5 +188,68 @@ describe("fractionOf", () => {
     expect(fractionOf(12, null, 40)).toBeUndefined();
     expect(fractionOf(12, 0, null)).toBeUndefined();
     expect(fractionOf(12, 40, 40)).toBeUndefined();
+  });
+});
+
+function target(overrides: Partial<TuningTarget> = {}): TuningTarget {
+  return {
+    componentName: "<Interactive.Div>",
+    fields: [],
+    instanceId: '[data-design-id="claim"]',
+    instances: 1,
+    name: null,
+    ordinal: 1,
+    targetId: "div-1",
+    where: null,
+    ...overrides,
+  };
+}
+
+describe("titleOf", () => {
+  it("is the name the agent gave the element", () => {
+    expect(titleOf(target({ name: "Pushed line" }))).toBe("Pushed line");
+  });
+
+  it("falls back to the component, without Remotion's brackets", () => {
+    expect(titleOf(target())).toBe("Div");
+    expect(titleOf(target({ componentName: "CameraRig" }))).toBe("CameraRig");
+  });
+});
+
+describe("subtitleOf", () => {
+  const owner = target({
+    componentName: "withInteractivitySchema(WordPush)",
+    name: "WordPush",
+    targetId: "push-1",
+  });
+  const where = {
+    column: 11,
+    file: "/Users/me/video/src/components/WordPush.tsx",
+    line: 245,
+  };
+
+  it("says what this is, inside what, and where that is", () => {
+    expect(subtitleOf(target({ where }), owner, "/Users/me/video")).toBe(
+      "Div in WordPush · src/components/WordPush.tsx:245"
+    );
+  });
+
+  it("is just the location when nothing renders it", () => {
+    expect(subtitleOf(target({ where }), null, "/Users/me/video")).toBe(
+      "src/components/WordPush.tsx:245"
+    );
+  });
+
+  it("drops the line when the source could not be resolved that far", () => {
+    expect(
+      subtitleOf(target({ where: { ...where, line: null } }), null, null)
+    ).toBe("/Users/me/video/src/components/WordPush.tsx");
+  });
+
+  it("says so when there is no source at all", () => {
+    expect(subtitleOf(target(), null, "/Users/me/video")).toBe("no source");
+    expect(subtitleOf(target(), owner, "/Users/me/video")).toBe(
+      "Div in WordPush"
+    );
   });
 });

@@ -2,7 +2,14 @@
 
 import { Effect, Exit, Fiber } from "effect";
 import type { RefObject } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   decodePreviewMessage,
   originOf,
@@ -11,6 +18,7 @@ import {
   type PreviewMessage,
   startPreview,
 } from "@/lib/studio/preview";
+import type { PromptFrame } from "@/shared/ipc";
 
 export type Preview =
   | { phase: "building"; percent: number }
@@ -22,10 +30,12 @@ export type PreviewListener = (message: PreviewMessage) => void;
 
 export interface PreviewControl {
   composition: string | null;
-  frame: number;
+  frameOf: () => number;
   hint: string | null;
   isServing: boolean;
+  onFrame: (listen: () => void) => () => void;
   pick: PreviewComposition | null;
+  playing: boolean;
   preview: Preview;
   restart: () => void;
   send: (command: PreviewCommand) => void;
@@ -46,10 +56,33 @@ export function usePreview(
 ): PreviewControl {
   const [preview, setPreview] = useState<Preview>(IDLE);
   const [pick, setPick] = useState<PreviewComposition | null>(null);
-  const [frame, setFrame] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
   const running = useRef<Running | null>(null);
   const stage = useRef<HTMLIFrameElement>(null);
   const listeners = useRef(new Set<PreviewListener>());
+  const frame = useRef(0);
+  const watchers = useRef(new Set<() => void>());
+
+  const frameOf = useCallback(() => frame.current, []);
+
+  const onFrame = useCallback((listen: () => void) => {
+    watchers.current.add(listen);
+
+    return () => {
+      watchers.current.delete(listen);
+    };
+  }, []);
+
+  const setFrame = useCallback((at: number) => {
+    if (frame.current === at) {
+      return;
+    }
+
+    frame.current = at;
+    for (const watch of [...watchers.current]) {
+      watch();
+    }
+  }, []);
 
   const origin = preview.phase === "ready" ? originOf(preview.url) : null;
   const url =
@@ -70,37 +103,41 @@ export function usePreview(
     }
   }, []);
 
-  const launch = useCallback((target: string) => {
-    let served = false;
+  const launch = useCallback(
+    (target: string) => {
+      let served = false;
 
-    setPick(null);
-    setFrame(0);
-    setPreview({ percent: 0, phase: "building" });
+      setPick(null);
+      setFrame(0);
+      setIsPlaying(false);
+      setPreview({ percent: 0, phase: "building" });
 
-    running.current = Effect.runFork(
-      startPreview({ projectId: target }, (event) => {
-        if (event.type === "building") {
-          if (!served) {
-            setPreview({ percent: event.percent, phase: "building" });
+      running.current = Effect.runFork(
+        startPreview({ projectId: target }, (event) => {
+          if (event.type === "building") {
+            if (!served) {
+              setPreview({ percent: event.percent, phase: "building" });
+            }
+            return;
           }
-          return;
-        }
-        if (event.type === "ready") {
-          served = true;
-          setPreview({ phase: "ready", url: event.url });
-          return;
-        }
-        served = false;
-        setPreview({ message: event.message, phase: "failed" });
-      }).pipe(
-        Effect.catch((error) =>
-          Effect.sync(() => {
-            setPreview({ message: error.message, phase: "failed" });
-          })
+          if (event.type === "ready") {
+            served = true;
+            setPreview({ phase: "ready", url: event.url });
+            return;
+          }
+          served = false;
+          setPreview({ message: event.message, phase: "failed" });
+        }).pipe(
+          Effect.catch((error) =>
+            Effect.sync(() => {
+              setPreview({ message: error.message, phase: "failed" });
+            })
+          )
         )
-      )
-    );
-  }, []);
+      );
+    },
+    [setFrame]
+  );
 
   useEffect(() => {
     if (projectId === null) {
@@ -133,6 +170,10 @@ export function usePreview(
         setPick(decoded.value);
       }
 
+      if (decoded.value.type === "playhead") {
+        setIsPlaying(decoded.value.playing);
+      }
+
       const at = frameIn(decoded.value);
       if (at !== null) {
         setFrame(at);
@@ -148,7 +189,7 @@ export function usePreview(
     return () => {
       window.removeEventListener("message", onMessage);
     };
-  }, [origin]);
+  }, [origin, setFrame]);
 
   const send = useCallback(
     (command: PreviewCommand) => {
@@ -171,17 +212,30 @@ export function usePreview(
   return useMemo(
     () => ({
       composition: pick?.compositionId ?? null,
-      frame,
+      frameOf,
       hint,
       isServing: preview.phase === "ready",
+      onFrame,
       pick,
+      playing: isPlaying,
       preview: url === null ? preview : { phase: "ready" as const, url },
       restart,
       send,
       stage,
       subscribe,
     }),
-    [frame, hint, pick, preview, restart, send, subscribe, url]
+    [
+      frameOf,
+      hint,
+      isPlaying,
+      onFrame,
+      pick,
+      preview,
+      restart,
+      send,
+      subscribe,
+      url,
+    ]
   );
 }
 
@@ -193,6 +247,28 @@ function playing(url: string, compositionId: string | null): string {
   const asked = new URL(url);
   asked.searchParams.set("composition", compositionId);
   return asked.toString();
+}
+
+export function usePlayingFrame(
+  preview: PreviewControl
+): () => PromptFrame | null {
+  const { composition, frameOf } = preview;
+  const open = useRef(composition);
+  open.current = composition;
+
+  return useCallback(
+    () =>
+      open.current === null
+        ? null
+        : { composition: open.current, frame: frameOf() },
+    [frameOf]
+  );
+}
+
+export function usePreviewFrame(preview: PreviewControl): number {
+  const { frameOf, onFrame } = preview;
+
+  return useSyncExternalStore(onFrame, frameOf, frameOf);
 }
 
 export function useOnPreview(
@@ -208,7 +284,7 @@ function frameIn(message: PreviewMessage): number | null {
   if (message.type === "selection") {
     return message.element.frame;
   }
-  if (message.type === "capture") {
+  if (message.type === "capture" || message.type === "playhead") {
     return message.frame;
   }
   return message.type === "rebuilt" ? 0 : null;

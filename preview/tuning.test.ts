@@ -5,9 +5,13 @@ import {
   describeTuning,
   fieldAt,
   isFieldValue,
+  isPlumbing,
   labelFor,
   nearestInteractive,
   overridePlan,
+  plainName,
+  rebind,
+  sameMappings,
 } from "./tuning";
 
 const SCHEMA = {
@@ -212,6 +216,182 @@ describe("describeTuning", () => {
   });
 });
 
+describe("text and type", () => {
+  const TEXT_SCHEMA = {
+    children: { default: "", type: "text-content" as const },
+    "style.fontFamily": { default: "Inter", type: "font-family" as const },
+    "style.fontWeight": {
+      default: "400",
+      type: "enum" as const,
+      variants: ["100", "400", "800", "900"],
+    },
+    "style.letterSpacing": { step: 0.1, type: "number" as const },
+  };
+
+  function shown(values: Readonly<Record<string, unknown>>) {
+    const tuning = describeTuning({
+      componentName: "<Interactive.H1>",
+      schema: TEXT_SCHEMA,
+      targetId: "h1-1",
+      values,
+    });
+
+    return Object.fromEntries(
+      (tuning?.fields ?? []).map((field) => [field.path, field])
+    );
+  }
+
+  it("carries the text and the family as their own field types", () => {
+    const fields = shown({
+      children: "Ship it",
+      "style.fontFamily": "Geist",
+      "style.fontWeight": "800",
+      "style.letterSpacing": -1.2,
+    });
+
+    expect(fields.children).toMatchObject({
+      readOnly: false,
+      type: "text-content",
+      value: "Ship it",
+    });
+    expect(fields["style.fontFamily"]).toMatchObject({
+      readOnly: false,
+      type: "font-family",
+      value: "Geist",
+    });
+  });
+
+  it("accepts a string for the two new types", () => {
+    const text = fieldAt(TEXT_SCHEMA, {}, "children");
+    const family = fieldAt(TEXT_SCHEMA, {}, "style.fontFamily");
+
+    expect(text !== null && isFieldValue(text, "Ship it")).toBe(true);
+    expect(family !== null && isFieldValue(family, "Geist")).toBe(true);
+    expect(text !== null && isFieldValue(text, 12)).toBe(false);
+  });
+
+  it("reads the number the agent wrote as the option the schema declares", () => {
+    const fields = shown({ children: "Ship it", "style.fontWeight": 800 });
+
+    expect(fields["style.fontWeight"]).toMatchObject({
+      readOnly: false,
+      type: "enum",
+      value: "800",
+    });
+  });
+
+  it("keeps a unit string as a row that cannot be dragged", () => {
+    const fields = shown({
+      children: "Ship it",
+      "style.letterSpacing": "-0.03em",
+    });
+
+    expect(fields["style.letterSpacing"]).toMatchObject({
+      label: "Letter spacing",
+      readOnly: true,
+      type: "text-content",
+      value: "-0.03em",
+    });
+  });
+
+  it("says the text is built from parts when the runtime has no string", () => {
+    const fields = shown({ children: undefined });
+
+    expect(fields.children).toMatchObject({
+      description: "Text is built from parts — ask in words",
+      readOnly: true,
+      type: "text-content",
+      value: "",
+    });
+  });
+
+  it("keeps anything else it cannot read as a row saying so", () => {
+    const fields = shown({
+      children: "Ship it",
+      "style.fontWeight": { from: 400, to: 800 },
+    });
+
+    expect(fields["style.fontWeight"]).toMatchObject({
+      description: "value in code",
+      readOnly: true,
+      type: "text-content",
+      value: '{"from":400,"to":800}',
+    });
+  });
+
+  it("keeps its row for a value that cannot be printed as JSON", () => {
+    const circular: Record<string, unknown> = { weight: 800 };
+    circular.self = circular;
+
+    const fields = shown({
+      children: "Ship it",
+      "style.fontWeight": circular,
+    });
+
+    expect(fields["style.fontWeight"]).toMatchObject({
+      description: "value in code",
+      readOnly: true,
+      type: "text-content",
+    });
+  });
+
+  it("drops a key the runtime holds no value for at all", () => {
+    const fields = shown({ children: "Ship it" });
+
+    expect(fields["style.letterSpacing"]).toBeUndefined();
+  });
+
+  it("groups a component's own typography keys with the styled ones", () => {
+    const tuning = describeTuning({
+      componentName: "WordPush",
+      schema: {
+        backgroundColor: { default: "#000", type: "color" },
+        color: { default: "#fff", type: "color" },
+        fontSize: { default: 104, type: "number" },
+        fontWeight: { default: "800", type: "enum", variants: ["400", "800"] },
+        letterSpacing: { default: -1, type: "number" },
+        lineHeight: { default: 1.1, type: "number" },
+      },
+      targetId: "push-1",
+      values: {},
+    });
+
+    expect(
+      Object.fromEntries(
+        (tuning?.fields ?? []).map((field) => [field.path, field.group])
+      )
+    ).toEqual({
+      backgroundColor: "Fill",
+      color: "Typography",
+      fontSize: "Typography",
+      fontWeight: "Typography",
+      letterSpacing: "Typography",
+      lineHeight: "Typography",
+    });
+  });
+
+  it("puts the text first among the typography it belongs to", () => {
+    const tuning = describeTuning({
+      componentName: "<Interactive.H1>",
+      schema: TEXT_SCHEMA,
+      targetId: "h1-1",
+      values: {
+        children: "Ship it",
+        "style.fontFamily": "Geist",
+        "style.fontWeight": "800",
+        "style.letterSpacing": -1.2,
+      },
+    });
+
+    expect(
+      (tuning?.fields ?? [])
+        .filter((field) => field.group === "Typography")
+        .map((field) => field.path)
+        .at(0)
+    ).toBe("children");
+  });
+});
+
 describe("overridePlan", () => {
   it("publishes a prop status for exactly the overridden keys", () => {
     const plan = overridePlan({ hidden: true, "style.fontSize": 120 });
@@ -394,6 +574,117 @@ describe("controlsChain", () => {
   });
 });
 
+describe("the name the agent wrote", () => {
+  it("comes off the runtime values", () => {
+    expect(
+      describeTuning({
+        componentName: "<Interactive.Div>",
+        schema: SCHEMA,
+        targetId: "div-1",
+        values: {
+          amount: 20,
+          mode: "plain",
+          name: "Pushed line",
+          stops: [0, 1],
+        },
+      })?.name
+    ).toBe("Pushed line");
+  });
+
+  it("is nothing when the element was never named", () => {
+    expect(
+      describeTuning({
+        componentName: "<Interactive.Div>",
+        schema: SCHEMA,
+        targetId: "div-1",
+        values: { amount: 20, mode: "plain", stops: [0, 1] },
+      })?.name
+    ).toBeNull();
+    expect(
+      describeTuning({
+        componentName: "<Interactive.Div>",
+        schema: SCHEMA,
+        targetId: "div-1",
+        values: { amount: 20, mode: "plain", name: "", stops: [0, 1] },
+      })?.name
+    ).toBeNull();
+  });
+
+  it("counts the instance it was picked from", () => {
+    expect(
+      describeTuning({
+        componentName: "<Interactive.Div>",
+        instanceId: '[data-design-id="claim"] > :nth-child(2)',
+        instances: 4,
+        ordinal: 2,
+        schema: SCHEMA,
+        targetId: "div-1",
+        values: { amount: 20, mode: "plain", stops: [0, 1] },
+      })
+    ).toMatchObject({
+      instanceId: '[data-design-id="claim"] > :nth-child(2)',
+      instances: 4,
+      ordinal: 2,
+      where: null,
+    });
+  });
+
+  it("is alone by default", () => {
+    expect(
+      describeTuning({
+        componentName: "Hero",
+        schema: SCHEMA,
+        targetId: "hero-1",
+        values: { amount: 20, mode: "plain", stops: [0, 1] },
+      })
+    ).toMatchObject({ instanceId: "", instances: 1, ordinal: 1 });
+  });
+});
+
+describe("isPlumbing", () => {
+  const SERIES = {
+    hidden: { default: false, type: "boolean" as const },
+    layout: {
+      default: "absolute-fill",
+      type: "enum" as const,
+      variants: ["absolute-fill", "none"],
+    },
+  };
+
+  it("is true for a schema that is only hidden and layout", () => {
+    const target = describeTuning({
+      componentName: "<Series>",
+      schema: SERIES,
+      targetId: "series-1",
+      values: {},
+    });
+
+    expect(target !== null && isPlumbing(target)).toBe(true);
+  });
+
+  it("is false for a component with parameters of its own", () => {
+    const target = describeTuning({
+      componentName: "Hero",
+      schema: SCHEMA,
+      targetId: "hero-1",
+      values: { amount: 20, mode: "plain", stops: [0, 1] },
+    });
+
+    expect(target !== null && isPlumbing(target)).toBe(false);
+  });
+
+  it("is false for a schema that only adds one real control to those two", () => {
+    const target = describeTuning({
+      componentName: "Card",
+      schema: { ...SERIES, amount: SCHEMA.amount },
+      targetId: "card-1",
+      values: { amount: 4 },
+    });
+
+    expect(target !== null && isPlumbing(target)).toBe(false);
+  });
+});
+
 describe("labelFor", () => {
   // Remotion's own built-ins describe themselves in two words, and those read
   // better than the path would.
@@ -421,5 +712,223 @@ describe("labelFor", () => {
       "Transform origin"
     );
     expect(labelFor("", "easing")).toBe("Easing");
+  });
+});
+
+describe("rebind", () => {
+  function outlined(
+    componentName: string,
+    overrideId: string,
+    node: Element | null
+  ) {
+    return {
+      controls: { componentName, overrideId },
+      refForOutline: { current: node },
+    };
+  }
+
+  function fixture() {
+    const scene = document.createElement("div");
+    const line = document.createElement("span");
+    const word = document.createElement("em");
+
+    scene.append(line);
+    line.append(word);
+    document.body.append(scene);
+
+    return { line, scene, word };
+  }
+
+  it("follows the live id of a component that remounted under the same anchor", () => {
+    const { line, word } = fixture();
+    const entries = [
+      {
+        anchor: ".line",
+        componentName: "WordPush",
+        key: ".line::WordPush",
+        live: ["gone"],
+      },
+    ];
+
+    expect(
+      rebind(entries, [outlined("WordPush", "fresh", line)], () => word)
+    ).toEqual([{ key: ".line::WordPush", live: ["fresh"], node: word }]);
+  });
+
+  it("empties the live set when the anchor no longer resolves", () => {
+    const { line } = fixture();
+    const entries = [
+      {
+        anchor: ".gone",
+        componentName: "WordPush",
+        key: ".gone::WordPush",
+        live: ["was"],
+      },
+    ];
+
+    expect(
+      rebind(entries, [outlined("WordPush", "was", line)], () => null)
+    ).toEqual([{ key: ".gone::WordPush", live: [], node: null }]);
+  });
+
+  it("empties the live set when nothing registered carries that component", () => {
+    const { word } = fixture();
+    const entries = [
+      {
+        anchor: ".line",
+        componentName: "WordPush",
+        key: ".line::WordPush",
+        live: ["was"],
+      },
+    ];
+
+    expect(
+      rebind(
+        entries,
+        [],
+        () => word,
+        () => []
+      )
+    ).toEqual([{ key: ".line::WordPush", live: [], node: word }]);
+  });
+
+  it("takes the deepest outline that contains the node", () => {
+    const { line, scene, word } = fixture();
+    const entries = [
+      {
+        anchor: ".line",
+        componentName: "Interactive.Div",
+        key: ".line::Interactive.Div",
+        live: [],
+      },
+    ];
+
+    const [bound] = rebind(
+      entries,
+      [
+        outlined("Interactive.Div", "outer", scene),
+        outlined("Interactive.Div", "inner", line),
+      ],
+      () => word
+    );
+
+    expect(bound.live).toEqual(["inner", "outer"]);
+  });
+
+  it("ignores an outline that does not contain the node", () => {
+    const { line, word } = fixture();
+    const elsewhere = document.createElement("p");
+
+    document.body.append(elsewhere);
+
+    const [bound] = rebind(
+      [{ anchor: ".line", componentName: "WordPush", key: "k", live: [] }],
+      [
+        outlined("WordPush", "away", elsewhere),
+        outlined("WordPush", "here", line),
+      ],
+      () => word
+    );
+
+    expect(bound.live).toEqual(["here"]);
+  });
+
+  it("falls back to the fibers when every outline ref is null", () => {
+    const { word } = fixture();
+
+    const [bound] = rebind(
+      [
+        {
+          anchor: ".line",
+          componentName: "ClaimScene",
+          key: "k",
+          live: ["stale"],
+        },
+      ],
+      [
+        {
+          controls: { componentName: "ClaimScene", overrideId: "stale" },
+          refForOutline: null,
+        },
+      ],
+      () => word,
+      () => [
+        { componentName: "Interactive.Div", overrideId: "div" },
+        { componentName: "ClaimScene", overrideId: "live" },
+      ]
+    );
+
+    expect(bound.live).toEqual(["live"]);
+  });
+
+  it("keeps every chained id a component name matches", () => {
+    const { word } = fixture();
+
+    const [bound] = rebind(
+      [{ anchor: ".line", componentName: "Row", key: "k", live: [] }],
+      [],
+      () => word,
+      () => [
+        { componentName: "Row", overrideId: "one" },
+        { componentName: "Row", overrideId: "two" },
+        { componentName: "Row", overrideId: "one" },
+      ]
+    );
+
+    expect(bound.live).toEqual(["one", "two"]);
+  });
+
+  it("rebinds each entry on its own anchor", () => {
+    const { line, scene, word } = fixture();
+
+    const bound = rebind(
+      [
+        {
+          anchor: ".word",
+          componentName: "Interactive.Div",
+          key: "a",
+          live: [],
+        },
+        { anchor: ".scene", componentName: "ClaimScene", key: "b", live: [] },
+      ],
+      [
+        outlined("Interactive.Div", "div", line),
+        outlined("ClaimScene", "claim", scene),
+      ],
+      (anchor) => (anchor === ".word" ? word : scene)
+    );
+
+    expect(bound.map((entry) => entry.live)).toEqual([["div"], ["claim"]]);
+  });
+});
+
+describe("sameMappings", () => {
+  const path = { absolutePath: "remocn.1" };
+  const other = { absolutePath: "remocn.2" };
+
+  it("is true for the same keys pointing at the same paths", () => {
+    expect(sameMappings({ a: path }, { a: path })).toBe(true);
+  });
+
+  it("is false when a key was added", () => {
+    expect(sameMappings({ a: path }, { a: path, b: other })).toBe(false);
+  });
+
+  it("is false when a key was dropped", () => {
+    expect(sameMappings({ a: path, b: other }, { a: path })).toBe(false);
+  });
+
+  it("is false when a key points somewhere else", () => {
+    expect(sameMappings({ a: path }, { a: other })).toBe(false);
+  });
+});
+
+describe("plainName", () => {
+  it("drops Remotion's spelling of an element primitive", () => {
+    expect(plainName("<Interactive.Div>")).toBe("Div");
+  });
+
+  it("leaves a component's own name alone", () => {
+    expect(plainName("WordPush")).toBe("WordPush");
   });
 });

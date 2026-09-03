@@ -12,6 +12,9 @@ export type PreviewCommand =
   | { armed: boolean; type: "inspect" }
   | { armed: boolean; type: "snapshot" }
   | { frame: number; type: "seek" }
+  | { from: number; type: "replay"; until: number }
+  | { type: "pause" }
+  | { targetIds: readonly string[]; type: "tuning.read" }
   | { targetId: string | null; type: "highlight" }
   | {
       path: string;

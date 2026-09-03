@@ -16,7 +16,7 @@ import { type NewVideo, useNewVideo } from "@/hooks/use-new-video";
 import { type OpenTurn, useOpenTurn } from "@/hooks/use-open-turn";
 import { type Panes, usePanes } from "@/hooks/use-panes";
 import { type Preferences, usePreferences } from "@/hooks/use-preferences";
-import { usePreview } from "@/hooks/use-preview";
+import { usePlayingFrame, usePreview } from "@/hooks/use-preview";
 import { useProjectMenu } from "@/hooks/use-project-menu";
 import {
   type Accounts,
@@ -37,7 +37,7 @@ import type { VideoFormat } from "@/lib/studio/formats";
 import type { StudioSettings } from "@/lib/studio/settings";
 import { currentTasks } from "@/lib/studio/tasks";
 import type { TourReveal } from "@/lib/studio/tours";
-import type { ProjectDraft, PromptFrame } from "@/shared/ipc";
+import type { ProjectDraft } from "@/shared/ipc";
 import { PROVIDER_INFO } from "@/shared/providers";
 import { ProjectDialogs } from "./project-dialogs";
 
@@ -196,12 +196,14 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
 
   useReconciledVideos(preview, previewProjectId, workspace.reconcile);
 
+  const playing = usePlayingFrame(preview);
+
   const turn = useOpenTurn({
     changeMode: workspace.changeSessionMode,
     draftId: workspace.draftId,
     effort: effort.claudeEffort,
     models: model.models,
-    playing: playingFrame(preview.composition, preview.frame),
+    playing,
     projectId: workspace.activeProject?.id ?? null,
     session: workspace.openedSession,
     turns: workspace,
@@ -346,13 +348,6 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
       <ProjectDialogs menu={projectMenu} project={activeProject} />
     </StudioContext>
   );
-}
-
-function playingFrame(
-  composition: string | null,
-  frame: number
-): PromptFrame | null {
-  return composition === null ? null : { composition, frame };
 }
 
 function previewTarget(workspace: Workspace): string | null {

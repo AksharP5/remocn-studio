@@ -24,7 +24,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { Preview } from "@/hooks/use-preview";
+import {
+  type Preview,
+  type PreviewControl,
+  usePreviewFrame,
+} from "@/hooks/use-preview";
 import { exportLabel } from "@/lib/studio/export";
 import { fileManagerName } from "@/lib/studio/platform";
 import { ExportButton } from "./export-button";
@@ -37,6 +41,12 @@ export function PreviewPane() {
   const { exporting, inspect, snapshot } = tools;
   const { hint, preview, restart, stage } = tools.preview;
   const trouble = inspect.trouble ?? snapshot.trouble;
+  const quiet =
+    trouble === null &&
+    snapshot.status === null &&
+    exporting.result === null &&
+    exporting.trouble === null &&
+    hint === null;
 
   return (
     <Pane>
@@ -116,7 +126,7 @@ export function PreviewPane() {
               <Stage preview={preview} stage={stage} />
             )}
 
-            {inspect.isArmed ? (
+            {inspect.card === null && inspect.markers.length === 0 ? null : (
               <InspectOverlay
                 card={inspect.card}
                 cwd={openedProject?.path ?? null}
@@ -124,7 +134,7 @@ export function PreviewPane() {
                 onCancel={inspect.cancelComment}
                 onSubmit={inspect.submitComment}
               />
-            ) : null}
+            )}
           </div>
         </div>
 
@@ -180,9 +190,23 @@ export function PreviewPane() {
               {hint}
             </p>
           )}
+
+          {inspect.isArmed && quiet ? (
+            <ArmedFrame preview={tools.preview} />
+          ) : null}
         </div>
       </PaneBody>
     </Pane>
+  );
+}
+
+function ArmedFrame({ preview }: { readonly preview: PreviewControl }) {
+  const frame = usePreviewFrame(preview);
+
+  return (
+    <p className="shrink-0 text-center font-mono text-muted-foreground text-xs tabular-nums">
+      Inspect on · f {frame}
+    </p>
   );
 }
 

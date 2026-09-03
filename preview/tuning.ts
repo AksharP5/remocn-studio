@@ -6,11 +6,13 @@ type FieldType =
   | "boolean"
   | "color"
   | "enum"
+  | "font-family"
   | "hidden"
   | "number"
   | "rotation-css"
   | "rotation-degrees"
   | "scale"
+  | "text-content"
   | "transform-origin"
   | "translate"
   | "uv-coordinate";
@@ -46,6 +48,7 @@ export interface TuningField {
   readonly newItemDefault: TuningValue | null;
   readonly options: readonly string[];
   readonly path: string;
+  readonly readOnly: boolean;
   readonly step: number | null;
   // Which `Interactive` in the chain owns this field, since a merged list is
   // edited through as many targets as it was built from.
@@ -54,10 +57,21 @@ export interface TuningField {
   readonly value: TuningValue;
 }
 
+export interface TargetWhere {
+  readonly column: number | null;
+  readonly file: string;
+  readonly line: number | null;
+}
+
 export interface TuningTarget {
   readonly componentName: string;
   readonly fields: readonly TuningField[];
+  readonly instanceId: string;
+  readonly instances: number;
+  readonly name: string | null;
+  readonly ordinal: number;
   readonly targetId: string;
+  readonly where: TargetWhere | null;
 }
 
 export interface PropStatuses {
@@ -197,15 +211,121 @@ export function nearestInteractive<T extends OutlinedSequence>(
   return nearest;
 }
 
+export interface RegistryEntry {
+  readonly anchor: string;
+  readonly componentName: string;
+  readonly key: string;
+  readonly live: readonly string[];
+}
+
+export interface RegistryControls {
+  readonly componentName: string;
+  readonly overrideId: string;
+}
+
+export interface RegistrySequence {
+  readonly controls: RegistryControls | null;
+  readonly refForOutline: { readonly current: Element | null } | null;
+}
+
+export interface Rebound {
+  readonly key: string;
+  readonly live: readonly string[];
+  readonly node: Element | null;
+}
+
+export function rebind(
+  entries: readonly RegistryEntry[],
+  sequences: readonly RegistrySequence[],
+  resolve: (anchor: string) => Element | null,
+  chainOf: (node: Element) => readonly RegistryControls[] = registeredChain
+): Rebound[] {
+  return entries.map((entry) => {
+    const node = resolve(entry.anchor);
+
+    if (node === null) {
+      return { key: entry.key, live: [], node: null };
+    }
+
+    const named = sequences.filter(
+      (sequence) => sequence.controls?.componentName === entry.componentName
+    );
+    const anchored = named.filter((sequence) => {
+      const outline = sequence.refForOutline?.current ?? null;
+
+      return outline !== null && (outline === node || outline.contains(node));
+    });
+
+    if (anchored.length > 0) {
+      return { key: entry.key, live: deepestFirst(anchored), node };
+    }
+
+    return {
+      key: entry.key,
+      live: unique(
+        chainOf(node)
+          .filter((controls) => controls.componentName === entry.componentName)
+          .map((controls) => controls.overrideId)
+      ),
+      node,
+    };
+  });
+}
+
+export function sameMappings<T>(
+  was: Readonly<Record<string, T>>,
+  now: Readonly<Record<string, T>>
+): boolean {
+  const keys = Object.keys(was);
+
+  return (
+    keys.length === Object.keys(now).length &&
+    keys.every((key) => was[key] === now[key])
+  );
+}
+
+function registeredChain(node: Element): readonly RegistryControls[] {
+  return controlsChain(node).map((link) => link.controls);
+}
+
+function deepestFirst(sequences: readonly RegistrySequence[]): string[] {
+  const ordered = [...sequences].sort((first, second) => {
+    const one = first.refForOutline?.current ?? null;
+    const other = second.refForOutline?.current ?? null;
+
+    if (one === null || other === null || one === other) {
+      return 0;
+    }
+
+    if (other.contains(one)) {
+      return -1;
+    }
+
+    return one.contains(other) ? 1 : 0;
+  });
+
+  return unique(
+    ordered.flatMap((sequence) =>
+      sequence.controls === null ? [] : [sequence.controls.overrideId]
+    )
+  );
+}
+
+function unique(ids: readonly string[]): string[] {
+  return [...new Set(ids)];
+}
+
 const SUPPORTED = new Set<Exclude<FieldType, "hidden">>([
   "array",
   "boolean",
   "color",
   "enum",
+  "font-family",
   "number",
   "rotation-css",
   "rotation-degrees",
   "scale",
+  "text-content",
   "transform-origin",
   "translate",
   "uv-coordinate",
@@ -222,6 +342,8 @@ const LAYER = new Set(["hidden", "style.mixBlendMode", "style.opacity"]);
 
 const TYPOGRAPHY =
   /^style\.(color|font|letterSpacing|lineHeight|text|whiteSpace)/;
+const BARE_TYPOGRAPHY =
+  /^(color|fontFamily|fontSize|fontStyle|fontWeight|letterSpacing|lineHeight|textAlign)$/;
 const FILL = /(^fill|background|^style\.background)/i;
 const STROKE = /(^stroke|border(?!Radius)|outline)/i;
 const TIMING = /(^from$|durationInFrames|premountFor|postmountFor|frame)/i;
@@ -230,23 +352,82 @@ const EXIT = /^(transitionOut\.|exit([A-Z.]|$))/;
 const EFFECTS = /^effects?([A-Z.]|$)/;
 const CAMEL_BOUNDARY = /([a-z])([A-Z])/g;
 const FIRST_CHARACTER = /^./;
+const UNIT = /^-?\d+(\.\d+)?[a-z%]+$/i;
+const NUMERIC = new Set<FieldType>(["number", "rotation-degrees"]);
+const TEXT_PATH = "children";
+const SPLIT_TEXT = "Text is built from parts — ask in words";
+const IN_CODE = "value in code";
 
 export function describeTuning({
   componentName,
+  instanceId = "",
+  instances = 1,
+  ordinal = 1,
   schema,
   targetId,
   values,
 }: {
   readonly componentName: string;
+  readonly instanceId?: string;
+  readonly instances?: number;
+  readonly ordinal?: number;
   readonly schema: InteractivitySchema;
   readonly targetId: string;
   readonly values: Readonly<Record<string, unknown>>;
 }): TuningTarget | null {
-  const fields = Object.entries(flattenActiveSchema(schema, values))
-    .map(([path, field]) => descriptorOf(path, field, values[path], targetId))
-    .filter((field): field is TuningField => field !== null);
+  const fields = textFirst(
+    Object.entries(flattenActiveSchema(schema, values))
+      .map(([path, field]) => descriptorOf(path, field, values[path], targetId))
+      .filter((field): field is TuningField => field !== null)
+  );
 
-  return fields.length === 0 ? null : { componentName, fields, targetId };
+  return fields.length === 0
+    ? null
+    : {
+        componentName,
+        fields,
+        instanceId,
+        instances,
+        name: nameIn(values),
+        ordinal,
+        targetId,
+        where: null,
+      };
+}
+
+function isTextField(field: TuningField): boolean {
+  return field.path === TEXT_PATH && field.type === "text-content";
+}
+
+function textFirst(fields: readonly TuningField[]): TuningField[] {
+  const lead = fields.filter(isTextField);
+
+  return lead.length === 0
+    ? [...fields]
+    : [...lead, ...fields.filter((field) => !isTextField(field))];
+}
+
+export function nameIn(
+  values: Readonly<Record<string, unknown>>
+): string | null {
+  const { name } = values;
+
+  return typeof name === "string" && name.length > 0 ? name : null;
+}
+
+const PRIMITIVE_NAME = /^<Interactive\.(.+)>$/;
+
+export function plainName(componentName: string): string {
+  return PRIMITIVE_NAME.exec(componentName)?.[1] ?? componentName;
+}
+
+const PLUMBING = new Set(["hidden", "layout"]);
+
+export function isPlumbing(target: TuningTarget): boolean {
+  return (
+    target.fields.length > 0 &&
+    target.fields.every((field) => PLUMBING.has(field.path))
+  );
 }
 
 export function fieldAt(
@@ -373,40 +554,123 @@ function descriptorOf(
     return null;
   }
 
-  const value = defaultedValue(field, current);
-  if (!isFieldValue(field, value)) {
+  const read = readingOf(field, defaultedValue(field, current));
+  if (read === null) {
     return null;
   }
 
   return {
     arrayItemType:
-      field.type === "array" &&
+      read.type === "array" &&
       field.item !== undefined &&
       field.item.type !== "hidden" &&
       SUPPORTED.has(field.item.type)
         ? field.item.type
         : null,
-    description: field.description ?? null,
-    group: groupOf(path),
+    description: read.description,
+    group: groupOf(path, read.type),
     label: labelFor(field.description, path),
     max: finiteOrNull(field.max),
     maxLength: integerOrNull(field.maxLength),
     min: finiteOrNull(field.min),
     minLength: integerOrNull(field.minLength),
     newItemDefault:
-      field.type === "array" && isTuningValue(field.newItemDefault)
+      read.type === "array" && isTuningValue(field.newItemDefault)
         ? field.newItemDefault
         : null,
     options: optionsOf(field),
     path,
+    readOnly: read.readOnly,
     step: finiteOrNull(field.step),
     targetId,
-    type: field.type,
-    value,
+    type: read.type,
+    value: read.value,
   };
 }
 
+interface FieldReading {
+  readonly description: string | null;
+  readonly readOnly: boolean;
+  readonly type: Exclude<FieldType, "hidden">;
+  readonly value: TuningValue;
+}
+
+function readingOf(field: SchemaField, value: unknown): FieldReading | null {
+  if (field.type === "hidden" || !SUPPORTED.has(field.type)) {
+    return null;
+  }
+
+  const described = field.description ?? null;
+
+  if (isFieldValue(field, value)) {
+    return {
+      description: described,
+      readOnly: false,
+      type: field.type,
+      value,
+    };
+  }
+
+  if (
+    field.type === "enum" &&
+    typeof value === "number" &&
+    optionsOf(field).includes(String(value))
+  ) {
+    return {
+      description: described,
+      readOnly: false,
+      type: "enum",
+      value: String(value),
+    };
+  }
+
+  if (field.type === "text-content") {
+    return {
+      description: SPLIT_TEXT,
+      readOnly: true,
+      type: "text-content",
+      value: "",
+    };
+  }
+
+  if (
+    NUMERIC.has(field.type) &&
+    typeof value === "string" &&
+    UNIT.test(value)
+  ) {
+    return {
+      description: described,
+      readOnly: true,
+      type: "text-content",
+      value,
+    };
+  }
+
+  if (value === undefined) {
+    return null;
+  }
+
+  return {
+    description: IN_CODE,
+    readOnly: true,
+    type: "text-content",
+    value: printed(value),
+  };
+}
+
+function printed(value: unknown): string {
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
+
 function defaultedValue(field: SchemaField, current: unknown): unknown {
+  if (field.type === "text-content") {
+    return current;
+  }
+
   return current === undefined ? field.default : current;
 }
 
@@ -424,7 +688,11 @@ function optionsOf(field: SchemaField): readonly string[] {
   return [];
 }
 
-function groupOf(path: string): string {
+function groupOf(path: string, type: FieldType): string {
+  if (type === "text-content" && path === TEXT_PATH) {
+    return "Typography";
+  }
+
   if (TRANSFORMS.has(path)) {
     return "Transform";
   }
@@ -433,7 +701,7 @@ function groupOf(path: string): string {
     return "Layer";
   }
 
-  if (TYPOGRAPHY.test(path)) {
+  if (TYPOGRAPHY.test(path) || BARE_TYPOGRAPHY.test(path)) {
     return "Typography";
   }
 

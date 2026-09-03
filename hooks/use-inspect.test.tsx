@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { toastManager } from "@/components/ui/toast";
 import type { Composer } from "@/hooks/use-composer";
 import { useInspect } from "@/hooks/use-inspect";
 import type { PreviewControl } from "@/hooks/use-preview";
@@ -61,21 +62,74 @@ const TUNING: TuningTarget = {
       value: "#000000",
     },
   ],
+  instanceId: '[data-design-id="title"]',
+  instances: 1,
+  name: "Headline",
+  ordinal: 1,
   targetId: "title-1",
+  where: {
+    column: 5,
+    file: "/Users/me/projects/my-video/src/videos/intro/Title.tsx",
+    line: 24,
+  },
 };
 
 const SELECTION = {
   element: ELEMENT,
+  fonts: [],
   rect: { height: 0.2, width: 0.4, x: 0.1, y: 0.1 },
+  repeat: false,
   source: "remocn-preview",
+  text: null,
   tuning: [TUNING],
   type: "selection",
+  window: { from: 30, until: 60 },
 } as PreviewMessage;
 
+const TIMED: TuningTarget = {
+  ...TUNING,
+  fields: [
+    { ...TUNING.fields[0], group: "Entry", label: "Easing", path: "easing" },
+    { ...TUNING.fields[1], group: "Fill", label: "Color", path: "color" },
+  ],
+};
+
+const TIMED_SELECTION = {
+  ...SELECTION,
+  tuning: [TIMED],
+} as PreviewMessage;
+
+const REPLAY_DELAY = "20 millis";
+const READ_INTERVAL = "20 millis";
+const PAST_DELAY = 80;
+
+const UNDO_WINDOW = "40 millis";
+const PAST_WINDOW = 140;
+
+function pause(ms: number) {
+  return act(
+    () =>
+      new Promise((resolve) => {
+        setTimeout(resolve, ms);
+      })
+  );
+}
+
+interface Toasted {
+  actionProps?: { onClick?: () => void };
+  title?: string;
+}
+
 function harness(
-  options: { isArmed?: boolean; select?: (element: unknown) => string } = {}
+  options: {
+    isArmed?: boolean;
+    items?: readonly unknown[];
+    playing?: boolean;
+    select?: (element: unknown) => string;
+  } = {}
 ) {
   const sent: PreviewCommand[] = [];
+  const toasted = vi.spyOn(toastManager, "add");
   let listener: ((message: PreviewMessage) => void) | null = null;
   let raf: FrameRequestCallback | null = null;
 
@@ -93,6 +147,7 @@ function harness(
     hint: null,
     isServing: true,
     pick: null,
+    playing: options.playing ?? false,
     preview: { phase: "serving" },
     restart: () => undefined,
     send: (command: PreviewCommand) => {
@@ -109,7 +164,7 @@ function harness(
 
   const composer = {
     select: options.select ?? vi.fn(() => "selection-1"),
-    selections: { items: [], markStale: vi.fn() },
+    selections: { items: options.items ?? [], markStale: vi.fn() },
   } as unknown as Composer;
 
   const rendered = renderHook(
@@ -118,8 +173,11 @@ function harness(
         composer,
         isArmed: props.isArmed,
         preview,
+        readInterval: READ_INTERVAL,
+        replayDelay: REPLAY_DELAY,
         toggle: () => undefined,
         unavailable: null,
+        undoWindow: UNDO_WINDOW,
       }),
     { initialProps: { isArmed: options.isArmed ?? true } }
   );
@@ -137,13 +195,18 @@ function harness(
         frame?.(0);
       });
     },
+    reads: () => sent.filter((command) => command.type === "tuning.read"),
+    replays: () => sent.filter((command) => command.type === "replay"),
     resets: () => sent.filter((command) => command.type === "tune.reset"),
     sets: () => sent.filter((command) => command.type === "tune.set"),
+    toasts: () =>
+      toasted.mock.calls.map(([given]) => given as unknown as Toasted),
   };
 }
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("useInspect tuning", () => {
@@ -211,9 +274,63 @@ describe("useInspect tuning", () => {
       (field) => field.path === "size"
     );
     expect(size?.value).toBe(0);
-    expect(result.current.tuningRefusal).toBe(
-      "That value is not valid for this control."
+    expect(result.current.tuningRefusal).toEqual({
+      message: "That value is not valid for this control.",
+      path: "size",
+      targetId: "title-1",
+    });
+  });
+
+  it("a refusal names its row and survives an ok on another row", () => {
+    const { deliver, flush, result, sets } = harness();
+    deliver(SELECTION);
+
+    act(() => {
+      result.current.changeTuning("size", 64);
+    });
+    flush();
+    deliver(
+      refused(sets().at(-1), "That value is not valid for this control.")
     );
+
+    act(() => {
+      result.current.changeTuning("color", "#ffffff");
+    });
+    flush();
+    deliver(accepted(sets().at(-1)));
+
+    expect(result.current.tuningRefusal).toMatchObject({
+      path: "size",
+      targetId: "title-1",
+    });
+
+    act(() => {
+      result.current.changeTuning("size", 12);
+    });
+    flush();
+    deliver(accepted(sets().at(-1)));
+
+    expect(result.current.tuningRefusal).toBeNull();
+  });
+
+  it("keeps a refusal when an ok arrives for a request it never tracked", () => {
+    const { deliver, flush, result, sets } = harness();
+    deliver(SELECTION);
+
+    act(() => {
+      result.current.changeTuning("size", 64);
+    });
+    flush();
+    deliver(
+      refused(sets().at(-1), "That value is not valid for this control.")
+    );
+
+    deliver(accepted(undefined));
+
+    expect(result.current.tuningRefusal).toMatchObject({
+      path: "size",
+      targetId: "title-1",
+    });
   });
 
   it("drops stashed edits when everything is reset", () => {
@@ -228,9 +345,65 @@ describe("useInspect tuning", () => {
 
     expect(sets()).toHaveLength(0);
     expect(resets()).toHaveLength(1);
-    expect(resets()[0]).toMatchObject({ paths: [], targetId: "title-1" });
+    expect(resets()[0]).toMatchObject({
+      paths: ["size"],
+      targetId: "title-1",
+    });
+  });
+
+  it("resets nothing at all when nothing moved", () => {
+    const { deliver, resets, result } = harness();
+    deliver(SELECTION);
+
+    act(() => {
+      result.current.resetTuning();
+    });
+
+    expect(resets()).toHaveLength(0);
+  });
+
+  it("a rebuild resets what was live before closing", () => {
+    const { deliver, flush, resets, result } = harness();
+    deliver(SELECTION);
+
+    act(() => {
+      result.current.changeTuning("size", 24);
+    });
+    flush();
+    deliver({ source: "remocn-preview", type: "rebuilt" } as PreviewMessage);
+
+    expect(resets()).toEqual([
+      expect.objectContaining({ paths: ["size"], targetId: "title-1" }),
+    ]);
+    expect(result.current.card).toBeNull();
   });
 });
+
+function refused(command: PreviewCommand | undefined, error: string) {
+  return {
+    error,
+    ok: false,
+    requestId: requestIdOf(command),
+    source: "remocn-preview",
+    type: "tune.result",
+  } as PreviewMessage;
+}
+
+function accepted(command: PreviewCommand | undefined) {
+  return {
+    error: null,
+    ok: true,
+    requestId: requestIdOf(command),
+    source: "remocn-preview",
+    type: "tune.result",
+  } as PreviewMessage;
+}
+
+function requestIdOf(command: PreviewCommand | undefined): string {
+  return command !== undefined && "requestId" in command
+    ? command.requestId
+    : "missing";
+}
 
 // Remotion's markup primitives nest inside the component that renders them, so
 // pointing at a word lands on the primitive while the component's own
@@ -239,18 +412,23 @@ describe("useInspect tuning", () => {
 const CHAINED_SELECTION: PreviewMessage = {
   element: ELEMENT,
   rect: { height: 0.2, width: 0.4, x: 0.1, y: 0.1 },
+  repeat: false,
   source: "remocn-preview",
   tuning: [
     {
+      ...TUNING,
       componentName: "<Interactive.Div>",
       fields: [
         { ...TUNING.fields[0], path: "style.opacity", targetId: "div-1" },
       ],
+      instanceId: '[data-design-id="line-1"] > :nth-child(1)',
       targetId: "div-1",
     },
     {
+      ...TUNING,
       componentName: "Title",
       fields: [{ ...TUNING.fields[0], path: "easing", targetId: "title-1" }],
+      instanceId: '[data-design-id="line-1"]',
       targetId: "title-1",
     },
   ],
@@ -308,9 +486,20 @@ describe("useInspect across the Interactive chain", () => {
 
   // Switching is not committing: an edit made before the switch is still an
   // edit, so Reset all and the Add count both have to span the whole chain.
-  it("resets every target, not only the one on screen", () => {
-    const { deliver, resets, result } = harness();
+  it("resets every changed path in the chain", () => {
+    const { deliver, flush, resets, result } = harness();
     deliver(CHAINED);
+
+    act(() => {
+      result.current.changeTuning("style.opacity", 0.5);
+    });
+    act(() => {
+      result.current.openTarget(1);
+    });
+    act(() => {
+      result.current.changeTuning("easing", 3);
+    });
+    flush();
 
     act(() => {
       result.current.resetTuning();
@@ -318,9 +507,30 @@ describe("useInspect across the Interactive chain", () => {
 
     expect(
       resets()
-        .map((command) => command.targetId)
-        .toSorted((first, second) => first.localeCompare(second))
-    ).toEqual(["div-1", "title-1"]);
+        .map((command) => ({
+          paths: [...command.paths],
+          targetId: command.targetId,
+        }))
+        .toSorted((first, second) =>
+          first.targetId.localeCompare(second.targetId)
+        )
+    ).toEqual([
+      { paths: ["style.opacity"], targetId: "div-1" },
+      { paths: ["easing"], targetId: "title-1" },
+    ]);
+  });
+
+  it("switches through the ref, so an edit in the same tick lands on it", () => {
+    const { deliver, flush, result, sets } = harness();
+    deliver(CHAINED);
+
+    act(() => {
+      result.current.openTarget(1);
+      result.current.changeTuning("easing", 3);
+    });
+    flush();
+
+    expect(sets()).toMatchObject([{ path: "easing", targetId: "title-1" }]);
   });
 });
 
@@ -341,8 +551,8 @@ describe("useInspect highlights the open link of the chain", () => {
     });
 
     const sent = highlights(harnessed.commands());
-    expect(sent.at(-2)).toBe("div-1");
-    expect(sent.at(-1)).toBe("title-1");
+    expect(sent.at(-2)).toBe('[data-design-id="line-1"] > :nth-child(1)');
+    expect(sent.at(-1)).toBe('[data-design-id="line-1"]');
   });
 
   // Editing a value must not repaint the box: it is keyed on the id alone.
@@ -378,8 +588,16 @@ describe("useInspect picking again with the pane open", () => {
   const OTHER: PreviewMessage = {
     element: ELEMENT,
     rect: { height: 0.1, width: 0.2, x: 0.5, y: 0.5 },
+    repeat: false,
     source: "remocn-preview",
-    tuning: [{ ...TUNING, componentName: "Caption", targetId: "caption-1" }],
+    tuning: [
+      {
+        ...TUNING,
+        componentName: "Caption",
+        instanceId: '[data-design-id="caption"]',
+        targetId: "caption-1",
+      },
+    ],
     type: "selection",
   } as never;
 
@@ -393,8 +611,8 @@ describe("useInspect picking again with the pane open", () => {
 
   // The drafts live in the preview keyed by target, so a card dropped without
   // reverting leaves the frame showing values nothing lists any more.
-  it("reverts what was pending on the element it left", () => {
-    const { deliver, flush, resets, result } = harness();
+  it("reverts only the paths this card changed, and offers Undo", () => {
+    const { deliver, flush, resets, result, toasts } = harness();
     deliver(SELECTION);
 
     act(() => {
@@ -403,10 +621,89 @@ describe("useInspect picking again with the pane open", () => {
     flush();
     deliver(OTHER);
 
-    expect(resets().at(-1)).toMatchObject({ paths: [], targetId: "title-1" });
+    expect(resets()).toEqual([
+      expect.objectContaining({ paths: ["size"], targetId: "title-1" }),
+    ]);
+    expect(toasts().at(-1)?.title).toBe("Reverted 1 change on Headline");
   });
 
-  it("leaves a second click on the same element alone", () => {
+  it("Undo restores the reverted card and re-sends its values", () => {
+    const { deliver, flush, result, sets, toasts } = harness();
+    deliver(SELECTION);
+
+    act(() => {
+      result.current.changeTuning("size", 24);
+    });
+    flush();
+    deliver(OTHER);
+    const sentBefore = sets().length;
+
+    act(() => {
+      toasts().at(-1)?.actionProps?.onClick?.();
+    });
+
+    expect(sets()).toHaveLength(sentBefore + 1);
+    expect(result.current.card?.tuning?.componentName).toBe("Title");
+    expect(
+      result.current.card?.tuning?.fields.find((field) => field.path === "size")
+        ?.value
+    ).toBe(24);
+    expect(sets().at(-1)).toMatchObject({
+      path: "size",
+      targetId: "title-1",
+      value: 24,
+    });
+  });
+
+  it("reverts what was pending on the card Undo leaves behind", () => {
+    const { deliver, flush, resets, result, toasts } = harness();
+    deliver(SELECTION);
+
+    act(() => {
+      result.current.changeTuning("size", 24);
+    });
+    flush();
+    deliver(OTHER);
+
+    act(() => {
+      result.current.changeTuning("color", "#ffffff");
+    });
+    flush();
+
+    act(() => {
+      toasts().at(-1)?.actionProps?.onClick?.();
+    });
+
+    expect(
+      resets().map((command) => ({
+        paths: [...command.paths],
+        targetId: command.targetId,
+      }))
+    ).toContainEqual({ paths: ["color"], targetId: "caption-1" });
+    expect(result.current.card?.tuning?.componentName).toBe("Title");
+  });
+
+  it("forgets the revert once the undo window has closed", async () => {
+    const { deliver, flush, result, sets, toasts } = harness();
+    deliver(SELECTION);
+
+    act(() => {
+      result.current.changeTuning("size", 24);
+    });
+    flush();
+    deliver(OTHER);
+    const sentBefore = sets().length;
+
+    await pause(PAST_WINDOW);
+    act(() => {
+      toasts().at(-1)?.actionProps?.onClick?.();
+    });
+
+    expect(sets()).toHaveLength(sentBefore);
+    expect(result.current.card?.tuning?.componentName).toBe("Caption");
+  });
+
+  it("leaves a second click on the same instance alone", () => {
     const { deliver, flush, resets, result } = harness();
     deliver(SELECTION);
 
@@ -414,13 +711,52 @@ describe("useInspect picking again with the pane open", () => {
       result.current.changeTuning("size", 24);
     });
     flush();
-    deliver(SELECTION);
+    deliver({
+      ...(SELECTION as Record<string, unknown>),
+      repeat: true,
+    } as never);
 
     expect(resets()).toHaveLength(0);
     const size = result.current.card?.tuning?.fields.find(
       (field) => field.path === "size"
     );
     expect(size?.value).toBe(24);
+  });
+
+  it("reopens the element the pane was cancelled on", () => {
+    const { deliver, result } = harness();
+    deliver(SELECTION);
+
+    act(() => {
+      result.current.cancelComment();
+    });
+    deliver({
+      ...(SELECTION as Record<string, unknown>),
+      repeat: true,
+    } as never);
+
+    expect(result.current.card?.tuning?.componentName).toBe("Title");
+  });
+
+  it("opens a sibling instance rendered from the same call site", () => {
+    const { deliver, result } = harness();
+    deliver(SELECTION);
+
+    deliver({
+      ...(SELECTION as Record<string, unknown>),
+      tuning: [
+        {
+          ...TUNING,
+          instanceId: '[data-design-id="title"] > :nth-child(2)',
+          instances: 4,
+          name: "Second line",
+          ordinal: 2,
+        },
+      ],
+    } as never);
+
+    expect(result.current.card?.tuning?.name).toBe("Second line");
+    expect(result.current.card?.tuning?.ordinal).toBe(2);
   });
 });
 
@@ -450,6 +786,30 @@ describe("useInspect when the mode is turned off", () => {
     rerender({ isArmed: false });
 
     expect(resets()).toHaveLength(0);
+  });
+
+  it("keeps markers when the mode is turned off", () => {
+    const { deliver, rerender, result } = harness({
+      isArmed: true,
+      items: [
+        {
+          element: ELEMENT,
+          id: "selection-1",
+          rect: { height: 0.2, width: 0.4, x: 0.1, y: 0.1 },
+          stale: false,
+          tuning: null,
+        },
+      ],
+    });
+    deliver(SELECTION);
+
+    act(() => {
+      result.current.submitComment("bigger");
+    });
+    expect(result.current.markers).toHaveLength(1);
+
+    rerender({ isArmed: false });
+    expect(result.current.markers).toHaveLength(1);
   });
 });
 
@@ -510,5 +870,542 @@ describe("useInspect after Add", () => {
     } as never);
 
     expect(resets()).toHaveLength(0);
+  });
+});
+
+const RIG_FIELDS = [
+  {
+    ...TUNING.fields[0],
+    label: "Zoom",
+    path: "zoom",
+    targetId: "rig-1",
+    value: 1,
+  },
+  {
+    ...TUNING.fields[0],
+    label: "Easing",
+    path: "easing",
+    targetId: "rig-1",
+    value: 0,
+  },
+];
+
+function chainOn(line: string, zoom: number): PreviewMessage {
+  return {
+    element: ELEMENT,
+    rect: { height: 0.2, width: 0.4, x: 0.1, y: 0.1 },
+    repeat: false,
+    source: "remocn-preview",
+    tuning: [
+      {
+        ...TUNING,
+        componentName: "<Interactive.Div>",
+        fields: [
+          {
+            ...TUNING.fields[0],
+            path: "style.opacity",
+            targetId: `${line}-1`,
+            value: 1,
+          },
+        ],
+        instanceId: `[data-design-id="${line}"]`,
+        name: null,
+        targetId: `${line}-1`,
+      },
+      {
+        ...TUNING,
+        componentName: "CameraRig",
+        fields: RIG_FIELDS.map((field) =>
+          field.path === "zoom" ? { ...field, value: zoom } : field
+        ),
+        instanceId: '[data-design-id="rig"]',
+        name: null,
+        targetId: "rig-1",
+      },
+    ],
+    type: "selection",
+  } as never;
+}
+
+describe("useInspect with a shared ancestor in both chains", () => {
+  function addZoomOnFirstLine() {
+    const harnessed = harness();
+    const { deliver, flush, result } = harnessed;
+    deliver(chainOn("line-a", 1));
+
+    act(() => {
+      result.current.openTarget(1);
+    });
+    act(() => {
+      result.current.changeTuning("zoom", 2);
+    });
+    flush();
+    act(() => {
+      result.current.submitComment("closer");
+    });
+
+    deliver(chainOn("line-b", 2));
+    act(() => {
+      result.current.openTarget(1);
+    });
+    act(() => {
+      result.current.changeTuning("easing", 5);
+    });
+    flush();
+
+    return harnessed;
+  }
+
+  it("keeps a change Added from another card on a shared ancestor when this card is cancelled", () => {
+    const { resets, result, sets } = addZoomOnFirstLine();
+
+    act(() => {
+      result.current.cancelComment();
+    });
+
+    expect(sets()).toMatchObject([
+      { path: "zoom", targetId: "rig-1", value: 2 },
+      { path: "easing", targetId: "rig-1", value: 5 },
+    ]);
+    expect(resets().every((command) => command.paths.length > 0)).toBe(true);
+    expect(
+      resets().flatMap((command) =>
+        command.targetId === "rig-1" ? [...command.paths] : []
+      )
+    ).toEqual(["easing"]);
+  });
+
+  it("keeps it when the card is picked away from rather than cancelled", () => {
+    const { deliver, resets } = addZoomOnFirstLine();
+
+    deliver(chainOn("line-c", 2));
+
+    expect(resets().every((command) => command.paths.length > 0)).toBe(true);
+    expect(
+      resets().flatMap((command) =>
+        command.targetId === "rig-1" ? [...command.paths] : []
+      )
+    ).toEqual(["easing"]);
+  });
+});
+
+describe("useInspect removing a chip from the composer", () => {
+  const STORED = {
+    element: ELEMENT,
+    id: "selection-1",
+    rect: { height: 0.2, width: 0.4, x: 0.1, y: 0.1 },
+    stale: false,
+    tuning: {
+      fonts: ["Geist"],
+      open: 1,
+      originals: {
+        "div-1": { "style.opacity": 1 },
+        "title-1": { easing: 2, size: 0 },
+      },
+      targets: [
+        {
+          ...TUNING,
+          componentName: "<Interactive.Div>",
+          fields: [
+            {
+              ...TUNING.fields[0],
+              path: "style.opacity",
+              targetId: "div-1",
+              value: 0.5,
+            },
+          ],
+          instanceId: '[data-design-id="line-1"] > :nth-child(1)',
+          targetId: "div-1",
+        },
+        {
+          ...TUNING,
+          componentName: "Title",
+          fields: [
+            { ...TUNING.fields[0], path: "easing", targetId: "title-1" },
+            { ...TUNING.fields[0], path: "size", targetId: "title-1" },
+          ],
+          instanceId: '[data-design-id="line-1"]',
+          targetId: "title-1",
+        },
+      ],
+      text: "Ship it",
+      window: { from: 408, until: 424 },
+    },
+  };
+
+  it("removing a chip resets every link the message carried", () => {
+    const { resets, result } = harness({ items: [STORED] });
+
+    act(() => {
+      result.current.resetSelection(0);
+    });
+
+    expect(
+      resets()
+        .map((command) => ({
+          paths: [...command.paths],
+          targetId: command.targetId,
+        }))
+        .toSorted((first, second) =>
+          first.targetId.localeCompare(second.targetId)
+        )
+    ).toEqual([
+      { paths: ["style.opacity"], targetId: "div-1" },
+      { paths: ["easing"], targetId: "title-1" },
+    ]);
+  });
+
+  it("reopens the whole chain on the link the message was written from", () => {
+    const { result } = harness({ items: [STORED] });
+
+    act(() => {
+      result.current.openSelection(0);
+    });
+
+    expect(result.current.card?.targets).toHaveLength(2);
+    expect(result.current.card?.tuning?.componentName).toBe("Title");
+  });
+
+  it("reopens with the window, the words and the faces it was stored with", () => {
+    const { result } = harness({ items: [STORED] });
+
+    act(() => {
+      result.current.openSelection(0);
+    });
+
+    expect(result.current.card?.window).toEqual({ from: 408, until: 424 });
+    expect(result.current.card?.text).toEqual({
+      draft: "Ship it",
+      from: "Ship it",
+    });
+    expect(result.current.card?.fonts).toEqual(["Geist"]);
+  });
+});
+
+describe("time in the pane", () => {
+  it("replays the picked element's own window on demand", () => {
+    const { deliver, replays, result } = harness();
+    deliver(SELECTION);
+
+    act(() => {
+      result.current.replay();
+    });
+
+    expect(replays()).toEqual([
+      { from: 30, source: "remocn-studio", type: "replay", until: 60 },
+    ]);
+  });
+
+  it("says nothing when the element has no timed window", () => {
+    const { deliver, replays, result } = harness();
+    deliver({ ...SELECTION, window: null } as PreviewMessage);
+
+    act(() => {
+      result.current.replay();
+    });
+
+    expect(replays()).toHaveLength(0);
+  });
+
+  it("moves the frame from the strip", () => {
+    const { commands, deliver, result } = harness();
+    deliver(SELECTION);
+
+    act(() => {
+      result.current.seekTo(37);
+    });
+
+    expect(commands()).toContainEqual({
+      frame: 37,
+      source: "remocn-studio",
+      type: "seek",
+    });
+  });
+
+  it("replays once after a burst of easing edits", async () => {
+    const { deliver, flush, replays, result } = harness();
+    deliver(TIMED_SELECTION);
+
+    act(() => {
+      result.current.changeTuning("easing", [0.2, 0, 0.1, 1]);
+    });
+    flush();
+    act(() => {
+      result.current.changeTuning("easing", [0.3, 0, 0.1, 1]);
+    });
+    flush();
+
+    await pause(PAST_DELAY);
+
+    expect(replays()).toHaveLength(1);
+  });
+
+  it("does not replay after an edit that changes no timing", async () => {
+    const { deliver, flush, replays, result } = harness();
+    deliver(TIMED_SELECTION);
+
+    act(() => {
+      result.current.changeTuning("color", "#ffffff");
+    });
+    flush();
+
+    await pause(PAST_DELAY);
+
+    expect(replays()).toHaveLength(0);
+  });
+
+  it("does not replay over a preview that is already playing", async () => {
+    const { deliver, flush, replays, result } = harness({ playing: true });
+    deliver(TIMED_SELECTION);
+
+    act(() => {
+      result.current.changeTuning("easing", [0.2, 0, 0.1, 1]);
+    });
+    flush();
+
+    await pause(PAST_DELAY);
+
+    expect(replays()).toHaveLength(0);
+  });
+
+  it("asks the runtime what it holds once the frame has moved", () => {
+    const { deliver, reads } = harness();
+    deliver(SELECTION);
+
+    deliver({
+      frame: 500,
+      playing: false,
+      source: "remocn-preview",
+      type: "playhead",
+    } as PreviewMessage);
+
+    expect(reads()).toEqual([
+      {
+        source: "remocn-studio",
+        targetIds: ["title-1"],
+        type: "tuning.read",
+      },
+    ]);
+  });
+
+  it("asks nothing while the frame is still the one that was picked", () => {
+    const { deliver, reads } = harness();
+    deliver(SELECTION);
+
+    deliver({
+      frame: ELEMENT.frame,
+      playing: false,
+      source: "remocn-preview",
+      type: "playhead",
+    } as PreviewMessage);
+
+    expect(reads()).toHaveLength(0);
+  });
+
+  it("marks a field the runtime moves on its own and leaves a still one alone", () => {
+    const { deliver, result } = harness();
+    deliver(SELECTION);
+
+    deliver({
+      source: "remocn-preview",
+      type: "tuning.values",
+      values: [
+        { path: "size", targetId: "title-1", value: 24 },
+        { path: "color", targetId: "title-1", value: "#000000" },
+      ],
+    } as PreviewMessage);
+
+    expect([...(result.current.card?.animated ?? [])]).toEqual([
+      "title-1 size",
+    ]);
+  });
+
+  it("keeps the mark on a field that is edited after it was seen moving", () => {
+    const { deliver, flush, result } = harness();
+    deliver(SELECTION);
+
+    deliver({
+      source: "remocn-preview",
+      type: "tuning.values",
+      values: [{ path: "size", targetId: "title-1", value: 24 }],
+    } as PreviewMessage);
+
+    act(() => {
+      result.current.changeTuning("size", 64);
+    });
+    flush();
+
+    deliver({
+      source: "remocn-preview",
+      type: "tuning.values",
+      values: [{ path: "size", targetId: "title-1", value: 30 }],
+    } as PreviewMessage);
+
+    expect([...(result.current.card?.animated ?? [])]).toEqual([
+      "title-1 size",
+    ]);
+    expect(result.current.tuningRefusal).toBeNull();
+  });
+
+  it("tells the agent which from values were sampled from a frame", () => {
+    const select = vi.fn(() => "selection-1");
+    const { deliver, flush, result } = harness({ select });
+    deliver(SELECTION);
+
+    deliver({
+      source: "remocn-preview",
+      type: "tuning.values",
+      values: [{ path: "size", targetId: "title-1", value: 24 }],
+    } as PreviewMessage);
+
+    act(() => {
+      result.current.changeTuning("size", 64);
+    });
+    flush();
+
+    act(() => {
+      result.current.submitComment("slower");
+    });
+
+    const [element] = select.mock.calls[0] as unknown as [
+      { tuningChanges: { path: string; sampled?: boolean }[] },
+    ];
+
+    expect(element.tuningChanges).toEqual([
+      expect.objectContaining({ path: "size", sampled: true }),
+    ]);
+  });
+});
+
+describe("the words a Remotion too old to declare them still carries", () => {
+  const TEXTUAL: TuningTarget = {
+    ...TUNING,
+    fields: [
+      ...TUNING.fields,
+      {
+        ...(TUNING.fields[0] as TuningTarget["fields"][number]),
+        label: "Text",
+        path: "children",
+        type: "text-content",
+        value: "Ship it",
+      },
+    ],
+  };
+
+  const WORDS = { ...SELECTION, text: "Ship it" } as PreviewMessage;
+  const LIVE_WORDS = {
+    ...SELECTION,
+    text: "Ship it",
+    tuning: [TEXTUAL],
+  } as PreviewMessage;
+
+  it("offers them when nothing in the runtime holds them", () => {
+    const { deliver, result } = harness();
+    deliver(WORDS);
+
+    expect(result.current.card?.text).toEqual({
+      draft: "Ship it",
+      from: "Ship it",
+    });
+  });
+
+  it("leaves them to the live field when the runtime has one", () => {
+    const { deliver, result } = harness();
+    deliver(LIVE_WORDS);
+
+    expect(result.current.card?.text).toBeNull();
+  });
+
+  it("changes nothing in the preview when they are edited", () => {
+    const { deliver, flush, result, sets } = harness();
+    deliver(WORDS);
+
+    act(() => {
+      result.current.changeText("Ship it today");
+    });
+    flush();
+
+    expect(sets()).toHaveLength(0);
+    expect(result.current.card?.text?.draft).toBe("Ship it today");
+  });
+
+  it("asks the agent for them by the path the runtime would use", () => {
+    const select = vi.fn(() => "selection-1");
+    const { deliver, result } = harness({ select });
+    deliver(WORDS);
+
+    act(() => {
+      result.current.changeText("Ship it today");
+      result.current.submitComment("shorter");
+    });
+
+    const [element] = select.mock.calls[0] as unknown as [
+      { tuningChanges: { owner?: { name: string }; path: string }[] },
+    ];
+
+    expect(element.tuningChanges).toEqual([
+      expect.objectContaining({
+        from: "Ship it",
+        owner: expect.objectContaining({ name: "Headline" }),
+        path: "children",
+        to: "Ship it today",
+      }),
+    ]);
+  });
+
+  it("says nothing about words nobody touched", () => {
+    const select = vi.fn(() => "selection-1");
+    const { deliver, result } = harness({ select });
+    deliver(WORDS);
+
+    act(() => {
+      result.current.submitComment("slower");
+    });
+
+    const [element] = select.mock.calls[0] as unknown as [
+      { tuningChanges?: unknown[] },
+    ];
+
+    expect(element.tuningChanges).toBeUndefined();
+  });
+
+  it("rebases them on Add, so a second message does not ask twice", () => {
+    const selected: unknown[] = [];
+    const { deliver, result } = harness({
+      select: (element: unknown) => {
+        selected.push(element);
+        return `selection-${selected.length}`;
+      },
+    });
+    deliver(WORDS);
+
+    act(() => {
+      result.current.changeText("Ship it today");
+      result.current.submitComment("shorter");
+    });
+    act(() => {
+      result.current.submitComment("and again");
+    });
+
+    expect(
+      (selected[0] as { tuningChanges?: unknown[] }).tuningChanges
+    ).toHaveLength(1);
+    expect(
+      (selected[1] as { tuningChanges?: unknown[] }).tuningChanges
+    ).toBeUndefined();
+  });
+
+  it("puts them back when the whole selection is reset", () => {
+    const { deliver, result } = harness();
+    deliver(WORDS);
+
+    act(() => {
+      result.current.changeText("Ship it today");
+    });
+    act(() => {
+      result.current.resetTuning();
+    });
+
+    expect(result.current.card?.text?.draft).toBe("Ship it");
   });
 });

@@ -2,6 +2,13 @@ import { Exit } from "effect";
 import { describe, expect, it } from "vitest";
 import { codecsFor, decodeHostFrame, decodeMethod } from "@/shared/ipc";
 
+const REPORT = {
+  detail: "This project declares remotion 4.0.481.",
+  id: "remotion",
+  state: "warn",
+  title: "Text and type editing needs Remotion 4.0.513 or newer",
+};
+
 const TURN = {
   attachments: [],
   effort: null,
@@ -122,25 +129,25 @@ describe("source asset answers", () => {
   });
 });
 
-describe("the element selections on the wire", () => {
-  const SELECTION = {
-    column: 7,
-    component: "TitleCard",
-    composition: "Main",
-    file: "/Users/me/video/src/TitleCard.tsx",
-    fps: 30,
-    frame: 42,
-    html: "<h1>Hello</h1>",
-    line: 12,
-    scene: {
-      durationInFrames: 90,
-      frame: 12,
-      from: 30,
-      name: "TitleCard",
-    },
-    stack: ["TitleCard (/Users/me/video/src/TitleCard.tsx:12:7)"],
-  };
+const SELECTION = {
+  column: 7,
+  component: "TitleCard",
+  composition: "Main",
+  file: "/Users/me/video/src/TitleCard.tsx",
+  fps: 30,
+  frame: 42,
+  html: "<h1>Hello</h1>",
+  line: 12,
+  scene: {
+    durationInFrames: 90,
+    frame: 12,
+    from: 30,
+    name: "TitleCard",
+  },
+  stack: ["TitleCard (/Users/me/video/src/TitleCard.tsx:12:7)"],
+};
 
+describe("the element selections on the wire", () => {
   it("carries what the preview resolved", () => {
     const params = codecsFor("agent.prompt").params({
       ...TURN,
@@ -181,6 +188,45 @@ describe("the element selections on the wire", () => {
     ).toEqual([]);
   });
 
+  it("carries the component that owns each requested change", () => {
+    const owned = {
+      ...SELECTION,
+      tuningChanges: [
+        {
+          from: 12,
+          owner: {
+            component: "WordPush",
+            file: "components/WordPush.tsx",
+            line: 243,
+            name: "Pushed line",
+          },
+          path: "amount",
+          to: 20,
+        },
+      ],
+    };
+
+    const params = codecsFor("agent.prompt").params({
+      ...TURN,
+      elements: [owned],
+    });
+
+    expect(Exit.isSuccess(params) && params.value.elements[0]).toEqual(owned);
+  });
+
+  it("reads a stored change that predates the owner", () => {
+    const params = codecsFor("agent.prompt").params({
+      ...TURN,
+      elements: [
+        { ...SELECTION, tuningChanges: [{ from: 12, path: "amount", to: 20 }] },
+      ],
+    });
+
+    expect(
+      Exit.isSuccess(params) && params.value.elements[0].tuningChanges
+    ).toEqual([{ from: 12, path: "amount", to: 20 }]);
+  });
+
   it("reads a stored user block that carries selections", () => {
     const entries = codecsFor("history.blocks").result([
       {
@@ -197,5 +243,71 @@ describe("the element selections on the wire", () => {
         entries.value[0].kind === "user" &&
         entries.value[0].elements
     ).toEqual([SELECTION]);
+  });
+});
+
+describe("the environment fixes on the wire", () => {
+  it("carries the packages and the version an upgrade would pin", () => {
+    const fix = {
+      packages: ["@remotion/cli", "remotion"],
+      type: "upgrade",
+      version: "4.0.520",
+    };
+
+    const report = codecsFor("project.check").result({
+      checks: [{ ...REPORT, fix }],
+    });
+
+    expect(Exit.isSuccess(report) && report.value.checks[0].fix).toEqual(fix);
+  });
+
+  it("still reads a row whose fix is one of the older four", () => {
+    const report = codecsFor("project.check").result({
+      checks: [{ ...REPORT, fix: { type: "install" } }],
+    });
+
+    expect(Exit.isSuccess(report) && report.value.checks[0].fix).toEqual({
+      type: "install",
+    });
+  });
+
+  it("takes an upgrade request naming what to pin", () => {
+    const params = codecsFor("project.upgrade").params({
+      packages: ["remotion"],
+      projectId: "project-1",
+      version: "4.0.520",
+    });
+
+    expect(Exit.isSuccess(params) && params.value.packages).toEqual([
+      "remotion",
+    ]);
+  });
+});
+
+describe("a sampled tuning change", () => {
+  const CHANGE = { from: 12, path: "amount", to: 20 };
+
+  it("carries the flag when the pane took the value off the curve", () => {
+    const params = codecsFor("agent.prompt").params({
+      ...TURN,
+      elements: [
+        { ...SELECTION, tuningChanges: [{ ...CHANGE, sampled: true }] },
+      ],
+    });
+
+    expect(
+      Exit.isSuccess(params) && params.value.elements[0].tuningChanges
+    ).toEqual([{ ...CHANGE, sampled: true }]);
+  });
+
+  it("reads a change written before the flag existed", () => {
+    const params = codecsFor("agent.prompt").params({
+      ...TURN,
+      elements: [{ ...SELECTION, tuningChanges: [CHANGE] }],
+    });
+
+    expect(
+      Exit.isSuccess(params) && params.value.elements[0].tuningChanges
+    ).toEqual([CHANGE]);
   });
 });

@@ -32,7 +32,7 @@ export interface OpenTurnSettings {
   draftId: string;
   effort: EffortLevel | null;
   models: Record<AgentProvider, string>;
-  playing: PromptFrame | null;
+  playing: () => PromptFrame | null;
   projectId: string | null;
   session: HistorySession | null;
   turns: Turns;
@@ -131,7 +131,7 @@ export function useOpenTurn({
         media,
         mode: turn.mode,
         model: model.length === 0 ? null : model,
-        playing,
+        playing: playing(),
         projectId,
         prompt,
         videoId,

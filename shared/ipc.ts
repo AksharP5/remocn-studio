@@ -16,7 +16,7 @@ import {
   ToolVerb,
 } from "./providers";
 
-export const SIDECAR_PROTOCOL = 23;
+export const SIDECAR_PROTOCOL = 24;
 
 export const SIDECAR_STATUS_EVENT = "sidecar://status";
 export const SIDECAR_NOTIFY_EVENT = "sidecar://notify";
@@ -85,6 +85,7 @@ export const METHOD_NAMES = [
   "project.remove",
   "project.rename",
   "project.scaffold",
+  "project.upgrade",
   "sidecar.emit",
   "sidecar.info",
   "video.create",
@@ -216,9 +217,18 @@ export const TuningValue = Schema.Union([
   ),
 ]);
 
+export const TuningOwner = Schema.Struct({
+  component: Schema.NonEmptyString,
+  file: Schema.NullOr(Schema.NonEmptyString),
+  line: Schema.NullOr(Schema.Int),
+  name: Schema.NullOr(Schema.String),
+});
+
 export const TuningChange = Schema.Struct({
   from: TuningValue,
+  owner: Schema.optionalKey(TuningOwner),
   path: Schema.NonEmptyString,
+  sampled: Schema.optionalKey(Schema.Boolean),
   to: TuningValue,
 });
 
@@ -587,6 +597,11 @@ export const EnvironmentFix = Schema.Union([
     step: ProviderStep,
     type: Schema.Literal("provider"),
   }),
+  Schema.Struct({
+    packages: Schema.Array(Schema.NonEmptyString),
+    type: Schema.Literal("upgrade"),
+    version: Schema.NonEmptyString,
+  }),
 ]);
 
 export const EnvironmentCheck = Schema.Struct({
@@ -613,6 +628,14 @@ export const InstallEvent = Schema.Struct({
 });
 
 export const Installed = Schema.Struct({ installed: Schema.Boolean });
+
+export const UpgradeParams = Schema.Struct({
+  packages: Schema.Array(Schema.NonEmptyString),
+  projectId: Schema.NonEmptyString,
+  version: Schema.NonEmptyString,
+});
+
+export const Upgraded = Schema.Struct({ upgraded: Schema.Boolean });
 
 export const NodeDownload = Schema.Struct({
   received: Schema.Int,
@@ -758,6 +781,7 @@ export type PromptMedia = (typeof PromptMedia)["Type"];
 export type ElementScene = (typeof ElementScene)["Type"];
 export type PromptElement = (typeof PromptElement)["Type"];
 export type TuningChange = (typeof TuningChange)["Type"];
+export type TuningOwner = (typeof TuningOwner)["Type"];
 export type TuningValue = (typeof TuningValue)["Type"];
 export type Project = (typeof Project)["Type"];
 export type ProjectRef = (typeof ProjectRef)["Type"];
@@ -790,6 +814,8 @@ export type EnvironmentReport = (typeof EnvironmentReport)["Type"];
 export type EnvironmentParams = (typeof EnvironmentParams)["Type"];
 export type InstallEvent = (typeof InstallEvent)["Type"];
 export type Installed = (typeof Installed)["Type"];
+export type UpgradeParams = (typeof UpgradeParams)["Type"];
+export type Upgraded = (typeof Upgraded)["Type"];
 export type ContextUsage = (typeof ContextUsage)["Type"];
 export type AgentFailureKind = (typeof AgentFailureKind)["Type"];
 export type AgentFailure = (typeof AgentFailure)["Type"];
@@ -1092,6 +1118,11 @@ export const SIDECAR_METHODS = {
     params: ScaffoldParams,
     result: Project,
     stream: ScaffoldEvent,
+  },
+  "project.upgrade": {
+    params: UpgradeParams,
+    result: Upgraded,
+    stream: InstallEvent,
   },
   "sidecar.emit": { params: EmitParams, result: EmitResult, stream: EmitChunk },
   "sidecar.info": {

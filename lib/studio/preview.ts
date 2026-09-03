@@ -36,6 +36,11 @@ export const PreviewRect = Schema.Struct({
   y: Schema.Finite,
 });
 
+export const PreviewWindow = Schema.Struct({
+  from: Schema.Int,
+  until: Schema.Int,
+});
+
 export const InspectStatus = Schema.Literals([
   "armed",
   "disarmed",
@@ -66,10 +71,12 @@ export const TuningFieldType = Schema.Literals([
   "boolean",
   "color",
   "enum",
+  "font-family",
   "number",
   "rotation-css",
   "rotation-degrees",
   "scale",
+  "text-content",
   "transform-origin",
   "translate",
   "uv-coordinate",
@@ -87,6 +94,7 @@ export const TuningField = Schema.Struct({
   newItemDefault: Schema.NullOr(TuningValue),
   options: Schema.Array(Schema.String),
   path: Schema.NonEmptyString,
+  readOnly: Schema.optionalKey(Schema.Boolean),
   step: Schema.NullOr(Schema.Finite),
   // A merged list is edited through as many targets as it was built from, so
   // the field says which `Interactive` in the chain owns it.
@@ -95,10 +103,27 @@ export const TuningField = Schema.Struct({
   value: TuningValue,
 });
 
+export const TuningWhere = Schema.Struct({
+  column: Schema.NullOr(Schema.Int),
+  file: Schema.NonEmptyString,
+  line: Schema.NullOr(Schema.Int),
+});
+
 export const TuningTarget = Schema.Struct({
   componentName: Schema.NonEmptyString,
   fields: Schema.Array(TuningField),
+  instanceId: Schema.String.pipe(
+    Schema.withDecodingDefault(Effect.succeed(""))
+  ),
+  instances: Schema.Int.pipe(Schema.withDecodingDefault(Effect.succeed(1))),
+  name: Schema.NullOr(Schema.String).pipe(
+    Schema.withDecodingDefault(Effect.succeed(null))
+  ),
+  ordinal: Schema.Int.pipe(Schema.withDecodingDefault(Effect.succeed(1))),
   targetId: Schema.NonEmptyString,
+  where: Schema.NullOr(TuningWhere).pipe(
+    Schema.withDecodingDefault(Effect.succeed(null))
+  ),
 });
 
 // The chain of `Interactive`s around the picked element, innermost first. A
@@ -120,10 +145,39 @@ export const PreviewMessage = Schema.Union([
   }),
   Schema.Struct({
     element: PromptElement,
+    fonts: Schema.Array(Schema.String).pipe(
+      Schema.withDecodingDefault(Effect.succeed([]))
+    ),
     rect: PreviewRect,
+    repeat: Schema.Boolean.pipe(
+      Schema.withDecodingDefault(Effect.succeed(false))
+    ),
     source: from,
+    text: Schema.NullOr(Schema.String).pipe(
+      Schema.withDecodingDefault(Effect.succeed(null))
+    ),
     tuning,
     type: Schema.Literal("selection"),
+    window: Schema.NullOr(PreviewWindow).pipe(
+      Schema.withDecodingDefault(Effect.succeed(null))
+    ),
+  }),
+  Schema.Struct({
+    frame: Schema.Int,
+    playing: Schema.Boolean,
+    source: from,
+    type: Schema.Literal("playhead"),
+  }),
+  Schema.Struct({
+    source: from,
+    type: Schema.Literal("tuning.values"),
+    values: Schema.Array(
+      Schema.Struct({
+        path: Schema.NonEmptyString,
+        targetId: Schema.NonEmptyString,
+        value: TuningValue,
+      })
+    ),
   }),
   Schema.Struct({
     paused: Schema.Boolean,
@@ -176,6 +230,21 @@ export const PreviewCommand = Schema.Union([
     type: Schema.Literal("seek"),
   }),
   Schema.Struct({
+    from: Schema.Int,
+    source: to,
+    type: Schema.Literal("replay"),
+    until: Schema.Int,
+  }),
+  Schema.Struct({
+    source: to,
+    type: Schema.Literal("pause"),
+  }),
+  Schema.Struct({
+    source: to,
+    targetIds: Schema.Array(Schema.NonEmptyString),
+    type: Schema.Literal("tuning.read"),
+  }),
+  Schema.Struct({
     source: to,
     targetId: Schema.NullOr(Schema.NonEmptyString),
     type: Schema.Literal("highlight"),
@@ -214,8 +283,15 @@ export type PreviewComposition = Extract<
   { type: "composition" }
 >;
 export type PreviewSelection = Extract<PreviewMessage, { type: "selection" }>;
+export type PreviewPlayhead = Extract<PreviewMessage, { type: "playhead" }>;
+export type PreviewTuningValues = Extract<
+  PreviewMessage,
+  { type: "tuning.values" }
+>;
+export type PreviewWindow = (typeof PreviewWindow)["Type"];
 export type TuningField = (typeof TuningField)["Type"];
 export type TuningTarget = (typeof TuningTarget)["Type"];
+export type TuningWhere = (typeof TuningWhere)["Type"];
 export type TuningValue = (typeof TuningValue)["Type"];
 
 export const decodePreviewMessage = Schema.decodeUnknownExit(PreviewMessage);
@@ -236,6 +312,29 @@ export function highlightCommand(targetId: string | null): PreviewCommand {
 
 export function seekCommand(frame: number): PreviewCommand {
   return { frame, source: PREVIEW_COMMAND_SOURCE, type: "seek" };
+}
+
+export function replayCommand(span: PreviewWindow): PreviewCommand {
+  return {
+    from: span.from,
+    source: PREVIEW_COMMAND_SOURCE,
+    type: "replay",
+    until: span.until,
+  };
+}
+
+export function pauseCommand(): PreviewCommand {
+  return { source: PREVIEW_COMMAND_SOURCE, type: "pause" };
+}
+
+export function tuningReadCommand(
+  targetIds: readonly string[]
+): PreviewCommand {
+  return {
+    source: PREVIEW_COMMAND_SOURCE,
+    targetIds: [...targetIds],
+    type: "tuning.read",
+  };
 }
 
 export function tuneSetCommand(
