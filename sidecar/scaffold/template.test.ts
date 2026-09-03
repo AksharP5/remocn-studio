@@ -16,6 +16,7 @@ import {
 } from "@/sidecar/scaffold/template";
 
 const TEMPLATE = join(process.cwd(), "templates", "remotion");
+const RANGE_PREFIX = /^[\^~>=]+/;
 const VIDEO_MODULE = join(TEMPLATE, VIDEO_TEMPLATE, "index.tsx");
 const LANDSCAPE = { height: 1080, width: 1920 };
 const VERTICAL = { height: 1920, width: 1080 };
@@ -62,6 +63,57 @@ describe("the vendored template", () => {
 
     expect(sized(video, VERTICAL)).toContain("width: 1080");
     expect(sized(video, VERTICAL)).toContain("height: 1920");
+  });
+
+  it("hands the pane the typography it is meant to edit", async () => {
+    const video = await readFile(VIDEO_MODULE, "utf8");
+
+    expect(video).toContain('"style.fontWeight"');
+    expect(video).toContain('"style.lineHeight"');
+    expect(video).toContain('"style.letterSpacing"');
+    expect(video).toContain("newItemDefault: 0,");
+  });
+
+  it("exposes its spring's damping rather than nailing it shut", async () => {
+    const video = await readFile(VIDEO_MODULE, "utf8");
+
+    expect(video).toContain("damping: {");
+    expect(video).toContain("config: { damping },");
+    expect(video).toContain("damping = 200,");
+  });
+
+  it("pins remotion and every @remotion package to one version", async () => {
+    const manifest = JSON.parse(
+      await readFile(join(TEMPLATE, "package.json"), "utf8")
+    ) as { dependencies: Record<string, string> };
+
+    const pinned = Object.entries(manifest.dependencies).filter(
+      ([name]) => name === "remotion" || name.startsWith("@remotion/")
+    );
+
+    expect(pinned.length).toBeGreaterThan(1);
+    expect(new Set(pinned.map(([, range]) => range)).size).toBe(1);
+  });
+
+  it("scaffolds on a Remotion that can express text and typography", async () => {
+    const manifest = JSON.parse(
+      await readFile(join(TEMPLATE, "package.json"), "utf8")
+    ) as { dependencies: Record<string, string> };
+
+    const [major, minor, patch] = manifest.dependencies.remotion
+      .replace(RANGE_PREFIX, "")
+      .split(".")
+      .map(Number);
+
+    expect([major, minor]).toEqual([4, 0]);
+    expect(patch).toBeGreaterThanOrEqual(513);
+  });
+
+  it("moves its text on X, through translate rather than transform", async () => {
+    const video = await readFile(VIDEO_MODULE, "utf8");
+
+    expect(video).not.toContain("transform:");
+    expect(video).toContain("px 0px`");
   });
 });
 

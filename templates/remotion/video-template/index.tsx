@@ -21,12 +21,22 @@ export const meta = {
 };
 
 const titleSchema = {
+  damping: {
+    default: 200,
+    description: "Rise damping",
+    hiddenFromList: false,
+    max: 400,
+    min: 1,
+    step: 1,
+    type: "number",
+  },
   easing: {
     default: [0, 0, 0.58, 1],
     description: "Easing",
     item: { max: 1.5, min: -0.5, step: 0.01, type: "number" },
     maxLength: 4,
     minLength: 4,
+    newItemDefault: 0,
     type: "array",
   },
   emphasis: {
@@ -71,6 +81,33 @@ const titleSchema = {
     step: 1,
     type: "number",
   },
+  "style.fontWeight": {
+    default: 600,
+    description: "Font weight",
+    hiddenFromList: false,
+    max: 900,
+    min: 100,
+    step: 100,
+    type: "number",
+  },
+  "style.letterSpacing": {
+    default: 0,
+    description: "Tracking in pixels",
+    hiddenFromList: false,
+    max: 20,
+    min: -20,
+    step: 0.1,
+    type: "number",
+  },
+  "style.lineHeight": {
+    default: 1.1,
+    description: "Line height",
+    hiddenFromList: false,
+    max: 3,
+    min: 0.6,
+    step: 0.01,
+    type: "number",
+  },
   "style.translate": {
     default: "0px 0px",
     description: "Offset",
@@ -84,6 +121,7 @@ type TitleEasing = readonly [number, number, number, number];
 
 interface TitleProps {
   readonly children: ReactNode;
+  readonly damping?: number;
   readonly easing?: TitleEasing;
   readonly emphasis?: "glow" | "none";
   readonly from?: number;
@@ -96,6 +134,7 @@ interface TitleProps {
 function TitleBase({
   children,
   controls,
+  damping = 200,
   easing = [0, 0, 0.58, 1],
   emphasis = "none",
   from = 0,
@@ -116,9 +155,11 @@ function TitleBase({
     >
       <div ref={outlineRef} style={{ position: "relative" }}>
         <RisingText
+          damping={damping}
           easing={easing}
           emphasis={emphasis}
           glowRadius={glowRadius}
+          name={name ?? "Title"}
           riseFrames={riseFrames}
           style={style}
         >
@@ -131,16 +172,20 @@ function TitleBase({
 
 function RisingText({
   children,
+  damping,
   easing,
   emphasis,
   glowRadius,
+  name,
   riseFrames,
   style,
 }: {
   readonly children: ReactNode;
+  readonly damping: number;
   readonly easing: TitleEasing;
   readonly emphasis: "glow" | "none";
   readonly glowRadius: number;
+  readonly name: string;
   readonly riseFrames: number;
   readonly style?: CSSProperties;
 }) {
@@ -148,19 +193,23 @@ function RisingText({
   const { fps } = useVideoConfig();
 
   const rise = spring({
-    config: { damping: 200 },
+    config: { damping },
     durationInFrames: riseFrames,
     fps,
     frame,
   });
 
   return (
-    <h1
+    <Interactive.H1
+      data-design-id={name}
+      name={name}
       style={{
         color: "#ffffff",
         fontFamily: "system-ui, sans-serif",
         fontSize: 96,
         fontWeight: 600,
+        letterSpacing: 0,
+        lineHeight: 1.1,
         margin: 0,
         opacity: interpolate(frame, [0, 20], [0, 1], {
           easing: Easing.bezier(...easing),
@@ -168,12 +217,12 @@ function RisingText({
         }),
         textShadow:
           emphasis === "glow" ? `0 0 ${glowRadius}px currentColor` : "none",
-        transform: `translateY(${interpolate(rise, [0, 1], [24, 0])}px)`,
+        translate: `${interpolate(rise, [0, 1], [-24, 0])}px 0px`,
         ...style,
       }}
     >
       {children}
-    </h1>
+    </Interactive.H1>
   );
 }
 
