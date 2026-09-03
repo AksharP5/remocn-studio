@@ -369,6 +369,28 @@ production — **there is no Node server at runtime**. Therefore:
 - `turbopack.root` is pinned in `next.config.mjs`: an unrelated `package-lock.json`
   sits above this repo and Turbopack's root inference walks up to it otherwise.
 
+### The first second
+
+The main Tauri window starts hidden and the static export already contains the
+in-window splash. A `beforeInteractive` script asks the Rust core to reveal the
+window on the second frame after `DOMContentLoaded`; a 1.5-second Rust fallback
+shows it even if the page fails before making that request. The native window
+background is `#111111`, the sRGB result of the dark `--sidebar` mix, so live
+resize cannot expose the system's light window colour.
+
+The splash covers two independent startup waits: settings hydration and the
+first `project.list` result. The latter takes roughly 0.7–1.0 seconds because
+the sidecar itself reaches `ready` about 0.6 seconds after spawn; before this
+guard, that empty initial project array briefly rendered onboarding for a
+returning person. The splash stays for at least 1.5 seconds so its draw lands
+and holds long enough to be seen,
+then dissolves once both waits settle. A six-second cap reveals the shell and
+its sidecar status instead of letting a failed sidecar hold the window hostage.
+
+Keep the splash in the page's static HTML. Moving it behind hydration restores
+the empty first paint; moving it to a second Tauri window turns the one dissolve
+into a jump cut.
+
 ### UI
 
 - **Primitives are `@base-ui/react`, NOT Radix.** The shadcn style is

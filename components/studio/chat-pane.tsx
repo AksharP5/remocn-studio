@@ -65,6 +65,7 @@ export function ChatPane() {
     activeSession,
     environment,
     isPreviewShown,
+    isLoadingProjects,
     isProjectsShown,
     library,
     newProject,
@@ -153,6 +154,7 @@ export function ChatPane() {
           cwd={openedProject?.path ?? null}
           environment={environment}
           hasProject={openedProject !== null}
+          isLoadingProjects={isLoadingProjects}
           library={library}
           missing={openedProject?.missing ?? false}
           newProject={newProject}
@@ -196,6 +198,7 @@ function Conversation({
   cwd,
   environment,
   hasProject,
+  isLoadingProjects,
   library,
   missing,
   newProject,
@@ -211,6 +214,7 @@ function Conversation({
   cwd: string | null;
   environment: Environment;
   hasProject: boolean;
+  isLoadingProjects: boolean;
   library: Library;
   missing: boolean;
   newProject: NewProject;
@@ -225,7 +229,7 @@ function Conversation({
 }) {
   const hasTranscript = turn.entries.length > 0 || turn.turnError !== null;
   const isCreating = newProject.isOpen || newVideo.isOpen;
-  const isStartup = !(hasProject || hasTranscript);
+  const isStartup = !(isLoadingProjects || hasProject || hasTranscript);
   const now = useNow(turn.isRunning ? TICK : null);
   const offer = useAssetOffer({
     enabled: offersEnabled,
@@ -258,6 +262,7 @@ function Conversation({
                   cwd={cwd}
                   hasProject={hasProject}
                   hasTranscript={hasTranscript}
+                  isLoadingProjects={isLoadingProjects}
                   newProject={newProject}
                   newVideo={newVideo}
                   now={now}
@@ -350,6 +355,7 @@ function ConversationBody({
   cwd,
   hasProject,
   hasTranscript,
+  isLoadingProjects,
   newProject,
   newVideo,
   now,
@@ -360,6 +366,7 @@ function ConversationBody({
   cwd: string | null;
   hasProject: boolean;
   hasTranscript: boolean;
+  isLoadingProjects: boolean;
   newProject: NewProject;
   newVideo: NewVideo;
   now: number;
@@ -395,6 +402,10 @@ function ConversationBody({
         startedAt={turn.startedAt}
       />
     );
+  }
+
+  if (isLoadingProjects) {
+    return null;
   }
 
   return (

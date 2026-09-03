@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Golos_Text, Inter } from "next/font/google";
+import Script from "next/script";
 import { ThemeProvider } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 import "./globals.css";
@@ -22,6 +23,27 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
   variable: "--font-geist-mono",
 });
+
+const REVEAL_STUDIO = `
+(() => {
+  const tauri = window.__TAURI_INTERNALS__;
+  if (!tauri) return;
+
+  const reveal = () => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        tauri.invoke("reveal_studio").catch(() => undefined);
+      });
+    });
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", reveal, { once: true });
+  } else {
+    reveal();
+  }
+})();
+`;
 
 export const metadata: Metadata = {
   description:
@@ -49,6 +71,9 @@ export default function RootLayout({
     >
       <body className={cn(geistMono.variable, "antialiased")}>
         <ThemeProvider>{children}</ThemeProvider>
+        <Script id="reveal-studio" strategy="beforeInteractive">
+          {REVEAL_STUDIO}
+        </Script>
       </body>
     </html>
   );

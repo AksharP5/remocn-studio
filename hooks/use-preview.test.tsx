@@ -1,6 +1,6 @@
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   type PreviewListener,
   useOnPreview,
@@ -75,6 +75,21 @@ function announce(
   );
 }
 
+function announceEmpty(origin = URL) {
+  post(
+    {
+      compositionId: null,
+      compositions: [],
+      reason: "none",
+      source: "remocn-preview",
+      total: 0,
+      type: "composition",
+      unmeasured: false,
+    },
+    origin
+  );
+}
+
 const SELECTION = {
   element: {
     column: 7,
@@ -112,6 +127,8 @@ async function served(
 
   return { host, rendered };
 }
+
+afterEach(() => vi.useRealTimers());
 
 describe("usePreview", () => {
   it("asks the served page for the video it is showing", async () => {
@@ -207,6 +224,56 @@ describe("usePreview", () => {
     announce({ compositionId: "Main", reason: "main" });
 
     expect(rendered.result.current.hint).toBeNull();
+  });
+
+  it("does not publish a transient empty registry before compositions register", async () => {
+    const listen = listener();
+    const { rendered } = await served(listen);
+    vi.useFakeTimers();
+
+    announceEmpty();
+
+    expect(rendered.result.current.pick).toBeNull();
+    expect(listen).not.toHaveBeenCalledWith(
+      expect.objectContaining({ total: 0, type: "composition" })
+    );
+
+    announce({ compositionId: "Main", reason: "main" });
+
+    expect(rendered.result.current.pick).toEqual(
+      expect.objectContaining({ compositionId: "Main", total: 2 })
+    );
+    expect(listen).toHaveBeenCalledWith(
+      expect.objectContaining({ total: 2, type: "composition" })
+    );
+
+    act(() => vi.runAllTimers());
+    expect(listen).not.toHaveBeenCalledWith(
+      expect.objectContaining({ total: 0, type: "composition" })
+    );
+  });
+
+  it("publishes an empty registry when the project is genuinely empty", async () => {
+    const listen = listener();
+    const { rendered } = await served(listen);
+    vi.useFakeTimers();
+
+    announceEmpty();
+    act(() => vi.advanceTimersByTime(249));
+
+    expect(rendered.result.current.pick).toBeNull();
+    expect(listen).not.toHaveBeenCalledWith(
+      expect.objectContaining({ total: 0, type: "composition" })
+    );
+
+    act(() => vi.advanceTimersByTime(1));
+
+    expect(rendered.result.current.pick).toEqual(
+      expect.objectContaining({ compositionId: null, total: 0 })
+    );
+    expect(listen).toHaveBeenCalledWith(
+      expect.objectContaining({ total: 0, type: "composition" })
+    );
   });
 
   it("hands a selection to whoever is collecting them", async () => {

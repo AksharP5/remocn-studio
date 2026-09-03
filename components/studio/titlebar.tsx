@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import type { MoodTone, ShellMood } from "@/lib/studio/mood";
 import { cn } from "@/lib/utils";
 import { ShaderField } from "./shader-field";
@@ -37,9 +38,11 @@ const TONES = {
 
 export function Titlebar({
   className,
+  isBooting = false,
   mood,
 }: {
   className?: string;
+  isBooting?: boolean;
   mood: ShellMood | null;
 }) {
   return (
@@ -56,26 +59,42 @@ export function Titlebar({
       data-slot="titlebar"
       data-tauri-drag-region
     >
-      {mood === null ? null : (
-        <div
-          aria-hidden="true"
-          className={cn(
-            // The band's own bottom edge is the sidebar, not a boundary worth
-            // drawing, so the pattern is masked out before it gets there —
-            // a long staged ramp, because a short one reads as a hard seam.
-            "pointer-events-none absolute inset-0 animate-titlebar transition-[filter] duration-700 ease-out [mask-image:linear-gradient(to_bottom,#000_0%,#000d_35%,#0009_60%,#0004_80%,#0001_92%,transparent_100%)]",
-            TONES[mood.tone]
-          )}
-          data-slot="titlebar-mood"
-        >
-          <ShaderField
-            brightness={BRIGHTNESS}
-            contrast={CONTRAST}
-            scale={SCALE}
-            speed={mood.isBusy ? BUSY : CALM}
-          />
-        </div>
+      {mood === null ? null : <MoodField isBooting={isBooting} mood={mood} />}
+    </div>
+  );
+}
+
+function MoodField({
+  isBooting,
+  mood,
+}: {
+  isBooting: boolean;
+  mood: ShellMood;
+}) {
+  // A mood first mounted beneath the splash is already part of the assembled
+  // shell. Capture that decision so removing the boot flag cannot replay its
+  // entrance after the splash has gone.
+  const shouldAnimateEntrance = useRef(!isBooting).current;
+
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        // The band's own bottom edge is the sidebar, not a boundary worth
+        // drawing, so the pattern is masked out before it gets there —
+        // a long staged ramp, because a short one reads as a hard seam.
+        "pointer-events-none absolute inset-0 transition-[filter] duration-700 ease-out [mask-image:linear-gradient(to_bottom,#000_0%,#000d_35%,#0009_60%,#0004_80%,#0001_92%,transparent_100%)]",
+        shouldAnimateEntrance && "animate-titlebar",
+        TONES[mood.tone]
       )}
+      data-slot="titlebar-mood"
+    >
+      <ShaderField
+        brightness={BRIGHTNESS}
+        contrast={CONTRAST}
+        scale={SCALE}
+        speed={mood.isBusy ? BUSY : CALM}
+      />
     </div>
   );
 }

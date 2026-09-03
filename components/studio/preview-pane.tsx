@@ -9,7 +9,7 @@ import {
   RotateCwIcon,
   SquareDashedMousePointerIcon,
 } from "lucide-react";
-import type { RefObject } from "react";
+import { type RefObject, useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -31,12 +31,13 @@ import {
 } from "@/hooks/use-preview";
 import { exportLabel } from "@/lib/studio/export";
 import { fileManagerName } from "@/lib/studio/platform";
+import { cn } from "@/lib/utils";
 import { ExportButton } from "./export-button";
 import { InspectOverlay } from "./inspect-overlay";
 import { Pane, PaneActions, PaneBody, PaneHeader, PaneTitle } from "./pane";
 import { useStudio } from "./studio-provider";
 
-export function PreviewPane() {
+export function PreviewPane({ isBooting = false }: { isBooting?: boolean }) {
   const { activeProject, openedProject, togglePreview, tools } = useStudio();
   const { exporting, inspect, snapshot } = tools;
   const { hint, preview, restart, stage } = tools.preview;
@@ -123,7 +124,7 @@ export function PreviewPane() {
             {activeProject === null ? (
               <NoFolder />
             ) : (
-              <Stage preview={preview} stage={stage} />
+              <Stage isBooting={isBooting} preview={preview} stage={stage} />
             )}
 
             {inspect.card === null && inspect.markers.length === 0 ? null : (
@@ -211,20 +212,21 @@ function ArmedFrame({ preview }: { readonly preview: PreviewControl }) {
 }
 
 function Stage({
+  isBooting,
   preview,
   stage,
 }: {
+  readonly isBooting: boolean;
   readonly preview: Preview;
   readonly stage: RefObject<HTMLIFrameElement | null>;
 }) {
   if (preview.phase === "ready") {
     return (
-      <iframe
-        allow="autoplay; fullscreen"
-        className="h-full w-full animate-stage-in border-0"
+      <PreviewFrame
+        isBooting={isBooting}
+        key={preview.url}
         ref={stage}
-        src={preview.url}
-        title="Remotion preview"
+        url={preview.url}
       />
     );
   }
@@ -269,6 +271,35 @@ function Stage({
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
+  );
+}
+
+export function PreviewFrame({
+  isBooting,
+  ref,
+  url,
+}: {
+  readonly isBooting: boolean;
+  readonly ref: RefObject<HTMLIFrameElement | null>;
+  readonly url: string;
+}) {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const onLoad = useCallback(() => setIsLoaded(true), []);
+
+  return (
+    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: load is the embedded document becoming paintable, not a user interaction
+    <iframe
+      allow="autoplay; fullscreen"
+      className={cn(
+        "h-full w-full border-0 opacity-0 transition-opacity duration-200 ease-[cubic-bezier(0.19,1,0.22,1)] motion-reduce:duration-150",
+        isLoaded && "opacity-100",
+        isBooting && "transition-none"
+      )}
+      onLoad={onLoad}
+      ref={ref}
+      src={url}
+      title="Remotion preview"
+    />
   );
 }
 
