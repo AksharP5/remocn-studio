@@ -28,6 +28,7 @@ import {
   type SettingsDialog,
   useSettingsDialog,
 } from "@/hooks/use-settings-dialog";
+import { useSidecarStatus } from "@/hooks/use-sidecar-status";
 import { type Tools, useTools } from "@/hooks/use-tools";
 import { type Tours, useTours } from "@/hooks/use-tours";
 import { type Updates, useUpdates } from "@/hooks/use-updates";
@@ -225,10 +226,18 @@ function StudioStateProvider({
 
   const library = useLibrary(workspace.hasRunningTurns);
 
+  // The preview follows the sidecar: its request is long-lived, so a crash
+  // fails it and nothing else would bring it back. Only the phase is taken, and
+  // it stays out of the context value — putting the whole `Sidecar` in there
+  // changed the value's identity on every status event and re-rendered every
+  // consumer of the studio for a reading only this one hook wants.
+  const sidecarPhase = useSidecarStatus()?.phase ?? "unknown";
+
   const previewProjectId = previewTarget(workspace);
   const preview = usePreview(
     previewProjectId,
-    workspace.openedVideo?.compositionId ?? null
+    workspace.openedVideo?.compositionId ?? null,
+    sidecarPhase
   );
 
   useReconciledVideos(preview, previewProjectId, workspace.reconcile);

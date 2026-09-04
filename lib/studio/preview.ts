@@ -245,6 +245,12 @@ export const PreviewCommand = Schema.Union([
     type: Schema.Literal("tuning.read"),
   }),
   Schema.Struct({
+    // Whether anything is open to be highlighted *for*. `targetId: null` on its
+    // own used to mean two different things — a card with no chain, which wants
+    // the picked element boxed, and no card at all, which wants nothing drawn —
+    // and the second read as the first, so Cancel moved the box back onto the
+    // picked element and left it there.
+    open: Schema.Boolean,
     source: to,
     targetId: Schema.NullOr(Schema.NonEmptyString),
     type: Schema.Literal("highlight"),
@@ -306,8 +312,11 @@ export function snapshotCommand(armed: boolean): PreviewCommand {
 }
 
 /** Point at one `Interactive` of the open selection, or at none. */
-export function highlightCommand(targetId: string | null): PreviewCommand {
-  return { source: PREVIEW_COMMAND_SOURCE, targetId, type: "highlight" };
+export function highlightCommand(
+  targetId: string | null,
+  open: boolean
+): PreviewCommand {
+  return { open, source: PREVIEW_COMMAND_SOURCE, targetId, type: "highlight" };
 }
 
 export function seekCommand(frame: number): PreviewCommand {

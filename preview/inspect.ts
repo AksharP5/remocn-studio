@@ -135,7 +135,18 @@ export function armInspect(armed: boolean, stage: Stage): InspectStatus {
  * the preview document, next to the hover box and for the same reason: it
  * shares a document with the pixels, so it cannot drift from them.
  */
-export function highlightTarget(targetId: string | null): void {
+// The box belongs to the *card*, not to the mode. Turning Inspect off while the
+// pane is up still means "stop picking, not forget what I picked" — but once
+// Cancel has closed the pane there is nothing on screen the box refers to, and
+// leaving it there burns a rectangle and a component name into a frame the
+// person is judging by eye, with no mode on and nothing to click to remove it.
+export function highlightTarget(targetId: string | null, open: boolean): void {
+  if (!open) {
+    selected = null;
+    paint();
+    return;
+  }
+
   selected = targetId === null ? picked : (chain.get(targetId) ?? picked);
   paint();
 }

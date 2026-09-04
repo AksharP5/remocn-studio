@@ -6,7 +6,7 @@ import {
   useOnPreview,
   usePreview,
 } from "@/hooks/use-preview";
-import type { PreviewEvent } from "@/shared/ipc";
+import type { PreviewEvent, SidecarPhase } from "@/shared/ipc";
 
 const FOLDER = "/Users/me/projects/my-video";
 const URL = "http://127.0.0.1:51749";
@@ -110,11 +110,12 @@ const SELECTION = {
 
 async function served(
   listen: PreviewListener = listener(),
-  composition: string | null = null
+  composition: string | null = null,
+  phase: SidecarPhase | "unknown" = "ready"
 ) {
   const host = mockPreview();
   const rendered = renderHook(() => {
-    const preview = usePreview(FOLDER, composition);
+    const preview = usePreview(FOLDER, composition, phase);
     useOnPreview(preview, listen);
     return preview;
   });
@@ -175,8 +176,61 @@ describe("usePreview", () => {
     expect(rendered.result.current.isServing).toBe(false);
   });
 
+  // Killing the sidecar failed the preview's long-lived request and nothing
+  // brought it back: every other pane healed itself, and the one that costs
+  // seven seconds to rebuild sat dead behind an unlabelled Restart button.
+  it("comes back on its own when the sidecar does", async () => {
+    const host = mockPreview();
+    const rendered = renderHook(
+      ({ phase }: { phase: SidecarPhase | "unknown" }) =>
+        usePreview(FOLDER, null, phase),
+      { initialProps: { phase: "ready" as SidecarPhase | "unknown" } }
+    );
+
+    host.send({ type: "ready", url: URL });
+    await waitFor(() => {
+      expect(rendered.result.current.isServing).toBe(true);
+    });
+
+    host.send({ message: "cancelled", type: "failed" });
+    rendered.rerender({ phase: "restarting" });
+
+    await waitFor(() => {
+      expect(rendered.result.current.preview).toEqual({
+        message: "The preview stopped when the sidecar restarted.",
+        phase: "failed",
+      });
+    });
+
+    rendered.rerender({ phase: "ready" });
+
+    await waitFor(() => {
+      expect(rendered.result.current.preview.phase).toBe("building");
+    });
+  });
+
+  it("does not relaunch when the sidecar was never lost", async () => {
+    const host = mockPreview();
+    const rendered = renderHook(
+      ({ phase }: { phase: SidecarPhase | "unknown" }) =>
+        usePreview(FOLDER, null, phase),
+      { initialProps: { phase: "starting" as SidecarPhase | "unknown" } }
+    );
+
+    host.send({ type: "ready", url: URL });
+    await waitFor(() => {
+      expect(rendered.result.current.isServing).toBe(true);
+    });
+
+    rendered.rerender({ phase: "ready" });
+
+    await waitFor(() => {
+      expect(rendered.result.current.isServing).toBe(true);
+    });
+  });
+
   it("stays idle without a folder", () => {
-    const { result } = renderHook(() => usePreview(null, null));
+    const { result } = renderHook(() => usePreview(null, null, "ready"));
 
     expect(result.current.preview).toEqual({ phase: "idle" });
     expect(result.current.isServing).toBe(false);
@@ -360,7 +414,7 @@ describe("usePreview", () => {
     const listen = listener();
     mockPreview();
     renderHook(() => {
-      const preview = usePreview(FOLDER, null);
+      const preview = usePreview(FOLDER, null, "ready");
       useOnPreview(preview, listen);
       return preview;
     });

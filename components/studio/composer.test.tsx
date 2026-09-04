@@ -63,6 +63,33 @@ const ELEMENT: PromptElement = {
 
 const RECT = { height: 0.2, width: 0.5, x: 0.25, y: 0.4 };
 
+const SHOWS_TITLE = /^Show Title at/;
+const SHOWS_RESOLVED = /^Show TitleCard at/;
+const WRAPPED_NAME = /TitleBase/;
+
+// `Title` is what `withSchema({ componentName: "Title" })` declares and what
+// the pane shows in three places; `TitleBase` is the wrapped function, an
+// implementation detail that is not exported and never appears in the pane.
+const TARGET = {
+  componentName: "Title",
+  fields: [],
+  instanceId: "anchor-1",
+  instances: 1,
+  name: null,
+  ordinal: 1,
+  targetId: "anchor-1::Title",
+  where: null,
+};
+
+const TUNED = {
+  fonts: [],
+  open: 0,
+  originals: {},
+  targets: [TARGET],
+  text: null,
+  window: null,
+};
+
 const READY = {
   attempt: 0,
   detail: null,
@@ -177,16 +204,21 @@ function typeInto(textarea: HTMLElement, value: string) {
   );
 }
 
+// Starting, then ready — by the clock, not by a call count. Counting calls
+// assumed exactly one consumer of the status, so a second one anywhere in the
+// tree silently ate the "starting" answer this test exists to see. The flip
+// lands between the first read and `settle`'s 700 ms retry.
+const SECOND_LOOK_MS = 200;
+
 function mockShellReadyOnSecondLook() {
-  const seen: unknown[] = [];
+  const from = Date.now();
 
   mockIPC(
     (cmd) => {
       if (cmd !== "sidecar_status") {
         throw new Error(`unexpected command: ${cmd}`);
       }
-      seen.push(cmd);
-      return seen.length === 1
+      return Date.now() - from < SECOND_LOOK_MS
         ? { ...READY, attempt: 1, phase: "starting", pid: null }
         : READY;
     },
@@ -217,10 +249,19 @@ function SelectProbe() {
     select(ELEMENT, RECT, "make this bigger");
   }, [select]);
 
+  const pickTuned = useCallback(() => {
+    select(ELEMENT, RECT, "make this bigger", TUNED);
+  }, [select]);
+
   return (
-    <button onClick={pick} type="button">
-      Pick element
-    </button>
+    <>
+      <button onClick={pick} type="button">
+        Pick element
+      </button>
+      <button onClick={pickTuned} type="button">
+        Pick tuned element
+      </button>
+    </>
   );
 }
 
@@ -392,6 +433,32 @@ describe("Composer", () => {
 
     expect(textarea).toHaveAttribute("autocorrect", "off");
     expect(textarea).toHaveAttribute("autocapitalize", "off");
+  });
+
+  // The chip is the only thing left on screen once the pane closes, so a name
+  // the person never saw is a record of what they tuned labelled with nothing
+  // they interacted with.
+  it("names a tuned element the way the properties pane does", async () => {
+    await renderComposer();
+
+    fireEvent.click(screen.getByRole("button", { name: "Pick tuned element" }));
+
+    expect(
+      await screen.findByRole("button", { name: SHOWS_TITLE })
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: WRAPPED_NAME })
+    ).not.toBeInTheDocument();
+  });
+
+  it("falls back to the resolved component for a selection with no schema", async () => {
+    await renderComposer();
+
+    fireEvent.click(screen.getByRole("button", { name: "Pick element" }));
+
+    expect(
+      await screen.findByRole("button", { name: SHOWS_RESOLVED })
+    ).toBeVisible();
   });
 
   it("picks an effort level from the menu", async () => {

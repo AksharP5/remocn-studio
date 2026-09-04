@@ -476,11 +476,14 @@ export function useInspect({
   const openTargetId =
     openLink === null ? null : keyOf(openLink.instanceId, openLink.targetId);
 
+  // Not guarded on `isArmed`: the box follows the card, so closing the pane has
+  // to take it down whether or not the mode is still on, and disarming with the
+  // pane still open has to leave it alone.
+  const isCardOpen = card !== null;
+
   useEffect(() => {
-    if (isArmed) {
-      send(highlightCommand(openTargetId));
-    }
-  }, [isArmed, openTargetId, send]);
+    send(highlightCommand(openTargetId, isCardOpen));
+  }, [isCardOpen, openTargetId, send]);
 
   // Read through the ref, not through state: an edit writes the card there
   // immediately, so Add made in the same tick as the last drag still carries

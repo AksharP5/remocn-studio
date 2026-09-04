@@ -12,6 +12,7 @@ import {
 import type { Selection } from "@/hooks/use-selections";
 import { relativeTo } from "@/lib/studio/activity";
 import { frameTime } from "@/lib/studio/time";
+import { titleOf } from "@/lib/studio/tuning";
 import type { PromptElement } from "@/shared/ipc";
 
 export function SelectionRow({
@@ -94,7 +95,7 @@ function SelectionChip({
         <TooltipTrigger
           render={
             <Button
-              aria-label={`Show ${labelOf(element)} at ${frameTime(element.frame, element.fps)}`}
+              aria-label={`Show ${labelOf(item)} at ${frameTime(element.frame, element.fps)}`}
               className="gap-1 font-normal"
               onClick={show}
               size="xs"
@@ -105,7 +106,7 @@ function SelectionChip({
         >
           <MousePointerClickIcon className="text-reference" />
           <span className="text-reference tabular-nums">{index + 1}</span>
-          <span className="max-w-32 truncate">{labelOf(element)}</span>
+          <span className="max-w-32 truncate">{labelOf(item)}</span>
           {changes > 0 ? (
             <span className="text-muted-foreground tabular-nums">
               · {item.stale ? "Preview changed" : `${changes} changes`}
@@ -115,11 +116,11 @@ function SelectionChip({
             {frameTime(element.frame, element.fps)}
           </span>
         </TooltipTrigger>
-        <TooltipContent>{`${labelOf(element)} · ${whereOf(element, cwd)}`}</TooltipContent>
+        <TooltipContent>{`${labelOf(item)} · ${whereOf(element, cwd)}`}</TooltipContent>
       </Tooltip>
 
       <Button
-        aria-label={`Remove ${labelOf(element)}`}
+        aria-label={`Remove ${labelOf(item)}`}
         className="relative size-5 after:absolute after:-inset-1"
         onClick={remove}
         size="icon-xs"
@@ -132,7 +133,20 @@ function SelectionChip({
   );
 }
 
-function labelOf(element: PromptElement): string {
+// The pane names a component by what it *declares* — `componentName` on
+// `withSchema`, or the `name` Remotion carries on the schema — and the chip is
+// the only thing left on screen after the pane closes, so it has to agree.
+// Reading grab's source resolution instead named the wrapped function:
+// `TitleBase`, an implementation detail that is not exported, never appears in
+// the pane, and is not a name the person has seen. `open` is the link the pane
+// was on when Add was pressed, which is the one they were working in.
+function labelOf(item: Selection): string {
+  const target = item.tuning?.targets[item.tuning.open];
+
+  return target === undefined ? plainLabel(item.element) : titleOf(target);
+}
+
+function plainLabel(element: PromptElement): string {
   return element.component ?? element.scene?.name ?? "Element";
 }
 
