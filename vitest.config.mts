@@ -37,6 +37,19 @@ export default defineConfig({
     ],
     globals: false,
     include: ["**/*.{test,spec}.{ts,tsx}"],
+    // Sharing one module graph across files halves the run (17.6 s against
+    // 34.5 s, measured at three workers) and breaks every suite that mocks a
+    // module: `vi.mock` cannot reach a module an earlier file already
+    // evaluated, so use-tours wrote to the real store and asset-source-card
+    // called the real dialog. Isolation is the default; it is written down so
+    // the number beside it is too.
+    isolate: true,
+    // Vitest's default is every core but one. On a fanless laptop that is
+    // seven node processes at full tilt and a load average past thirty for the
+    // length of a run; three leaves the machine usable while it runs.
+    // `VITEST_MAX_WORKERS` still overrides it, which is what a CI runner would
+    // set.
+    maxWorkers: 3,
     setupFiles: ["./vitest.setup.ts"],
     // Has to sit above the `asyncUtilTimeout` in vitest.setup.ts, or a query
     // that will never resolve burns the whole test budget and dies here — with

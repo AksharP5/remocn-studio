@@ -123,6 +123,16 @@ Vitest + React Testing Library + jsdom (`vitest.config.mts`). The `@/*` alias
 resolves natively via `resolve.tsconfigPaths` — do not add `vite-tsconfig-paths`,
 Vite 7 warns that it is redundant.
 
+**Three workers, isolated.** Vitest's default is every core but one, which on the
+fanless MacBook the app is developed on is seven node processes and a load average
+past thirty for the length of a run; `maxWorkers: 3` keeps it under four and costs
+about 35 s for the whole suite. `isolate: false` would halve that and was measured
+and rejected: `vi.mock` cannot reach a module an earlier file already evaluated in
+a shared graph, so the five suites that mock a module silently ran against the
+real one. **While iterating, run only the files you touched** —
+`bun run test hooks/use-tours.test.tsx` — and the full suite once before a commit.
+Never run `test:watch` beside a `vitest run`.
+
 **jsdom is not a Tauri webview.** There is no `window.__TAURI_INTERNALS__`, so
 any `invoke()` that reaches the real transport throws. Tests touching IPC must
 install a fake with `mockIPC` from `@tauri-apps/api/mocks`; `vitest.setup.ts`
