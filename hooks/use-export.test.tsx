@@ -11,6 +11,7 @@ const OUTPUT = "/Users/me/scenes/out/Main.mp4";
 const SERVING: ExportSettings = {
   composition: "Main",
   isServing: true,
+  openedProjectId: PROJECT,
   projectId: PROJECT,
 };
 
@@ -116,10 +117,29 @@ describe("useExport", () => {
 
   it("refuses to export a project that is not open", () => {
     const { result } = renderHook(() =>
-      useExport({ composition: null, isServing: false, projectId: null })
+      useExport({
+        composition: null,
+        isServing: false,
+        openedProjectId: null,
+        projectId: null,
+      })
     );
 
     expect(result.current.unavailable).toBe("Open a project to export it.");
+  });
+
+  // Inspect and Snapshot already refused this with the same sentence; Export
+  // renders from the same preview and stayed enabled, so it would have put the
+  // other project's video into its out/ under a conversation about this one.
+  it("refuses while the preview shows another project than the open chat", () => {
+    const { result } = renderHook(() =>
+      useExport({ ...SERVING, openedProjectId: OTHER })
+    );
+
+    expect(result.current.canExport).toBe(false);
+    expect(result.current.unavailable).toBe(
+      "The preview is showing a different project than this session."
+    );
   });
 
   it("says what it is doing while the frames render", async () => {
@@ -213,7 +233,7 @@ describe("useExport", () => {
   it("says why another project's export blocks this one", async () => {
     const { rendered } = await started();
 
-    rendered.rerender({ ...SERVING, projectId: OTHER });
+    rendered.rerender({ ...SERVING, openedProjectId: OTHER, projectId: OTHER });
 
     expect(rendered.result.current.isRunning).toBe(false);
     expect(rendered.result.current.canExport).toBe(false);
@@ -225,7 +245,7 @@ describe("useExport", () => {
   it("keeps showing a render that is still running when you come back to it", async () => {
     const { rendered } = await started();
 
-    rendered.rerender({ ...SERVING, projectId: OTHER });
+    rendered.rerender({ ...SERVING, openedProjectId: OTHER, projectId: OTHER });
     rendered.rerender(SERVING);
 
     expect(rendered.result.current.isRunning).toBe(true);
@@ -240,7 +260,7 @@ describe("useExport", () => {
       expect(rendered.result.current.result).toEqual(EXPORTED);
     });
 
-    rendered.rerender({ ...SERVING, projectId: OTHER });
+    rendered.rerender({ ...SERVING, openedProjectId: OTHER, projectId: OTHER });
 
     expect(rendered.result.current.result).toBeNull();
   });

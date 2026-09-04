@@ -110,6 +110,7 @@ export function useTools({
   const exporting = useExport({
     composition: preview.composition,
     isServing: preview.isServing,
+    openedProjectId,
     projectId: previewProjectId,
   });
 

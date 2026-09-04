@@ -259,3 +259,13 @@ export function newestChat(
 ): HistorySession | null {
   return rows.find((row) => row.videoId === videoId) ?? null;
 }
+
+// The same question one level up: switching projects opens the project's most
+// recent chat, so the chat pane moves with the video list and the preview
+// rather than being left on the project that was open before.
+export function newestChatIn(
+  rows: readonly HistorySession[],
+  projectId: string
+): HistorySession | null {
+  return rows.find((row) => row.projectId === projectId) ?? null;
+}

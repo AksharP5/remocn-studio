@@ -68,6 +68,7 @@ export function ChatPane() {
     isLoadingProjects,
     isProjectsShown,
     library,
+    listError,
     newProject,
     newVideo,
     openedProject,
@@ -75,6 +76,7 @@ export function ChatPane() {
     preferences,
     queue,
     relocateProject,
+    reloadProjects,
     settings,
     togglePreview,
     toggleProjects,
@@ -156,12 +158,14 @@ export function ChatPane() {
           hasProject={openedProject !== null}
           isLoadingProjects={isLoadingProjects}
           library={library}
+          listError={listError}
           missing={openedProject?.missing ?? false}
           newProject={newProject}
           newVideo={newVideo}
           offersEnabled={preferences.assetOffers}
           onLocate={locate}
           onOpenFolder={openFolder}
+          onRetryProjects={reloadProjects}
           projectName={openedProject?.name ?? null}
           queue={queue}
           settings={settings}
@@ -200,12 +204,14 @@ function Conversation({
   hasProject,
   isLoadingProjects,
   library,
+  listError,
   missing,
   newProject,
   newVideo,
   offersEnabled,
   onLocate,
   onOpenFolder,
+  onRetryProjects,
   projectName,
   queue,
   settings,
@@ -216,12 +222,14 @@ function Conversation({
   hasProject: boolean;
   isLoadingProjects: boolean;
   library: Library;
+  listError: string | null;
   missing: boolean;
   newProject: NewProject;
   newVideo: NewVideo;
   offersEnabled: boolean;
   onLocate: () => void;
   onOpenFolder: () => void;
+  onRetryProjects: () => void;
   projectName: string | null;
   queue: Queue;
   settings: StudioSettings | null;
@@ -229,7 +237,13 @@ function Conversation({
 }) {
   const hasTranscript = turn.entries.length > 0 || turn.turnError !== null;
   const isCreating = newProject.isOpen || newVideo.isOpen;
-  const isStartup = !(isLoadingProjects || hasProject || hasTranscript);
+  const isListFailed = !hasProject && listError !== null;
+  const isStartup = !(
+    isLoadingProjects ||
+    hasProject ||
+    hasTranscript ||
+    isListFailed
+  );
   const now = useNow(turn.isRunning ? TICK : null);
   const offer = useAssetOffer({
     enabled: offersEnabled,
@@ -263,10 +277,12 @@ function Conversation({
                   hasProject={hasProject}
                   hasTranscript={hasTranscript}
                   isLoadingProjects={isLoadingProjects}
+                  listError={isListFailed ? listError : null}
                   newProject={newProject}
                   newVideo={newVideo}
                   now={now}
                   onOpenFolder={onOpenFolder}
+                  onRetryProjects={onRetryProjects}
                   projectName={projectName}
                   turn={turn}
                 />
@@ -356,10 +372,12 @@ function ConversationBody({
   hasProject,
   hasTranscript,
   isLoadingProjects,
+  listError,
   newProject,
   newVideo,
   now,
   onOpenFolder,
+  onRetryProjects,
   projectName,
   turn,
 }: {
@@ -367,10 +385,12 @@ function ConversationBody({
   hasProject: boolean;
   hasTranscript: boolean;
   isLoadingProjects: boolean;
+  listError: string | null;
   newProject: NewProject;
   newVideo: NewVideo;
   now: number;
   onOpenFolder: () => void;
+  onRetryProjects: () => void;
   projectName: string | null;
   turn: OpenTurn;
 }) {
@@ -408,6 +428,13 @@ function ConversationBody({
     return null;
   }
 
+  // A list that failed is not a list that is empty. Onboarding here told a
+  // returning person their projects were gone — and offered New Project,
+  // which would have failed the same way with nothing connecting the two.
+  if (listError !== null) {
+    return <ProjectsFailed message={listError} onRetry={onRetryProjects} />;
+  }
+
   return (
     <ChatEmptyState
       entrance={entrance}
@@ -415,6 +442,32 @@ function ConversationBody({
       onNewProject={newProject.open}
       onOpenFolder={onOpenFolder}
     />
+  );
+}
+
+function ProjectsFailed({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) {
+  return (
+    <Empty className="items-start border-none text-left">
+      <EmptyHeader className="max-w-none items-start text-left">
+        <EmptyTitle className="text-balance text-2xl">
+          The project list could not be read
+        </EmptyTitle>
+        <EmptyDescription className="break-words" role="alert">
+          {message}
+        </EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent className="items-start">
+        <Button onClick={onRetry} size="sm" variant="outline">
+          Try again
+        </Button>
+      </EmptyContent>
+    </Empty>
   );
 }
 

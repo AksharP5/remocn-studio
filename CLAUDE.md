@@ -397,6 +397,16 @@ and holds long enough to be seen,
 then dissolves once both waits settle. A six-second cap reveals the shell and
 its sidecar status instead of letting a failed sidecar hold the window hostage.
 
+**A list that failed is not a list that is empty** (REM-314). On a failed `project.list`
+the projects stayed `[]` and loading settled, so the shell fell through to first-run
+onboarding — telling a returning person their work was gone, and offering New Project,
+which would have failed the same way with nothing connecting the two. `listError` on
+`useProjects` is the list's own failure, apart from `projectsError`, which also carries a
+folder that would not open and leaves the list intact; the conversation renders *The
+project list could not be read* with the message and a Try again, and the startup
+backdrop stays off. The splash still dissolves — the card is the honest screen, and holding
+a splash over a known failure only delays the news.
+
 Keep the splash in the page's static HTML. Moving it behind hydration restores
 the empty first paint; moving it to a second Tauri window turns the one dissolve
 into a jump cut.
@@ -816,6 +826,15 @@ reads the **store's** order, newest first, not the pane's: attention promotion i
 `paneGroups` is a reading order and must not decide what a click opens. A video with no
 chats yet only expands, because there is nothing to open.
 
+- **Switching projects opens that project's most recent chat** (REM-337). File → ‹project›
+  was the one way to change project without opening a chat, and it moved the video list and
+  the preview while the chat pane stayed on the project that was open before — two projects
+  on screen at once, with Export bound to the preview: Inspect and Snapshot refused with
+  *the preview is showing a different project than this session* and Export stayed enabled,
+  ready to render the other project's video into its `out/`. `selectProject` in
+  `useWorkspace` now goes through `newestChatIn` and `openSession`, the same path a video
+  row takes; a project with no chats yet opens with an empty composer. Export carries the
+  same refusal as the other two, so the three buttons on one preview can no longer disagree.
 - **Two sources of truth, with different jobs: SQLite draws, the bundle corrects.** The
   pane renders `video` rows the instant a project is opened; ~7 s later the compiled
   bundle names its compositions and `video.reconcile` settles the difference — a

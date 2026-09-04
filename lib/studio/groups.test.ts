@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   newestChat,
+  newestChatIn,
   paneGroups,
   paneSections,
   sessionMeta,
@@ -431,5 +432,25 @@ describe("newestChat", () => {
 
     expect(promoted[0]?.rows[0]?.session.id).toBe("a-old");
     expect(newestChat(rows, "video-a")?.id).toBe("a-new");
+  });
+});
+
+// Switching projects opens the project's most recent chat, which is the same
+// rule one level up: the chat pane has to move with the video list and the
+// preview, or the app shows two projects at once.
+describe("newestChatIn", () => {
+  const rows = [
+    { ...session("b-new", "video-b"), projectId: "project-b" },
+    { ...session("a-new", "video-a"), projectId: "project-a" },
+    { ...session("b-old", "video-b"), projectId: "project-b" },
+  ];
+
+  it("takes the first row of that project, which is its newest", () => {
+    expect(newestChatIn(rows, "project-b")?.id).toBe("b-new");
+    expect(newestChatIn(rows, "project-a")?.id).toBe("a-new");
+  });
+
+  it("is null for a project with no chats yet", () => {
+    expect(newestChatIn(rows, "project-c")).toBeNull();
   });
 });
