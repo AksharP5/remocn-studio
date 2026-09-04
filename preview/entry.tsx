@@ -13,6 +13,7 @@ import {
   type Stage as Spot,
 } from "./inspect";
 import { InteractivityRuntime } from "./interactivity";
+import { releaseDetachedMedia } from "./media-release";
 import { armSnapshot, type Frame } from "./snapshot";
 import { clearTuning, tune, tuningValues } from "./tuning-runtime";
 
@@ -30,6 +31,9 @@ Internals.waitForRoot((Root: React.FC) => {
   if (element === null) {
     return;
   }
+  // For the life of the page: every scene mounts inside this element, and a
+  // clip that leaves it must not keep its decoded frames in the GPU process.
+  releaseDetachedMedia(element);
   createRoot(element).render(<Preview Root={Root} />);
 });
 
