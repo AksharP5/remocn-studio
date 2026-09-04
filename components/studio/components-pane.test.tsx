@@ -127,4 +127,17 @@ describe("ComponentsPane", () => {
 
     expect(screen.getByText("No components yet")).toBeInTheDocument();
   });
+
+  it("keeps the search field out of the scroller", () => {
+    const { container } = pane({ assets: [asset()] });
+
+    const field = container.querySelector('input[aria-label="Search by name"]');
+    const viewport = container.querySelector(
+      '[data-slot="scroll-area-viewport"]'
+    );
+
+    expect(field).not.toBeNull();
+    expect(viewport).not.toBeNull();
+    expect(viewport?.contains(field)).toBe(false);
+  });
 });

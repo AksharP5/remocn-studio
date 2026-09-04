@@ -151,4 +151,17 @@ describe("StockPane", () => {
 
     expect(await screen.findByText(NOTHING_FOUND)).toBeInTheDocument();
   });
+
+  it("keeps the search field out of the scroller", async () => {
+    install(true, []);
+    pane();
+
+    const field = await screen.findByLabelText("Search Pexels");
+    const viewport = document.querySelector(
+      '[data-slot="scroll-area-viewport"]'
+    );
+
+    expect(viewport).not.toBeNull();
+    expect(viewport?.contains(field)).toBe(false);
+  });
 });

@@ -2998,9 +2998,18 @@ field, one value — where the pane's categories (Typography, Shaders, Filters�
   components. `z-30` clears both. Making it visible then showed the other half: the
   heading stuck at a flat `top-11` while the search field above it is 44px only until
   `sm:`, where the input drops to `h-7.5` and the field becomes 40px — so tiles scrolled
-  through a 4px band between the two. `UNDER_SEARCH_FIELD` is exported beside the field
-  that defines it, because the offset and the height are one value and not two to be
-  remembered together.
+  through a 4px band between the two.
+- **Nothing interactive is `sticky` inside the pane's scroller** — that is what finally
+  made the search field answer. Raising it to `z-40` changed nothing: WKWebView draws a
+  stuck element at the top and hit-tests it where it was *laid out*, so once the grid had
+  scrolled the field looked right and a click went to the tile underneath. `PaneScreen`
+  in `components/studio/pane-screen.tsx` is the one shape every view has now — a pinned
+  block above the `SidebarContent` scroller, the list inside it — and the search fields
+  of Assets, Components and Stock, the scope switch and *New video* all live in the
+  pinned half. The offset above and `UNDER_SEARCH_FIELD` went with it: the role headings
+  stick to the scroller's own `top-0`, which is also why the Components view turns the
+  scroll fade off — the fade is a mask over the viewport's top 1.5rem, exactly where a
+  stuck heading sits. A test per pane pins that the field is outside the viewport.
 - **The pane groups by role.** Entry, Emphasis, Exit, Scene, Transition with a count
   each; category survives in the data and orders the tiles *inside* a group, so Scene
   reads shaders before filters. A saved component sits in its own role beside the

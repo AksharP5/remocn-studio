@@ -20,6 +20,7 @@ import { type Stock, stockKeyOf, useStock } from "@/hooks/use-stock";
 import { clipTime } from "@/lib/studio/time";
 import type { StockProgress } from "@/shared/ipc";
 import type { StockItem, StockKind } from "@/shared/library";
+import { PaneScreen } from "./pane-screen";
 
 const PLACEHOLDERS = ["one", "two", "three"];
 
@@ -35,10 +36,10 @@ export function StockPane({
   const stock = useStock(kind, onSaved);
 
   return (
-    <div className="relative">
-      <div className="sticky top-0 z-10 bg-sidebar px-1 pb-2">
-        <div className="relative">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+    <PaneScreen
+      pinned={
+        <div className="relative px-1">
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             aria-label="Search Pexels"
             className="pl-8"
@@ -48,10 +49,10 @@ export function StockPane({
             value={stock.query}
           />
         </div>
-      </div>
-
+      }
+    >
       <StockBody onOpenSettings={onOpenSettings} stock={stock} />
-    </div>
+    </PaneScreen>
   );
 }
 

@@ -20,10 +20,7 @@ import {
 } from "@/components/ui/empty";
 import {
   Sidebar,
-  SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -52,6 +49,7 @@ import { AssetsPane } from "./assets-pane";
 import { AssetsScopeSwitch } from "./assets-scope";
 import { ComponentsPane } from "./components-pane";
 import { LogoWordmark } from "./logo-mark";
+import { PaneScreen } from "./pane-screen";
 import { StockPane } from "./stock-pane";
 import { useStudio } from "./studio-provider";
 import { UpdateStatus } from "./update-status";
@@ -144,15 +142,15 @@ export function ProjectsPane() {
   // Pinned above the scroller rather than scrolled with the list: the one
   // action that starts a video must not be the first thing a long list takes
   // off screen.
-  let pinned: React.ReactNode = (
-    <NewVideoAction
-      isDisabled={activeProject === null || activeProject.missing}
-      onNewVideo={newVideo.open}
-    />
-  );
-
   let content = (
-    <>
+    <PaneScreen
+      pinned={
+        <NewVideoAction
+          isDisabled={activeProject === null || activeProject.missing}
+          onNewVideo={newVideo.open}
+        />
+      }
+    >
       <h2 className="sr-only">Videos</h2>
       {activeProject === null ? null : (
         <Scaffolding
@@ -177,15 +175,18 @@ export function ProjectsPane() {
         onSelectSession={onSelectSession}
         onToggle={onToggleVideo}
       />
-    </>
+    </PaneScreen>
   );
 
   if (paneView === "assets") {
-    pinned = null;
     content = (
       <>
         <h2 className="sr-only">Assets</h2>
-        <AssetsScopeSwitch scope={assetsScope} />
+        {/* Above the pane rather than inside it, so the switch sits over the
+            search field the pane pins and neither of them scrolls. */}
+        <div className="px-2 pt-2">
+          <AssetsScopeSwitch scope={assetsScope} />
+        </div>
         {stockKind === null ? (
           <AssetsPane
             assets={media}
@@ -208,7 +209,6 @@ export function ProjectsPane() {
   }
 
   if (paneView === "components") {
-    pinned = null;
     content = (
       <>
         <h2 className="sr-only">Components</h2>
@@ -292,15 +292,7 @@ export function ProjectsPane() {
           data-pane-slide
           key={paneView}
         >
-          {/* `p-2` is what `SidebarGroup` gives the scrolling half, so the
-              pinned action keeps the list's own left and right edge. */}
-          {pinned === null ? null : <div className="px-2 pt-2">{pinned}</div>}
-
-          <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupContent>{content}</SidebarGroupContent>
-            </SidebarGroup>
-          </SidebarContent>
+          {content}
         </div>
 
         {footer}
@@ -403,7 +395,7 @@ function NewVideoAction({
   onNewVideo: () => void;
 }) {
   return (
-    <div className="px-2 pb-2">
+    <div className="px-1">
       <Button
         className="w-full"
         disabled={isDisabled}
