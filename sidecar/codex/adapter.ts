@@ -14,6 +14,7 @@ import type {
   SessionMode,
 } from "@/shared/ipc";
 import { PROVIDER_INFO } from "@/shared/providers";
+import { abortQuietly } from "../agent/abort";
 import type { AgentAdapter, TurnServices } from "../agent/adapter";
 import {
   announce,
@@ -145,10 +146,12 @@ export const codexAdapter: AgentAdapter = {
               })
           )
         ),
+        // A finalizer reports, it never fails: see abortQuietly for why a
+        // plain abort could take the whole sidecar with it.
         Effect.onExit((exit) =>
           Effect.sync(() => {
             if (!Exit.isSuccess(exit)) {
-              controller.abort();
+              abortQuietly(controller);
             }
           })
         ),

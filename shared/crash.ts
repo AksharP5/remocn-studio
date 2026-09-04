@@ -79,6 +79,23 @@ export type CrashDecision =
   | { started: false; reason: "no-consent" | "no-dsn" | "development" }
   | { started: true };
 
+// One more way to be off, decided after the decision above: the SDK could
+// not be loaded. It is kept apart from `CrashDecision` because the contract
+// module must not know there is an SDK.
+export type CrashOutcome =
+  | CrashDecision
+  | { started: false; reason: "no-sdk"; detail: string };
+
+export function crashLine(outcome: CrashOutcome): string {
+  if (outcome.started) {
+    return "crash reports are on";
+  }
+  if (outcome.reason === "no-sdk") {
+    return `crash reports are off (no-sdk: ${outcome.detail})`;
+  }
+  return `crash reports are off (${outcome.reason})`;
+}
+
 export function crashDecision(input: {
   consent: boolean;
   dsn: string | null;

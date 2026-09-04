@@ -2,6 +2,7 @@ import { mkdir, readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { Clock, Effect, Stream } from "effect";
 import { errorMessage } from "@/lib/error-message";
+import { crashLine } from "@/shared/crash";
 import {
   type Project,
   type PromptFrame,
@@ -366,15 +367,9 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
   // and it answers what the sidecar is *actually* doing — a build with no DSN
   // reports nothing however the switch is set.
   "crash.consent": ({ log, params }) =>
-    Effect.suspend(() => {
-      const decision = applyCrashConsent(params.enabled);
-
-      return log(
-        decision.started
-          ? "crash reports are on"
-          : `crash reports are off (${decision.reason})`
-      ).pipe(Effect.as({ reporting: isReporting() }));
-    }),
+    Effect.flatMap(applyCrashConsent(params.enabled), (outcome) =>
+      log(crashLine(outcome)).pipe(Effect.as({ reporting: isReporting() }))
+    ),
 
   "files.list": ({ params }) =>
     listFolder(params.path).pipe(Effect.mapError(unlisted)),
