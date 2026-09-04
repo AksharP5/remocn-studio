@@ -118,8 +118,8 @@ function ShellPanes({
   isBooting: boolean;
   isSliding: boolean;
 }) {
-  const { isPreviewShown, tools } = useStudio();
-  const collapse = usePreviewCollapse(isPreviewShown);
+  const { hidePreview, isPreviewShown, tools } = useStudio();
+  const collapse = usePreviewCollapse(isPreviewShown, hidePreview);
   // The pane exists while there is something to tune in it. A rail that is
   // usually empty is the thing a properties panel must not be.
   const isPropsShown =
@@ -167,6 +167,7 @@ function ShellPanes({
         defaultSize="44%"
         id="preview"
         minSize="360px"
+        onResize={collapse.onResize}
         panelRef={collapse.panelRef}
       >
         {collapse.isMounted ? (
