@@ -24,6 +24,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useAssetOffer } from "@/hooks/use-asset-offer";
+import type { Docs } from "@/hooks/use-docs";
 import { useEntrance } from "@/hooks/use-entrance";
 import type { Environment } from "@/hooks/use-environment";
 import type { Library } from "@/hooks/use-library";
@@ -33,6 +34,7 @@ import type { NewVideo } from "@/hooks/use-new-video";
 import { useNow } from "@/hooks/use-now";
 import type { OpenTurn } from "@/hooks/use-open-turn";
 import type { Queue } from "@/hooks/use-queue";
+import { documentsByStage } from "@/lib/studio/documents";
 import type { StudioSettings } from "@/lib/studio/settings";
 import { currentTasks } from "@/lib/studio/tasks";
 import { cn } from "@/lib/utils";
@@ -63,6 +65,7 @@ const TICK = "1 second";
 export function ChatPane() {
   const {
     activeSession,
+    docs,
     environment,
     isPreviewShown,
     isLoadingProjects,
@@ -154,6 +157,7 @@ export function ChatPane() {
       ) : (
         <Conversation
           cwd={openedProject?.path ?? null}
+          docs={docs}
           environment={environment}
           hasProject={openedProject !== null}
           isLoadingProjects={isLoadingProjects}
@@ -200,6 +204,7 @@ function LoadingTranscript() {
 
 function Conversation({
   cwd,
+  docs,
   environment,
   hasProject,
   isLoadingProjects,
@@ -218,6 +223,7 @@ function Conversation({
   turn,
 }: {
   cwd: string | null;
+  docs: Docs;
   environment: Environment;
   hasProject: boolean;
   isLoadingProjects: boolean;
@@ -341,6 +347,8 @@ function Conversation({
               message you just queued must land where you were typing. */}
           <DockStack>
             <TaskDock
+              documents={documentsByStage(docs.tabs)}
+              onOpenDocument={docs.onReveal}
               settings={settings}
               stages={turn.stages}
               tasks={currentTasks(turn.entries)}

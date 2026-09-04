@@ -16,7 +16,7 @@ import {
   ToolVerb,
 } from "./providers";
 
-export const SIDECAR_PROTOCOL = 25;
+export const SIDECAR_PROTOCOL = 26;
 
 export const SIDECAR_STATUS_EVENT = "sidecar://status";
 export const SIDECAR_NOTIFY_EVENT = "sidecar://notify";
@@ -81,6 +81,7 @@ export const METHOD_NAMES = [
   "project.install",
   "project.list",
   "project.open",
+  "project.read",
   "project.relocate",
   "project.remove",
   "project.rename",
@@ -89,6 +90,7 @@ export const METHOD_NAMES = [
   "sidecar.emit",
   "sidecar.info",
   "video.create",
+  "video.documents",
   "video.list",
   "video.reconcile",
   "video.register",
@@ -555,6 +557,29 @@ export const VideoName = Schema.Struct({
 
 export const VideoRemoved = Schema.Struct({ removed: Schema.Boolean });
 
+export const ProjectFile = Schema.Struct({
+  modifiedAt: Schema.Int,
+  name: Schema.NonEmptyString,
+  path: Schema.NonEmptyString,
+});
+
+// The folder rides back beside the files so an empty answer can still say
+// where the documents would go — the pane's empty state names it.
+export const VideoDocuments = Schema.Struct({
+  files: Schema.Array(ProjectFile),
+  folder: Schema.NonEmptyString,
+});
+
+export const DocumentRef = Schema.Struct({
+  path: Schema.NonEmptyString,
+  projectId: Schema.NonEmptyString,
+});
+
+export const DocumentText = Schema.Struct({
+  modifiedAt: Schema.Int,
+  text: Schema.String,
+});
+
 export const VideoReconcile = Schema.Struct({
   compositions: Schema.Array(Schema.NonEmptyString),
   projectId: Schema.NonEmptyString,
@@ -810,6 +835,10 @@ export type DirectoryListing = (typeof DirectoryListing)["Type"];
 export type VideoSize = (typeof VideoSize)["Type"];
 export type Video = (typeof Video)["Type"];
 export type VideoRef = (typeof VideoRef)["Type"];
+export type ProjectFile = (typeof ProjectFile)["Type"];
+export type VideoDocuments = (typeof VideoDocuments)["Type"];
+export type DocumentRef = (typeof DocumentRef)["Type"];
+export type DocumentText = (typeof DocumentText)["Type"];
 export type VideoDraft = (typeof VideoDraft)["Type"];
 export type VideoName = (typeof VideoName)["Type"];
 export type VideoRemoved = (typeof VideoRemoved)["Type"];
@@ -1112,6 +1141,11 @@ export const SIDECAR_METHODS = {
     result: Project,
     stream: Schema.Never,
   },
+  "project.read": {
+    params: DocumentRef,
+    result: DocumentText,
+    stream: Schema.Never,
+  },
   "project.relocate": {
     params: ProjectMove,
     result: Project,
@@ -1146,6 +1180,11 @@ export const SIDECAR_METHODS = {
   "video.create": {
     params: VideoDraft,
     result: Video,
+    stream: Schema.Never,
+  },
+  "video.documents": {
+    params: VideoRef,
+    result: VideoDocuments,
     stream: Schema.Never,
   },
   "video.list": {

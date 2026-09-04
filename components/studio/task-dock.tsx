@@ -1,5 +1,6 @@
 "use client";
 
+import type { MouseEvent } from "react";
 import { useTaskDock } from "@/hooks/use-task-dock";
 import {
   pipelineLabel,
@@ -14,16 +15,24 @@ import {
   taskProgress,
 } from "@/lib/studio/tasks";
 import { cn } from "@/lib/utils";
-import type { PipelineStage, PipelineStatus } from "@/shared/pipeline";
+import type {
+  PipelineStage,
+  PipelineStageId,
+  PipelineStatus,
+} from "@/shared/pipeline";
 import { DockSection } from "./dock";
 import { TaskChecklist } from "./task-checklist";
 import { TaskStatusIcon } from "./task-status-icon";
 
 export function TaskDock({
+  documents,
+  onOpenDocument,
   settings,
   stages,
   tasks,
 }: {
+  documents?: ReadonlyMap<PipelineStageId, string>;
+  onOpenDocument?: (event: MouseEvent<HTMLButtonElement>) => void;
   settings: StudioSettings | null;
   stages: readonly PipelineStage[];
   tasks: readonly TaskRow[];
@@ -39,7 +48,14 @@ export function TaskDock({
       <DockShell
         count={`${pipeline.done}/${pipeline.total}`}
         dock={dock}
-        expanded={<PipelineList stages={stages} tasks={tasks} />}
+        expanded={
+          <PipelineList
+            documents={documents}
+            onOpenDocument={onOpenDocument}
+            stages={stages}
+            tasks={tasks}
+          />
+        }
         glyph={
           pipeline.done > 0 || activeTask(tasks) !== null
             ? "in_progress"
@@ -128,45 +144,97 @@ const STAGE_GLYPHS: Record<
 };
 
 function PipelineList({
+  documents,
+  onOpenDocument,
   stages,
   tasks,
 }: {
+  documents?: ReadonlyMap<PipelineStageId, string>;
+  onOpenDocument?: (event: MouseEvent<HTMLButtonElement>) => void;
   stages: readonly PipelineStage[];
   tasks: readonly TaskRow[];
 }) {
   return (
     <ul className="flex min-w-0 flex-col gap-0.5" data-slot="pipeline-list">
-      {stageRows(stages).map(({ stage, template }) => (
-        <li className="flex min-w-0 flex-col" key={template.id}>
-          <div
-            className={cn(
-              "flex w-full min-w-0 items-start gap-2 rounded-md px-2 py-1.5 text-left text-sm",
-              stage.status === "active" && "bg-muted/60"
-            )}
-          >
-            <TaskStatusIcon
-              className="mt-0.5"
-              glyph={STAGE_GLYPHS[stage.status]}
-            />
-            <span
-              className={cn(
-                "wrap-break-word min-w-0 text-pretty leading-snug",
-                STAGE_TEXT[stage.status]
-              )}
-            >
-              {template.title}
-            </span>
-          </div>
+      {stageRows(stages).map(({ stage, template }) => {
+        // A stage whose document is on disk is the only way most people will
+        // ever find the Docs pane, so the row itself opens it. A stage that
+        // has written nothing stays a plain line rather than a dead button.
+        const document = documents?.get(template.id);
 
-          {/* The turn's own plan is the active stage's sub-tasks, so it nests
+        return (
+          <li className="flex min-w-0 flex-col" key={template.id}>
+            <StageRow
+              document={document}
+              onOpen={onOpenDocument}
+              status={stage.status}
+              title={template.title}
+            />
+
+            {/* The turn's own plan is the active stage's sub-tasks, so it nests
               under that stage instead of standing beside it. */}
-          {stage.status === "active" && tasks.length > 0 ? (
-            <div className="pl-6">
-              <TaskChecklist tasks={tasks} />
-            </div>
-          ) : null}
-        </li>
-      ))}
+            {stage.status === "active" && tasks.length > 0 ? (
+              <div className="pl-6">
+                <TaskChecklist tasks={tasks} />
+              </div>
+            ) : null}
+          </li>
+        );
+      })}
     </ul>
   );
+}
+
+function StageRow({
+  document,
+  onOpen,
+  status,
+  title,
+}: {
+  document: string | undefined;
+  onOpen?: (event: MouseEvent<HTMLButtonElement>) => void;
+  status: PipelineStatus;
+  title: string;
+}) {
+  const shell = cn(
+    "flex w-full min-w-0 items-start gap-2 rounded-md px-2 py-1.5 text-left text-sm",
+    status === "active" && "bg-muted/60"
+  );
+
+  const label = (
+    <>
+      <TaskStatusIcon className="mt-0.5" glyph={STAGE_GLYPHS[status]} />
+      <span
+        className={cn(
+          "wrap-break-word min-w-0 text-pretty leading-snug",
+          STAGE_TEXT[status]
+        )}
+      >
+        {title}
+      </span>
+    </>
+  );
+
+  if (document === undefined || onOpen === undefined) {
+    return <div className={shell}>{label}</div>;
+  }
+
+  return (
+    <button
+      className={cn(
+        shell,
+        "cursor-pointer outline-none transition-colors duration-150 ease-out hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2"
+      )}
+      onClick={onOpen}
+      title={`Read ${nameOf(document)}`}
+      type="button"
+      value={document}
+    >
+      {label}
+    </button>
+  );
+}
+
+function nameOf(path: string): string {
+  return path.slice(path.lastIndexOf("/") + 1);
 }

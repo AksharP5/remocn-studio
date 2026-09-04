@@ -200,6 +200,50 @@ describe("the movement taxonomy", () => {
   });
 });
 
+// The literal `video/` these templates used to carry meant a project's second
+// video overwrote the first one's script. The brief is the only place the
+// agent learns where to write, so the slug has to reach it.
+describe("the pipeline brief's document paths", () => {
+  it("names the video's own docs folder, per video", () => {
+    const brief = pipelineBrief(
+      [{ stage: "script", status: "active" }],
+      "opening-title"
+    );
+
+    expect(brief).toContain("src/videos/opening-title/docs/script.md");
+    expect(brief).not.toContain("video/script.md");
+  });
+
+  it("substitutes every stage, not only the one that names an output", () => {
+    for (const stage of PIPELINE_STAGE_IDS) {
+      const brief =
+        pipelineBrief([{ stage, status: "active" }], "opening-title") ?? "";
+
+      expect(brief).not.toContain("{docs}");
+      expect(brief).not.toContain("{video}");
+    }
+  });
+
+  it("sends the brand stage's identity assets into the video's folder", () => {
+    const brief = pipelineBrief(
+      [{ stage: "brand", status: "active" }],
+      "opening-title"
+    );
+
+    expect(brief).toContain("src/videos/opening-title/assets/");
+  });
+
+  // A row we could not read costs the slug and nothing else: the brief still
+  // says what the stage is for.
+  it("still reads as a folder when the turn could not name its video", () => {
+    const brief = pipelineBrief([{ stage: "script", status: "active" }]);
+
+    expect(brief).toContain("src/videos/");
+    expect(brief).toContain("/docs/script.md");
+    expect(brief).not.toContain("{docs}");
+  });
+});
+
 describe("the choreography stage", () => {
   const brief = pipelineBrief([{ stage: "choreography", status: "active" }]);
 
