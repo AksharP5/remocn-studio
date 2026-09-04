@@ -1,6 +1,8 @@
 import { type ChildProcess, spawn } from "node:child_process";
+import { realpathSync } from "node:fs";
+import { resolve } from "node:path";
 import { createInterface } from "node:readline";
-import { Effect } from "effect";
+import { Effect, Semaphore } from "effect";
 import {
   addCommand,
   binaryOf,
@@ -16,6 +18,39 @@ import { ScaffoldError } from "./template";
 
 const KILL_GRACE_MS = 2000;
 const TAIL_LINES = 12;
+
+// bun's linker reports a failure it does not exit on: two installs in one
+// folder ended with `error: Failed to link @babel/parser: EEXIST`, then
+// `Saved lockfile` and the whole added-package list, and exit 0. A line
+// shaped like that is a failed install whatever the exit code says.
+const ERROR_LINE = /^\s*error:/i;
+
+// One package-manager run at a time per project. `dispatch` forks every
+// request, so Install pressed twice, Install beside the wizard's own scaffold
+// install, or Upgrade Remotion during either genuinely ran two linkers in one
+// node_modules — and the second one left a partially linked tree behind a
+// green checklist row. The lane is keyed by the canonical root, so the same
+// folder reached through a symlink still waits its turn.
+const LANES = new Map<string, Semaphore.Semaphore>();
+
+function laneOf(root: string): Semaphore.Semaphore {
+  const key = canonical(root);
+  const known = LANES.get(key);
+  if (known !== undefined) {
+    return known;
+  }
+  const lane = Semaphore.makeUnsafe(1);
+  LANES.set(key, lane);
+  return lane;
+}
+
+function canonical(root: string): string {
+  try {
+    return realpathSync(root);
+  } catch {
+    return resolve(root);
+  }
+}
 
 export type Spawner = (
   binary: string,
@@ -114,6 +149,19 @@ function runManager(
     return Effect.fail(new ScaffoldError({ message: notInstalled(manager) }));
   }
 
+  return laneOf(project.root).withPermits(1)(
+    run(binary, args, command, log, runner, within)
+  );
+}
+
+function run(
+  binary: string,
+  args: readonly string[],
+  command: string,
+  log: (line: string) => Effect.Effect<void>,
+  runner: Runner,
+  within: string
+): Effect.Effect<void, ScaffoldError> {
   return Effect.callback<void, ScaffoldError>((resume) => {
     const child = runner.spawn(binary, args, {
       cwd: within,
@@ -121,6 +169,7 @@ function runManager(
     });
 
     const tail: string[] = [];
+    const errors: string[] = [];
 
     const watch = (stream: NodeJS.ReadableStream | null) => {
       if (stream === null) {
@@ -135,6 +184,9 @@ function runManager(
         if (tail.length > TAIL_LINES) {
           tail.shift();
         }
+        if (ERROR_LINE.test(line)) {
+          errors.push(line);
+        }
         Effect.runSync(log(line));
       });
     };
@@ -147,8 +199,18 @@ function runManager(
     });
 
     child.once("exit", (code, signal) => {
-      if (code === 0) {
+      if (code === 0 && errors.length === 0) {
         resume(Effect.void);
+        return;
+      }
+      if (code === 0) {
+        resume(
+          Effect.fail(
+            new ScaffoldError({
+              message: `${command} reported an error and still exited 0:\n${errors.join("\n")}`,
+            })
+          )
+        );
         return;
       }
       resume(

@@ -3,7 +3,8 @@ import { EventEmitter } from "node:events";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Effect, Exit } from "effect";
+import { PassThrough } from "node:stream";
+import { Effect, Exit, Fiber } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { causeMessage } from "@/lib/error-message";
 import type { PackageManager } from "@/sidecar/package-manager";
@@ -208,5 +209,126 @@ describe("installDependencies", () => {
     expect(calls).toEqual([
       { args: ["install"], binary: "/bin/manager", cwd: folder },
     ]);
+  });
+});
+
+interface Held {
+  readonly children: EventEmitter[];
+  readonly runner: Runner;
+  readonly stdout: PassThrough[];
+}
+
+// A child that does not exit until the test says so, with a real stdout.
+function held(calls: Call[]): Held {
+  const children: EventEmitter[] = [];
+  const stdout: PassThrough[] = [];
+
+  const fake: Spawner = (binary, args, options) => {
+    calls.push({ args: [...args], binary, cwd: options.cwd });
+    const out = new PassThrough();
+    const child = Object.assign(new EventEmitter(), {
+      exitCode: null,
+      kill: () => true,
+      signalCode: null,
+      stderr: null,
+      stdout: out,
+    });
+    children.push(child);
+    stdout.push(out);
+    return child as unknown as ReturnType<Spawner>;
+  };
+
+  return {
+    children,
+    runner: { binary: () => "/bin/manager", spawn: fake },
+    stdout,
+  };
+}
+
+function settle() {
+  return new Promise<void>((resolve) => setTimeout(resolve, 20));
+}
+
+// Three methods shell out to the project's package manager and `dispatch`
+// forks every request, so two of them genuinely ran at once in one folder —
+// and bun's linker is not safe against itself there.
+describe("one package-manager run at a time per project", () => {
+  it("queues a second install until the first has exited", async () => {
+    await project("bun");
+    const calls: Call[] = [];
+    const lane = held(calls);
+
+    const first = Effect.runFork(
+      installDependencies(folder, lines, lane.runner)
+    );
+    const second = Effect.runFork(
+      installDependencies(folder, lines, lane.runner)
+    );
+    await settle();
+
+    expect(calls).toHaveLength(1);
+
+    lane.children[0]?.emit("exit", 0, null);
+    await settle();
+
+    expect(calls).toHaveLength(2);
+
+    lane.children[1]?.emit("exit", 0, null);
+    await Effect.runPromise(Fiber.join(first));
+    await Effect.runPromise(Fiber.join(second));
+  });
+
+  it("queues an upgrade behind an install in the same project", async () => {
+    await project("bun");
+    const calls: Call[] = [];
+    const lane = held(calls);
+
+    const install = Effect.runFork(
+      installDependencies(folder, lines, lane.runner)
+    );
+    const upgrade = Effect.runFork(
+      upgradeDependencies(folder, REMOTION, "4.0.520", lines, lane.runner)
+    );
+    await settle();
+
+    expect(calls.map((call) => call.args[0])).toEqual(["install"]);
+
+    lane.children[0]?.emit("exit", 0, null);
+    await settle();
+
+    expect(calls.map((call) => call.args[0])).toEqual(["install", "add"]);
+
+    lane.children[1]?.emit("exit", 0, null);
+    await Effect.runPromise(Fiber.join(install));
+    await Effect.runPromise(Fiber.join(upgrade));
+  });
+
+  // bun printed the failure, then "Saved lockfile" and the whole package list,
+  // and exited 0 — an install that looked fine to everyone watching it.
+  it("fails an install whose output reports an error despite exit 0", async () => {
+    await project("bun");
+    const calls: Call[] = [];
+    const lane = held(calls);
+
+    const fiber = Effect.runFork(
+      installDependencies(folder, lines, lane.runner)
+    );
+    await settle();
+
+    lane.stdout[0]?.write("Resolved, downloaded and extracted [0]\n");
+    lane.stdout[0]?.write("error: Failed to link @babel/parser: EEXIST\n");
+    lane.stdout[0]?.write("Saved lockfile\n");
+    await settle();
+    lane.children[0]?.emit("exit", 0, null);
+
+    const exit = await Effect.runPromiseExit(Fiber.join(fiber));
+
+    expect(Exit.isFailure(exit)).toBe(true);
+    if (Exit.isFailure(exit)) {
+      expect(causeMessage(exit.cause)).toContain(
+        "Failed to link @babel/parser"
+      );
+      expect(causeMessage(exit.cause)).toContain("exited 0");
+    }
   });
 });
