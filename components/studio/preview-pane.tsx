@@ -2,6 +2,7 @@
 
 import {
   CameraIcon,
+  FileTextIcon,
   FolderOpenIcon,
   FolderPlusIcon,
   MonitorPlayIcon,
@@ -24,81 +25,39 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { Docs, PreviewMode } from "@/hooks/use-docs";
 import {
   type Preview,
   type PreviewControl,
   usePreviewFrame,
 } from "@/hooks/use-preview";
+import type { Snapshot } from "@/hooks/use-snapshot";
+import type { Tools } from "@/hooks/use-tools";
 import { exportLabel } from "@/lib/studio/export";
 import { fileManagerName } from "@/lib/studio/platform";
 import { cn } from "@/lib/utils";
+import { DocsView } from "./docs-view";
 import { ExportButton } from "./export-button";
 import { InspectOverlay } from "./inspect-overlay";
-import { Pane, PaneActions, PaneBody, PaneHeader, PaneTitle } from "./pane";
+import { Pane, PaneActions, PaneBody, PaneHeader } from "./pane";
 import { useStudio } from "./studio-provider";
 
 export function PreviewPane({ isBooting = false }: { isBooting?: boolean }) {
-  const { activeProject, openedProject, togglePreview, tools } = useStudio();
-  const { exporting, inspect, snapshot } = tools;
-  const { hint, preview, restart, stage } = tools.preview;
-  const trouble = inspect.trouble ?? snapshot.trouble;
-  const quiet =
-    trouble === null &&
-    snapshot.status === null &&
-    exporting.result === null &&
-    exporting.trouble === null &&
-    hint === null;
+  const { activeProject, docs, openedProject, togglePreview, tools } =
+    useStudio();
+  const isDocs = docs.mode === "docs";
+  const { inspect, snapshot } = tools;
+  const { preview, stage } = tools.preview;
 
   return (
     <Pane>
       <PaneHeader data-tauri-drag-region>
-        <PaneTitle>Preview</PaneTitle>
+        {/* The title is gone because the switch says the same word, and the
+            header has no room for both: four actions already crowd a pane
+            whose `minSize` is 360px. */}
+        <ModeSwitch mode={docs.mode} onPick={docs.onPickMode} />
         <PaneActions>
-          {preview.phase === "failed" ? (
-            <Button onClick={restart} size="sm" variant="ghost">
-              <RotateCwIcon />
-              Restart
-            </Button>
-          ) : null}
-          {/* `aria-disabled`, not `disabled`: a native disabled control fires
-              no mouse events, so the `title` explaining *why* it is off could
-              never show, and the button fell out of the tab order. The click
-              handlers no-op while unavailable. */}
-          <Button
-            aria-disabled={!inspect.canInspect}
-            aria-pressed={inspect.isArmed}
-            className="aria-disabled:opacity-50"
-            data-tour="preview-tools"
-            onClick={inspect.toggle}
-            size="sm"
-            title={inspect.unavailable ?? "Pick an element to comment on"}
-            variant={inspect.isArmed ? "default" : "outline"}
-          >
-            <SquareDashedMousePointerIcon data-icon="inline-start" />
-            Inspect
-          </Button>
-          <Button
-            aria-disabled={!snapshot.canSnapshot}
-            aria-pressed={snapshot.isArmed}
-            className="aria-disabled:opacity-50"
-            data-tour="snapshot"
-            onClick={snapshot.toggle}
-            size="sm"
-            title={snapshot.unavailable ?? "Capture the frame, or part of it"}
-            variant={snapshot.isArmed ? "default" : "outline"}
-          >
-            {snapshot.isBusy ? (
-              <Spinner
-                aria-hidden="true"
-                className="size-4"
-                data-icon="inline-start"
-              />
-            ) : (
-              <CameraIcon data-icon="inline-start" />
-            )}
-            Snapshot
-          </Button>
-          <ExportButton exporting={exporting} />
+          <PreviewActions isDocs={isDocs} tools={tools} />
           <Tooltip>
             <TooltipTrigger
               render={
@@ -118,7 +77,12 @@ export function PreviewPane({ isBooting = false }: { isBooting?: boolean }) {
         </PaneActions>
       </PaneHeader>
 
-      <PaneBody className="gap-2 p-4">
+      {isDocs ? <DocsView docs={docs} /> : null}
+
+      {/* The preview is hidden, never unmounted: taking the iframe down would
+          cost a page load and the frame the person was looking at every time
+          they read a document. */}
+      <PaneBody className={cn("gap-2 p-4", isDocs && "hidden")}>
         <div className="flex min-h-0 flex-1 items-center justify-center [container-type:size]">
           <div className="relative aspect-(--preview-aspect) w-full max-w-[calc(100cqh*var(--preview-w)/var(--preview-h))] overflow-hidden rounded-xl border bg-black/30 [--preview-aspect:calc(var(--preview-w)/var(--preview-h))] [--preview-h:9] [--preview-w:16]">
             {activeProject === null ? (
@@ -139,70 +103,212 @@ export function PreviewPane({ isBooting = false }: { isBooting?: boolean }) {
           </div>
         </div>
 
-        {/* The frame's width derives from the container's height, so a status
-            row appearing in the flow would rescale the video. This slot keeps
-            one row's height reserved whether or not anything is being said. */}
-        <div className="flex min-h-9 shrink-0 flex-col justify-center gap-2">
-          {trouble === null ? null : (
-            /* A percent-encoded URL is one unbreakable word, and this block
-               used to carry them: the text ran past the pane's right edge and
-               off the window, clipped mid-token with no wrap and no scroll.
-               `renderFailure` words those away, and this is the insurance for
-               whatever a renderer says next. */
-            <p
-              className="max-h-24 shrink-0 overflow-auto text-center text-destructive text-xs [overflow-wrap:anywhere]"
-              role="alert"
-            >
-              {trouble}
-            </p>
-          )}
-
-          {snapshot.status === null ? null : (
-            <p
-              className="shrink-0 text-center text-muted-foreground text-xs"
-              role="status"
-            >
-              {snapshot.status}
-            </p>
-          )}
-
-          {exporting.result === null ? null : (
-            <div
-              className="flex shrink-0 items-center justify-center gap-2 text-xs"
-              role="status"
-            >
-              <span className="text-muted-foreground">Exported</span>
-              <span className="font-mono">
-                {exportLabel(exporting.result, activeProject?.path ?? null)}
-              </span>
-              <Button onClick={exporting.reveal} size="xs" variant="ghost">
-                <FolderOpenIcon data-icon="inline-start" />
-                Show in {fileManagerName()}
-              </Button>
-            </div>
-          )}
-
-          {exporting.trouble === null ? null : (
-            <pre
-              className="max-h-32 shrink-0 overflow-auto whitespace-pre-wrap text-destructive text-xs"
-              role="alert"
-            >
-              {exporting.trouble}
-            </pre>
-          )}
-
-          {hint === null ? null : (
-            <p className="shrink-0 text-center text-muted-foreground text-xs">
-              {hint}
-            </p>
-          )}
-
-          {inspect.isArmed && quiet ? (
-            <ArmedFrame preview={tools.preview} />
-          ) : null}
-        </div>
+        <StatusSlot
+          projectPath={activeProject?.path ?? null}
+          snapshot={snapshot}
+          tools={tools}
+        />
       </PaneBody>
     </Pane>
+  );
+}
+
+/**
+ * Inspect and Snapshot leave the header entirely in Docs — they point at
+ * pixels that are not on screen — while Export stays, because a render already
+ * running must not be hidden by looking at a document.
+ *
+ * `aria-disabled`, not `disabled`: a native disabled control fires no mouse
+ * events, so the `title` explaining *why* it is off could never show, and the
+ * button fell out of the tab order. The click handlers no-op while
+ * unavailable.
+ */
+function PreviewActions({ isDocs, tools }: { isDocs: boolean; tools: Tools }) {
+  const { exporting, inspect, snapshot } = tools;
+  const { preview, restart } = tools.preview;
+
+  if (isDocs) {
+    return <ExportButton exporting={exporting} />;
+  }
+
+  return (
+    <>
+      {preview.phase === "failed" ? (
+        <Button onClick={restart} size="sm" variant="ghost">
+          <RotateCwIcon />
+          Restart
+        </Button>
+      ) : null}
+      <Button
+        aria-disabled={!inspect.canInspect}
+        aria-pressed={inspect.isArmed}
+        className="aria-disabled:opacity-50"
+        data-tour="preview-tools"
+        onClick={inspect.toggle}
+        size="sm"
+        title={inspect.unavailable ?? "Pick an element to comment on"}
+        variant={inspect.isArmed ? "default" : "outline"}
+      >
+        <SquareDashedMousePointerIcon data-icon="inline-start" />
+        Inspect
+      </Button>
+      <Button
+        aria-disabled={!snapshot.canSnapshot}
+        aria-pressed={snapshot.isArmed}
+        className="aria-disabled:opacity-50"
+        data-tour="snapshot"
+        onClick={snapshot.toggle}
+        size="sm"
+        title={snapshot.unavailable ?? "Capture the frame, or part of it"}
+        variant={snapshot.isArmed ? "default" : "outline"}
+      >
+        {snapshot.isBusy ? (
+          <Spinner
+            aria-hidden="true"
+            className="size-4"
+            data-icon="inline-start"
+          />
+        ) : (
+          <CameraIcon data-icon="inline-start" />
+        )}
+        Snapshot
+      </Button>
+      <ExportButton exporting={exporting} />
+    </>
+  );
+}
+
+/**
+ * The frame's width derives from the container's height, so a status row
+ * appearing in the flow would rescale the video. This slot keeps one row's
+ * height reserved whether or not anything is being said.
+ */
+function StatusSlot({
+  projectPath,
+  snapshot,
+  tools,
+}: {
+  projectPath: string | null;
+  snapshot: Snapshot;
+  tools: Tools;
+}) {
+  const { exporting, inspect } = tools;
+  const { hint } = tools.preview;
+  const trouble = inspect.trouble ?? snapshot.trouble;
+  const quiet =
+    trouble === null &&
+    snapshot.status === null &&
+    exporting.result === null &&
+    exporting.trouble === null &&
+    hint === null;
+
+  return (
+    <div className="flex min-h-9 shrink-0 flex-col justify-center gap-2">
+      {trouble === null ? null : (
+        /* A percent-encoded URL is one unbreakable word, and this block used
+           to carry them: the text ran past the pane's right edge and off the
+           window, clipped mid-token with no wrap and no scroll.
+           `renderFailure` words those away, and this is the insurance for
+           whatever a renderer says next. */
+        <p
+          className="max-h-24 shrink-0 overflow-auto text-center text-destructive text-xs [overflow-wrap:anywhere]"
+          role="alert"
+        >
+          {trouble}
+        </p>
+      )}
+
+      {snapshot.status === null ? null : (
+        <p
+          className="shrink-0 text-center text-muted-foreground text-xs"
+          role="status"
+        >
+          {snapshot.status}
+        </p>
+      )}
+
+      {exporting.result === null ? null : (
+        <div
+          className="flex shrink-0 items-center justify-center gap-2 text-xs"
+          role="status"
+        >
+          <span className="text-muted-foreground">Exported</span>
+          <span className="font-mono">
+            {exportLabel(exporting.result, projectPath)}
+          </span>
+          <Button onClick={exporting.reveal} size="xs" variant="ghost">
+            <FolderOpenIcon data-icon="inline-start" />
+            Show in {fileManagerName()}
+          </Button>
+        </div>
+      )}
+
+      {exporting.trouble === null ? null : (
+        <pre
+          className="max-h-32 shrink-0 overflow-auto whitespace-pre-wrap text-destructive text-xs"
+          role="alert"
+        >
+          {exporting.trouble}
+        </pre>
+      )}
+
+      {hint === null ? null : (
+        <p className="shrink-0 text-center text-muted-foreground text-xs">
+          {hint}
+        </p>
+      )}
+
+      {inspect.isArmed && quiet ? <ArmedFrame preview={tools.preview} /> : null}
+    </div>
+  );
+}
+
+const MODES: readonly {
+  icon: typeof MonitorPlayIcon;
+  label: string;
+  mode: PreviewMode;
+}[] = [
+  { icon: MonitorPlayIcon, label: "Preview", mode: "preview" },
+  { icon: FileTextIcon, label: "Docs", mode: "docs" },
+];
+
+/**
+ * The pane's two modes, said once. It replaces the title rather than joining
+ * it: the switch already names what is on screen, and the header's four
+ * actions leave no room for a word that repeats one of them.
+ */
+function ModeSwitch({
+  mode,
+  onPick,
+}: {
+  mode: PreviewMode;
+  onPick: Docs["onPickMode"];
+}) {
+  return (
+    <div
+      className="flex h-8 shrink-0 items-stretch rounded-md bg-input/30 p-0.5 ring-1 ring-border ring-inset sm:h-7"
+      data-tour="preview-mode"
+    >
+      {MODES.map(({ icon: Icon, label, mode: value }) => (
+        <button
+          aria-pressed={mode === value}
+          className={cn(
+            "flex cursor-pointer items-center gap-1.5 rounded-sm px-2 font-medium text-xs outline-none transition-[color,background-color] duration-150 ease-out",
+            "focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-1",
+            mode === value
+              ? "bg-accent text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+          key={value}
+          onClick={onPick}
+          type="button"
+          value={value}
+        >
+          <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+          {label}
+        </button>
+      ))}
+    </div>
   );
 }
 

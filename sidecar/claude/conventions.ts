@@ -7,7 +7,9 @@ import {
 } from "@/shared/motion";
 import {
   activeStage,
+  DOCS_DIR,
   type PipelineStage,
+  resolveStage,
   type StageTemplate,
   stageTemplate,
 } from "@/shared/pipeline";
@@ -76,7 +78,8 @@ slow motion — static decoration, or opacity under about 12%, does not count.
 
 Give every element you animate a stable \`data-design-id\`. Before you call a
 scene or video finished, call \`mcp__remocn-design__design_check\` on two or three
-settled key frames, passing the movements \`video/motion.md\` promises as
+settled key frames, passing the movements the motion document (\`${DOCS_DIR}/motion.md\`
+in your video's folder) promises as
 \`motion\` assertions against those ids; inspect the snapshots it returns, then
 fix every mechanical finding or say why it is intentional. The check is not your
 design review of the snapshots.
@@ -216,13 +219,16 @@ ${rows}
 `;
 }
 
-export function pipelineBrief(stages: readonly PipelineStage[]): string | null {
+export function pipelineBrief(
+  stages: readonly PipelineStage[],
+  video: string | null = null
+): string | null {
   const running = activeStage(stages);
   if (running === null) {
     return null;
   }
 
-  const template = stageTemplate(running.stage);
+  const template = resolveStage(stageTemplate(running.stage), video);
   const done = stages
     .filter((row) => row.status === "done")
     .map((row) => stageTemplate(row.stage).title);

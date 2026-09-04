@@ -26,10 +26,14 @@ export function MarkdownProvider({ children }: { children: React.ReactNode }) {
 export function Markdown({
   children,
   className,
+  isAnimated = true,
   isStreaming = false,
 }: {
   children: string;
   className?: string;
+  // A file read off disk arrives whole, so revealing it word by word would be
+  // an animation of nothing happening. The transcript keeps the reveal.
+  isAnimated?: boolean;
   isStreaming?: boolean;
 }) {
   const code = use(HighlighterContext);
@@ -38,7 +42,7 @@ export function Markdown({
 
   return (
     <Streamdown
-      animated={reducedMotion ? false : ANIMATION}
+      animated={reducedMotion || !isAnimated ? false : ANIMATION}
       className={cn(
         "markdown-stream space-y-3 text-sm leading-relaxed [&_pre]:text-xs",
         isStreaming && !reducedMotion && "code-reveal",

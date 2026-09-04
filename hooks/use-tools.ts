@@ -19,6 +19,7 @@ export interface Tools {
 
 export interface ToolSettings {
   composer: Composer;
+  isDocs: boolean;
   isMissing: boolean;
   isShown: boolean;
   isWaiting: boolean;
@@ -29,6 +30,7 @@ export interface ToolSettings {
 
 export function useTools({
   composer,
+  isDocs,
   isMissing,
   isShown,
   isWaiting,
@@ -39,6 +41,7 @@ export function useTools({
   const [tool, setTool] = useState<Tool>(null);
 
   const unavailable = unavailableOf({
+    isDocs,
     isMissing,
     isServing: preview.isServing,
     isShown,
@@ -121,6 +124,7 @@ export function useTools({
 }
 
 function unavailableOf(state: {
+  isDocs: boolean;
   isMissing: boolean;
   isServing: boolean;
   isShown: boolean;
@@ -130,6 +134,11 @@ function unavailableOf(state: {
 }): string | null {
   if (!state.isShown) {
     return "The preview pane is hidden.";
+  }
+  // Moving to Docs disarms whatever was armed, down the same path a rebuild
+  // takes: the tools point at pixels that are no longer on screen.
+  if (state.isDocs) {
+    return "The pane is showing the documents.";
   }
   if (state.openedProjectId === null) {
     return "Open a project to work on its preview.";

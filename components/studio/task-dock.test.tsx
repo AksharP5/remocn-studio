@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { TaskDock } from "@/components/studio/task-dock";
 import type { StudioSettings } from "@/lib/studio/settings";
 import type { TaskRow } from "@/lib/studio/tasks";
@@ -21,6 +21,9 @@ const SETTINGS: StudioSettings = {
   taskDock: null,
   toursSeen: [],
 };
+
+const ANALYSIS_ROW = /Analysis/;
+const SCRIPT_ROW = /Script/;
 
 const PLAN: readonly TaskRow[] = [
   {
@@ -156,6 +159,39 @@ describe("TaskDock with a pipeline", () => {
     expect(screen.getByText("Analysis")).toBeVisible();
     expect(screen.getByText("Review")).toBeVisible();
     expect(screen.getByText("Check the build")).toBeVisible();
+  });
+
+  // The dock is the only place most people will meet the Docs pane: a stage
+  // whose document is on disk is a way in, and one that has written nothing
+  // stays a line rather than becoming a dead button.
+  it("turns a stage whose document exists into a way into it", () => {
+    const opened: string[] = [];
+    // React nulls `currentTarget` once the handler returns, so the value the
+    // row carries has to be read while the event is still live.
+    const onOpenDocument = vi.fn(
+      (event: React.MouseEvent<HTMLButtonElement>) => {
+        opened.push(event.currentTarget.value);
+      }
+    );
+    const path = "/project/src/videos/intro/docs/script.md";
+
+    render(
+      <TaskDock
+        documents={new Map([["script", path]])}
+        onOpenDocument={onOpenDocument}
+        settings={{ ...SETTINGS, taskDock: true }}
+        stages={STAGES}
+        tasks={[]}
+      />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: ANALYSIS_ROW })
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: SCRIPT_ROW }));
+
+    expect(opened).toEqual([path]);
   });
 
   it("hands the dock back to the plan once every stage is done", () => {

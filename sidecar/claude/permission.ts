@@ -1,7 +1,6 @@
-import { realpath } from "node:fs/promises";
-import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { Effect } from "effect";
 import { type PermissionReason, PLUGIN_DIR_ENV } from "@/shared/ipc";
+import { escapee } from "../contained";
 import { TOOL_SERVERS } from "../tools/specs";
 
 export type PermissionVerdict =
@@ -94,50 +93,6 @@ function readRootsFor(toolName: string): readonly string[] {
 
   const dir = process.env[PLUGIN_DIR_ENV];
   return dir === undefined || dir === "" ? [] : [dir];
-}
-
-async function escapee(
-  cwd: string,
-  extraRoots: readonly string[],
-  targets: readonly string[]
-): Promise<string | null> {
-  if (targets.length === 0) {
-    return null;
-  }
-
-  const resolved = await Promise.all([
-    real(resolve(cwd)),
-    ...extraRoots.map((root) => real(resolve(root))),
-    ...targets.map((target) =>
-      real(isAbsolute(target) ? target : resolve(cwd, target))
-    ),
-  ]);
-
-  const roots = resolved.slice(0, 1 + extraRoots.length);
-  return (
-    resolved
-      .slice(1 + extraRoots.length)
-      .find((target) => !roots.some((root) => inside(root, target))) ?? null
-  );
-}
-
-async function real(target: string): Promise<string> {
-  try {
-    return await realpath(target);
-  } catch {
-    const parent = dirname(target);
-    if (parent === target) {
-      return target;
-    }
-    return join(await real(parent), basename(target));
-  }
-}
-
-function inside(root: string, target: string): boolean {
-  return (
-    target === root ||
-    target.startsWith(root.endsWith(sep) ? root : `${root}${sep}`)
-  );
 }
 
 function text(input: Record<string, unknown>, key: string): string | null {

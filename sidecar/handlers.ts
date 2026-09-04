@@ -25,6 +25,7 @@ import {
 } from "./agent/source";
 import { pipelineBrief } from "./claude/conventions";
 import { applyCrashConsent, isReporting } from "./crash";
+import { readProjectDocument, videoDocuments } from "./documents";
 import { checksFor } from "./environment";
 import { type FilesError, listFolder, projectFiles } from "./files";
 import { ProjectStore } from "./history/projects";
@@ -334,7 +335,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
                 briefs: {
                   assets: assetBrief(placed, addCommandFor(project.path)),
                   media: mediaBrief(placedMedia),
-                  pipeline: pipelineBrief(stages),
+                  pipeline: pipelineBrief(stages, video),
                 },
                 cwd: project.path,
                 emit,
@@ -587,6 +588,19 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
       Effect.mapError(unstored)
     ),
 
+  // The pane never joins a path itself, and never reaches outside the folder
+  // it was given: the read resolves symlinks and `..` and refuses anything
+  // that lands outside the project, exactly as the permission gate does.
+  "project.read": ({ params }) =>
+    located(params.projectId).pipe(
+      Effect.flatMap((project) =>
+        Effect.mapError(
+          readProjectDocument(project.path, params.path),
+          unlisted
+        )
+      )
+    ),
+
   "project.relocate": ({ params }) =>
     Effect.flatMap(ProjectStore, (projects) =>
       projects.relocate(params.projectId, params.path)
@@ -716,6 +730,24 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
           projectId: params.projectId,
         }),
         unstored
+      );
+    }),
+
+  // A video's stage documents, listed where the pipeline brief told the agent
+  // to write them. A folder that does not exist yet answers with an empty
+  // list and its own path, because "the pipeline has not run" is not a fault.
+  "video.documents": ({ params }) =>
+    Effect.gen(function* () {
+      const videos = yield* VideoStore;
+      const video = yield* Effect.mapError(
+        videos.find(params.videoId),
+        unstored
+      );
+      const project = yield* located(video.projectId);
+
+      return yield* Effect.mapError(
+        videoDocuments(project.path, video.compositionId),
+        unlisted
       );
     }),
 

@@ -112,6 +112,12 @@ function mockStudio(
           const { projects } = options;
           return typeof projects === "function" ? projects() : (projects ?? []);
         }
+        if (method === "video.documents") {
+          return {
+            files: [],
+            folder: `${PICKED_FOLDER}/src/videos/my-video/docs`,
+          };
+        }
         if (method === "video.list") {
           return options.videos ?? [VIDEO];
         }
@@ -163,8 +169,10 @@ describe("app shell", () => {
 
     expect(screen.getByRole("heading", { name: "Videos" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Chat" })).toBeVisible();
+    // The right pane's title is its Preview | Docs switch: the word is the
+    // control now, so there is nothing left for a heading to repeat.
     expect(
-      await screen.findByRole("heading", { name: "Preview" })
+      await screen.findByRole("button", { name: "Preview" })
     ).toBeVisible();
   });
 
@@ -173,7 +181,7 @@ describe("app shell", () => {
     await showPreviewButton();
 
     await waitForElementToBeRemoved(() =>
-      screen.queryByRole("heading", { name: "Preview" })
+      screen.queryByRole("button", { name: "Preview" })
     );
   });
 
@@ -230,17 +238,17 @@ describe("app shell", () => {
   it("brings the preview back, and lets it be dismissed again", async () => {
     mockStudio({ projects: [PROJECT] });
     await renderShell();
-    await screen.findByRole("heading", { name: "Preview" });
+    await screen.findByRole("button", { name: "Preview" });
 
     fireEvent.click(screen.getByRole("button", { name: "Hide the preview" }));
 
     await waitForElementToBeRemoved(() =>
-      screen.queryByRole("heading", { name: "Preview" })
+      screen.queryByRole("button", { name: "Preview" })
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Show the preview" }));
 
-    expect(screen.getByRole("heading", { name: "Preview" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Preview" })).toBeVisible();
   });
 
   // "Clicking a video opens its most recent chat" is the invariant the rest of

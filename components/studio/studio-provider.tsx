@@ -5,6 +5,7 @@ import { useAppMenu } from "@/hooks/use-app-menu";
 import { type ClaudeEffort, useClaudeEffort } from "@/hooks/use-claude-effort";
 import { type Composer, useComposer } from "@/hooks/use-composer";
 import { useCrashReporting } from "@/hooks/use-crash-reporting";
+import { type Docs, useDocs } from "@/hooks/use-docs";
 import { type Environment, useEnvironment } from "@/hooks/use-environment";
 import { type Feedback, useFeedback } from "@/hooks/use-feedback";
 import { type FileDrops, useFileDrops } from "@/hooks/use-file-drops";
@@ -48,6 +49,7 @@ export type Studio = ClaudeEffort &
   Workspace & {
     accounts: Accounts;
     composer: Composer;
+    docs: Docs;
     drops: FileDrops;
     environment: Environment;
     feedback: Feedback;
@@ -266,8 +268,18 @@ function StudioStateProvider({
 
   const queue = useQueue(turn, composer);
 
+  // The documents are the open chat's video's, which is what makes the pane's
+  // two modes agree with everything else about which video is on screen.
+  const docs = useDocs({
+    entries: turn.entries,
+    isTurnRunning: workspace.hasRunningTurns,
+    projectId: opened?.id ?? null,
+    videoId: workspace.openedVideo?.id ?? null,
+  });
+
   const tools = useTools({
     composer,
+    isDocs: docs.mode === "docs",
     isMissing: opened?.missing ?? false,
     isShown: panes.isPreviewShown,
     isWaiting: turn.permission !== null || turn.source !== null,
@@ -345,6 +357,7 @@ function StudioStateProvider({
       ...panes,
       accounts,
       composer,
+      docs,
       drops,
       environment,
       feedback,
@@ -363,6 +376,7 @@ function StudioStateProvider({
     [
       accounts,
       composer,
+      docs,
       drops,
       effort,
       environment,
