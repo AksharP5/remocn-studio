@@ -175,7 +175,11 @@ function ProviderGroup({
       <DropdownMenuSubContent>
         <DropdownMenuRadioGroup onValueChange={pick} value={value}>
           {PROVIDER_MODELS[candidate].map((choice) => (
-            <DropdownMenuRadioItem key={choice.value} value={choice.value}>
+            <DropdownMenuRadioItem
+              closeOnClick
+              key={choice.value}
+              value={choice.value}
+            >
               {choice.label}
             </DropdownMenuRadioItem>
           ))}

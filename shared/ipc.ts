@@ -16,7 +16,7 @@ import {
   ToolVerb,
 } from "./providers";
 
-export const SIDECAR_PROTOCOL = 24;
+export const SIDECAR_PROTOCOL = 25;
 
 export const SIDECAR_STATUS_EVENT = "sidecar://status";
 export const SIDECAR_NOTIFY_EVENT = "sidecar://notify";
@@ -163,17 +163,30 @@ export const IMAGE_MEDIA_TYPES = [
   "image/webp",
 ] as const;
 
+// Video and audio are never sent to the model: they are copied into the
+// project's `public/library/` and handed to the agent as a `staticFile()` path,
+// and Remotion plays whatever the project's own renderer can decode. So there
+// is nothing here to be strict about — `.m4v` is what the Apple ecosystem
+// exports and `.mkv` / `.avi` is what stock footage arrives in, and refusing
+// them bought nothing.
 export const VIDEO_MEDIA_TYPES = [
   "video/mp4",
+  "video/mpeg",
   "video/quicktime",
   "video/webm",
+  "video/x-m4v",
+  "video/x-matroska",
+  "video/x-msvideo",
 ] as const;
 
 export const AUDIO_MEDIA_TYPES = [
   "audio/aac",
+  "audio/aiff",
+  "audio/flac",
   "audio/mp4",
   "audio/mpeg",
   "audio/ogg",
+  "audio/opus",
   "audio/wav",
 ] as const;
 

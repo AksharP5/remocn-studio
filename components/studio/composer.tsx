@@ -36,6 +36,7 @@ import {
   runningMode,
   runningModeLabel,
 } from "@/lib/studio/models";
+import { VERBATIM_INPUT } from "@/lib/studio/text-input";
 import { cn } from "@/lib/utils";
 import {
   type ContextUsage,
@@ -229,6 +230,7 @@ function ComposerBlock({
             </div>
 
             <textarea
+              {...VERBATIM_INPUT}
               aria-label="Message Claude"
               className="field-sizing-content relative max-h-64 w-full rounded-none border-0 bg-transparent px-[calc(--spacing(3)-1px)] py-[calc(--spacing(3)-1px)] text-base text-transparent caret-foreground shadow-none outline-none [scrollbar-gutter:stable] selection:bg-primary/30 placeholder:text-muted-foreground/72 sm:text-sm"
               data-slot="textarea"
@@ -417,6 +419,7 @@ function MenuChip({
           >
             {items.map((item) => (
               <DropdownMenuRadioItem
+                closeOnClick
                 disabled={item.disabled}
                 key={item.value}
                 title={item.hint}

@@ -17,45 +17,47 @@ const ZONES: readonly DropZone<"composer" | "library">[] = [
 ];
 
 describe("isInside", () => {
-  it("reads a retina drop against a box measured in CSS pixels", () => {
-    expect(isInside(PANE, { x: 240, y: 400 }, 2)).toBe(true);
-    expect(isInside(PANE, { x: 600, y: 400 }, 2)).toBe(false);
+  it("compares the drop against the box in the units both are already in", () => {
+    expect(isInside(PANE, { x: 120, y: 400 })).toBe(true);
+    expect(isInside(PANE, { x: 300, y: 400 })).toBe(false);
   });
 
-  it("takes the physical pixels as they are on a plain display", () => {
-    expect(isInside(PANE, { x: 120, y: 400 }, 1)).toBe(true);
-    expect(isInside(PANE, { x: 300, y: 400 }, 1)).toBe(false);
+  // wry builds the point from AppKit's `draggingLocation()` against the view's
+  // `frame()`, both in points — CSS pixels, the units `getBoundingClientRect()`
+  // answers in. Scaling it by the device ratio moved every drop up and to the
+  // left, which on a 2x display put a point in the middle of the composer
+  // inside the sidebar, where it was silently filed in the library.
+  it("does not rescale a drop, whatever the display's ratio", () => {
+    expect(isInside(COMPOSER, { x: 461, y: 620 })).toBe(true);
+    expect(isInside(PANE, { x: 461, y: 620 })).toBe(false);
   });
 
   it("keeps the header out of the pane, which starts below it", () => {
-    expect(isInside(PANE, { x: 100, y: 100 }, 2)).toBe(false);
-    expect(isInside(PANE, { x: 100, y: 220 }, 2)).toBe(true);
+    expect(isInside(PANE, { x: 100, y: 50 })).toBe(false);
+    expect(isInside(PANE, { x: 100, y: 220 })).toBe(true);
   });
 
   it("counts the edges as inside, so a drop on the border still lands", () => {
-    expect(isInside(PANE, { x: 0, y: 200 }, 1)).toBe(true);
-    expect(isInside(PANE, { x: 240, y: 700 }, 1)).toBe(true);
+    expect(isInside(PANE, { x: 0, y: 200 })).toBe(true);
+    expect(isInside(PANE, { x: 240, y: 700 })).toBe(true);
   });
 
   it("is false when there is no box or no pointer to compare", () => {
-    expect(isInside(null, { x: 10, y: 200 }, 1)).toBe(false);
-    expect(isInside(PANE, null, 1)).toBe(false);
-  });
-
-  it("treats a nonsense ratio as one rather than dividing by zero", () => {
-    expect(isInside(PANE, { x: 120, y: 400 }, 0)).toBe(true);
+    expect(isInside(null, { x: 10, y: 200 })).toBe(false);
+    expect(isInside(PANE, null)).toBe(false);
   });
 });
 
 describe("zoneAt", () => {
   it("names the zone the drop landed in", () => {
-    expect(zoneAt(ZONES, { x: 1200, y: 1250 }, 2)).toBe("composer");
-    expect(zoneAt(ZONES, { x: 200, y: 400 }, 2)).toBe("library");
+    expect(zoneAt(ZONES, { x: 600, y: 625 })).toBe("composer");
+    expect(zoneAt(ZONES, { x: 120, y: 400 })).toBe("library");
   });
 
   it("is null for a drop that missed every zone", () => {
-    expect(zoneAt(ZONES, { x: 1200, y: 400 }, 2)).toBeNull();
-    expect(zoneAt(ZONES, null, 2)).toBeNull();
+    expect(zoneAt(ZONES, { x: 1200, y: 400 })).toBeNull();
+    expect(zoneAt(ZONES, { x: 600, y: 300 })).toBeNull();
+    expect(zoneAt(ZONES, null)).toBeNull();
   });
 
   it("reads the zones in order, so the first one to cover the point wins", () => {
@@ -64,7 +66,7 @@ describe("zoneAt", () => {
       { box: PANE, name: "library" },
     ];
 
-    expect(zoneAt(overlapping, { x: 120, y: 400 }, 1)).toBe("composer");
+    expect(zoneAt(overlapping, { x: 120, y: 400 })).toBe("composer");
   });
 
   it("skips a zone that is not on screen to take the one behind it", () => {
@@ -73,7 +75,7 @@ describe("zoneAt", () => {
       { box: PANE, name: "library" },
     ];
 
-    expect(zoneAt(closed, { x: 120, y: 400 }, 1)).toBe("library");
+    expect(zoneAt(closed, { x: 120, y: 400 })).toBe("library");
   });
 });
 
@@ -124,6 +126,33 @@ describe("refusalOf", () => {
     );
     expect(refusalOf(["/a.md", "/b.txt"], "the message")).toContain(
       "into the message"
+    );
+  });
+
+  // "That is not a picture" about a photograph is unhelpful and untrue. The
+  // constraint is real — the API reads jpeg, png, gif and webp — so the
+  // sentence names the format and the way out instead.
+  it("names the format of a picture the model cannot read", () => {
+    const refusal = refusalOf(["/tmp/holiday.heic"], "the message");
+
+    expect(refusal).toContain("HEIC");
+    expect(refusal).toContain("export it as JPEG or PNG");
+    expect(refusal).not.toContain("not a picture, a video or a sound");
+  });
+
+  it("lists each format once, however many arrived", () => {
+    const refusal = refusalOf(["/a.heic", "/b.heic", "/c.avif"], "the message");
+
+    expect(refusal).toContain("3 of those (HEIC, AVIF)");
+    expect(refusal).toContain("export them as JPEG or PNG");
+  });
+
+  it("keeps the two refusals apart when both kinds arrive together", () => {
+    const refusal = refusalOf(["/a.heic", "/notes.md"], "the message");
+
+    expect(refusal).toContain("HEIC is not a picture the model can read");
+    expect(refusal).toContain(
+      "That is not a picture, a video or a sound, so it did not go into the message"
     );
   });
 });

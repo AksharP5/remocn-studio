@@ -11,19 +11,50 @@ import { baseName } from "./paths";
 
 const MEDIA_BY_EXTENSION: Record<string, MediaType> = {
   aac: "audio/aac",
+  aif: "audio/aiff",
+  aiff: "audio/aiff",
+  avi: "video/x-msvideo",
+  flac: "audio/flac",
   gif: "image/gif",
   jpeg: "image/jpeg",
   jpg: "image/jpeg",
   m4a: "audio/mp4",
+  m4v: "video/x-m4v",
+  mkv: "video/x-matroska",
   mov: "video/quicktime",
   mp3: "audio/mpeg",
   mp4: "video/mp4",
+  mpeg: "video/mpeg",
+  mpg: "video/mpeg",
+  oga: "audio/ogg",
   ogg: "audio/ogg",
+  opus: "audio/opus",
   png: "image/png",
   wav: "audio/wav",
   webm: "video/webm",
   webp: "image/webp",
 };
+
+// Pictures the studio recognises and still cannot take: the API reads jpeg,
+// png, gif and webp and nothing else, so these are real refusals. What was
+// wrong was the sentence — "that is not a picture" about a photograph is
+// unhelpful and untrue, where naming the format and the way out is neither.
+const UNSENDABLE_IMAGES: Record<string, string> = {
+  avif: "AVIF",
+  bmp: "BMP",
+  heic: "HEIC",
+  heif: "HEIF",
+  svg: "SVG",
+  tif: "TIFF",
+  tiff: "TIFF",
+};
+
+export function unsendableImageOf(path: string): string | null {
+  const name = baseName(path);
+  return name.length === 0
+    ? null
+    : (UNSENDABLE_IMAGES[extensionOf(name)] ?? null);
+}
 
 const IMAGES = new Set<string>(IMAGE_MEDIA_TYPES);
 const SUPPORTED = new Set<string>(MEDIA_TYPES);

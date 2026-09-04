@@ -334,6 +334,66 @@ describe("Composer", () => {
     ).toHaveAttribute("aria-disabled", "true");
   });
 
+  // Base UI's MenuItem closes on click; its RadioItem and CheckboxItem default
+  // to `closeOnClick: false`, so every single-select menu here stayed open over
+  // the composer it is anchored above — and the next click, aimed at the text
+  // field, landed on whatever row was under the pointer and silently changed
+  // the setting again.
+  it("closes the mode menu once a mode is chosen", async () => {
+    await renderComposer();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Mode: Auto" }));
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: "Plan" })
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByRole("menuitemradio")).not.toBeInTheDocument()
+    );
+  });
+
+  it("closes the effort menu once a level is chosen", async () => {
+    await renderComposer();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Effort: Default" }));
+    await user.click(await screen.findByRole("menuitemradio", { name: "Max" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("menuitemradio")).not.toBeInTheDocument()
+    );
+    expect(screen.getByRole("button", { name: "Effort: Max" })).toBeVisible();
+  });
+
+  it("closes the model menu once a model is chosen", async () => {
+    await renderComposer();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Model: Opus 5" }));
+    await user.click(await screen.findByText("Claude", { selector: "span" }));
+    fireEvent.click(
+      await screen.findByRole("menuitemradio", { name: "Haiku 4.5" })
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByRole("menuitemradio")).not.toBeInTheDocument()
+    );
+    expect(
+      screen.getByRole("button", { name: "Model: Haiku 4.5" })
+    ).toBeVisible();
+  });
+
+  // macOS substitution turned `git status --short` into `git status —short`
+  // on the way to the agent, and the raw prompt is what the transcript stores,
+  // so the damage outlived the turn.
+  it("takes what was typed verbatim, without macOS substitution", async () => {
+    const { textarea } = await renderComposer();
+
+    expect(textarea).toHaveAttribute("autocorrect", "off");
+    expect(textarea).toHaveAttribute("autocapitalize", "off");
+  });
+
   it("picks an effort level from the menu", async () => {
     await renderComposer();
 

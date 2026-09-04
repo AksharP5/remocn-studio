@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  caretOutside,
   dropLostReferences,
   dropReference,
   dropReferences,
+  insertAt,
   insertReferences,
   lostReferences,
   type ReferenceCounts,
@@ -215,6 +217,81 @@ describe("insertReferences", () => {
       caret: 2,
       text: "hello",
     });
+  });
+});
+
+// A reference is atomic for deletion, and these make it atomic for insertion
+// too. A caret inside `[Image #1]` used to be handed straight to `insertAt`,
+// which cut the token in half — the halves are literal text, and the diff path
+// then read reference 1 as lost and dropped the attachment it stood for. So
+// pasting one picture silently removed another.
+describe("caretOutside", () => {
+  const held = counts(1);
+  const text = "look at [Image #1] please";
+
+  it("leaves a caret that is not in a reference alone", () => {
+    expect(caretOutside(text, held, 0)).toBe(0);
+    expect(caretOutside(text, held, 7)).toBe(7);
+    expect(caretOutside(text, held, text.length)).toBe(text.length);
+  });
+
+  it("keeps the caret at either edge of the token, which is already outside", () => {
+    expect(caretOutside(text, held, 8)).toBe(8);
+    expect(caretOutside(text, held, 18)).toBe(18);
+  });
+
+  it("snaps a caret inside the token to the edge it is nearer", () => {
+    expect(caretOutside(text, held, 9)).toBe(8);
+    expect(caretOutside(text, held, 12)).toBe(8);
+    expect(caretOutside(text, held, 14)).toBe(18);
+    expect(caretOutside(text, held, 17)).toBe(18);
+  });
+
+  it("sends a caret exactly in the middle after the token", () => {
+    expect(caretOutside(text, held, 13)).toBe(18);
+  });
+
+  it("clamps a caret outside the text", () => {
+    expect(caretOutside(text, held, -5)).toBe(0);
+    expect(caretOutside(text, held, 999)).toBe(text.length);
+  });
+
+  // A number past the attachment count is plain text, not a reference, so
+  // there is nothing to protect and the caret must not move.
+  it("does not move for a number nothing has attached", () => {
+    expect(caretOutside("look at [Image #7] please", held, 13)).toBe(13);
+  });
+
+  it("keeps both attachments when a paste lands inside an existing reference", () => {
+    const at = caretOutside(text, held, 13);
+    const next = insertReferences(text, at, "image", 1, 1);
+
+    expect(next.text).toBe("look at [Image #1] [Image #2] please");
+    expect(lostReferences(text, next.text, held)).toEqual({
+      asset: [],
+      element: [],
+      image: [],
+    });
+  });
+});
+
+describe("insertAt", () => {
+  // A line break already separates what follows, so the space this used to add
+  // was trailing whitespace in text that is sent to the model verbatim and
+  // stored in the transcript that way.
+  it("adds no space against a line break", () => {
+    expect(insertAt("first\nsecond", 5, "[Image #1]").text).toBe(
+      "first [Image #1]\nsecond"
+    );
+    expect(insertAt("first\nsecond", 6, "[Image #1]").text).toBe(
+      "first\n[Image #1] second"
+    );
+  });
+
+  it("still spaces the insertion off ordinary words", () => {
+    expect(insertAt("first second", 5, "[Image #1]").text).toBe(
+      "first [Image #1] second"
+    );
   });
 });
 

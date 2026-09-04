@@ -73,8 +73,7 @@ export function useFileDrops({
             name: "library",
           },
         ],
-        point,
-        window.devicePixelRatio
+        point
       ),
     []
   );
