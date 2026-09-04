@@ -80,12 +80,16 @@ function RowShell({
         )}
       >
         <div className="flex items-baseline gap-2">
+          {/* Not `text-sidebar-foreground/65`: that token is itself a 64% mix
+              toward the ground, so the fade compounded to ~42% of the way from
+              the background to the ink — 2.5:1 in light, 3.8:1 in dark, both
+              under AA's 4.5:1 for 14px text, and both *behind* the timestamp
+              beside it. The active row carries the emphasis instead; the row's
+              own background is what separates it. */}
           <div
             className={cn(
               "min-w-0 flex-1 truncate",
-              isActive
-                ? "text-sidebar-foreground"
-                : "text-sidebar-foreground/65"
+              isActive ? "text-sidebar-foreground" : "text-muted-foreground"
             )}
             id={titleId}
           >

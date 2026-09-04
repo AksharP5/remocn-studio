@@ -20,8 +20,17 @@ import { fileManagerName } from "@/lib/studio/platform";
 import { cn } from "@/lib/utils";
 import type { Asset } from "@/shared/library";
 import { AssetGrid } from "./asset-grid";
+import { PaneScreen } from "./pane-screen";
 
 const PLACEHOLDERS = ["one", "two", "three"];
+
+// A tile carries its own positioned children — an `absolute inset-0 z-10`
+// trigger over the whole card and `z-20` actions — so a heading that stays
+// sticky inside the scroller has to sit above both, or a row scrolling under
+// it prints straight through the word. The search field is not sticky at all:
+// it is pinned above the scroller by `PaneScreen`, because a stuck field took
+// no clicks — see the note there.
+export const OVER_TILES = "z-30";
 
 export function AssetSearchField({
   onChange,
@@ -31,10 +40,7 @@ export function AssetSearchField({
   value: string;
 }) {
   return (
-    // Sticky against the pane's scroll container: the list scrolls under it
-    // and the field never leaves the top. The background is what stops the
-    // cards showing through the padding as they pass.
-    <div className="sticky top-0 z-10 bg-sidebar px-1 pb-2">
+    <div className="px-1">
       <div className="relative">
         <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -80,27 +86,31 @@ export function AssetsPane({
   return (
     <div
       className={cn(
-        "relative rounded-lg transition-colors",
+        "relative flex min-h-0 flex-1 flex-col rounded-lg transition-colors",
         isOver && "bg-primary/5 outline-dashed outline-2 outline-primary/40"
       )}
     >
-      {assets.length === 0 ? null : (
-        <AssetSearchField
-          onChange={search.onQueryChange}
-          value={search.query}
+      <PaneScreen
+        pinned={
+          assets.length === 0 ? null : (
+            <AssetSearchField
+              onChange={search.onQueryChange}
+              value={search.query}
+            />
+          )
+        }
+      >
+        <AssetsBody
+          assets={search.found}
+          error={error}
+          isEmpty={assets.length === 0}
+          isLoading={isLoading}
+          onPick={onPick}
+          onRemove={onRemove}
+          onRetry={onRetry}
+          query={search.query}
         />
-      )}
-
-      <AssetsBody
-        assets={search.found}
-        error={error}
-        isEmpty={assets.length === 0}
-        isLoading={isLoading}
-        onPick={onPick}
-        onRemove={onRemove}
-        onRetry={onRetry}
-        query={search.query}
-      />
+      </PaneScreen>
 
       {isOver ? (
         <p className="pointer-events-none absolute inset-x-0 bottom-2 text-center text-foreground text-xs">

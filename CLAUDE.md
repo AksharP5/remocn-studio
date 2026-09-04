@@ -123,6 +123,16 @@ Vitest + React Testing Library + jsdom (`vitest.config.mts`). The `@/*` alias
 resolves natively via `resolve.tsconfigPaths` — do not add `vite-tsconfig-paths`,
 Vite 7 warns that it is redundant.
 
+**Three workers, isolated.** Vitest's default is every core but one, which on the
+fanless MacBook the app is developed on is seven node processes and a load average
+past thirty for the length of a run; `maxWorkers: 3` keeps it under four and costs
+about 35 s for the whole suite. `isolate: false` would halve that and was measured
+and rejected: `vi.mock` cannot reach a module an earlier file already evaluated in
+a shared graph, so the five suites that mock a module silently ran against the
+real one. **While iterating, run only the files you touched** —
+`bun run test hooks/use-tours.test.tsx` — and the full suite once before a commit.
+Never run `test:watch` beside a `vitest run`.
+
 **jsdom is not a Tauri webview.** There is no `window.__TAURI_INTERNALS__`, so
 any `invoke()` that reaches the real transport throws. Tests touching IPC must
 install a fake with `mockIPC` from `@tauri-apps/api/mocks`; `vitest.setup.ts`
@@ -792,11 +802,19 @@ under them; the words are "Project", "Video" and "Chat", and "composition" never
 in the UI. The invariant that makes all of it hold: **the open chat determines
 everything** — the composition the preview plays, the folder in the conventions, the
 target of an export, the project for inspect and snapshot. Clicking a video opens its most
-recent chat; a chevron expands the list. There is no such thing as a selected video with
-no chat open, which is what kills the old divergence between "the preview follows the
-selected project" and "the chat follows the open session's project" — and with it the
-`openedProjectId !== previewProjectId` checks that used to guard inspect and the
-environment checklist.
+recent chat; a chevron **with its own hit area** expands the list. There is no such thing
+as a selected video with no chat open, which is what kills the old divergence between
+"the preview follows the selected project" and "the chat follows the open session's
+project" — and with it the `openedProjectId !== previewProjectId` checks that used to
+guard inspect and the environment checklist.
+
+That was documented and not built (REM-323): the row's whole button was wired to expansion
+and nothing anywhere opened a chat, so row and chevron were the same click and a video
+could sit expanded and highlighted while an unrelated chat drove the preview, the
+conventions and Export — exactly the divergence the invariant exists to prevent. `newestChat`
+reads the **store's** order, newest first, not the pane's: attention promotion in
+`paneGroups` is a reading order and must not decide what a click opens. A video with no
+chats yet only expands, because there is nothing to open.
 
 - **Two sources of truth, with different jobs: SQLite draws, the bundle corrects.** The
   pane renders `video` rows the instant a project is opened; ~7 s later the compiled
@@ -1109,6 +1127,15 @@ by tests that render nothing.
     the pane mounted. The number is muted, `tabular-nums` and outside the shimmer,
     and carries no live region or status role: a screen reader must never be
     handed something that changes every second.
+- **The active row carries the emphasis; the inactive ones carry none** (REM-335). An
+  inactive title was `text-sidebar-foreground/65`, and that token is *itself* a 64% mix
+  toward the ground — so the fade compounded to about 42% of the way from the background
+  to the ink: **2.5 : 1 in light, 3.8 : 1 in dark**, both under AA's 4.5 : 1 for 14px text,
+  and both *behind* the timestamp sitting beside them. The row you scan the list for was
+  the faintest thing in it, and the hierarchy was inverted as well as under-contrast. It is
+  `text-muted-foreground` now, which the timestamp already uses; the row's own background
+  is what separates the active one. Anywhere else a token that is already a mix is faded
+  again will compound the same way — a sweep worth doing, not done here.
 - **Rows are adaptive.** Settled is one line — title left, relative time right.
   Waiting, running and failed take a second line: `Waiting 4m · Bash`,
   `Running · 2m`, or the first line of the error. The waiting timer counts *up*
@@ -2851,6 +2878,15 @@ Save something once and reuse it in every other video: an image, a video, a soun
 Remotion component (REM-8). It is a drawer at the foot of the left pane, and its assets reach a turn as
 `[Asset #N]` — the **third** reference kind, beside `[Image #N]` and `[Element #N]`.
 
+- **A saved stock asset is named by what you searched for, not by its alt text**
+  (REM-334). Pexels' alt is a sentence — and already cut mid-clause at the source — so
+  every photo landed in the library as `Dynamic wa…`, `A serene vi…`, `Close up of…`: two
+  columns in a 288px sidebar give a label about twelve characters, and the descriptive
+  prefix alt text always opens with is exactly the part that does not tell one photo from
+  another. `stockName` in `lib/studio/stock.ts` makes it `ocean — Magda Ehlers`, and it
+  lives in the webview because that is where the query is — the sidecar's `StockItem`
+  never carried one, and a name is a presentation decision, not a wire change. The alt
+  text stays where prose belongs: on the search result you picked from.
 - **The library is a folder, not a database.** `assets/<slug>/` plus a `manifest.json` under
   `app_data_dir/library`, which Rust resolves and hands over as `REMOCN_STUDIO_LIBRARY_DIR` exactly
   as it does the history's `REMOCN_STUDIO_DATA_DIR`. Listing is a folder scan with no index to keep
@@ -2954,6 +2990,26 @@ field, one value — where the pane's categories (Typography, Shaders, Filters�
   `rise-in` is documented as panels-and-images only, because a text entrance travels on
   X or the glyph baselines snap (§2). A dictionary that contradicted the lessons would
   be a vocabulary for producing the exact failures the lessons record.
+- **The role heading is above the tiles, not merely opaque** (REM-325). It always had the
+  pane's own `bg-sidebar`; what it lacked was a layer. At `z-0` it lost to a tile's own
+  positioned children — the `Attachment` trigger is `absolute inset-0 z-10` and its actions
+  `z-20` — so a row scrolling under it printed straight through the word, and the only
+  thing saying which role you are looking at went illegible exactly while scrolling 99
+  components. `z-30` clears both. Making it visible then showed the other half: the
+  heading stuck at a flat `top-11` while the search field above it is 44px only until
+  `sm:`, where the input drops to `h-7.5` and the field becomes 40px — so tiles scrolled
+  through a 4px band between the two.
+- **Nothing interactive is `sticky` inside the pane's scroller** — that is what finally
+  made the search field answer. Raising it to `z-40` changed nothing: WKWebView draws a
+  stuck element at the top and hit-tests it where it was *laid out*, so once the grid had
+  scrolled the field looked right and a click went to the tile underneath. `PaneScreen`
+  in `components/studio/pane-screen.tsx` is the one shape every view has now — a pinned
+  block above the `SidebarContent` scroller, the list inside it — and the search fields
+  of Assets, Components and Stock, the scope switch and *New video* all live in the
+  pinned half. The offset above and `UNDER_SEARCH_FIELD` went with it: the role headings
+  stick to the scroller's own `top-0`, which is also why the Components view turns the
+  scroll fade off — the fade is a mask over the viewport's top 1.5rem, exactly where a
+  stuck heading sits. A test per pane pins that the field is outside the viewport.
 - **The pane groups by role.** Entry, Emphasis, Exit, Scene, Transition with a count
   each; category survives in the data and orders the tiles *inside* a group, so Scene
   reads shaders before filters. A saved component sits in its own role beside the

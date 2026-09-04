@@ -21,7 +21,7 @@ const SCOPE_ICONS = {
 // search field's height and ring so the header reads as one family.
 export function AssetsScopeSwitch({ scope }: { scope: AssetsScope }) {
   return (
-    <div className="px-1 pb-2">
+    <div className="px-1">
       <div className="flex h-9 rounded-md bg-input/30 p-0.5 ring-1 ring-border ring-inset sm:h-8">
         {(["library", "photo", "video"] as const).map((entry) => {
           const Icon = SCOPE_ICONS[entry];

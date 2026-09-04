@@ -13,17 +13,30 @@ import {
   SidebarMenuItem,
   SidebarMenuSkeleton,
 } from "@/components/ui/sidebar";
-import { useAssetSearch } from "@/hooks/use-asset-search";
+import { type AssetSearch, useAssetSearch } from "@/hooks/use-asset-search";
 import { componentGroups, filterAssets } from "@/lib/studio/pane-view";
+import { cn } from "@/lib/utils";
 import type { Asset } from "@/shared/library";
 import { AssetGrid } from "./asset-grid";
-import { AssetSearchField, NothingFound } from "./assets-pane";
+import { AssetSearchField, NothingFound, OVER_TILES } from "./assets-pane";
+import { PaneScreen } from "./pane-screen";
 
 const PLACEHOLDERS = ["one", "two", "three"];
 
 function GroupHeading({ count, label }: { count: number; label: string }) {
   return (
-    <h3 className="sticky top-11 z-0 flex h-8 shrink-0 items-center justify-between bg-sidebar px-2 font-medium text-sidebar-foreground/70 text-xs">
+    // `z-0` was the whole bug: the ground was always opaque, but a tile's
+    // trigger is `absolute inset-0 z-10` and its actions `z-20`, so both
+    // painted over a heading sitting at 0 and the role — the only thing saying
+    // where you are among 99 components — went illegible exactly while
+    // scrolling. It sticks to the scroller's own top edge now that the search
+    // field is pinned above the scroller rather than inside it.
+    <h3
+      className={cn(
+        "sticky top-0 flex h-8 shrink-0 items-center justify-between bg-sidebar px-2 font-medium text-sidebar-foreground/70 text-xs",
+        OVER_TILES
+      )}
+    >
       {label}
       <span className="text-sidebar-foreground/50 tabular-nums">{count}</span>
     </h3>
@@ -49,6 +62,55 @@ export function ComponentsPane({
 }) {
   const search = useAssetSearch(assets);
   const isEmpty = assets.length === 0 && bundled.length === 0;
+  const hasList = error === null && !isLoading && !isEmpty;
+
+  return (
+    // The role headings are sticky at the scroller's top edge, which is
+    // exactly where the scroll fade would dim them — so this view has none.
+    <PaneScreen
+      pinned={
+        hasList ? (
+          <AssetSearchField
+            onChange={search.onQueryChange}
+            value={search.query}
+          />
+        ) : null
+      }
+      scrollFade={false}
+    >
+      <ComponentsBody
+        bundled={bundled}
+        error={error}
+        isEmpty={isEmpty}
+        isLoading={isLoading}
+        onPick={onPick}
+        onRemove={onRemove}
+        onRetry={onRetry}
+        search={search}
+      />
+    </PaneScreen>
+  );
+}
+
+function ComponentsBody({
+  bundled,
+  error,
+  isEmpty,
+  isLoading,
+  onPick,
+  onRemove,
+  onRetry,
+  search,
+}: {
+  bundled: readonly Asset[];
+  error: string | null;
+  isEmpty: boolean;
+  isLoading: boolean;
+  onPick: (event: MouseEvent<HTMLButtonElement>) => void;
+  onRemove: (event: MouseEvent<HTMLButtonElement>) => void;
+  onRetry: () => void;
+  search: AssetSearch;
+}) {
   const groups = componentGroups(
     search.found,
     filterAssets(bundled, search.query)
@@ -98,8 +160,6 @@ export function ComponentsPane({
 
   return (
     <div>
-      <AssetSearchField onChange={search.onQueryChange} value={search.query} />
-
       {groups.length === 0 ? <NothingFound query={search.query} /> : null}
 
       {groups.map((group) => (

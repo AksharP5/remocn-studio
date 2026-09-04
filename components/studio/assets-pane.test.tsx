@@ -239,4 +239,21 @@ describe("AssetsPane", () => {
       screen.getByRole("button", { name: "Try again" })
     ).toBeInTheDocument();
   });
+
+  // The field used to be `sticky` inside the scroller, and WKWebView hit-tests
+  // a stuck element where it was laid out: once the grid had scrolled, a click
+  // on the field landed on the tile underneath. Pinned above the viewport,
+  // there is nothing for the hit test to disagree with.
+  it("keeps the search field out of the scroller", () => {
+    const { container } = pane({});
+
+    const field = container.querySelector('input[aria-label="Search by name"]');
+    const viewport = container.querySelector(
+      '[data-slot="scroll-area-viewport"]'
+    );
+
+    expect(field).not.toBeNull();
+    expect(viewport).not.toBeNull();
+    expect(viewport?.contains(field)).toBe(false);
+  });
 });

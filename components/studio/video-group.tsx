@@ -36,6 +36,7 @@ function VideoGroupBlock({
   isExpanded,
   now,
   onNewSession,
+  onOpen,
   onRemoveSession,
   onSelectSession,
   onToggle,
@@ -46,6 +47,7 @@ function VideoGroupBlock({
   isExpanded: boolean;
   now: number;
   onNewSession: (event: MouseEvent<HTMLButtonElement>) => void;
+  onOpen: (event: MouseEvent<HTMLButtonElement>) => void;
   onRemoveSession: (event: MouseEvent<HTMLButtonElement>) => void;
   onSelectSession: (event: MouseEvent<HTMLButtonElement>) => void;
   onToggle: (event: MouseEvent<HTMLButtonElement>) => void;
@@ -56,11 +58,14 @@ function VideoGroupBlock({
 
   return (
     <SidebarMenuItem>
+      {/* The row opens the video's most recent chat; the chevron beside it
+          expands the list. They were the same click, so a video could look
+          selected — expanded and highlighted — while an unrelated chat drove
+          the preview, the conventions and Export, which is the divergence
+          "the open chat determines everything" exists to prevent. */}
       <SidebarMenuButton
-        aria-controls={panelId}
-        aria-expanded={isExpanded}
-        className="pr-14 font-medium hover:bg-sidebar-accent/40 active:bg-sidebar-accent/40"
-        onClick={onToggle}
+        className="pr-20 font-medium hover:bg-sidebar-accent/40 active:bg-sidebar-accent/40"
+        onClick={onOpen}
         value={video.id}
       >
         {/* Only the name dims for a video the bundle no longer names: its
@@ -88,38 +93,54 @@ function VideoGroupBlock({
           </Tooltip>
         ) : null}
         {isExpanded ? null : <Rollup rollup={group.rollup} />}
-        <ChevronRight
-          className={cn(
-            "size-3 shrink-0 text-muted-foreground/70 transition-transform duration-150 ease-out",
-            isExpanded && "rotate-90"
-          )}
-        />
       </SidebarMenuButton>
 
-      {/* `has-[[data-popup-open]]` keeps the cluster visible while its menu is
-          open: the popup is portalled, so hover and focus-within both read
-          false the moment it opens. */}
-      <div className="absolute top-1 right-1 flex items-center opacity-0 focus-within:opacity-100 group-hover/menu-item:opacity-100 has-[[data-popup-open]]:opacity-100">
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                aria-label={`New chat about ${video.name}`}
-                className="relative after:absolute after:-inset-y-1 after:right-0 after:-left-1"
-                disabled={video.missing}
-                onClick={onNewSession}
-                size="icon-xs"
-                value={video.id}
-                variant="ghost"
-              />
-            }
-          >
-            <SquarePenIcon />
-          </TooltipTrigger>
-          <TooltipContent side="bottom">New chat here</TooltipContent>
-        </Tooltip>
+      <div className="absolute top-1 right-1 flex items-center">
+        {/* `has-[[data-popup-open]]` keeps the cluster visible while its menu
+            is open: the popup is portalled, so hover and focus-within both
+            read false the moment it opens. The chevron sits outside it, at the
+            row's own right edge, because it is not a hover affordance — it is
+            the other half of the gesture. */}
+        <div className="flex items-center opacity-0 focus-within:opacity-100 group-hover/menu-item:opacity-100 has-[[data-popup-open]]:opacity-100">
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  aria-label={`New chat about ${video.name}`}
+                  className="relative after:absolute after:-inset-y-1 after:right-0 after:-left-1"
+                  disabled={video.missing}
+                  onClick={onNewSession}
+                  size="icon-xs"
+                  value={video.id}
+                  variant="ghost"
+                />
+              }
+            >
+              <SquarePenIcon />
+            </TooltipTrigger>
+            <TooltipContent side="bottom">New chat here</TooltipContent>
+          </Tooltip>
 
-        <VideoMenu commands={commands} video={video} />
+          <VideoMenu commands={commands} video={video} />
+        </div>
+
+        <Button
+          aria-controls={panelId}
+          aria-expanded={isExpanded}
+          aria-label={`${isExpanded ? "Hide" : "Show"} the chats about ${video.name}`}
+          className="relative text-muted-foreground/70 after:absolute after:-inset-1"
+          onClick={onToggle}
+          size="icon-xs"
+          value={video.id}
+          variant="ghost"
+        >
+          <ChevronRight
+            className={cn(
+              "size-3 transition-transform duration-150 ease-out",
+              isExpanded && "rotate-90"
+            )}
+          />
+        </Button>
       </div>
 
       {isExpanded ? (

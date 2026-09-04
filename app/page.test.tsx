@@ -50,6 +50,17 @@ const VIDEO: Video = {
   updatedAt: 1_700_000_000_000,
 };
 
+const SECOND_VIDEO: Video = {
+  compositionId: "second-video",
+  createdAt: 1_700_000_000_000,
+  deletedAt: null,
+  id: "video-2",
+  missing: false,
+  name: "Second video",
+  projectId: PROJECT.id,
+  updatedAt: 1_700_000_000_000,
+};
+
 const STORED_SESSION: HistorySession = {
   createdAt: 1_700_000_000_000,
   id: "session-1",
@@ -193,6 +204,58 @@ describe("app shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show the preview" }));
 
     expect(screen.getByRole("heading", { name: "Preview" })).toBeVisible();
+  });
+
+  // "Clicking a video opens its most recent chat" is the invariant the rest of
+  // the design leans on — the open chat decides the composition the preview
+  // plays, the folder in the conventions and the target of an export. The row
+  // only expanded, so a video could look selected while an unrelated chat drove
+  // all three.
+  it("opens a video's most recent chat when its row is clicked", async () => {
+    mockStudio({
+      projects: [PROJECT],
+      sessions: [
+        { ...STORED_SESSION, id: "session-2", title: "The newer one" },
+        { ...STORED_SESSION, id: "session-1", title: "The older one" },
+      ],
+    });
+    await renderShell();
+
+    fireEvent.click(await screen.findByText("My video"));
+
+    expect(
+      await screen.findByRole("heading", { name: "The newer one" })
+    ).toBeVisible();
+  });
+
+  // Row and chevron did the same thing, so the affordance that tells "expand"
+  // from "open" pointed at nothing.
+  it("expands without opening when the chevron alone is clicked", async () => {
+    mockStudio({
+      projects: [PROJECT],
+      sessions: [{ ...STORED_SESSION, videoId: SECOND_VIDEO.id }],
+      videos: [VIDEO, SECOND_VIDEO],
+    });
+    await renderShell();
+    await screen.findByText("Second video");
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Show the chats about Second video",
+      })
+    );
+
+    // The chat is listed under the video, but it is not the open one: the
+    // pane's heading still names the chat that was open before.
+    expect(await screen.findByText(STORED_SESSION.title)).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: STORED_SESSION.title })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Hide the chats about Second video",
+      })
+    ).toBeVisible();
   });
 
   // The band itself is there either way — it is what clears the traffic

@@ -20,10 +20,7 @@ import {
 } from "@/components/ui/empty";
 import {
   Sidebar,
-  SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -52,6 +49,7 @@ import { AssetsPane } from "./assets-pane";
 import { AssetsScopeSwitch } from "./assets-scope";
 import { ComponentsPane } from "./components-pane";
 import { LogoWordmark } from "./logo-mark";
+import { PaneScreen } from "./pane-screen";
 import { StockPane } from "./stock-pane";
 import { useStudio } from "./studio-provider";
 import { UpdateStatus } from "./update-status";
@@ -98,6 +96,7 @@ export function ProjectsPane() {
     library,
     newVideo,
     onNewSession,
+    onOpenVideo,
     onRemoveSession,
     onRetryScaffold,
     onSelectSession,
@@ -140,13 +139,19 @@ export function ProjectsPane() {
     [library.assets]
   );
 
+  // Pinned above the scroller rather than scrolled with the list: the one
+  // action that starts a video must not be the first thing a long list takes
+  // off screen.
   let content = (
-    <>
+    <PaneScreen
+      pinned={
+        <NewVideoAction
+          isDisabled={activeProject === null || activeProject.missing}
+          onNewVideo={newVideo.open}
+        />
+      }
+    >
       <h2 className="sr-only">Videos</h2>
-      <NewVideoAction
-        isDisabled={activeProject === null || activeProject.missing}
-        onNewVideo={newVideo.open}
-      />
       {activeProject === null ? null : (
         <Scaffolding
           onRetry={onRetryScaffold}
@@ -164,19 +169,24 @@ export function ProjectsPane() {
         isLoading={isLoadingProjects || isLoadingVideos}
         now={now}
         onNewSession={onNewSession}
+        onOpen={onOpenVideo}
         onRemoveSession={onRemoveSession}
         onRetry={reloadVideos}
         onSelectSession={onSelectSession}
         onToggle={onToggleVideo}
       />
-    </>
+    </PaneScreen>
   );
 
   if (paneView === "assets") {
     content = (
       <>
         <h2 className="sr-only">Assets</h2>
-        <AssetsScopeSwitch scope={assetsScope} />
+        {/* Above the pane rather than inside it, so the switch sits over the
+            search field the pane pins and neither of them scrolls. */}
+        <div className="px-2 pt-2">
+          <AssetsScopeSwitch scope={assetsScope} />
+        </div>
         {stockKind === null ? (
           <AssetsPane
             assets={media}
@@ -270,18 +280,20 @@ export function ProjectsPane() {
           <PaneViewMenu onShow={showPane} view={paneView} />
         </SidebarHeader>
 
-        <SidebarContent>
-          <SidebarGroup
-            className={cn(
-              paneSlide === "push" && "animate-screen-in",
-              paneSlide === "pop" && "animate-screen-back"
-            )}
-            data-pane-slide
-            key={paneView}
-          >
-            <SidebarGroupContent>{content}</SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
+        {/* The view is one column: what is pinned stays put and only the
+            list below it scrolls, so the slide animation belongs to the
+            column rather than to the scrolling half of it. */}
+        <div
+          className={cn(
+            "flex min-h-0 flex-1 flex-col",
+            paneSlide === "push" && "animate-screen-in",
+            paneSlide === "pop" && "animate-screen-back"
+          )}
+          data-pane-slide
+          key={paneView}
+        >
+          {content}
+        </div>
 
         {footer}
       </Sidebar>
@@ -383,7 +395,7 @@ function NewVideoAction({
   onNewVideo: () => void;
 }) {
   return (
-    <div className="px-2 pt-1 pb-4">
+    <div className="px-1">
       <Button
         className="w-full"
         disabled={isDisabled}
@@ -407,6 +419,7 @@ function VideosBody({
   isLoading,
   now,
   onNewSession,
+  onOpen,
   onRemoveSession,
   onRetry,
   onSelectSession,
@@ -421,6 +434,7 @@ function VideosBody({
   isLoading: boolean;
   now: number;
   onNewSession: (event: MouseEvent<HTMLButtonElement>) => void;
+  onOpen: (event: MouseEvent<HTMLButtonElement>) => void;
   onRemoveSession: (event: MouseEvent<HTMLButtonElement>) => void;
   onRetry: () => void;
   onSelectSession: (event: MouseEvent<HTMLButtonElement>) => void;
@@ -478,6 +492,7 @@ function VideosBody({
       key={group.video.id}
       now={now}
       onNewSession={onNewSession}
+      onOpen={onOpen}
       onRemoveSession={onRemoveSession}
       onSelectSession={onSelectSession}
       onToggle={onToggle}
