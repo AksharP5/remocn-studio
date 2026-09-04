@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import type { PanelImperativeHandle } from "react-resizable-panels";
 
 type Phase = "hidden" | "hiding" | "showing" | "shown";
@@ -10,10 +16,20 @@ const SETTLE_FALLBACK_MS = 400;
 export interface PreviewCollapse {
   isAnimating: boolean;
   isMounted: boolean;
+  onResize: () => void;
   panelRef: React.RefObject<PanelImperativeHandle | null>;
 }
 
-export function usePreviewCollapse(isShown: boolean): PreviewCollapse {
+// A `collapsible` panel dragged past its own `minSize` collapses inside
+// react-resizable-panels, and that is *not* the app's `isPreviewShown` — which
+// is what the header renders its toggle off. Left as two states, one drag took
+// the preview and every control that could bring it back, in a layout the
+// studio then persisted. So a collapse the group reports folds into the one
+// flag, and the toggle that already exists is the way back.
+export function usePreviewCollapse(
+  isShown: boolean,
+  onCollapsed: () => void
+): PreviewCollapse {
   const panelRef = useRef<PanelImperativeHandle | null>(null);
   const [phase, setPhase] = useState<Phase>(isShown ? "shown" : "hidden");
   const previous = useRef<boolean | null>(null);
@@ -60,9 +76,20 @@ export function usePreviewCollapse(isShown: boolean): PreviewCollapse {
     return () => clearTimeout(timer);
   }, [phase]);
 
+  // The panel is asked rather than the size measured: `isCollapsed()` is the
+  // group's own answer, where a pixel reading would need a threshold and would
+  // have to guess at a mid-drag frame. Reported while the preview is already
+  // hidden, it is our own `collapse()` echoing back.
+  const onResize = useCallback(() => {
+    if (isShown && panelRef.current?.isCollapsed() === true) {
+      onCollapsed();
+    }
+  }, [isShown, onCollapsed]);
+
   return {
     isAnimating: phase === "hiding" || phase === "showing",
     isMounted: phase !== "hidden",
+    onResize,
     panelRef,
   };
 }

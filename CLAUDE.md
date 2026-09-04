@@ -1557,6 +1557,17 @@ entry: [ fast-refresh, setup-environment, userDefinedComponent, react-shim, entr
 Studio is a UI on top of the bundler, not part of it. `preview/entry.tsx` takes that
 slot and mounts `<Player>` instead, so the pane is ours and the pixels are Remotion's.
 
+- **There is exactly one way the pane is away, and that took a fix** (REM-332). The
+  panel is `collapsible`, so react-resizable-panels collapses it when the divider is
+  dragged past its own `minSize` — and that state is *not* `isPreviewShown`, which is
+  what the header renders its toggle off. So one drag took the preview and every
+  control that could bring it back: no toggle, and no Inspect / Snapshot / Export
+  either, since those live in the preview's own header. The layout is persisted, so it
+  survived a relaunch. `usePreviewCollapse` now asks the panel itself — `isCollapsed()`,
+  the group's own answer rather than a pixel threshold — and folds a collapse it did not
+  ask for into `hidePreview`, which is the state the toggle already knows. A collapse
+  reported while the preview is hidden is our own `collapse()` echoing back and is
+  ignored. It fires on mount too, which is what heals a layout already stored collapsed.
 - **Everything is resolved from the project**, never bundled here:
   `BundlerInternals.webpackConfig` *and* `webpack` itself come from the project's
   `@remotion/bundler`, the override from its `remotion.config.ts` via

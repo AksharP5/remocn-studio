@@ -16,6 +16,7 @@ import {
 } from "@/lib/studio/settings";
 
 export interface Panes {
+  hidePreview: () => void;
   isPreviewShown: boolean;
   isProjectsShown: boolean;
   paneSlide: SlideDirection;
@@ -48,6 +49,17 @@ export function usePanes(
     Effect.runFork(savePreviewPane(next));
   }, [isPreviewShown]);
 
+  // Not `togglePreview`: the panel reports a collapse, not a change of mind,
+  // so saying it twice must be free. The write stays outside the updater, which
+  // StrictMode invokes twice in dev.
+  const hidePreview = useCallback(() => {
+    if (!isPreviewShown) {
+      return;
+    }
+    setPreview(false);
+    Effect.runFork(savePreviewPane(false));
+  }, [isPreviewShown]);
+
   const toggleProjects = useCallback(() => {
     const next = !isProjectsShown;
     setProjects(next);
@@ -71,6 +83,7 @@ export function usePanes(
 
   return useMemo(
     () => ({
+      hidePreview,
       isPreviewShown,
       isProjectsShown,
       paneSlide,
@@ -80,6 +93,7 @@ export function usePanes(
       toggleProjects,
     }),
     [
+      hidePreview,
       isPreviewShown,
       isProjectsShown,
       paneSlide,
