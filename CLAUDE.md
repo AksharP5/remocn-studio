@@ -2466,11 +2466,32 @@ separate buttons and mutually exclusive rather than one mode with a switch.
     holds the page open past the first four steps, so a capture is just the last two:
     **83–122 ms**, byte-identical to `npx remotion still` on the same frame. That is the whole
     point of Snapshot being a *look at this* gesture: it has to answer at the speed of a click.
-  - **The price is naming five of Remotion's internal modules** — `set-props-and-env`,
-    `seek-to-frame`, `take-frame`, `puppeteer-evaluate` and `openBrowser` — reached the way
-    `dist/options/*` and `@remotion/cli/dist/entry-point.js` already are. `warmInternalsOf`
-    returns `null` if any export moves, and the host then falls back to `renderStill` per
-    capture: slower, never wrong. An upgrade can cost the speed but not the feature.
+  - **The price is naming six of Remotion's internal modules** — `set-props-and-env`,
+    `seek-to-frame`, `take-frame`, `puppeteer-evaluate`, `prepare-server` and `openBrowser` —
+    reached the way `dist/options/*` and `@remotion/cli/dist/entry-point.js` already are.
+    `warmInternalsOf` returns `null` if any export moves, and the host then falls back to
+    `renderStill` per capture: slower, never wrong. An upgrade can cost the speed but not the
+    feature.
+  - **The warm session starts its own offthread-video proxy, and the placeholder it replaced
+    made every video unrenderable** (REM-312). `OffthreadVideo` builds each frame request from
+    `window.remotion_proxyPort`, which `setPropsAndEnv` writes into the page — so the `0` this
+    passed produced `http://localhost:0/proxy?…`, which Chrome refuses outright as
+    `ERR_UNSAFE_PORT`. The `delayRender()` the video holds then never cleared and the capture
+    died on Remotion's own guess: *"could be caused by Chrome rejecting the request because the
+    disk space is low"*. Nothing about disk space was involved. `renderStill` never had the bug
+    because `makeOrReuseServer` prepares a proxy per capture and hands it the real port; the
+    warm session now calls the same `prepareServer` with the same arguments, before the browser
+    — the port has to be in the page's environment from the first navigation — and closes it
+    with the session, or with the failure if the page never opened. It cost `design_check` on
+    every video that uses footage, which is the gate the conventions require before finishing a
+    scene. Verified end to end against `remocn-studio-teaser`: a still on a frame inside the
+    `OffthreadVideo` scene now renders the footage.
+  - **A page with no source map throws on every line it logs.** `newPage` takes the getter as
+    `context`, and the `null` passed there before — there was no server to take one from —
+    made Remotion's own log handler fail with `this.sourceMapGetter is not a function`, 916
+    times in this machine's log since July. That is how an `ERR_UNSAFE_PORT` came to be buried.
+    `prepareServer` returns `sourceMap`, so it is passed; measured, the same run goes from 13
+    of those TypeErrors to none.
   - **The session is keyed by composition and dropped on rebuild**, in the same callback that
     forgets the measurement — a page holding the old bundle would capture code that no longer
     exists. The webview already disarms on rebuild, so re-arming re-warms.

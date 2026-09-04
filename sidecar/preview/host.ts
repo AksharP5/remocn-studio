@@ -806,6 +806,7 @@ function warmed(
       internals: tools.internals,
       measured,
       options: tools.options,
+      root: booted.root,
       serveUrl: booted.serveUrl,
       timeoutMs: tools.options.timeoutInMilliseconds ?? DELAY_RENDER_TIMEOUT_MS,
     });
