@@ -246,3 +246,16 @@ function promoted(groups: readonly PaneGroup[]): readonly PaneGroup[] {
 function firstLine(text: string): string {
   return text.split("\n").find((line) => line.trim().length > 0) ?? text;
 }
+
+// Clicking a video opens its most recent chat — the invariant the rest of the
+// design leans on, because the open chat is what decides the composition the
+// preview plays, the folder in the conventions and the target of an export.
+// The rows arrive in the store's own `ORDER BY`, newest first, so "most recent"
+// is the first one for this video; attention promotion happens later, in
+// `paneGroups`, and must not decide what a click opens.
+export function newestChat(
+  rows: readonly HistorySession[],
+  videoId: string
+): HistorySession | null {
+  return rows.find((row) => row.videoId === videoId) ?? null;
+}

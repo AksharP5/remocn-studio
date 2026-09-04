@@ -18,6 +18,7 @@ import { type Turns, useTurns } from "@/hooks/use-turns";
 import { type StudioVideos, useVideos } from "@/hooks/use-videos";
 import type { VideoFormat } from "@/lib/studio/formats";
 import {
+  newestChat,
   type PaneGroup,
   paneGroups,
   projectOf,
@@ -49,6 +50,7 @@ export interface Workspace
   ) => Promise<Project | null>;
   groups: readonly PaneGroup[];
   onNewSession: (event: MouseEvent<HTMLButtonElement>) => void;
+  onOpenVideo: (event: MouseEvent<HTMLButtonElement>) => void;
   onSelectSession: (event: MouseEvent<HTMLButtonElement>) => void;
   openedProject: Project | null;
   openedVideo: Video | null;
@@ -223,6 +225,24 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
     [openSession, rows]
   );
 
+  // The row opens; the chevron beside it expands. They used to be the same
+  // click, which left a video looking selected — expanded and highlighted —
+  // with an unrelated chat driving the preview, the conventions and Export.
+  const onOpenVideo = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      const videoId = event.currentTarget.value;
+      const newest = newestChat(rows, videoId);
+
+      if (newest === null) {
+        expandVideo(videoId);
+        return;
+      }
+
+      openSession(newest);
+    },
+    [expandVideo, openSession, rows]
+  );
+
   const onNewSession = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
       startSessionIn(event.currentTarget.value);
@@ -271,6 +291,7 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
       createProject,
       groups,
       onNewSession,
+      onOpenVideo,
       onRemoveSession,
       onSelectSession,
       openedProject,
@@ -290,6 +311,7 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
       expansion,
       groups,
       onNewSession,
+      onOpenVideo,
       onRemoveSession,
       onSelectSession,
       openedProject,

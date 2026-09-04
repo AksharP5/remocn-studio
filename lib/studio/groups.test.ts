@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { paneGroups, paneSections, sessionMeta } from "@/lib/studio/groups";
+import {
+  newestChat,
+  paneGroups,
+  paneSections,
+  sessionMeta,
+} from "@/lib/studio/groups";
 import { IDLE_TURN, type TurnState } from "@/lib/studio/turns";
 import type { HistorySession, TranscriptEntry, Video } from "@/shared/ipc";
 
@@ -390,5 +395,41 @@ describe("sessionMeta", () => {
   it("leaves a settled session without a second line", () => {
     expect(sessionMeta(rowOf("a", IDLE_TURN), NOW)).toBeNull();
     expect(sessionMeta(rowOf("a", unread()), NOW)).toBeNull();
+  });
+});
+
+// Clicking a video opens its most recent chat, which is the invariant the rest
+// of the design leans on: the open chat decides the composition the preview
+// plays, the folder in the conventions and the target of an export. The rows
+// arrive in the store's own `ORDER BY`, newest first.
+describe("newestChat", () => {
+  const rows = [
+    session("b-new", "video-b"),
+    session("a-new", "video-a"),
+    session("a-old", "video-a"),
+  ];
+
+  it("takes the first row of that video, which is its newest", () => {
+    expect(newestChat(rows, "video-a")?.id).toBe("a-new");
+    expect(newestChat(rows, "video-b")?.id).toBe("b-new");
+  });
+
+  it("is null for a video with no chats yet", () => {
+    expect(newestChat(rows, "video-c")).toBeNull();
+    expect(newestChat([], "video-a")).toBeNull();
+  });
+
+  // Attention promotion happens later, in `paneGroups`, and must not decide
+  // what a click opens — a waiting chat rising to the top of the list is a
+  // reading order, not a change of which chat is the most recent.
+  it("reads the store's order, not the pane's", () => {
+    const promoted = paneGroups(
+      [video("video-a")],
+      rows,
+      new Map([["a-old", waiting(NOW - MINUTE)]])
+    );
+
+    expect(promoted[0]?.rows[0]?.session.id).toBe("a-old");
+    expect(newestChat(rows, "video-a")?.id).toBe("a-new");
   });
 });

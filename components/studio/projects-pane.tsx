@@ -98,6 +98,7 @@ export function ProjectsPane() {
     library,
     newVideo,
     onNewSession,
+    onOpenVideo,
     onRemoveSession,
     onRetryScaffold,
     onSelectSession,
@@ -164,6 +165,7 @@ export function ProjectsPane() {
         isLoading={isLoadingProjects || isLoadingVideos}
         now={now}
         onNewSession={onNewSession}
+        onOpen={onOpenVideo}
         onRemoveSession={onRemoveSession}
         onRetry={reloadVideos}
         onSelectSession={onSelectSession}
@@ -407,6 +409,7 @@ function VideosBody({
   isLoading,
   now,
   onNewSession,
+  onOpen,
   onRemoveSession,
   onRetry,
   onSelectSession,
@@ -421,6 +424,7 @@ function VideosBody({
   isLoading: boolean;
   now: number;
   onNewSession: (event: MouseEvent<HTMLButtonElement>) => void;
+  onOpen: (event: MouseEvent<HTMLButtonElement>) => void;
   onRemoveSession: (event: MouseEvent<HTMLButtonElement>) => void;
   onRetry: () => void;
   onSelectSession: (event: MouseEvent<HTMLButtonElement>) => void;
@@ -478,6 +482,7 @@ function VideosBody({
       key={group.video.id}
       now={now}
       onNewSession={onNewSession}
+      onOpen={onOpen}
       onRemoveSession={onRemoveSession}
       onSelectSession={onSelectSession}
       onToggle={onToggle}

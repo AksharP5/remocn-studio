@@ -5,7 +5,12 @@ import type { ChangeEvent, MouseEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toastManager } from "@/components/ui/toast";
 import { causeMessage } from "@/lib/error-message";
-import { saveStock, searchStock, stockStatus } from "@/lib/studio/stock";
+import {
+  saveStock,
+  searchStock,
+  stockName,
+  stockStatus,
+} from "@/lib/studio/stock";
 import type { StockProgress } from "@/shared/ipc";
 import type { StockItem, StockKind } from "@/shared/library";
 
@@ -154,7 +159,7 @@ export function useStock(kind: StockKind, onSaved: () => void): Stock {
       setSaving((current) => new Set(current).add(key));
 
       Effect.runFork(
-        saveStock(item, (report) =>
+        saveStock({ ...item, name: stockName(query, item) }, (report) =>
           setProgress((current) => new Map(current).set(key, report))
         ).pipe(
           Effect.tap(() =>
@@ -189,7 +194,7 @@ export function useStock(kind: StockKind, onSaved: () => void): Stock {
         )
       );
     },
-    [items, saved, saving]
+    [items, query, saved, saving]
   );
 
   return useMemo(
