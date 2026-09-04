@@ -22,24 +22,33 @@ const OPTIONS = {
   timeoutInMilliseconds: null,
 };
 
+const PROXY_PORT = 3007;
+
 interface Journal {
   closed: number;
+  contexts: unknown[];
   internals: WarmInternals;
+  proxyPorts: unknown[];
   seeks: number[];
+  serverClosed: number;
   steps: string[];
   taken: { height: number; output: string | null; width: number }[];
 }
 
 function fakes(
   overrides: {
+    onOpenBrowser?: () => Promise<never>;
     onSeek?: () => Promise<unknown>;
     onTake?: (output: string | null) => Promise<unknown>;
   } = {}
 ): Journal {
   const journal: Journal = {
     closed: 0,
+    contexts: [],
     internals: {} as WarmInternals,
+    proxyPorts: [],
     seeks: [],
+    serverClosed: 0,
     steps: [],
     taken: [],
   };
@@ -72,15 +81,30 @@ function fakes(
     },
     openBrowser: async () => {
       journal.steps.push("openBrowser");
+      if (overrides.onOpenBrowser !== undefined) {
+        return await overrides.onOpenBrowser();
+      }
       return await Promise.resolve({
         close: async () => {
           journal.closed += 1;
           await Promise.resolve();
         },
-        newPage: async () => {
+        newPage: async (options: Record<string, unknown>) => {
           journal.steps.push("newPage");
+          journal.contexts.push(options.context);
           return await Promise.resolve(page);
         },
+      });
+    },
+    prepareServer: async () => {
+      journal.steps.push("prepareServer");
+      return await Promise.resolve({
+        closeServer: async () => {
+          journal.serverClosed += 1;
+          await Promise.resolve();
+        },
+        offthreadPort: PROXY_PORT,
+        sourceMap: () => null,
       });
     },
     seekToFrame: async (options) => {
@@ -91,8 +115,9 @@ function fakes(
       return await Promise.resolve(null);
     },
     serialize: (data) => JSON.stringify(data),
-    setPropsAndEnv: async () => {
+    setPropsAndEnv: async (options) => {
       journal.steps.push("setPropsAndEnv");
+      journal.proxyPorts.push(options.proxyPort);
       await Promise.resolve();
     },
     takeFrame: async (options) => {
@@ -120,6 +145,7 @@ const open = (journal: Journal) =>
     internals: journal.internals,
     measured: MEASURED,
     options: OPTIONS,
+    root: "/Users/me/projects/my-video",
     serveUrl: SERVE_URL,
     timeoutMs: 30_000,
   });
@@ -131,12 +157,74 @@ describe("openSession", () => {
     await Effect.runPromise(open(journal));
 
     expect(journal.steps).toEqual([
+      "prepareServer",
       "openBrowser",
       "newPage",
       "setViewport",
       "setPropsAndEnv",
       "evaluate:bundleMode",
     ]);
+  });
+
+  // `OffthreadVideo` builds every frame request from `window.remotion_proxyPort`,
+  // so the placeholder 0 this used to pass produced `http://localhost:0/proxy?…`
+  // — which Chrome refuses as ERR_UNSAFE_PORT. The `delayRender()` the video
+  // holds then never clears and the capture dies complaining about disk space.
+  it("gives the page the proxy port a video can actually fetch through", async () => {
+    const journal = fakes();
+
+    await Effect.runPromise(open(journal));
+
+    expect(journal.proxyPorts).toEqual([PROXY_PORT]);
+  });
+
+  it("starts the proxy before the page navigates, or the port is not in its environment", async () => {
+    const journal = fakes();
+
+    await Effect.runPromise(open(journal));
+
+    expect(journal.steps.indexOf("prepareServer")).toBeLessThan(
+      journal.steps.indexOf("setPropsAndEnv")
+    );
+  });
+
+  // The page symbolicates its own logs through this getter, and the null we
+  // used to pass threw `this.sourceMapGetter is not a function` on every line
+  // the bundle printed — which is how the ERR_UNSAFE_PORT this fixes came to be
+  // buried in 916 lines of the same TypeError.
+  it("gives the page a source map to symbolicate its own logs with", async () => {
+    const journal = fakes();
+
+    await Effect.runPromise(open(journal));
+
+    expect(journal.contexts.map((context) => typeof context)).toEqual([
+      "function",
+    ]);
+  });
+
+  it("closes the proxy with the session", async () => {
+    const journal = fakes();
+    const session = await Effect.runPromise(open(journal));
+
+    await Effect.runPromise(session.close);
+
+    expect({ browser: journal.closed, server: journal.serverClosed }).toEqual({
+      browser: 1,
+      server: 1,
+    });
+  });
+
+  // The proxy holds an http server and a temporary asset directory, so a
+  // session that never opened must not leave one listening.
+  it("takes the proxy down when the page never opened", async () => {
+    const journal = fakes({
+      onOpenBrowser: () => Promise.reject(new Error("no chrome here")),
+    });
+
+    const exit = await Effect.runPromiseExit(open(journal));
+
+    expect(Exit.isFailure(exit)).toBe(true);
+    expect(journal.serverClosed).toBe(1);
   });
 
   it("reports the composition it was opened for and its size", async () => {

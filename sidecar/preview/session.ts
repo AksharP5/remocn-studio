@@ -38,12 +38,25 @@ interface Browser {
   newPage: (options: Record<string, unknown>) => Promise<Page>;
 }
 
+// The proxy `OffthreadVideo` fetches every frame through. `renderStill` starts
+// one per capture and hands it its port; the warm session has to start its own,
+// because a page told `proxyPort: 0` builds `http://localhost:0/proxy?…`, which
+// Chrome refuses outright as `ERR_UNSAFE_PORT` — and the `delayRender()` the
+// video holds then never clears, so the capture dies with a message about disk
+// space that has nothing to do with anything.
+export interface OffthreadServer {
+  closeServer: (force: boolean) => Promise<unknown>;
+  offthreadPort: number;
+  sourceMap: () => unknown;
+}
+
 export interface WarmInternals {
   evaluate: (options: Record<string, unknown>) => Promise<unknown>;
   openBrowser: (
     browser: "chrome",
     options: Record<string, unknown>
   ) => Promise<Browser>;
+  prepareServer: (options: Record<string, unknown>) => Promise<OffthreadServer>;
   seekToFrame: (options: Record<string, unknown>) => Promise<unknown>;
   serialize: (data: unknown) => string;
   setPropsAndEnv: (options: Record<string, unknown>) => Promise<unknown>;
@@ -77,6 +90,9 @@ export interface SessionInput {
   internals: WarmInternals;
   measured: Measured;
   options: RenderOptions;
+  // The Remotion root, for the proxy's own temporary files — the same value
+  // `renderStill` passes as `remotionRoot`.
+  root: string;
   serveUrl: string;
   timeoutMs: number;
 }
@@ -90,183 +106,231 @@ export function openSession(
   return Effect.tryPromise({
     catch: failed,
     try: async () => {
-      const { internals, options } = input;
-      const { chromeMode, chromiumOptions } = options;
-
-      const browser = await internals.openBrowser("chrome", {
-        ...(chromeMode === null ? {} : { chromeMode }),
-        chromiumOptions,
-        forceDeviceScaleFactor: 1,
-        logLevel: "error",
-      });
-
-      const page = await browser.newPage({
-        context: null,
+      // Started before the browser, because its port has to be in the page's
+      // environment from the first navigation. The arguments mirror the ones
+      // `renderStill` passes through `makeOrReuseServer`; our serve URL is an
+      // http one, so this branch serves `/proxy` and nothing else.
+      const server = await input.internals.prepareServer({
+        binariesDirectory: null,
+        forceIPv4: false,
         indent: false,
         logLevel: "error",
-        onBrowserLog: null,
-        onLog: () => undefined,
-        pageIndex: 0,
-      });
-
-      await page.setViewport({
-        deviceScaleFactor: 1,
-        height: input.measured.height,
-        width: input.measured.width,
-      });
-
-      await internals.setPropsAndEnv({
-        audioEnabled: false,
-        darkMode: chromiumOptions.darkMode === true,
-        envVariables: {},
-        indent: false,
-        initialFrame: 0,
-        initialMemoryAvailable: null,
-        isMainTab: true,
-        logLevel: "error",
-        mediaCacheSizeInBytes: null,
-        onServeUrlVisited: () => undefined,
-        page,
-        proxyPort: 0,
-        retriesRemaining: 2,
+        offthreadVideoCacheSizeInBytes: null,
+        offthreadVideoThreads: 2,
+        port: null,
+        remotionRoot: input.root,
         sampleRate: 48_000,
-        serializedInputPropsWithCustomSchema: internals.serialize({}),
-        serveUrl: input.serveUrl,
-        timeoutInMilliseconds: input.timeoutMs,
-        videoEnabled: true,
+        webpackConfigOrServeUrl: input.serveUrl,
       });
 
-      await internals.evaluate({
-        args: [
-          input.composition,
-          internals.serialize(input.measured.props ?? {}),
-          ...FORWARDED.map((key) => input.measured[key] ?? null),
-        ],
-        frame: null,
-        page,
-        pageFunction: bundleMode,
-        timeoutInMilliseconds: input.timeoutMs,
-      });
-
-      return { browser, measured: input.measured, page };
+      try {
+        return await warm(input, server);
+      } catch (cause) {
+        // The proxy holds an http server and a temporary asset directory, so a
+        // session that never opened must not leave one behind.
+        await server.closeServer(true).catch(() => undefined);
+        throw cause;
+      }
     },
   }).pipe(
-    Effect.map(({ browser, measured, page }) => {
-      const seek = (frame: number) =>
-        input.internals.seekToFrame({
-          attempt: 0,
-          composition: input.composition,
-          frame,
-          indent: false,
-          logLevel: "error",
-          page,
-          timeoutInMilliseconds: input.timeoutMs,
-        });
-
-      const take = (output: string | null, wantsBuffer: boolean) =>
-        input.internals.takeFrame({
-          freePage: page,
-          height: measured.height,
-          imageFormat: "png",
-          jpegQuality: 80,
-          output,
-          scale: 1,
-          timeoutInMilliseconds: input.timeoutMs,
-          wantsBuffer,
-          width: measured.width,
-        });
-
-      const evaluate = async <A>(
-        pageFunction: (...args: never[]) => unknown,
-        args: readonly unknown[]
-      ): Promise<A> => {
-        const result = await input.internals.evaluate({
-          args,
-          frame: null,
-          page,
-          pageFunction,
-          timeoutInMilliseconds: input.timeoutMs,
-        });
-        return evaluated<A>(result);
-      };
-
-      return {
-        audit: (frame: number, output: string, selectors = []) =>
-          Effect.tryPromise({
-            catch: failed,
-            try: async () => {
-              let prepared = false;
-              try {
-                await seek(frame);
-                const motion =
-                  selectors.length === 0
-                    ? []
-                    : await evaluate<MotionProbe[]>(
-                        probeMotionTargets as (...args: never[]) => unknown,
-                        [selectors]
-                      );
-                prepared = true;
-                const audit = await evaluate<PreparedDesignAudit>(
-                  prepareDesignAudit as (...args: never[]) => unknown,
-                  [frame]
-                );
-                const measurement = bytesOf(await take(null, true));
-                const contrast = await evaluate<
-                  readonly FrameDesignAudit["findings"][number][]
-                >(finishDesignContrast as (...args: never[]) => unknown, [
-                  measurement.toString("base64"),
-                  frame,
-                  audit.candidates,
-                ]);
-                await take(output, false);
-                return {
-                  findings: [...audit.findings, ...contrast],
-                  fingerprint: audit.fingerprint,
-                  motion,
-                };
-              } finally {
-                if (prepared) {
-                  await evaluate<void>(
-                    restoreDesignAudit as (...args: never[]) => unknown,
-                    []
-                  ).catch(() => undefined);
-                }
-              }
-            },
-          }),
-        capture: (frame: number, output: string) =>
-          Effect.tryPromise({
-            catch: failed,
-            try: async () => {
-              await seek(frame);
-              await take(output, false);
-            },
-          }),
-        close: Effect.ignore(
-          Effect.tryPromise(() => browser.close({ silent: true }))
-        ),
-        composition: input.composition,
-        durationInFrames: Math.max(
-          1,
-          Math.round(countOf(measured.durationInFrames, 1))
-        ),
-        fps: countOf(measured.fps, 30),
-        height: Math.round(measured.height),
-        probe: (frame: number, camera: string | null) =>
-          Effect.tryPromise({
-            catch: failed,
-            try: async () => {
-              await seek(frame);
-              return await evaluate<VideoFrameProbe>(
-                probeVideoFrame as (...args: never[]) => unknown,
-                [camera]
-              );
-            },
-          }),
-        width: Math.round(measured.width),
-      };
-    })
+    Effect.map(({ browser, measured, page, server }) =>
+      sessionOf(input, browser, measured, page, server)
+    )
   );
+}
+
+async function warm(input: SessionInput, server: OffthreadServer) {
+  const { internals, options } = input;
+  const { chromeMode, chromiumOptions } = options;
+
+  const browser = await internals.openBrowser("chrome", {
+    ...(chromeMode === null ? {} : { chromeMode }),
+    chromiumOptions,
+    forceDeviceScaleFactor: 1,
+    logLevel: "error",
+  });
+
+  const page = await browser.newPage({
+    // The page symbolicates its own logs and errors through this, and a null
+    // one throws `this.sourceMapGetter is not a function` on every line the
+    // bundle prints — 916 of them in this machine's log, which is how an
+    // ERR_UNSAFE_PORT came to be buried. There was nothing to pass before,
+    // because there was no server.
+    context: server.sourceMap,
+    indent: false,
+    logLevel: "error",
+    onBrowserLog: null,
+    onLog: () => undefined,
+    pageIndex: 0,
+  });
+
+  await page.setViewport({
+    deviceScaleFactor: 1,
+    height: input.measured.height,
+    width: input.measured.width,
+  });
+
+  await internals.setPropsAndEnv({
+    audioEnabled: false,
+    darkMode: chromiumOptions.darkMode === true,
+    envVariables: {},
+    indent: false,
+    initialFrame: 0,
+    initialMemoryAvailable: null,
+    isMainTab: true,
+    logLevel: "error",
+    mediaCacheSizeInBytes: null,
+    onServeUrlVisited: () => undefined,
+    page,
+    proxyPort: server.offthreadPort,
+    retriesRemaining: 2,
+    sampleRate: 48_000,
+    serializedInputPropsWithCustomSchema: internals.serialize({}),
+    serveUrl: input.serveUrl,
+    timeoutInMilliseconds: input.timeoutMs,
+    videoEnabled: true,
+  });
+
+  await internals.evaluate({
+    args: [
+      input.composition,
+      internals.serialize(input.measured.props ?? {}),
+      ...FORWARDED.map((key) => input.measured[key] ?? null),
+    ],
+    frame: null,
+    page,
+    pageFunction: bundleMode,
+    timeoutInMilliseconds: input.timeoutMs,
+  });
+
+  return { browser, measured: input.measured, page, server };
+}
+
+function sessionOf(
+  input: SessionInput,
+  browser: Browser,
+  measured: Measured,
+  page: Page,
+  server: OffthreadServer
+): Session {
+  const seek = (frame: number) =>
+    input.internals.seekToFrame({
+      attempt: 0,
+      composition: input.composition,
+      frame,
+      indent: false,
+      logLevel: "error",
+      page,
+      timeoutInMilliseconds: input.timeoutMs,
+    });
+
+  const take = (output: string | null, wantsBuffer: boolean) =>
+    input.internals.takeFrame({
+      freePage: page,
+      height: measured.height,
+      imageFormat: "png",
+      jpegQuality: 80,
+      output,
+      scale: 1,
+      timeoutInMilliseconds: input.timeoutMs,
+      wantsBuffer,
+      width: measured.width,
+    });
+
+  const evaluate = async <A>(
+    pageFunction: (...args: never[]) => unknown,
+    args: readonly unknown[]
+  ): Promise<A> => {
+    const result = await input.internals.evaluate({
+      args,
+      frame: null,
+      page,
+      pageFunction,
+      timeoutInMilliseconds: input.timeoutMs,
+    });
+    return evaluated<A>(result);
+  };
+
+  return {
+    audit: (frame: number, output: string, selectors = []) =>
+      Effect.tryPromise({
+        catch: failed,
+        try: async () => {
+          let prepared = false;
+          try {
+            await seek(frame);
+            const motion =
+              selectors.length === 0
+                ? []
+                : await evaluate<MotionProbe[]>(
+                    probeMotionTargets as (...args: never[]) => unknown,
+                    [selectors]
+                  );
+            prepared = true;
+            const audit = await evaluate<PreparedDesignAudit>(
+              prepareDesignAudit as (...args: never[]) => unknown,
+              [frame]
+            );
+            const measurement = bytesOf(await take(null, true));
+            const contrast = await evaluate<
+              readonly FrameDesignAudit["findings"][number][]
+            >(finishDesignContrast as (...args: never[]) => unknown, [
+              measurement.toString("base64"),
+              frame,
+              audit.candidates,
+            ]);
+            await take(output, false);
+            return {
+              findings: [...audit.findings, ...contrast],
+              fingerprint: audit.fingerprint,
+              motion,
+            };
+          } finally {
+            if (prepared) {
+              await evaluate<void>(
+                restoreDesignAudit as (...args: never[]) => unknown,
+                []
+              ).catch(() => undefined);
+            }
+          }
+        },
+      }),
+    capture: (frame: number, output: string) =>
+      Effect.tryPromise({
+        catch: failed,
+        try: async () => {
+          await seek(frame);
+          await take(output, false);
+        },
+      }),
+    // The proxy outlives nothing: the page that talks to it is going.
+    close: Effect.ignore(
+      Effect.tryPromise(() => browser.close({ silent: true }))
+    ).pipe(
+      Effect.andThen(
+        Effect.ignore(Effect.tryPromise(() => server.closeServer(true)))
+      )
+    ),
+    composition: input.composition,
+    durationInFrames: Math.max(
+      1,
+      Math.round(countOf(measured.durationInFrames, 1))
+    ),
+    fps: countOf(measured.fps, 30),
+    height: Math.round(measured.height),
+    probe: (frame: number, camera: string | null) =>
+      Effect.tryPromise({
+        catch: failed,
+        try: async () => {
+          await seek(frame);
+          return await evaluate<VideoFrameProbe>(
+            probeVideoFrame as (...args: never[]) => unknown,
+            [camera]
+          );
+        },
+      }),
+    width: Math.round(measured.width),
+  };
 }
 
 function countOf(value: unknown, fallback: number): number {

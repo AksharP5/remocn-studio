@@ -258,6 +258,11 @@ function asString(value: unknown): string | null {
 
 const WARM_MODULES = {
   evaluate: ["puppeteer-evaluate", "puppeteerEvaluateWithCatch"],
+  // The offthread-video proxy the warm page's `proxyPort` points at. Without
+  // it there is no port to give, and a page told `0` cannot play a video at
+  // all — so a Remotion that has moved this export falls back to the slower
+  // per-capture `renderStill`, which prepares its own.
+  prepareServer: ["prepare-server", "prepareServer"],
   seekToFrame: ["seek-to-frame", "seekToFrame"],
   setPropsAndEnv: ["set-props-and-env", "setPropsAndEnv"],
   takeFrame: ["take-frame", "takeFrame"],
