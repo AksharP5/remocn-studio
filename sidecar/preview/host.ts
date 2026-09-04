@@ -14,6 +14,7 @@ import {
 } from "@/shared/ipc";
 import { libraryRoot } from "../library/store";
 import { untilGone, untilOrphaned, untilSignalled } from "../lifecycle";
+import { BUNDLE_FLAGS } from "./bundling";
 import {
   type VideoCheck,
   videoCheckError,
@@ -230,12 +231,8 @@ function boot(root: string, preferred: string | null) {
       catch: (cause) => new PreviewError({ message: String(cause) }),
       try: () =>
         BundlerInternals.webpackConfig({
-          askAIEnabled: false,
-          bufferStateDelayInMilliseconds: 300,
-          enableCaching: true,
+          ...BUNDLE_FLAGS,
           entry,
-          environment: "development",
-          experimentalClientSideRenderingEnabled: false,
           extraPlugins: [
             new webpack.ProgressPlugin((percent) => {
               Effect.runSync(
@@ -243,8 +240,6 @@ function boot(root: string, preferred: string | null) {
               );
             }),
           ],
-          keyboardShortcutsEnabled: false,
-          maxTimelineTracks: 15,
           onProgress: () => undefined,
           outDir,
           poll: null,
