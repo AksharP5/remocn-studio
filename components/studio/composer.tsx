@@ -30,6 +30,12 @@ import { Spinner } from "@/components/ui/spinner";
 import { useKeepAttachment } from "@/hooks/use-keep-attachment";
 import { type Sidecar, useSidecar } from "@/hooks/use-sidecar";
 import { SAVE_SCENE_PROMPT } from "@/lib/studio/library";
+import {
+  modelLabelOf,
+  offersAutoMode,
+  runningMode,
+  runningModeLabel,
+} from "@/lib/studio/models";
 import { cn } from "@/lib/utils";
 import {
   type ContextUsage,
@@ -55,6 +61,22 @@ const MODES = SESSION_MODES.map((mode) => ({
   label: SESSION_MODE_LABELS[mode],
   value: mode,
 }));
+
+// The Mode chip has to report the mode the *turn* will run in, not the one that
+// was picked: Claude Code takes Auto from a model that cannot run it and
+// downgrades to `default` in silence, and a chip reading Auto over a turn that
+// asked about everything is the one thing it must never say. The session keeps
+// the picked mode, so moving back to a model with Auto restores it untouched.
+function modesFor(model: string): readonly ChipItem[] {
+  if (offersAutoMode(model)) {
+    return MODES;
+  }
+
+  const why = `${modelLabelOf("claude", model)} does not offer this mode`;
+  return MODES.map((item) =>
+    item.value === "auto" ? { ...item, disabled: true, hint: why } : item
+  );
+}
 
 const COLLAPSE = {
   early: "@max-md/composer:hidden",
@@ -118,6 +140,13 @@ function ComposerBlock({
   const isLocked = disabled || isWaiting;
   const cannotSend = isLocked || sidecar.phase === "down";
   const capabilities = capabilitiesOf(provider);
+  const claudeModel = models.claude;
+  const running = provider === "claude" ? runningMode(mode, claudeModel) : mode;
+  const modeItems = provider === "claude" ? modesFor(claudeModel) : MODES;
+  const modeHint =
+    running === mode
+      ? null
+      : `${modelLabelOf("claude", claudeModel)} does not offer ${SESSION_MODE_LABELS[mode]}`;
 
   const pickModel = useCallback(
     (picked: AgentProvider, value: string) => {
@@ -261,9 +290,10 @@ function ComposerBlock({
                 {capabilities.modes ? (
                   <MenuChip
                     collapse="late"
+                    hint={modeHint}
                     icon={ShieldIcon}
-                    items={MODES}
-                    label={labelOf(MODES, mode)}
+                    items={modeItems}
+                    label={runningModeLabel(running)}
                     onChange={onModeChange}
                     title="Mode"
                     value={mode}
@@ -347,6 +377,7 @@ export const Composer = memo(ComposerBlock);
 
 function MenuChip({
   collapse,
+  hint = null,
   icon: Icon,
   items,
   label,
@@ -355,23 +386,22 @@ function MenuChip({
   value,
 }: {
   collapse: keyof typeof COLLAPSE;
+  hint?: string | null;
   icon: typeof SparklesIcon;
-  items: readonly { label: string; value: string }[];
+  items: readonly ChipItem[];
   label: string;
   onChange: (value: string) => void;
   title: string;
   value: string | null;
 }) {
+  const said =
+    hint === null ? `${title}: ${label}` : `${title}: ${label} — ${hint}`;
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button
-            aria-label={`${title}: ${label}`}
-            size="sm"
-            title={`${title}: ${label}`}
-            variant="ghost"
-          />
+          <Button aria-label={said} size="sm" title={said} variant="ghost" />
         }
       >
         <Icon />
@@ -386,7 +416,12 @@ function MenuChip({
             value={value ?? DEFAULT}
           >
             {items.map((item) => (
-              <DropdownMenuRadioItem key={item.value} value={item.value}>
+              <DropdownMenuRadioItem
+                disabled={item.disabled}
+                key={item.value}
+                title={item.hint}
+                value={item.value}
+              >
                 {item.label}
               </DropdownMenuRadioItem>
             ))}
@@ -397,10 +432,14 @@ function MenuChip({
   );
 }
 
-function labelOf(
-  items: readonly { label: string; value: string }[],
-  value: string | null
-): string {
+interface ChipItem {
+  readonly disabled?: boolean;
+  readonly hint?: string;
+  readonly label: string;
+  readonly value: string;
+}
+
+function labelOf(items: readonly ChipItem[], value: string | null): string {
   const found = items.find((item) => item.value === (value ?? DEFAULT));
   return found?.label ?? value ?? "Default";
 }

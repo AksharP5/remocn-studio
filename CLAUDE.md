@@ -687,8 +687,21 @@ event.
     rules still apply to everything the studio does not object to.
   - **The CLI is asked what it actually did.** `system`/`init` reports the
     `permissionMode` in force; it rides on the `session` event, and a mismatch with
-    what was requested (a model without `supportsAutoMode`, say) adds a `notice`.
-    The chip must never claim a mode the turn did not run in.
+    what was requested adds a `notice`. The chip must never claim a mode the turn
+    did not run in.
+  - **Auto is not a mode every model has, and that is the mismatch people actually
+    hit.** Claude Code takes `permissionMode: "auto"` from a model that cannot run
+    it and reports `default` back — silently, apart from that notice, which then
+    reads as a fault in the studio. Measured one probe per model against the real
+    CLI: Fable 5.1, Fable 5, Opus 5 and Sonnet 5 all run Auto; **Haiku 4.5 comes
+    back `default`**. `lib/studio/models.ts` holds that measurement, and both ends
+    read the one copy: the notice names the model rather than only the modes, and
+    `runningMode` gives the composer the mode the turn will *really* run in, so the
+    chip reads `Default` with the reason on its tooltip and the menu's Auto row is
+    disabled. What does **not** change is the session: it keeps the mode the person
+    picked, so moving back to a model with Auto restores it without them choosing
+    again. `default` is deliberately not a mode the studio offers — it is only ever
+    something to report.
   - **Plan mode ends in a card, not a message.** `ExitPlanMode` reaches the gate
     like any other tool and gets its own reason, `plan`, with the plan markdown in
     the tool input. Approving carries the mode to continue in, and the sidecar

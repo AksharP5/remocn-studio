@@ -310,6 +310,30 @@ describe("Composer", () => {
     ).toBeVisible();
   });
 
+  // Claude Code takes Auto from a model that cannot run it and downgrades to
+  // `default` in silence, so the chip has to report the mode the turn will
+  // really run in — measured: Haiku 4.5 comes back `default`.
+  it("reports the mode a model without Auto will really run in, and says why", async () => {
+    await renderComposer();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Model: Opus 5" }));
+    await user.click(await screen.findByText("Claude", { selector: "span" }));
+    fireEvent.click(
+      await screen.findByRole("menuitemradio", { name: "Haiku 4.5" })
+    );
+
+    const chip = await screen.findByRole("button", {
+      name: "Mode: Default — Haiku 4.5 does not offer Auto",
+    });
+    expect(chip).toBeVisible();
+
+    fireEvent.click(chip);
+    expect(
+      await screen.findByRole("menuitemradio", { name: "Auto" })
+    ).toHaveAttribute("aria-disabled", "true");
+  });
+
   it("picks an effort level from the menu", async () => {
     await renderComposer();
 

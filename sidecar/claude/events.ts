@@ -1,4 +1,5 @@
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import { modelLabelOf, offersAutoMode } from "@/lib/studio/models";
 import {
   type AgentEvent,
   isSessionMode,
@@ -64,11 +65,27 @@ function sessionEvents(
 
   return [
     session,
-    {
-      message: `Claude Code ran this turn in ${labelOf(effective)} mode, not ${SESSION_MODE_LABELS[requested]}.`,
-      type: "notice",
-    },
+    { message: mismatch(opened.model, effective, requested), type: "notice" },
   ];
+}
+
+// "ran in default mode, not Auto" is true and reads as a fault in the studio.
+// The commonest cause is the model — Claude Code takes `auto` from a model that
+// cannot run it and downgrades in silence — so where that is what happened, the
+// notice names it. Any other mismatch keeps the plain sentence rather than
+// asserting a cause nothing measured.
+function mismatch(
+  model: string,
+  effective: string,
+  requested: SessionMode
+): string {
+  const ran = `Claude Code ran this turn in ${labelOf(effective)} mode`;
+
+  if (requested !== "auto" || offersAutoMode(model)) {
+    return `${ran}, not ${SESSION_MODE_LABELS[requested]}.`;
+  }
+
+  return `${modelLabelOf("claude", model)} does not offer ${SESSION_MODE_LABELS.auto}, so ${ran} instead.`;
 }
 
 function labelOf(mode: string): string {

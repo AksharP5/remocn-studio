@@ -1,3 +1,4 @@
+import { SESSION_MODE_LABELS, type SessionMode } from "@/shared/ipc";
 import type { AgentProvider } from "@/shared/providers";
 
 export interface ModelChoice {
@@ -14,6 +15,34 @@ export const CLAUDE_MODELS: readonly ModelChoice[] = [
 ];
 
 export const DEFAULT_CLAUDE_MODEL = "claude-opus-5";
+
+// Auto is not a mode every model has. Claude Code takes `permissionMode: "auto"`
+// from a model that cannot run it and quietly reports `default` back on
+// `system`/`init` — so the studio has to know which ones, or the Mode chip
+// claims a mode the turn did not run in. Measured one probe per model against
+// the real CLI, reading the mode `init` answers with: Fable 5.1, Fable 5,
+// Opus 5 and Sonnet 5 all run Auto; Haiku 4.5 comes back `default`.
+const WITHOUT_AUTO: ReadonlySet<string> = new Set([
+  "claude-haiku-4-5-20251001",
+]);
+
+// What a turn will really run in. The session keeps the mode the person picked
+// — moving to a model that has Auto brings it back without them re-choosing —
+// and only what is *shown* falls back, because the alternative is a chip that
+// says Auto over a turn that asked about everything.
+export type RunningMode = SessionMode | "default";
+
+export function offersAutoMode(model: string): boolean {
+  return !WITHOUT_AUTO.has(model);
+}
+
+export function runningMode(mode: SessionMode, model: string): RunningMode {
+  return mode === "auto" && !offersAutoMode(model) ? "default" : mode;
+}
+
+export function runningModeLabel(mode: RunningMode): string {
+  return mode === "default" ? "Default" : SESSION_MODE_LABELS[mode];
+}
 
 // Codex's catalog is dynamic and account-shaped: thirteen explicit gpt-5.x
 // slugs from the CLI source and the wider lineup were probed against a
