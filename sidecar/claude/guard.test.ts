@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 import type { AgentEvent, SessionMode } from "@/shared/ipc";
 import { makeGate } from "@/sidecar/agent/gate";
-import { permissionGuard } from "@/sidecar/claude/guard";
+import { gateHooks, permissionGuard } from "@/sidecar/claude/guard";
 
 const TURN = "turn-1";
 
@@ -175,5 +175,78 @@ describe("permissionGuard", () => {
       expect.stringContaining("Stay in plan mode")
     );
     expect(approvals).toEqual([]);
+  });
+});
+
+describe("gateHooks", () => {
+  function hookFor(mode: SessionMode) {
+    const hooks = gateHooks(mode, process.cwd());
+    const hook = hooks?.PreToolUse?.[0]?.hooks?.[0];
+    if (hook === undefined) {
+      throw new Error(`no PreToolUse hook for ${mode}`);
+    }
+    return (toolName: string, toolInput: unknown) =>
+      hook(
+        {
+          hook_event_name: "PreToolUse",
+          tool_input: toolInput,
+          tool_name: toolName,
+        } as never,
+        "tool-1",
+        { signal: new AbortController().signal }
+      );
+  }
+
+  function decisionOf(output: Awaited<ReturnType<ReturnType<typeof hookFor>>>) {
+    const specific = (output as { hookSpecificOutput?: unknown })
+      .hookSpecificOutput as { permissionDecision?: string } | undefined;
+    return specific?.permissionDecision ?? null;
+  }
+
+  // Claude Code's own classifier approves a command it likes before
+  // `canUseTool` is ever consulted, so without this hook a Bash call in
+  // `acceptEdits` ran with the gate never seeing it. Measured against the real
+  // CLI: `ls src/videos` produced a tool row and no card at all.
+  it("forces Bash into the gate in acceptEdits, where the invariant is absolute", async () => {
+    const decision = await hookFor("acceptEdits")("Bash", {
+      command: "ls src/videos",
+    });
+
+    expect(decisionOf(decision)).toBe("ask");
+  });
+
+  it("forces a read outside the folder into the gate in plan", async () => {
+    const decision = await hookFor("plan")("Read", {
+      file_path: "/etc/hosts",
+    });
+
+    expect(decisionOf(decision)).toBe("ask");
+  });
+
+  it("leaves a file tool inside the folder to run untouched", async () => {
+    const decision = await hookFor("acceptEdits")("Read", {
+      file_path: `${process.cwd()}/package.json`,
+    });
+
+    expect(decisionOf(decision)).toBeNull();
+  });
+
+  it("passes an event that is not a PreToolUse straight through", async () => {
+    const hooks = gateHooks("acceptEdits", process.cwd());
+    const hook = hooks?.PreToolUse?.[0]?.hooks?.[0];
+
+    const output = await hook?.(
+      { hook_event_name: "PostToolUse", tool_name: "Bash" } as never,
+      "tool-1",
+      { signal: new AbortController().signal }
+    );
+
+    expect(decisionOf(output as never)).toBeNull();
+  });
+
+  // `auto` keeps the classifier deciding first — that is the trade the mode is,
+  // and a hook there would quietly turn it into `acceptEdits`.
+  it("installs no hook in auto", () => {
+    expect(gateHooks("auto", process.cwd())).toBeUndefined();
   });
 });

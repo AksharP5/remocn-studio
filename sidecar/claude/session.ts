@@ -15,6 +15,7 @@ import type { StdioTransport } from "../tools/gateway";
 import type { ToolServer } from "../tools/specs";
 import { contentOf } from "./content";
 import { conventionsFor } from "./conventions";
+import { gateHooks } from "./guard";
 import { pluginsFor } from "./knowledge";
 
 export class ClaudeError extends Data.TaggedError("ClaudeError")<{
@@ -117,9 +118,12 @@ function optionsOf(params: PromptParams, callbacks: TurnCallbacks): Options {
     callbacks.video
   );
 
+  const hooks = gateHooks(params.mode, callbacks.cwd);
+
   return {
     canUseTool: callbacks.canUseTool,
     cwd: callbacks.cwd,
+    ...(hooks === undefined ? {} : { hooks }),
     includePartialMessages: true,
     mcpServers: Object.fromEntries(
       Object.entries(callbacks.tools).map(([name, transport]) => [

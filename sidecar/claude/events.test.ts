@@ -9,9 +9,9 @@ function message(shape: Record<string, unknown>): SDKMessage {
   return { session_id: "s", uuid: "u", ...shape } as unknown as SDKMessage;
 }
 
-function init(permissionMode: string): SDKMessage {
+function init(permissionMode: string, model = "claude-opus-5"): SDKMessage {
   return message({
-    model: "claude-opus-5",
+    model,
     permissionMode,
     session_id: "abc",
     subtype: "init",
@@ -44,6 +44,26 @@ describe("eventsOf", () => {
         type: "notice",
       },
     ]);
+  });
+
+  // Measured: Claude Code answers `default` for Haiku 4.5 asked to run Auto.
+  // "ran in default mode, not Auto" is true and reads as a fault in the studio,
+  // so where the model is what did it, the notice names the model.
+  it("names the model when it is the model that cannot run Auto", () => {
+    expect(
+      eventsOf(init("default", "claude-haiku-4-5-20251001"), MODE).at(1)
+    ).toEqual({
+      message:
+        "Haiku 4.5 does not offer Auto, so Claude Code ran this turn in default mode instead.",
+      type: "notice",
+    });
+  });
+
+  it("asserts no cause for a mismatch the model does not explain", () => {
+    expect(eventsOf(init("plan"), "acceptEdits").at(1)).toEqual({
+      message: "Claude Code ran this turn in Plan mode, not Accept edits.",
+      type: "notice",
+    });
   });
 
   it("reports a call declined without a card", () => {
