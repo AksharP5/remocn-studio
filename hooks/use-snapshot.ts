@@ -7,6 +7,7 @@ import { useNow } from "@/hooks/use-now";
 import { type PreviewControl, useOnPreview } from "@/hooks/use-preview";
 import { causeMessage } from "@/lib/error-message";
 import { takeSnapshot } from "@/lib/studio/capture";
+import { renderFailure } from "@/lib/studio/failures";
 import {
   type PreviewCapture,
   type PreviewMessage,
@@ -80,7 +81,8 @@ export function useSnapshot({
       setProgress(null);
 
       if (Exit.isFailure(exit)) {
-        setFailure(causeMessage(exit.cause));
+        const said = causeMessage(exit.cause);
+        setFailure(said === null ? null : renderFailure(said));
         return;
       }
 

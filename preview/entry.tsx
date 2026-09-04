@@ -223,7 +223,7 @@ function usePreviewCommands(
         }
 
         if (command.type === "highlight") {
-          highlightTarget(command.targetId);
+          highlightTarget(command.targetId, command.open);
           return;
         }
 

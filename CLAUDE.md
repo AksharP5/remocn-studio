@@ -1650,6 +1650,32 @@ slot and mounts `<Player>` instead, so the pane is ours and the pixels are Remot
 - **`building` after `ready` is normal** — `ProgressPlugin` reports 100% after the first
   compile finishes. `usePreview` ignores progress once served, or the pane would replace
   a live player with a spinner.
+- **The preview follows the sidecar back up** (REM-324). Its request being the lifetime is
+  what made a crash kill it correctly and then leave it dead: the supervisor had a new
+  sidecar in ~3 s, the composer and the transcript were untouched, and the one pane costing
+  7 s to rebuild was the only thing left needing a click on an unlabelled Restart button.
+  `previewRecovery` in `lib/studio/failures.ts` is the whole rule — `restarting` and `down`
+  mark it lost, and the next `ready` relaunches once. `starting` deliberately does not
+  count: that is also a cold boot, where the effect that opens the preview has already run,
+  and re-arming there would compile twice. Restart stays as the escape hatch for a re-arm
+  that fails. The phase reaches `usePreview` from the provider, which takes **only the
+  phase** and keeps it out of the studio context: putting the whole `Sidecar` in there
+  changed the context value's identity on every status event and re-rendered every consumer
+  for a reading one hook wants.
+- **The pane never prints a protocol token.** `cancelled` is the sidecar's own reply frame —
+  what `Effect.onExit` answers so a killed handler answers at all — and it reached the
+  screen lowercase and red in an otherwise empty pane. A good protocol decision and a
+  terrible sentence, and untrue besides: nobody cancelled anything, the process died.
+  `previewFailure` words it.
+- **A renderer's own text is worded, not forwarded** (REM-322). A failed `preview.still`
+  printed the raw error: ~300 characters of percent-encoded `staticFile` URL, clipped
+  mid-token because a URL is one unbreakable word, followed by Remotion's stock advice that
+  *"this could be caused by Chrome rejecting the request because the disk space is low"*.
+  That advice is written for a CI container, and it is not only the person it misleads —
+  the agent read it in the transcript and spent a tool call on `df -h` before finding the
+  real cause. `renderFailure` drops the advice and names the asset instead of its URL; the
+  raw text is in `sidecar.log`, which already has it. The wrapping in the pane stays as
+  insurance for whatever a renderer says next.
 - **The static server answers byte ranges, and a video does not play without them.**
   Serving `public/` as one `200` with a chunked body and no `content-length` is enough for
   every image and font, and it is not enough for a `<video>`: the macOS webview probes with
@@ -2037,6 +2063,24 @@ alongside `[Image #N]` (#18). The message is still sent by hand.
   **Disarming does not.** Add's markers and the open card both outlive the mode, so
   `InspectOverlay` is mounted whenever there is a card or a marker rather than only while
   armed; the overlay is `pointer-events-none`, so clicks are unaffected.
+- **The selection box belongs to the card, not to the mode** (REM-330). Disarming keeps it —
+  turning Inspect off means stop picking, not forget what I picked — but *Cancel* closes the
+  pane, and a box left on the frame then refers to nothing on screen. It was worse than
+  left: `highlight` carried `targetId: null` for two different things, a card with no chain
+  (which wants the picked element boxed) and no card at all (which wants nothing drawn), so
+  Cancel moved the box back onto the picked element and the effect, guarded on `isArmed`,
+  never got to take it down. The command carries `open` now and the effect is not guarded,
+  so closing the pane clears the box whether or not the mode is still on. The hover box was
+  never the culprit — `stop()` removes it and its label on disarm — but both boxes draw the
+  same `Name · tag` label, which is what made them look alike.
+- **The chip names what the pane named** (REM-336). It read grab's source resolution, which
+  answers with the function React rendered — `TitleBase`, an implementation detail that is
+  not exported and never appears anywhere the person looked — while the pane honours the
+  `componentName` declared on `withSchema` in three places. The chip is the only thing left
+  on screen once the pane closes, so it reads `titleOf` on the link that was open when Add
+  was pressed, falling back to the resolved component for a selection with no schema.
+  `TuningChange.owner` was already right: `ownerOf` has always taken the target's declared
+  name, so the block the agent gets never said `TitleBase`.
 - **A selection with no source is still usable**, travelling with markup, component name and
   frame, and says so on its chip. Failing closed would make the feature intermittently and
   silently useless.

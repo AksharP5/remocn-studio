@@ -144,8 +144,13 @@ export function PreviewPane({ isBooting = false }: { isBooting?: boolean }) {
             one row's height reserved whether or not anything is being said. */}
         <div className="flex min-h-9 shrink-0 flex-col justify-center gap-2">
           {trouble === null ? null : (
+            /* A percent-encoded URL is one unbreakable word, and this block
+               used to carry them: the text ran past the pane's right edge and
+               off the window, clipped mid-token with no wrap and no scroll.
+               `renderFailure` words those away, and this is the insurance for
+               whatever a renderer says next. */
             <p
-              className="shrink-0 text-center text-destructive text-xs"
+              className="max-h-24 shrink-0 overflow-auto text-center text-destructive text-xs [overflow-wrap:anywhere]"
               role="alert"
             >
               {trouble}
@@ -234,7 +239,7 @@ function Stage({
   if (preview.phase === "failed") {
     return (
       <div className="h-full overflow-auto p-4">
-        <pre className="whitespace-pre-wrap font-mono text-destructive text-xs leading-relaxed">
+        <pre className="whitespace-pre-wrap font-mono text-destructive text-xs leading-relaxed [overflow-wrap:anywhere]">
           {preview.message}
         </pre>
       </div>

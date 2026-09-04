@@ -10,6 +10,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { previewFailure, previewRecovery } from "@/lib/studio/failures";
 import {
   decodePreviewMessage,
   originOf,
@@ -18,7 +19,7 @@ import {
   type PreviewMessage,
   startPreview,
 } from "@/lib/studio/preview";
-import type { PromptFrame } from "@/shared/ipc";
+import type { PromptFrame, SidecarPhase } from "@/shared/ipc";
 
 export type Preview =
   | { phase: "building"; percent: number }
@@ -53,7 +54,8 @@ type Running = Fiber.Fiber<unknown, unknown>;
 // load rather than another seven-second compile.
 export function usePreview(
   projectId: string | null,
-  compositionId: string | null
+  compositionId: string | null,
+  sidecarPhase: SidecarPhase | "unknown"
 ): PreviewControl {
   const [preview, setPreview] = useState<Preview>(IDLE);
   const [pick, setPick] = useState<PreviewComposition | null>(null);
@@ -127,11 +129,17 @@ export function usePreview(
             return;
           }
           served = false;
-          setPreview({ message: event.message, phase: "failed" });
+          setPreview({
+            message: previewFailure(event.message),
+            phase: "failed",
+          });
         }).pipe(
           Effect.catch((error) =>
             Effect.sync(() => {
-              setPreview({ message: error.message, phase: "failed" });
+              setPreview({
+                message: previewFailure(error.message),
+                phase: "failed",
+              });
             })
           )
         )
@@ -151,6 +159,22 @@ export function usePreview(
 
     return stop;
   }, [launch, projectId, stop]);
+
+  // The preview's request dies with the sidecar and nothing brought it back,
+  // so the one pane that costs seven seconds to rebuild was the only one left
+  // needing a manual click. `lost` survives the render that sets it, because
+  // the crash and the recovery are two separate status events.
+  const lost = useRef(false);
+
+  useEffect(() => {
+    const next = previewRecovery(lost.current, sidecarPhase);
+    lost.current = next.lost;
+
+    if (next.relaunch && projectId !== null) {
+      stop();
+      launch(projectId);
+    }
+  }, [launch, projectId, sidecarPhase, stop]);
 
   useEffect(() => {
     if (origin === null) {
