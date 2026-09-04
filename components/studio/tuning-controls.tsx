@@ -43,6 +43,7 @@ import {
   withHandle,
 } from "@/lib/studio/easing";
 import type { TuningField } from "@/lib/studio/preview";
+import { VERBATIM_INPUT } from "@/lib/studio/text-input";
 import {
   type Composite,
   colorValue,
@@ -340,6 +341,7 @@ function TextContentControl({
           {field.label}
         </span>
         <Textarea
+          {...VERBATIM_INPUT}
           aria-label={field.label}
           className="max-h-24 min-h-14 resize-none text-xs"
           data-path={field.path}

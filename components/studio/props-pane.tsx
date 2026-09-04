@@ -29,6 +29,7 @@ import { usePreviewFrame } from "@/hooks/use-preview";
 import { type TimeStrip, useTimeStrip } from "@/hooks/use-time-strip";
 import { useWheelScroll } from "@/hooks/use-wheel-scroll";
 import type { TuningField, TuningTarget } from "@/lib/studio/preview";
+import { VERBATIM_INPUT } from "@/lib/studio/text-input";
 import { changedFields, subtitleOf, titleOf } from "@/lib/studio/tuning";
 import { cn } from "@/lib/utils";
 import type { TuningValue } from "@/shared/ipc";
@@ -243,6 +244,7 @@ export function PropsPanel({
           )}
 
           <Textarea
+            {...VERBATIM_INPUT}
             aria-label="What should change about this element?"
             className="max-h-24 min-h-14 resize-none text-sm"
             onChange={comment.onChange}
@@ -298,6 +300,7 @@ function TextSection({
     <section className="border-border border-t px-4 py-3 first:border-t-0">
       <h3 className="pb-2 font-medium text-foreground text-sm">Text</h3>
       <Textarea
+        {...VERBATIM_INPUT}
         aria-label="Text"
         className="max-h-24 min-h-14 resize-none text-xs"
         onChange={write}

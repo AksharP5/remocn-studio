@@ -1147,6 +1147,23 @@ remount *was* the cancel, cancellation is now `stopTurn`, said out loud.
   when you open that session. The gate denies anything unanswered for ten minutes,
   because with background turns "nobody is looking at this card" is the normal
   case and a held card holds a `claude` process open.
+- **A single-select chip menu has to be told to close** (REM-326). Base UI's `Menu.Item` dismisses on
+  click; its `RadioItem` and `CheckboxItem` default to `closeOnClick: false`, which is right for a
+  checklist and wrong for every menu in the composer's toolbar. All of them are anchored *above* the
+  composer and open upward over the textarea, so a menu that survived its own selection put a row
+  under the next click — and the next click is almost always the text field. Measured: aiming at the
+  textarea with the Effort menu open on Low chose *Extra high* instead, silently, with the chip
+  collapsed to an icon at that pane width so nothing on screen said what the effort now was. Every
+  `DropdownMenuRadioItem` in `components/studio/` carries `closeOnClick`; the default is not changed
+  in `components/ui/dropdown-menu.tsx`, because a `shadcn add` re-add overwrites that file.
+- **The composer's text is taken verbatim, and macOS does not do that by default** (REM-329). Text
+  substitution turned `git status --short` into `git status —short` on the way to the agent, and the
+  raw prompt is what `shared/transcript.ts` stores, so a reopened session shows the mangled text too
+  — the damage outlives the turn. The same substitution ruins `"`, `'` and `...`, none of which then
+  parse. `VERBATIM_INPUT` in `lib/studio/text-input.ts` is `autoCorrect`/`autoCapitalize` off, spread
+  onto the composer, both *What should change?* fields, the props pane's Text area and the tuning
+  text control — every field whose content the agent reads or that is written back into TSX.
+  Spellcheck is deliberately left alone: it is a separate switch and nobody asked for it.
 - **The mode chip reads the open turn, not a setting.** Model and Effort are
   app-wide and live in `settings.json`; the mode is per session and lives in the
   same map as everything else about a turn, which is why the composer takes it as a
@@ -1250,6 +1267,14 @@ by cutting the text at each reference and splicing the image in there (#13).
   makes the sidecar's splice a lookup by number rather than through a side table, and why
   references carry no identity. Removing an attachment removes its reference and shifts
   every higher one down, so the list and the text cannot disagree.
+- **Atomic for insertion as well as deletion, and the second half was missing** (REM-313). A caret
+  resting *inside* `[Image #1]` was handed straight to `insertAt`, which cut the token in half:
+  `[Imag [Image #2] e #1]`. The halves are literal text, so the diff path below read reference 1 as
+  lost and dropped the attachment it stood for — pasting one picture silently removed another, and
+  left garbage in the words the person typed. `caretOutside` in `shared/references.ts` snaps the
+  caret to the nearer edge of the token first; a tie goes after it. It sits in `useComposer`, the one
+  thing holding the caret, so every insertion path — paste, drop, an element comment, an asset pick,
+  a written phrase — is closed by one call each rather than by five separate rules.
 - **The binding runs both ways, which is why the reference is atomic.** Deleting the
   reference deletes the attachment, so Backspace/Delete touching or inside `[Image #N]`
   takes the whole token in one keystroke rather than leaving `[Image #1`, which parses as
@@ -3062,15 +3087,27 @@ webview never fires them for files, and a `File` from a WKWebView drop carries n
 event gives absolute paths, which is what the library wants and what keeps a 200 MB video off the
 IPC.
 
-- **The hit test is arithmetic, and it is tested.** Tauri reports the pointer in physical pixels from
-  the window's top-left; `titleBarStyle: "Overlay"` means the webview fills the window, so dividing
-  by `devicePixelRatio` lands in the client coordinates `getBoundingClientRect()` is measured in.
-  `isInside` in `lib/studio/drop.ts` is pure and pinned by tests, because the drag itself is the one
-  part no seam can exercise.
-- **Anything that is not media is refused out loud.** A dropped `.tsx` is not an asset the panel can
-  make — a component's boundaries are the agent's to work out — so the pane says what it skipped
-  rather than saving half a drop in silence. The same sentence names where they did not go, because
-  there are two places they could have gone.
+- **The point arrives in CSS pixels, and believing otherwise misfiled every drop** (REM-333). Tauri
+  types the drag position as a `PhysicalPosition` the whole way up, so `isInside` used to divide it
+  by `devicePixelRatio`. It is not physical: on macOS wry builds it from AppKit — `draggingLocation()`
+  against the view's own `frame()`, both in *points* (wry 0.55.1, `src/wkwebview/drag_drop.rs`).
+  Points are CSS pixels, which is what `getBoundingClientRect()` answers in, so the division moved
+  every drop up and to the left — on a 2× display far enough to push a release in the middle of the
+  composer into the sidebar, where the file was silently filed in the library and the message got
+  nothing. The two symptoms that hid it are the same fault: the composer never lit its drop ring,
+  because as far as the app was concerned the pointer was never over it. `isInside` in
+  `lib/studio/drop.ts` takes no ratio at all now, and is pure and pinned by tests, because the drag
+  itself is the one part no seam can exercise.
+- **Anything that is not media is refused out loud, and there are two refusals** (REM-317). A dropped
+  `.tsx` is not an asset the panel can make — a component's boundaries are the agent's to work out —
+  so the pane says what it skipped rather than saving half a drop in silence, naming where they did
+  not go because there are two places they could have gone. A **picture** is the other case and it
+  needed its own sentence: the API reads jpeg, png, gif and webp and nothing else, so a `.heic` is a
+  real refusal, but *"that is not a picture"* about a photograph is unhelpful and untrue.
+  `unsendableImageOf` recognises the formats the studio knows and cannot send, and the refusal names
+  the format and the way out. Video and audio have no such constraint — they are never sent to the
+  model, only copied into `public/library/` and played by the project's own renderer — so `.m4v`,
+  `.mkv`, `.avi`, `.mpeg`, `.flac`, `.aiff`, `.opus` and `.oga` are simply taken.
 - **The composer is the second zone, and there is still one watcher** (REM-255). `useFileDrops` owns
   the only `onDragDropEvent` subscription and asks `zoneAt` — an ordered list of boxes, first match
   wins — which zone a point is in; the two zones are disjoint on screen today, so the order is

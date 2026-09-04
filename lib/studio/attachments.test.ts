@@ -7,6 +7,7 @@ import {
   isPlayable,
   mediaOf,
   PLAYABLE_EXTENSIONS,
+  unsendableImageOf,
 } from "@/lib/studio/attachments";
 
 describe("mediaOf", () => {
@@ -50,6 +51,40 @@ describe("the two extension lists", () => {
     expect(IMAGE_EXTENSIONS).toContain("png");
     expect(PLAYABLE_EXTENSIONS).toContain("mp4");
     expect(PLAYABLE_EXTENSIONS).toContain("wav");
+  });
+});
+
+// Video and audio are never sent to the model — they are copied into
+// `public/library/` and played by the project's own renderer — so there was
+// nothing for the old thirteen-extension list to be strict about. `.m4v` is
+// what the Apple ecosystem exports, `.mkv` and `.avi` what footage arrives in.
+describe("mediaOf, on the formats that used to be refused", () => {
+  it("takes the video containers people actually have", () => {
+    expect(mediaOf("/x/clip.m4v")?.mediaType).toBe("video/x-m4v");
+    expect(mediaOf("/x/clip.mkv")?.mediaType).toBe("video/x-matroska");
+    expect(mediaOf("/x/clip.avi")?.mediaType).toBe("video/x-msvideo");
+    expect(mediaOf("/x/clip.mpeg")?.mediaType).toBe("video/mpeg");
+  });
+
+  it("takes the lossless and modern audio formats", () => {
+    expect(mediaOf("/x/song.flac")?.mediaType).toBe("audio/flac");
+    expect(mediaOf("/x/song.aiff")?.mediaType).toBe("audio/aiff");
+    expect(mediaOf("/x/song.opus")?.mediaType).toBe("audio/opus");
+    expect(mediaOf("/x/song.oga")?.mediaType).toBe("audio/ogg");
+  });
+
+  it("still refuses what is genuinely not media", () => {
+    expect(mediaOf("/x/Scene.tsx")).toBeNull();
+    expect(mediaOf("/x/notes.md")).toBeNull();
+  });
+
+  // The API reads jpeg, png, gif and webp and nothing else, so these stay
+  // refused — what changes is that the refusal can now name them.
+  it("keeps a picture the model cannot read out, but recognises it", () => {
+    expect(mediaOf("/x/holiday.heic")).toBeNull();
+    expect(unsendableImageOf("/x/holiday.heic")).toBe("HEIC");
+    expect(unsendableImageOf("/x/shot.png")).toBeNull();
+    expect(unsendableImageOf("/x/notes.md")).toBeNull();
   });
 });
 

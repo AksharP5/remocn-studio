@@ -8,6 +8,7 @@ import { useElementSize } from "@/hooks/use-element-size";
 import type { Marker, PendingComment } from "@/hooks/use-inspect";
 import { relativeTo } from "@/lib/studio/activity";
 import { boxOf, cardPlacement } from "@/lib/studio/card";
+import { VERBATIM_INPUT } from "@/lib/studio/text-input";
 import type { PromptElement } from "@/shared/ipc";
 
 const COMPACT_CARD = { height: 148, width: 288 };
@@ -107,6 +108,7 @@ function CommentCard({
       </p>
 
       <Textarea
+        {...VERBATIM_INPUT}
         aria-label="What should change about this element?"
         className="max-h-24 min-h-14 resize-none text-sm"
         onChange={comment.onChange}

@@ -31,6 +31,7 @@ import type {
 } from "@/shared/ipc";
 import type { Asset, PromptAsset } from "@/shared/library";
 import {
+  caretOutside,
   dropLostReferences,
   dropReference,
   dropReferences,
@@ -149,6 +150,14 @@ export function useComposer({
   const canSubmit = value.trim().length > 0 || carries;
   const isEmpty = value.length === 0 && !carries;
 
+  // Every path below reads `selectionStart` and inserts there, and the caret
+  // can be sitting inside a reference token — atomic for deletion, but nothing
+  // stopped an insertion cutting it in half and taking its attachment with it.
+  const caretFor = useCallback(
+    (text: string, at: number) => caretOutside(text, counts, at),
+    [counts]
+  );
+
   const refer = useCallback(
     (at: number, first: number, count: number) => {
       const field = caret.ref.current;
@@ -156,11 +165,17 @@ export function useComposer({
         return;
       }
 
-      const next = insertReferences(field.value, at, "image", first, count);
+      const next = insertReferences(
+        field.value,
+        caretFor(field.value, at),
+        "image",
+        first,
+        count
+      );
       caret.moveTo(next.caret);
       setValue(next.text);
     },
-    [caret]
+    [caret, caretFor]
   );
 
   const add = useCallback(async () => {
@@ -198,7 +213,7 @@ export function useComposer({
     (paths: readonly string[]) => {
       const field = caret.ref.current;
       const text = field?.value ?? latest.current;
-      const at = field?.selectionStart ?? text.length;
+      const at = caretFor(text, field?.selectionStart ?? text.length);
       const first = attachments.items.length;
 
       const added = attachments.attachPaths(paths);
@@ -212,7 +227,7 @@ export function useComposer({
       caret.moveTo(next.caret);
       setValue(next.text);
     },
-    [attachments, caret, media]
+    [attachments, caret, caretFor, media]
   );
 
   const select = useCallback(
@@ -224,7 +239,7 @@ export function useComposer({
     ) => {
       const field = caret.ref.current;
       const text = field?.value ?? latest.current;
-      const at = field?.selectionStart ?? text.length;
+      const at = caretFor(text, field?.selectionStart ?? text.length);
       const added = selections.add(element, rect, tuning);
 
       const written = insertAt(text, at, comment.trim());
@@ -241,21 +256,21 @@ export function useComposer({
 
       return added.id;
     },
-    [caret, selections]
+    [caret, caretFor, selections]
   );
 
   const pick = useCallback(
     (asset: Asset) => {
       const field = caret.ref.current;
       const text = field?.value ?? latest.current;
-      const at = field?.selectionStart ?? text.length;
+      const at = caretFor(text, field?.selectionStart ?? text.length);
       const index = assets.add(asset);
 
       const next = insertReferences(text, at, "asset", index, 1);
       caret.moveTo(next.caret);
       setValue(next.text);
     },
-    [assets, caret]
+    [assets, caret, caretFor]
   );
 
   const onInsertMention = useCallback(
@@ -291,13 +306,13 @@ export function useComposer({
     (phrase: string) => {
       const field = caret.ref.current;
       const text = field?.value ?? latest.current;
-      const at = field?.selectionStart ?? text.length;
+      const at = caretFor(text, field?.selectionStart ?? text.length);
 
       const next = insertAt(text, at, phrase.trim());
       caret.moveTo(next.caret);
       setValue(next.text);
     },
-    [caret]
+    [caret, caretFor]
   );
 
   const fill = useCallback(

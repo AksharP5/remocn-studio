@@ -106,8 +106,14 @@ export function insertAt(
   const before = text.slice(0, at);
   const after = text.slice(at);
 
-  const lead = before.length > 0 && !TRAILING_SPACE.test(before) ? " " : "";
-  const trail = LEADING_SPACE.test(after) ? "" : " ";
+  const lead =
+    before.length > 0 && !(TRAILING_SPACE.test(before) || before.endsWith("\n"))
+      ? " "
+      : "";
+  // A line break already separates what follows, so the space this would
+  // otherwise add is trailing whitespace — in text that is sent to the model
+  // verbatim and stored in the transcript that way.
+  const trail = LEADING_SPACE.test(after) || after.startsWith("\n") ? "" : " ";
   const inserted = `${lead}${written}${trail}`;
 
   return { caret: at + inserted.length, text: `${before}${inserted}${after}` };
@@ -123,6 +129,29 @@ export function insertReferences(
   return count <= 0
     ? { caret, text }
     : insertAt(text, caret, references(kind, first, count));
+}
+
+// A reference is atomic for deletion, and this is what makes it atomic for
+// insertion too. A caret resting *inside* `[Image #1]` used to be handed
+// straight to `insertAt`, which cut the token in half: `[Imag [Image #2] e #1]`.
+// The half-tokens are literal text, and the diff path in the composer then saw
+// reference 1 as lost and silently dropped the attachment it stood for — so
+// pasting one picture removed another. The caret snaps to whichever edge of the
+// token it is nearer; a tie goes after it, where a person aiming at a token is
+// usually trying to add something.
+export function caretOutside(
+  text: string,
+  counts: ReferenceCounts,
+  caret: number
+): number {
+  const at = Math.min(Math.max(caret, 0), text.length);
+  const span = referenceAt(text, counts, at, true);
+
+  if (span === null || at <= span.start || at >= span.end) {
+    return at;
+  }
+
+  return at - span.start < span.end - at ? span.start : span.end;
 }
 
 export function referenceAt(
