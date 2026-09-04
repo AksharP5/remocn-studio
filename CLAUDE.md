@@ -1683,6 +1683,15 @@ slot and mounts `<Player>` instead, so the pane is ours and the pixels are Remot
   cache does not help, so hosts are not kept warm. A stopped host loses nothing: the next
   start compiles from disk, and a host left running would rebuild on every agent edit for
   a pane nobody is watching.
+- **The webpack cache is off, and it is pinned off** (REM-318). `enableCaching` becomes a
+  webpack filesystem cache that lands beside the nearest `package.json` — inside the
+  person's project, at `node_modules/.cache/webpack`: 9 GB across four projects, never
+  pruned, and corrupt on nearly every run, because stopping the preview kills the host
+  mid-write and a truncated pack answers *Unexpected end of stream* for ever after (1066
+  lines in one day's log). It bought nothing, by the measurement above. `BUNDLE_FLAGS` in
+  `sidecar/preview/bundling.ts` holds the flag with a test on it. What is deliberately not
+  done is deleting the caches already written: `npx remotion studio` uses the same
+  directory, so the studio cannot tell its own bytes from the CLI's.
 - **The base config already pins `react`, `react-dom/client`, `remotion` and
   `@remotion/studio` to absolute paths**, which is why `preview/entry.tsx` can live
   outside the project at all. `@remotion/player` is the one alias we add.
@@ -1735,6 +1744,23 @@ slot and mounts `<Player>` instead, so the pane is ours and the pixels are Remot
   for a range, `416` past the end and no body for a `HEAD`; `sidecar/preview/range.ts` is
   the pure parser, tested on its own, and an unreadable header is *ignored* rather than
   refused, as RFC 7233 requires.
+- **A clip that leaves the DOM is released by hand** (REM-338). Playing a composition with
+  footage grew the WebKit GPU process by 1.3–1.6 GB on *every* loop and gave none of it
+  back until the page unloaded — 6.9 GB after four passes, on a 16 GB machine. The
+  mechanism: `OffthreadVideo` previews through a plain `<video>` inside the scene's
+  `<Sequence>`, which unmounts at the end of the composition and mounts again on the next
+  loop, so every loop is a new element, and WebKit keeps a detached element's media player
+  and its decoded frames until garbage collection, which a paused page does not run for a
+  minute or more. Remotion's own unmount detaches its listeners and its audio node and
+  nothing else. `releaseDetachedMedia` in `preview/media-release.ts` watches the preview
+  root and, for a `<video>` or `<audio>` that is really gone once the DOM settles, clears
+  the source and calls `load()` — the standard way to make WebKit tear the player down
+  now. A node React merely moved is removed and inserted in one commit, so the check
+  waits a microtask and asks `isConnected` first. The bytes going out again on each loop
+  are a separate thing and not ours to fix: WebKit's media loader fetches ranges without
+  conditional headers and its cache never stores partial responses, so no ETag on
+  `public/` can turn a remount into a `304`. The footprint after four loops is the number
+  to measure this by, in the running app.
 - **`public/` revalidates, the bundle does not store.** `no-store` everywhere was the first
   version of the above and it is wrong for media specifically: the Player syncs a video's
   `currentTime` to the composition frame, so a scene is a stream of seeks, and a response

@@ -49,6 +49,7 @@
       "../preview/hot.ts": "preview/hot.ts",
       "../preview/inspect.ts": "preview/inspect.ts",
       "../preview/interactivity.tsx": "preview/interactivity.tsx",
+      "../preview/media-release.ts": "preview/media-release.ts",
       "../preview/picker.ts": "preview/picker.ts",
       "../preview/tuning.ts": "preview/tuning.ts",
       "../preview/tuning-runtime.ts": "preview/tuning-runtime.ts",
