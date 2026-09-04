@@ -11,6 +11,25 @@ describe("slugFor", () => {
     expect(slugFor("Щенок")).toBe("schenok");
   });
 
+  it("lifts the accent and keeps the letter", () => {
+    expect(slugFor("Éclair")).toBe("eclair");
+    expect(slugFor("Café Ürün")).toBe("cafe-urun");
+    expect(slugFor("Ñandú")).toBe("nandu");
+    expect(slugFor("Été")).toBe("ete");
+  });
+
+  it("spells the letters that do not decompose", () => {
+    expect(slugFor("Straße")).toBe("strasse");
+    expect(slugFor("Łódź")).toBe("lodz");
+    expect(slugFor("Ærø")).toBe("aero");
+    expect(slugFor("Đông")).toBe("dong");
+  });
+
+  it("still spells the cyrillic letters that decompose too", () => {
+    expect(slugFor("Ёжик и йога")).toBe("ezhik-i-ioga");
+    expect(slugFor("Київ")).toBe("kiyiv");
+  });
+
   it("keeps digits and collapses punctuation", () => {
     expect(slugFor("Интро v2 — финал!")).toBe("intro-v2-final");
   });

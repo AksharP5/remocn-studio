@@ -296,6 +296,19 @@ never reported.
   of the entry-point switch in `sidecar/index.ts`, so `--preview-host` and
   `--tools-host` are covered by the same line — they are the same bundle with the
   same environment.
+- **The SDK is loaded, not imported** (REM-315). A static `import "@sentry/bun"` was
+  evaluated on every boot of all three processes before consent was read, and when
+  the module could not be resolved — an interrupted `bun install` was the trigger —
+  every one of them exited 1: four restart attempts, then `down`, no history, no
+  preview, no agent, for a feature that was switched off. `applyCrashConsent` now
+  takes a loader and calls it only once consent, the build and the DSN all agree;
+  a load that fails is one more reason, `no-sdk` with the message, never a failed
+  boot. The DSN constraint was never about the import — `bun build --env` only
+  substitutes a static `process.env.X` read, and a dynamic `import()` bundles the
+  same (one `main.js`, no chunk). `onUncaughtExceptionIntegration` runs with
+  `exitEvenIfOtherHandlersAreRegistered: false`, because `abortQuietly` in
+  `sidecar/agent/abort.ts` handles one exception by design and the default would
+  exit on it anyway, on exactly the builds that report.
 - **`bun build --env` takes exactly one glob, and drops the rest in silence.**
   Measured: a second `--env` flag replaces the first, and a comma-separated list
   honours only its first entry. So the sidecar's build glob is
@@ -549,6 +562,19 @@ classifier, the auth probe).
     and `acceptEdits` → `workspace-write` (a write outside the folder is
     *blocked*, which is #223 enforced harder than Claude's `auto` manages),
     `plan` → `read-only`. That trade is the mapping, not an oversight.
+  - **A finalizer reports, it never raises** (REM-320). Stop on a Codex turn — any
+    non-success exit — aborts the signal the SDK's child was spawned on, and
+    aborting a child whose `error` listener is spent makes Node emit an `error`
+    nobody listens to. The SDK attaches its listener with `once`. Measured on bun
+    1.3.2: it happens only while the child is alive with that listener spent, every
+    exit path is safe, and bun raises it as an *uncaught exception from inside
+    `abort()` itself* — a try/catch around the call sees nothing, the stack lands in
+    `sidecar.log`, and a release with crash consent would have Sentry treat it as
+    fatal. `abortQuietly` in `sidecar/agent/abort.ts` intercepts that one error on
+    the process for the duration of the call and one turn of the loop after it, and
+    puts anything else back on the loop untouched. Its test runs the real shape under
+    `bun`, because vitest runs under node and node delivers the same error a tick
+    later.
   - **The CLI is the user's, resolved, never bundled** — `findCodex` walks
     `$REMOCN_STUDIO_CODEX`, `$PATH`, then the usual install dirs; a machine
     without it gets the *not installed* row with the install command, and a
@@ -648,7 +674,10 @@ event.
   per method for params, result and stream chunk; the TS types are derived from
   those with `["Type"]`, so `requestSidecar` and the handler map are typed from
   one place and every boundary is *decoded*, not cast. Bump `SIDECAR_PROTOCOL`
-  when frames change — a mismatch is logged, not fatal.
+  when frames change — a mismatch is logged, not fatal — **and `PROTOCOL` in
+  `src-tauri/src/ipc.rs` with it**: four bumps landed on one side only, so every
+  launch logged a mismatch and a real one would have looked the same (REM-328).
+  `shared/protocol.test.ts` reads the Rust file and fails when the two differ.
   - The wire discriminator is `type`, not Schema's default `_tag`, so the frames
     are `Schema.Union`s of `Schema.Struct`s with a `Schema.Literal` tag. Keep it
     that way: the Rust `#[serde(tag = "type")]` mirror depends on it.
@@ -853,7 +882,10 @@ chats yet only expands, because there is nothing to open.
   `<slug>-2` beside the orphan. Actually deleting the files is a sentence in a chat, which
   the agent carries out through the ordinary permission card.
 - **The slug is minted once and never moves; the name is a row and renames freely.**
-  `shared/slug.ts` transliterates (so «Интро» is `intro`, not the fallback), kebabs, and
+  `shared/slug.ts` transliterates (so «Интро» is `intro`, not the fallback), lifts
+  accents rather than dropping the letter (so «Éclair» is `eclair`, not `clair`, and
+  «Été» is `ete` rather than `t` — REM-316; the letters that do not decompose, ß ø ł
+  đ æ œ, have rows of their own), kebabs, and
   suffixes past anything taken — both the rows *and* the folders on disk, because a
   project opened from someone else's tree can hold a `src/videos` nobody recorded. Slug is
   the composition id, the folder name and the `?composition=` value; renaming touches none
@@ -2889,6 +2921,15 @@ through it (REM-296).
   other install — the checklist's button, a Retry — is `installDependencies`, which asks `pmOf`. It
   runs in the lockfile's own directory, not the Remotion root, which is what makes a workspace
   install a workspace install.
+- **One run at a time per project** (REM-321). Install, the wizard's scaffold install
+  and *Upgrade Remotion* all shell out into the same folder, and `dispatch` forks
+  every request, so two of them genuinely ran at once — bun's linker is not safe
+  against itself in one `node_modules`, and the second run printed `error: Failed to
+  link @babel/parser: EEXIST`, then `Saved lockfile` and the whole package list, and
+  exited 0. A `Semaphore` per canonical project root in `sidecar/scaffold/install.ts`
+  makes the second wait rather than race, with its output still streaming; and a
+  line shaped `error:` fails the run whatever the exit code says, because a green
+  checklist row over a half-linked tree is the worst answer this app can give.
 - **The shipped bun is the binary for a bun project, and never for anyone else's.** `binaryOf` answers
   `process.execPath` for bun — the runtime the sidecar is already running on, so a machine with no
   bun installed still installs a bun project — and resolves npm/pnpm/yarn from `$PATH` plus the
