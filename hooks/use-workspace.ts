@@ -19,6 +19,7 @@ import { type StudioVideos, useVideos } from "@/hooks/use-videos";
 import type { VideoFormat } from "@/lib/studio/formats";
 import {
   newestChat,
+  newestChatIn,
   type PaneGroup,
   paneGroups,
   projectOf,
@@ -243,6 +244,26 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
     [expandVideo, openSession, rows]
   );
 
+  // File → ‹project› moved the video list and the preview and left the chat
+  // where it was, so the app showed two projects at once — the old transcript
+  // beside the new preview, with Export bound to the preview. The switch opens
+  // the project's most recent chat, exactly as a video row does; a project
+  // with no chats yet opens with an empty composer rather than someone else's
+  // conversation.
+  const switchProject = useCallback(
+    (projectId: string) => {
+      const newest = newestChatIn(rows, projectId);
+      if (newest !== null) {
+        openSession(newest);
+        return;
+      }
+
+      selectProject(projectId);
+      startSession();
+    },
+    [openSession, rows, selectProject, startSession]
+  );
+
   const onNewSession = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
       startSessionIn(event.currentTarget.value);
@@ -300,6 +321,7 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
       relocateProject,
       removeProject,
       renameProject,
+      selectProject: switchProject,
       selectSession: openSession,
       startSessionIn,
     }),
@@ -325,6 +347,7 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
       scaffolds,
       sessions,
       startSessionIn,
+      switchProject,
       turns,
       videos,
     ]

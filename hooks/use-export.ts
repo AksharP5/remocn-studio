@@ -55,6 +55,7 @@ export interface Exporting {
 export interface ExportSettings {
   composition: string | null;
   isServing: boolean;
+  openedProjectId: string | null;
   projectId: string | null;
 }
 
@@ -63,6 +64,7 @@ const IDLE: ExportState = { phase: "idle" };
 export function useExport({
   composition,
   isServing,
+  openedProjectId,
   projectId,
 }: ExportSettings): Exporting {
   const [state, setState] = useState<ExportState>(IDLE);
@@ -84,6 +86,7 @@ export function useExport({
     busyElsewhere: state.phase === "running" && mine === null,
     composition,
     isServing,
+    openedProjectId,
     projectId,
   });
 
@@ -171,10 +174,20 @@ function unavailableOf(state: {
   busyElsewhere: boolean;
   composition: string | null;
   isServing: boolean;
+  openedProjectId: string | null;
   projectId: string | null;
 }): string | null {
   if (state.projectId === null) {
     return "Open a project to export it.";
+  }
+  // Inspect and Snapshot already refuse this; Export renders from the same
+  // preview and would have put the other project's video into its out/ while
+  // the person read this one's conversation.
+  if (
+    state.openedProjectId !== null &&
+    state.openedProjectId !== state.projectId
+  ) {
+    return "The preview is showing a different project than this session.";
   }
   if (state.busyElsewhere) {
     return "Another project is exporting, and only one export runs at a time.";
