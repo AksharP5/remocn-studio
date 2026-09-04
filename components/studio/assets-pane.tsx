@@ -23,6 +23,13 @@ import { AssetGrid } from "./asset-grid";
 
 const PLACEHOLDERS = ["one", "two", "three"];
 
+// Where a sticky thing under the search field has to start. The field is the
+// input's `h-8.5` plus its wrapper's 1px border top and bottom plus `pb-2` —
+// 44px, and 40px from `sm:`, where the input is `h-7.5`. Getting it wrong
+// leaves a band between the two that scrolling tiles show through, so the two
+// are one value rather than two that have to be remembered together.
+export const UNDER_SEARCH_FIELD = "top-11 sm:top-10";
+
 export function AssetSearchField({
   onChange,
   value,

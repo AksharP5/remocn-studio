@@ -15,9 +15,14 @@ import {
 } from "@/components/ui/sidebar";
 import { useAssetSearch } from "@/hooks/use-asset-search";
 import { componentGroups, filterAssets } from "@/lib/studio/pane-view";
+import { cn } from "@/lib/utils";
 import type { Asset } from "@/shared/library";
 import { AssetGrid } from "./asset-grid";
-import { AssetSearchField, NothingFound } from "./assets-pane";
+import {
+  AssetSearchField,
+  NothingFound,
+  UNDER_SEARCH_FIELD,
+} from "./assets-pane";
 
 const PLACEHOLDERS = ["one", "two", "three"];
 
@@ -28,7 +33,12 @@ function GroupHeading({ count, label }: { count: number; label: string }) {
     // painted over a heading sitting at 0 and the role — the only thing saying
     // where you are among 99 components — went illegible exactly while
     // scrolling. `z-30` puts it above the pair.
-    <h3 className="sticky top-11 z-30 flex h-8 shrink-0 items-center justify-between bg-sidebar px-2 font-medium text-sidebar-foreground/70 text-xs">
+    <h3
+      className={cn(
+        "sticky z-30 flex h-8 shrink-0 items-center justify-between bg-sidebar px-2 font-medium text-sidebar-foreground/70 text-xs",
+        UNDER_SEARCH_FIELD
+      )}
+    >
       {label}
       <span className="text-sidebar-foreground/50 tabular-nums">{count}</span>
     </h3>

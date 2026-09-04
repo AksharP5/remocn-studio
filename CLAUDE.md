@@ -2985,7 +2985,12 @@ field, one value — where the pane's categories (Typography, Shaders, Filters�
   positioned children — the `Attachment` trigger is `absolute inset-0 z-10` and its actions
   `z-20` — so a row scrolling under it printed straight through the word, and the only
   thing saying which role you are looking at went illegible exactly while scrolling 99
-  components. `z-30` clears both.
+  components. `z-30` clears both. Making it visible then showed the other half: the
+  heading stuck at a flat `top-11` while the search field above it is 44px only until
+  `sm:`, where the input drops to `h-7.5` and the field becomes 40px — so tiles scrolled
+  through a 4px band between the two. `UNDER_SEARCH_FIELD` is exported beside the field
+  that defines it, because the offset and the height are one value and not two to be
+  remembered together.
 - **The pane groups by role.** Entry, Emphasis, Exit, Scene, Transition with a count
   each; category survives in the data and orders the tiles *inside* a group, so Scene
   reads shaders before filters. A saved component sits in its own role beside the
