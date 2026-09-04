@@ -21,6 +21,7 @@ import { AssetGrid } from "./asset-grid";
 import {
   AssetSearchField,
   NothingFound,
+  OVER_TILES,
   UNDER_SEARCH_FIELD,
 } from "./assets-pane";
 
@@ -32,10 +33,11 @@ function GroupHeading({ count, label }: { count: number; label: string }) {
     // trigger is `absolute inset-0 z-10` and its actions `z-20`, so both
     // painted over a heading sitting at 0 and the role — the only thing saying
     // where you are among 99 components — went illegible exactly while
-    // scrolling. `z-30` puts it above the pair.
+    // scrolling.
     <h3
       className={cn(
-        "sticky z-30 flex h-8 shrink-0 items-center justify-between bg-sidebar px-2 font-medium text-sidebar-foreground/70 text-xs",
+        "sticky flex h-8 shrink-0 items-center justify-between bg-sidebar px-2 font-medium text-sidebar-foreground/70 text-xs",
+        OVER_TILES,
         UNDER_SEARCH_FIELD
       )}
     >

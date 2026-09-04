@@ -141,13 +141,19 @@ export function ProjectsPane() {
     [library.assets]
   );
 
+  // Pinned above the scroller rather than scrolled with the list: the one
+  // action that starts a video must not be the first thing a long list takes
+  // off screen.
+  let pinned: React.ReactNode = (
+    <NewVideoAction
+      isDisabled={activeProject === null || activeProject.missing}
+      onNewVideo={newVideo.open}
+    />
+  );
+
   let content = (
     <>
       <h2 className="sr-only">Videos</h2>
-      <NewVideoAction
-        isDisabled={activeProject === null || activeProject.missing}
-        onNewVideo={newVideo.open}
-      />
       {activeProject === null ? null : (
         <Scaffolding
           onRetry={onRetryScaffold}
@@ -175,6 +181,7 @@ export function ProjectsPane() {
   );
 
   if (paneView === "assets") {
+    pinned = null;
     content = (
       <>
         <h2 className="sr-only">Assets</h2>
@@ -201,6 +208,7 @@ export function ProjectsPane() {
   }
 
   if (paneView === "components") {
+    pinned = null;
     content = (
       <>
         <h2 className="sr-only">Components</h2>
@@ -272,18 +280,28 @@ export function ProjectsPane() {
           <PaneViewMenu onShow={showPane} view={paneView} />
         </SidebarHeader>
 
-        <SidebarContent>
-          <SidebarGroup
-            className={cn(
-              paneSlide === "push" && "animate-screen-in",
-              paneSlide === "pop" && "animate-screen-back"
-            )}
-            data-pane-slide
-            key={paneView}
-          >
-            <SidebarGroupContent>{content}</SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
+        {/* The view is one column: what is pinned stays put and only the
+            list below it scrolls, so the slide animation belongs to the
+            column rather than to the scrolling half of it. */}
+        <div
+          className={cn(
+            "flex min-h-0 flex-1 flex-col",
+            paneSlide === "push" && "animate-screen-in",
+            paneSlide === "pop" && "animate-screen-back"
+          )}
+          data-pane-slide
+          key={paneView}
+        >
+          {/* `p-2` is what `SidebarGroup` gives the scrolling half, so the
+              pinned action keeps the list's own left and right edge. */}
+          {pinned === null ? null : <div className="px-2 pt-2">{pinned}</div>}
+
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupContent>{content}</SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+        </div>
 
         {footer}
       </Sidebar>
@@ -385,7 +403,7 @@ function NewVideoAction({
   onNewVideo: () => void;
 }) {
   return (
-    <div className="px-2 pt-1 pb-4">
+    <div className="px-2 pb-2">
       <Button
         className="w-full"
         disabled={isDisabled}

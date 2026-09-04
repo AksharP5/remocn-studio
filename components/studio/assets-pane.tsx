@@ -30,6 +30,15 @@ const PLACEHOLDERS = ["one", "two", "three"];
 // are one value rather than two that have to be remembered together.
 export const UNDER_SEARCH_FIELD = "top-11 sm:top-10";
 
+// A tile carries its own positioned children — an `absolute inset-0 z-10`
+// trigger over the whole card and `z-20` actions — so the pane's sticky chrome
+// has to sit above both or a tile scrolling under it takes the clicks. The
+// trigger is transparent, so nothing looked wrong: the search field was on
+// screen, stuck where it belongs, and simply did not answer. The field is the
+// topmost of the two because a group heading stops exactly at its bottom edge.
+export const OVER_TILES = "z-30";
+export const OVER_HEADINGS = "z-40";
+
 export function AssetSearchField({
   onChange,
   value,
@@ -41,7 +50,7 @@ export function AssetSearchField({
     // Sticky against the pane's scroll container: the list scrolls under it
     // and the field never leaves the top. The background is what stops the
     // cards showing through the padding as they pass.
-    <div className="sticky top-0 z-10 bg-sidebar px-1 pb-2">
+    <div className={cn("sticky top-0 bg-sidebar px-1 pb-2", OVER_HEADINGS)}>
       <div className="relative">
         <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
