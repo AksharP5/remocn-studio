@@ -1,7 +1,7 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { Data, Effect, Exit, type Scope } from "effect";
-import { errorMessage } from "@/lib/error-message";
+import { causeMessage, errorMessage } from "@/lib/error-message";
 import {
   codecsFor,
   type Decoded,
@@ -43,15 +43,39 @@ const command = <A>(
 
 export const newRequestId = Effect.sync(() => crypto.randomUUID());
 
+function undecodable(method: string, data: unknown, reason: string): void {
+  const shape =
+    typeof data === "object" && data !== null && "type" in data
+      ? String((data as { type: unknown }).type)
+      : typeof data;
+
+  // The webview has no other log, and a dropped chunk is a protocol fault the
+  // person cannot otherwise be told about.
+  console.error(
+    `${method}: dropped a ${shape} chunk it could not decode — ${reason}`,
+    data
+  );
+}
+
 export function requestSidecar<M extends SidecarMethod>(
   call: SidecarCall<M>
 ): Effect.Effect<SidecarResult<M>, SidecarError> {
   const codecs = codecsFor(call.method);
   const onStream = new Channel<unknown>((data) => {
     const chunk = codecs.stream(data);
-    if (call.onStream !== undefined && Exit.isSuccess(chunk)) {
-      call.onStream(chunk.value);
+    if (Exit.isFailure(chunk)) {
+      // A chunk that will not decode used to vanish here with no trace
+      // anywhere — not in the pane, not in the sidecar log, which is what made
+      // a permission card that never arrived impossible to tell apart from an
+      // ask that was never raised. It still cannot be rendered; it can be said.
+      undecodable(
+        call.method,
+        data,
+        causeMessage(chunk.cause) ?? "interrupted"
+      );
+      return;
     }
+    call.onStream?.(chunk.value);
   });
 
   return command<unknown>("sidecar_request", {

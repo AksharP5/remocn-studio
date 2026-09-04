@@ -1,9 +1,9 @@
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { Effect, Exit } from "effect";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { causeMessage } from "@/lib/error-message";
 import { cancelSidecarRequest, requestSidecar } from "@/lib/studio/sidecar";
-import type { EmitChunk } from "@/shared/ipc";
+import type { AgentEvent, EmitChunk } from "@/shared/ipc";
 
 interface Internals {
   runCallback: (id: number, data: unknown) => void;
@@ -68,7 +68,11 @@ describe("requestSidecar", () => {
     await expect(answer).resolves.toEqual({ elapsedMs: 3, emitted: 2 });
   });
 
-  it("drops a chunk that does not match the method's schema", async () => {
+  // A chunk that will not decode is still dropped — it cannot be rendered —
+  // but it used to be dropped in silence, with nothing in the pane and nothing
+  // in the sidecar log, which is what made a permission card that never arrived
+  // impossible to tell apart from an ask that was never raised.
+  it("drops a chunk that does not match the method's schema, and says so", async () => {
     let stream = 0;
     let finish: (result: unknown) => void = () => undefined;
 
@@ -78,6 +82,10 @@ describe("requestSidecar", () => {
         finish = resolve;
       });
     });
+
+    const reported = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
 
     const chunks: EmitChunk[] = [];
     const answer = Effect.runPromise(
@@ -93,8 +101,77 @@ describe("requestSidecar", () => {
     internals().runCallback(stream, { index: 0, message: { token: 42 } });
 
     expect(chunks).toEqual([]);
+    expect(reported).toHaveBeenCalledTimes(1);
+    expect(reported.mock.calls[0]?.[0]).toContain("sidecar.emit");
+    expect(reported.mock.calls[0]?.[0]).toContain("could not decode");
 
+    reported.mockRestore();
     finish({ elapsedMs: 1, emitted: 1 });
+    await answer;
+  });
+
+  // The permission ask rides the turn's own stream, so a drift in this one
+  // shape is a card that never appears and a turn that sits until the gate's
+  // ten-minute auto-deny.
+  it("forwards a permission ask on a turn's stream", async () => {
+    let stream = 0;
+    let finish: (result: unknown) => void = () => undefined;
+
+    mockIPC((_cmd, args) => {
+      stream = channelId((args as Record<string, unknown>).onStream);
+      return new Promise((resolve) => {
+        finish = resolve;
+      });
+    });
+
+    const events: AgentEvent[] = [];
+    const answer = Effect.runPromise(
+      requestSidecar({
+        id: "turn-1",
+        method: "agent.prompt",
+        onStream: (event) => events.push(event),
+        params: {
+          assets: [],
+          attachments: [],
+          effort: null,
+          elements: [],
+          historyId: "history-1",
+          media: [],
+          mode: "acceptEdits",
+          model: null,
+          playing: null,
+          projectId: "project-1",
+          prompt: "list the videos",
+          provider: "claude",
+          sessionId: null,
+          videoId: "video-1",
+        },
+      })
+    );
+
+    await tick();
+    internals().runCallback(stream, {
+      index: 0,
+      message: {
+        id: "ask-1",
+        input: { command: "ls /Users/someone/Documents" },
+        name: "Bash",
+        reason: "bash",
+        type: "permission",
+      },
+    });
+
+    expect(events).toEqual([
+      {
+        id: "ask-1",
+        input: { command: "ls /Users/someone/Documents" },
+        name: "Bash",
+        reason: "bash",
+        type: "permission",
+      },
+    ]);
+
+    finish({ context: null, failure: null, sessionId: "sdk-1" });
     await answer;
   });
 

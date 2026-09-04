@@ -670,6 +670,21 @@ event.
     trade `auto` *is*; it is not an oversight. Its silent denials are not silent:
     `system`/`permission_denied` is folded into a `notice`, or a refused tool would
     show up as nothing but a failed activity line.
+  - **A `PreToolUse` hook is what makes the invariant absolute, and without it the
+    sentence above was a claim rather than a fact** (REM-327). That same classifier
+    approves in `acceptEdits` and `plan` too, so the gate saw nothing: measured
+    against the real CLI, `ls src/videos` in `acceptEdits` produced a tool row and
+    no card at all. `canUseTool` is not a gate on its own — the SDK says so itself,
+    warning `CLAUDE_SDK_CAN_USE_TOOL_SHADOWED` and naming a `PreToolUse` hook as the
+    remedy, because that hook runs for *every* call ahead of the classifier.
+    `gateHooks` in `sidecar/claude/guard.ts` installs one that runs the same
+    `review()` and answers `permissionDecision: "ask"` for exactly the calls that
+    want a card — which routes them into the *existing* `canUseTool`, so the emit,
+    the gate, the queue and the card are untouched. Two things about it are
+    deliberate: it is installed **only in `acceptEdits` and `plan`**, because a hook
+    in `auto` would quietly turn `auto` into `acceptEdits`; and an `allow` verdict
+    returns no decision at all rather than `"allow"`, so Claude Code's own deny
+    rules still apply to everything the studio does not object to.
   - **The CLI is asked what it actually did.** `system`/`init` reports the
     `permissionMode` in force; it rides on the `session` event, and a mismatch with
     what was requested (a model without `supportsAutoMode`, say) adds a `notice`.
