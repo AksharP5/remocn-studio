@@ -21,6 +21,7 @@ const PRODUCT_DEMO_ROW = /^Product demo/;
 const LAUNCH_TEASER_ROW = /^Launch teaser/;
 const WORDMARK = /^emocn/;
 const STARTUP = "Make a video by describing it";
+const SIDECAR_DOWN = /the sidecar is not running/;
 
 const SIDECAR_READY = {
   attempt: 0,
@@ -77,7 +78,10 @@ function mockStudio(
   options: {
     blocks?: TranscriptEntry[];
     folder?: string | null;
-    projects?: Project[] | Promise<Project[]>;
+    projects?:
+      | Project[]
+      | Promise<Project[]>
+      | (() => Project[] | Promise<Project[]>);
     sessions?: HistorySession[];
     videos?: Video[];
   } = {}
@@ -105,7 +109,8 @@ function mockStudio(
           return [];
         }
         if (method === "project.list") {
-          return options.projects ?? [];
+          const { projects } = options;
+          return typeof projects === "function" ? projects() : (projects ?? []);
         }
         if (method === "video.list") {
           return options.videos ?? [VIDEO];
@@ -187,6 +192,38 @@ describe("app shell", () => {
     ).not.toBeInTheDocument();
 
     finishLoading([PROJECT]);
+    expect(await screen.findByText("My video")).toBeVisible();
+  });
+
+  // A list that failed is not a list that is empty. Onboarding here told a
+  // returning person their projects were gone, and New Project from that
+  // screen would have failed the same way with nothing connecting the two.
+  it("says the project list could not be read instead of onboarding", async () => {
+    let attempts = 0;
+    mockStudio({
+      projects: () => {
+        attempts += 1;
+        return attempts === 1
+          ? Promise.reject(new Error("the sidecar is not running"))
+          : [PROJECT];
+      },
+    });
+
+    render(<Page />);
+
+    // The sidebar repeats the message; the conversation is where onboarding
+    // used to be, so that is where the failure has to be.
+    const conversation = within(await screen.findByLabelText("Conversation"));
+    expect(
+      await conversation.findByText("The project list could not be read")
+    ).toBeVisible();
+    expect(conversation.getByText(SIDECAR_DOWN)).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: STARTUP })
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(conversation.getByRole("button", { name: "Try again" }));
+
     expect(await screen.findByText("My video")).toBeVisible();
   });
 
@@ -520,6 +557,13 @@ describe("app shell", () => {
     await renderShell();
 
     expect(await screen.findByText("History is unavailable")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
+    // The project list failed too, and the conversation says so beside the
+    // sidebar: one Try again each.
+    expect(
+      screen.getByText("The project list could not be read")
+    ).toBeVisible();
+    expect(screen.getAllByRole("button", { name: "Try again" })).toHaveLength(
+      2
+    );
   });
 });

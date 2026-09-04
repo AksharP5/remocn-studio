@@ -19,6 +19,10 @@ export interface StudioProjects {
   forgetProject: (projectId: string) => void;
   isLoadingProjects: boolean;
   isReady: boolean;
+  // The list itself failing, apart from `projectsError`, which also carries a
+  // folder that would not open: the chat pane replaces onboarding with a
+  // failure only for the first, since the second leaves the list intact.
+  listError: string | null;
   openFolder: () => Promise<Project | null>;
   projects: readonly Project[];
   projectsError: string | null;
@@ -33,6 +37,7 @@ export function useProjects(settings: StudioSettings | null): StudioProjects {
   const [projects, setProjects] = useState<readonly Project[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [projectsError, setProjectsError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
 
   const rememberProject = useCallback((project: Project) => {
@@ -63,11 +68,15 @@ export function useProjects(settings: StudioSettings | null): StudioProjects {
           Effect.sync(() => {
             setProjects(rows);
             setProjectsError(null);
+            setListError(null);
             setActiveId((current) => current ?? rows.at(0)?.id ?? null);
           })
         ),
         Effect.catch((failure) =>
-          Effect.sync(() => setProjectsError(failure.message))
+          Effect.sync(() => {
+            setProjectsError(failure.message);
+            setListError(failure.message);
+          })
         ),
         Effect.ensuring(Effect.sync(() => setIsLoadingProjects(false)))
       )
@@ -122,6 +131,7 @@ export function useProjects(settings: StudioSettings | null): StudioProjects {
       forgetProject,
       isLoadingProjects,
       isReady,
+      listError,
       openFolder,
       projects,
       projectsError,
@@ -136,6 +146,7 @@ export function useProjects(settings: StudioSettings | null): StudioProjects {
       forgetProject,
       isLoadingProjects,
       isReady,
+      listError,
       openFolder,
       projects,
       projectsError,
