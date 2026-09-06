@@ -11,7 +11,7 @@ import { SignInControls } from "./sign-in-controls";
 import { useStudio } from "./studio-provider";
 
 export function TrialCard() {
-  const { account, settingsDialog, trialCard } = useStudio();
+  const { account, settingsView, trialCard } = useStudio();
   const { card } = trialCard;
 
   // The purchase ends with the plan turning Pro, which takes the card away:
@@ -44,7 +44,7 @@ export function TrialCard() {
         <Body
           account={account}
           card={card}
-          onUpgrade={settingsDialog.openAccount}
+          onUpgrade={settingsView.openAccount}
         />
         {account.error === null ? null : (
           <p className="break-words text-destructive text-xs" role="alert">

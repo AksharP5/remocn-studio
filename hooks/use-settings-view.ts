@@ -22,7 +22,8 @@ export function isSettingsSection(value: unknown): value is SettingsSection {
   );
 }
 
-export interface SettingsDialog {
+export interface SettingsView {
+  close: () => void;
   isOpen: boolean;
   open: () => void;
   openAccount: () => void;
@@ -33,9 +34,12 @@ export interface SettingsDialog {
   setSection: (section: SettingsSection) => void;
 }
 
-// Cmd+, is the standard macOS settings shortcut. The listener lives here, not
-// in the pane, so the dialog opens even while the sidebar is hidden.
-export function useSettingsDialog(): SettingsDialog {
+// Settings is a view of the window rather than a dialog over it: it takes the
+// whole window while open and the shell stays mounted underneath, so a turn,
+// the preview and the sidecar carry on. Cmd+, is the standard macOS settings
+// shortcut and Escape is the way back; the listeners live here, not in the
+// pane, so both work while the sidebar is hidden.
+export function useSettingsView(): SettingsView {
   const [isOpen, setIsOpen] = useState(false);
   const [section, setSection] = useState<SettingsSection>("appearance");
   const [provider, setProvider] = useState<AgentProvider | null>(null);
@@ -62,20 +66,31 @@ export function useSettingsDialog(): SettingsDialog {
     }
   }, []);
 
+  const close = useCallback(() => {
+    setOpen(false);
+  }, [setOpen]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "," && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
         setIsOpen(true);
+        return;
+      }
+      // A menu or a popover open on the page answers Escape first and
+      // prevents the default; only an Escape nothing else wanted leaves.
+      if (event.key === "Escape" && isOpen && !event.defaultPrevented) {
+        setOpen(false);
       }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [isOpen, setOpen]);
 
   return useMemo(
     () => ({
+      close,
       isOpen,
       open,
       openAccount,
@@ -85,6 +100,6 @@ export function useSettingsDialog(): SettingsDialog {
       setOpen,
       setSection,
     }),
-    [isOpen, open, openAccount, openAccounts, provider, section, setOpen]
+    [close, isOpen, open, openAccount, openAccounts, provider, section, setOpen]
   );
 }

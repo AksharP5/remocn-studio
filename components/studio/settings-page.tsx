@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowLeftIcon,
   BotIcon,
   CheckIcon,
   CircleArrowUpIcon,
@@ -18,7 +19,6 @@ import type { MouseEvent } from "react";
 import { useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Label } from "@/components/ui/label";
@@ -29,7 +29,7 @@ import { useScrolledIntoView } from "@/hooks/use-scrolled-into-view";
 import {
   isSettingsSection,
   type SettingsSection,
-} from "@/hooks/use-settings-dialog";
+} from "@/hooks/use-settings-view";
 import { useStockKey } from "@/hooks/use-stock-key";
 import {
   isThemeChoice,
@@ -103,9 +103,15 @@ const SECTIONS: readonly {
   },
 ];
 
-export function SettingsDialog() {
-  const { settingsDialog } = useStudio();
-  const { section, setSection } = settingsDialog;
+// Settings takes the window: a rail on the left, one readable column on the
+// right, and nothing floating. The shell stays mounted underneath — inert, so
+// keys and clicks cannot reach it — which is what keeps the preview's iframe
+// and a running turn exactly where they were when the page closes. There is
+// no entrance animation on purpose: this should feel like switching a tab,
+// not opening a window.
+export function SettingsPage() {
+  const { settingsView } = useStudio();
+  const { section, setSection } = settingsView;
 
   const onPickSection = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
@@ -117,22 +123,39 @@ export function SettingsDialog() {
     [setSection]
   );
 
+  if (!settingsView.isOpen) {
+    return null;
+  }
+
   const active = SECTIONS.find((entry) => entry.id === section) ?? SECTIONS[0];
 
   return (
-    <Dialog onOpenChange={settingsDialog.setOpen} open={settingsDialog.isOpen}>
-      <DialogContent className="flex h-120 max-h-[80vh] flex-row gap-0 overflow-hidden p-0 sm:max-w-2xl">
-        <SectionRail active={section} onPick={onPickSection} />
+    <section
+      aria-label="Settings"
+      className="fixed inset-0 z-40 flex bg-background text-foreground"
+    >
+      <SectionRail
+        active={section}
+        onBack={settingsView.close}
+        onPick={onPickSection}
+      />
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex shrink-0 flex-col gap-0.5 px-6 pt-5 pb-1">
-            <h2 className="font-heading font-medium">{active.label}</h2>
-            <p className="text-muted-foreground text-xs">
-              {active.description}
-            </p>
-          </header>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div
+          className="h-(--titlebar-block-inset) shrink-0"
+          data-tauri-drag-region
+        />
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-10 pt-2 pb-12">
+            <header className="flex flex-col gap-1">
+              <h2 className="font-heading font-medium text-xl tracking-tight">
+                {active.label}
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                {active.description}
+              </p>
+            </header>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
             {section === "account" ? <AccountSection /> : null}
             {section === "appearance" ? <AppearanceSection /> : null}
             {section === "behavior" ? <BehaviorSection /> : null}
@@ -142,8 +165,8 @@ export function SettingsDialog() {
             {section === "feedback" ? <FeedbackSection /> : null}
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </section>
   );
 }
 
@@ -152,23 +175,42 @@ export function SettingsDialog() {
 // carries a dot while a release is waiting, so the dialog never hides it.
 function SectionRail({
   active,
+  onBack,
   onPick,
 }: {
   active: SectionId;
+  onBack: () => void;
   onPick: (event: MouseEvent<HTMLButtonElement>) => void;
 }) {
   const { updates } = useStudio();
 
   return (
-    <div className="flex w-44 shrink-0 flex-col bg-muted/40 p-3">
-      <DialogTitle className="px-2 pt-1 pb-4 text-sm">Settings</DialogTitle>
+    <aside className="flex w-56 shrink-0 flex-col bg-sidebar p-3 pt-(--titlebar-block-inset)">
+      {/* The arrow and the word are one control: the whole row goes back,
+          and the word is what the row is named by. */}
+      <div className="mb-3" data-tauri-drag-region>
+        <Button
+          aria-label="Back"
+          className="text-foreground"
+          onClick={onBack}
+          size="sm"
+          variant="ghost"
+        >
+          <ArrowLeftIcon
+            className="text-muted-foreground"
+            data-icon="inline-start"
+          />
+          <span className="font-heading font-medium text-sm">Settings</span>
+        </Button>
+        <h1 className="sr-only">Settings</h1>
+      </div>
 
       <nav aria-label="Settings sections" className="flex flex-col gap-0.5">
         {SECTIONS.map((entry) => (
           <button
             aria-current={active === entry.id ? "true" : undefined}
             className={cn(
-              "flex h-8 items-center gap-2 rounded-md px-2 text-left text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:bg-accent",
+              "flex h-8 items-center gap-2 rounded-md px-2 text-left text-sm outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/50 active:bg-accent",
               active === entry.id
                 ? "bg-accent text-foreground"
                 : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
@@ -198,7 +240,7 @@ function SectionRail({
         </KbdGroup>
         opens Settings
       </p>
-    </div>
+    </aside>
   );
 }
 
@@ -318,7 +360,7 @@ function BehaviorSection() {
         />
       </div>
 
-      {/* Replaying forgets every "Got it". Nothing appears while this dialog
+      {/* Replaying forgets every "Got it". Nothing appears while this page
           is open — a tip never competes with something already on screen — so
           the first one arrives after it is closed. */}
       <div className="flex items-start justify-between gap-6">
@@ -436,7 +478,7 @@ function UpdatesSection() {
 }
 
 function AccountsSection() {
-  const { accounts, settingsDialog } = useStudio();
+  const { accounts, settingsView } = useStudio();
 
   return (
     <div className="flex flex-col gap-1">
@@ -463,7 +505,7 @@ function AccountsSection() {
       {AGENT_PROVIDERS.map((provider) => (
         <AccountRow
           isChecking={accounts.isChecking}
-          isFocused={settingsDialog.provider === provider}
+          isFocused={settingsView.provider === provider}
           key={provider}
           provider={provider}
           row={accounts.rows[provider]}

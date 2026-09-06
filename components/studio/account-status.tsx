@@ -21,14 +21,14 @@ interface Lines {
 }
 
 export function AccountStatus({ now }: { now: number }) {
-  const { account, settingsDialog } = useStudio();
+  const { account, settingsView } = useStudio();
   const lines = linesOf(account, now);
 
   return (
     <SidebarMenuButton
       aria-label="Account"
       className="h-auto py-1.5 text-muted-foreground"
-      onClick={settingsDialog.openAccount}
+      onClick={settingsView.openAccount}
       size="lg"
     >
       <CircleUserRoundIcon className="size-5" />

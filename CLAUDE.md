@@ -2944,7 +2944,7 @@ get one anchored card, the first time they are genuinely usable (REM-253).
   no queue to drain and nothing that can put two cards on screen at once. Catalog order
   is the priority when several features become available together.
 - **Nothing competes with something already asking.** A permission card, a wizard, the
-  environment checklist, the Settings dialog: `isBlocked` withholds every tip while one
+  environment checklist, the Settings page: `isBlocked` withholds every tip while one
   of those is up. Availability alone is not enough either — a tip waits out a two-second
   dwell first, so a pane opened on the way somewhere else never flashes a card.
 - **The anchor is named by the tip.** The element carries `data-tour="<id>"` and
@@ -3125,6 +3125,29 @@ that its gates and the list agree, so a feature added to Pro cannot be gated now
   key in the landing repo's `.env`; if production signs with another pair, the app
   reads every document as forged and lands on Free with the *not signed by the account
   server* line — the failure direction that keeps nothing it cannot prove.
+
+### Settings is a page, not a dialog
+
+Settings takes the whole window: a rail on the left, one readable column on the right,
+nothing floating and no dim behind it. It was a `Dialog` at `sm:max-w-2xl` × 480px until
+Account grew a trial bar, two pricing cards and a device list, and a scrolling dialog was
+hiding half of every section.
+
+- **The shell stays mounted underneath, `inert`.** `SettingsPage` is a `fixed inset-0`
+  layer over `ShellLayout`, which keeps its state — the preview's iframe, a running turn,
+  the sidecar's channel — and takes no key and no focus while the page is up. A second
+  Tauri window was the alternative and is the one this repo has already ruled out: a second
+  `useTurns`, a second permission gate, a channel that belongs to one window.
+- **`useSettingsView` is the old dialog hook under an honest name**, same API plus `close`,
+  and every way in is unchanged — the gear, ⌘,, the sidebar's account row, the trial card's
+  Upgrade, the model menu's *Sign in* into AI Accounts. Escape is the way back, and it
+  yields to a menu or a popover that answered first (`defaultPrevented`).
+- **No entrance animation on purpose.** It should feel like switching a tab, not opening a
+  window. The rail keeps the pane's rules: no weight change between states, the open
+  section on a muted background, and the drag region under the traffic lights is the
+  rail's own top inset.
+- **In tests it is a region named Settings**, not a `dialog` role — `findByRole("region",
+  { name: "Settings" })` is what `settings-page.test.tsx` and `trial-card.test.tsx` open.
 
 ### Upgrading from the app
 

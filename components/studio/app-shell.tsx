@@ -27,7 +27,7 @@ import { CrashBoundary } from "./crash-boundary";
 import { PreviewPane } from "./preview-pane";
 import { ProjectsPane } from "./projects-pane";
 import { QuitGuard } from "./quit-guard";
-import { SettingsDialog } from "./settings-dialog";
+import { SettingsPage } from "./settings-page";
 import { Splash } from "./splash";
 import { StudioProvider, useStudio } from "./studio-provider";
 import { Titlebar } from "./titlebar";
@@ -65,7 +65,7 @@ function StudioBoot() {
           <ToastProvider>
             <AnchoredToastProvider>
               <ShellLayout isBooting={isBooting} />
-              <SettingsDialog />
+              <SettingsPage />
               <TourTip />
               <QuitGuard />
             </AnchoredToastProvider>
@@ -197,13 +197,16 @@ function ShellPanes({
 }
 
 function ShellLayout({ isBooting }: { isBooting: boolean }) {
-  const { isProjectsShown, projects, turns } = useStudio();
+  const { isProjectsShown, projects, settingsView, turns } = useStudio();
   const collapse = useSidebarCollapse(isProjectsShown);
 
   return (
+    // `inert` while Settings covers it: the shell keeps its state — the
+    // preview's iframe, a running turn — but takes no key and no focus.
     <div
       className="relative isolate flex h-full min-h-0 flex-col overflow-hidden bg-sidebar"
       data-studio-booting={isBooting ? "true" : undefined}
+      inert={settingsView.isOpen || undefined}
     >
       {/* The band belongs to the window, not the sidebar: it runs the full
           width underneath, and the content card rides over it — so there is

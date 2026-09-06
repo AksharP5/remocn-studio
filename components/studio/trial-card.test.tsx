@@ -267,7 +267,7 @@ describe("the trial card", () => {
     await screen.findByText("Your Pro trial ended Sep 1");
 
     fireEvent.click(screen.getByRole("button", { name: "Upgrade" }));
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await screen.findByRole("region", { name: "Settings" });
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Monthly" }));
     fireEvent.click(
@@ -301,7 +301,7 @@ describe("the trial card", () => {
 describe("Settings › Account", () => {
   async function openAccount() {
     fireEvent.click(await screen.findByRole("button", { name: "Account" }));
-    await screen.findByRole("dialog");
+    await screen.findByRole("region", { name: "Settings" });
   }
 
   it("offers Sign in while nobody is", async () => {
@@ -332,7 +332,7 @@ describe("Settings › Account", () => {
 
     await openAccount();
 
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await screen.findByRole("region", { name: "Settings" });
     expect(
       await within(dialog).findByText("someone@example.com")
     ).toBeVisible();

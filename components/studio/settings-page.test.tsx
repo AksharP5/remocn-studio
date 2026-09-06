@@ -81,13 +81,13 @@ async function renderShell() {
 
 async function openSettings() {
   fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
-  return await screen.findByRole("dialog");
+  return await screen.findByRole("region", { name: "Settings" });
 }
 
 const OPT_IN_WORDING = /Off unless you turn it on/;
 const NEVER_SENT_WORDING = /prompts, your conversations with the agent/;
 
-describe("the settings dialog", () => {
+describe("the settings page", () => {
   let written: [string, unknown][];
 
   beforeEach(() => {
@@ -108,7 +108,9 @@ describe("the settings dialog", () => {
 
     fireEvent.keyDown(window, { key: ",", metaKey: true });
 
-    expect(await screen.findByRole("dialog")).toBeVisible();
+    expect(
+      await screen.findByRole("region", { name: "Settings" })
+    ).toBeVisible();
   });
 
   it("switches sections from the rail", async () => {

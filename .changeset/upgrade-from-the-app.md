@@ -11,3 +11,7 @@ carry on Free lead there. While the page is open the app asks the
 server every five seconds, for ten minutes, then offers Check again; the
 purchase ends on one line, *Subscription active*, with the plan already Pro
 and no relaunch. A declined card's *Update card* opens the billing portal.
+
+Settings is a page now, not a dialog: it takes the window, with the rail on
+the left and one readable column on the right, while the preview and any
+running turn stay exactly where they were underneath. Escape is the way back.

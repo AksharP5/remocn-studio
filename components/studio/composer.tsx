@@ -127,7 +127,7 @@ function ComposerBlock({
     models,
     onEffortChange,
     onPickModel,
-    settingsDialog,
+    settingsView,
     tools,
   } = useStudio();
   const sidecar = useSidecar();
@@ -307,7 +307,7 @@ function ComposerBlock({
                   canPickProvider={canPickProvider}
                   models={models}
                   onPick={pickModel}
-                  onSignIn={settingsDialog.openAccounts}
+                  onSignIn={settingsView.openAccounts}
                   provider={provider}
                 />
 

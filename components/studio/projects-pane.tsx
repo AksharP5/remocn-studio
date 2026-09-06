@@ -111,7 +111,7 @@ export function ProjectsPane() {
     renameVideo,
     scaffolds,
     sessionsError,
-    settingsDialog,
+    settingsView,
     showPane,
     toggleProjects,
     videosError,
@@ -201,7 +201,7 @@ export function ProjectsPane() {
         ) : (
           <StockPane
             kind={stockKind}
-            onOpenSettings={settingsDialog.open}
+            onOpenSettings={settingsView.open}
             onSaved={library.refresh}
           />
         )}
@@ -250,7 +250,7 @@ export function ProjectsPane() {
           <SidebarMenuItem>
             <SidebarMenuButton
               className="text-muted-foreground"
-              onClick={settingsDialog.open}
+              onClick={settingsView.open}
             >
               <SettingsIcon />
               Settings
