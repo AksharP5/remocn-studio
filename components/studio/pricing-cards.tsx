@@ -12,17 +12,17 @@ import { CheckoutStatus } from "./checkout-status";
 // The account page's short lists, four lines each so the two cards end on
 // the same line; the copy is the landing's `components/landing/pricing.tsx`.
 const FREE_ESSENTIALS = [
-  "The app on your own agent subscription",
+  "Runs on your agent subscription",
   "Live preview and mp4 export",
-  "Asset library, stock and saved components",
-  "Real Remotion projects in your folder",
+  "Asset library and stock media",
+  "Real Remotion projects, yours",
 ];
 
 const PRO_ESSENTIALS = [
-  "Motion design skills your agent directs from",
-  "The seven-stage pipeline with design check",
-  "Inspect — change a frame by pointing at it",
-  "Snapshot — a piece of the frame into the chat",
+  "Motion design skills",
+  "The seven-stage pipeline",
+  "Design check on every scene",
+  "Inspect and Snapshot",
 ];
 
 export const YEARLY_DISCOUNT = Math.round(
@@ -104,7 +104,7 @@ export function PricingCards({
       <div className="grid grid-cols-2 gap-3">
         <Tier
           cta={<CurrentPlanMark label={freeMark} />}
-          description="What the app does on your own agent subscription."
+          description="Making and exporting videos."
           features={FREE_ESSENTIALS}
           name="Free"
           price={<Price note="forever, not a trial" suffix="" value="$0" />}
@@ -125,7 +125,7 @@ export function PricingCards({
               <CheckoutStatus account={account} />
             )
           }
-          description="The director's half — how the video is planned and judged."
+          description="The director's half of the studio."
           emphasized
           features={PRO_ESSENTIALS}
           name="Pro"
@@ -168,7 +168,10 @@ function Tier({
       {price}
       <ul className="flex flex-1 flex-col gap-1.5">
         {features.map((feature) => (
-          <li className="flex gap-2 text-xs leading-snug" key={feature}>
+          <li
+            className="flex gap-2 whitespace-nowrap text-xs leading-snug"
+            key={feature}
+          >
             <CheckIcon
               aria-hidden="true"
               className="mt-0.5 size-3 shrink-0 text-muted-foreground"
@@ -216,7 +219,7 @@ function ProPrice({ period }: { period: BillingPeriod }) {
               ${PRO_PRICE.monthly}
             </span>{" "}
             <span className="text-primary">
-              — ${YEARLY_TOTAL} a year, {YEARLY_DISCOUNT}% off
+              ${YEARLY_TOTAL} a year, {YEARLY_DISCOUNT}% off
             </span>
           </>
         }
@@ -227,7 +230,7 @@ function ProPrice({ period }: { period: BillingPeriod }) {
   }
   return (
     <Price
-      note={`or $${PRO_PRICE.yearly} a month with yearly billing`}
+      note={`or $${PRO_PRICE.yearly} a month billed yearly`}
       suffix="a month, billed monthly"
       value={`$${PRO_PRICE.monthly}`}
     />
