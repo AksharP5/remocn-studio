@@ -578,53 +578,59 @@ function CrashReportsRow({
   );
 }
 
+// One card, read top to bottom: what the button does, the button on the
+// same line, and under a rule the four facts the email is filled with —
+// so "what leaves the app" is answered where the sending happens, not in a
+// second group the eye has to connect back.
 function FeedbackSection() {
   const { feedback, turn, updates } = useStudio();
 
   return (
-    <>
-      <Group
-        description="Feedback is an email you write and send yourself; nothing leaves the app on its own"
-        title="Email"
-      >
-        <p className="text-muted-foreground text-xs leading-snug">
-          The button opens your mail client with the studio&rsquo;s version,
-          your macOS version and the session&rsquo;s agent already filled in. A
-          screenshot says more than a paragraph &mdash; attach one by hand
-          before sending.
-        </p>
-        <div>
-          <Button onClick={feedback.send} size="sm" variant="outline">
+    <Group
+      description="Feedback is an email you write and send yourself; nothing leaves the app on its own"
+      title="Email"
+    >
+      <div className="flex flex-col gap-3 rounded-xl bg-card p-4 shadow-xs ring-1 ring-border">
+        <div className="flex items-start justify-between gap-6">
+          <p className="max-w-[48ch] text-muted-foreground text-xs leading-snug">
+            Opens your mail client with the facts below already filled in. A
+            screenshot says more than a paragraph, so attach one by hand before
+            sending.
+          </p>
+          <Button
+            className="shrink-0"
+            onClick={feedback.send}
+            size="sm"
+            variant="outline"
+          >
             <MailIcon data-icon="inline-start" />
             Email feedback
           </Button>
         </div>
+
+        <div className="border-border border-t pt-3">
+          <Facts
+            rows={[
+              ["Studio", updates.version ?? "—"],
+              [
+                "Build",
+                updates.environment === null
+                  ? "—"
+                  : ENVIRONMENTS[updates.environment],
+              ],
+              ["macOS", updates.os ?? "—"],
+              ["Agent", PROVIDER_INFO[turn.provider].name],
+            ]}
+          />
+        </div>
+
         {feedback.error === null ? null : (
           <p className="break-words text-destructive text-xs" role="alert">
             {feedback.error}
           </p>
         )}
-      </Group>
-
-      <Group
-        description="Filled into the email before you see it, and nothing else"
-        title="What the email carries"
-      >
-        <Facts
-          rows={[
-            ["Studio", updates.version ?? "—"],
-            [
-              "Build",
-              updates.environment === null
-                ? "—"
-                : ENVIRONMENTS[updates.environment],
-            ],
-            ["macOS", updates.os ?? "—"],
-            ["Agent", PROVIDER_INFO[turn.provider].name],
-          ]}
-        />
-      </Group>
-    </>
+      </div>
+    </Group>
   );
 }
 
