@@ -23,6 +23,7 @@ export interface ToolSettings {
   isMissing: boolean;
   isShown: boolean;
   isWaiting: boolean;
+  onArm?: () => void;
   openedProjectId: string | null;
   preview: PreviewControl;
   previewProjectId: string | null;
@@ -34,6 +35,7 @@ export function useTools({
   isMissing,
   isShown,
   isWaiting,
+  onArm,
   openedProjectId,
   preview,
   previewProjectId,
@@ -65,16 +67,24 @@ export function useTools({
   useOnPreview(preview, onMessage);
 
   const toggleInspect = useCallback(() => {
-    if (unavailable === null) {
-      setTool((current) => (current === "inspect" ? null : "inspect"));
+    if (unavailable !== null) {
+      return;
     }
-  }, [unavailable]);
+    if (tool !== "inspect") {
+      onArm?.();
+    }
+    setTool(tool === "inspect" ? null : "inspect");
+  }, [onArm, tool, unavailable]);
 
   const toggleSnapshot = useCallback(() => {
-    if (unavailable === null) {
-      setTool((current) => (current === "snapshot" ? null : "snapshot"));
+    if (unavailable !== null) {
+      return;
     }
-  }, [unavailable]);
+    if (tool !== "snapshot") {
+      onArm?.();
+    }
+    setTool(tool === "snapshot" ? null : "snapshot");
+  }, [onArm, tool, unavailable]);
 
   // The comment card and the composer answer Escape themselves and prevent the
   // default; anything they left alone disarms the mode.

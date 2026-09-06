@@ -1,3 +1,4 @@
+mod account;
 mod commands;
 mod crash;
 mod ipc;
@@ -47,6 +48,14 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
+            account::account_entitlement,
+            account::account_me,
+            account::account_revoke_device,
+            account::account_sign_in_cancel,
+            account::account_sign_in_poll,
+            account::account_sign_in_start,
+            account::account_sign_out,
+            account::account_status,
             commands::quit_studio,
             commands::reveal_studio,
             commands::restart_studio,
@@ -68,6 +77,7 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            app.manage(account::Account::new(app.handle()));
             app.manage(Sidecar::start(app.handle().clone()));
 
             let handle = app.handle().clone();

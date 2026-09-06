@@ -39,6 +39,7 @@ const SETTINGS: StudioSettings = {
   projectsPane: null,
   taskDock: null,
   toursSeen: [],
+  trialCardsDismissed: [],
 };
 
 const OPEN: TourStage = {

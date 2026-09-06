@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AgentProvider } from "@/shared/providers";
 
 export const SETTINGS_SECTIONS = [
+  "account",
   "appearance",
   "behavior",
   "stock",
@@ -24,6 +25,7 @@ export function isSettingsSection(value: unknown): value is SettingsSection {
 export interface SettingsDialog {
   isOpen: boolean;
   open: () => void;
+  openAccount: () => void;
   openAccounts: (provider: AgentProvider) => void;
   provider: AgentProvider | null;
   section: SettingsSection;
@@ -39,6 +41,11 @@ export function useSettingsDialog(): SettingsDialog {
   const [provider, setProvider] = useState<AgentProvider | null>(null);
 
   const open = useCallback(() => {
+    setIsOpen(true);
+  }, []);
+
+  const openAccount = useCallback(() => {
+    setSection("account");
     setIsOpen(true);
   }, []);
 
@@ -71,12 +78,13 @@ export function useSettingsDialog(): SettingsDialog {
     () => ({
       isOpen,
       open,
+      openAccount,
       openAccounts,
       provider,
       section,
       setOpen,
       setSection,
     }),
-    [isOpen, open, openAccounts, provider, section, setOpen]
+    [isOpen, open, openAccount, openAccounts, provider, section, setOpen]
   );
 }

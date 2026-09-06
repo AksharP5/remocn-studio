@@ -20,6 +20,7 @@ const SETTINGS: StudioSettings = {
   projectsPane: null,
   taskDock: null,
   toursSeen: [],
+  trialCardsDismissed: [],
 };
 
 function project(id: string): Project {

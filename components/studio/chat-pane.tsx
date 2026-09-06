@@ -58,6 +58,7 @@ import { useStudio } from "./studio-provider";
 import { TaskDock } from "./task-dock";
 import { TemplateList } from "./template-list";
 import { Transcript } from "./transcript";
+import { TrialCard } from "./trial-card";
 
 const PLACEHOLDERS = ["one", "two", "three"];
 const TICK = "1 second";
@@ -315,6 +316,8 @@ function Conversation({
           ) : null}
 
           <EnvironmentChecklist environment={environment} />
+
+          <TrialCard />
 
           <AssetOfferCard offer={offer} />
 

@@ -45,6 +45,7 @@ import { isPaneView, type PaneView } from "@/lib/studio/pane-view";
 import type { TourId } from "@/lib/studio/tours";
 import { cn } from "@/lib/utils";
 import { isMediaAsset } from "@/shared/library";
+import { AccountStatus } from "./account-status";
 import { AssetsPane } from "./assets-pane";
 import { AssetsScopeSwitch } from "./assets-scope";
 import { ComponentsPane } from "./components-pane";
@@ -254,6 +255,9 @@ export function ProjectsPane() {
               <SettingsIcon />
               Settings
             </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem className="mt-1 border-sidebar-border border-t pt-1">
+            <AccountStatus now={now} />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

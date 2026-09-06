@@ -67,7 +67,7 @@ pub fn studio_build(app: AppHandle) -> StudioBuild {
     }
 }
 
-fn macos_version() -> String {
+pub(crate) fn macos_version() -> String {
     std::process::Command::new("sw_vers")
         .arg("-productVersion")
         .output()
