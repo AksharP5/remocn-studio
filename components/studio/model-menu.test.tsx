@@ -59,14 +59,14 @@ describe("ModelMenu", () => {
     expect(screen.getByRole("button", { name: "Model: Opus 5" })).toBeVisible();
   });
 
-  it("groups the models by provider and marks the experimental one", () => {
+  it("groups the models by provider, and marks none of them experimental", () => {
     renderMenu({});
 
     expect(
       screen.getByText("Claude", { selector: "span" })
     ).toBeInTheDocument();
     expect(screen.getByText("Codex")).toBeInTheDocument();
-    expect(screen.getAllByText("Experimental")).toHaveLength(3);
+    expect(screen.queryByText("Experimental")).toBeNull();
   });
 
   it("tells a signed-out provider to sign in, and the row opens the accounts settings", () => {

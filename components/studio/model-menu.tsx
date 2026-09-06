@@ -214,12 +214,7 @@ function statusOf(
   candidate: AgentProvider,
   accounts: ProviderAccounts
 ): string | null {
-  const status = providerStatus(accounts[candidate]);
-  if (status !== null) {
-    return status;
-  }
-
-  return PROVIDER_INFO[candidate].experimental ? "Experimental" : null;
+  return providerStatus(accounts[candidate]);
 }
 
 // A tooltip is for a group you cannot open — the lock, or a failed probe's

@@ -42,7 +42,11 @@ import type { ShellMood } from "@/lib/studio/mood";
 import { modKeyLabel } from "@/lib/studio/platform";
 import { downloadedLabel, downloadedShare } from "@/lib/studio/updates";
 import { cn } from "@/lib/utils";
-import type { AppEnvironment, EnvironmentCheck } from "@/shared/ipc";
+import type {
+  AppEnvironment,
+  EnvironmentCheck,
+  EnvironmentState,
+} from "@/shared/ipc";
 import {
   AGENT_PROVIDERS,
   type AgentProvider,
@@ -760,10 +764,7 @@ function AccountsSection() {
       description="Each provider is asked with its own probe; a session can only start on one that is signed in"
       title="Providers"
     >
-      {/* The rows sit in a list inset by the width of their own padding, so
-          their text keeps the group's leading edge and the open one can carry
-          a background without shifting. */}
-      <div className="-mx-3 flex flex-col">
+      <div className="flex flex-col gap-3">
         {AGENT_PROVIDERS.map((provider) => (
           <AccountRow
             isChecking={accounts.isChecking}
@@ -778,6 +779,17 @@ function AccountsSection() {
   );
 }
 
+const STATE_LABELS = {
+  failed: "Action needed",
+  ok: "Ready",
+  pending: "Checking",
+  warn: "Check",
+} satisfies Record<EnvironmentState, string>;
+
+// One card per provider: the mark and the name lead, the probe's verdict
+// sits on the same line as a chip that says it in a word, and the setup
+// steps — when there are any — unfold under the sentence with the card's
+// own inset, so a provider with work to do grows and the others stay put.
 function AccountRow({
   isChecking,
   isFocused,
@@ -790,42 +802,52 @@ function AccountRow({
   row: EnvironmentCheck | undefined;
 }) {
   const info = PROVIDER_INFO[provider];
-  const StateIcon = row === undefined ? null : CHECK_ICONS[row.state];
   const anchor = useScrolledIntoView<HTMLDivElement>(isFocused);
 
   return (
     <div
       className={cn(
-        "flex items-start gap-3 rounded-md px-3 py-3",
-        isFocused && "bg-muted/50"
+        "flex flex-col gap-3 rounded-xl bg-card p-4 shadow-xs ring-1 ring-border",
+        isFocused && "ring-primary/40"
       )}
       data-provider={provider}
       ref={anchor}
     >
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-foreground">
-        <ProviderIcon className="size-4" provider={provider} />
-      </span>
-
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="flex items-center gap-1.5 text-sm">
-          {info.name}
-          {info.experimental ? (
-            <Badge className="text-2xs" variant="outline">
-              Experimental
-            </Badge>
-          ) : null}
+      <div className="flex items-center gap-3">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-foreground">
+          <ProviderIcon className="size-4" provider={provider} />
         </span>
-
-        <AccountStatus isChecking={isChecking} provider={provider} row={row} />
+        <span className="min-w-0 flex-1 truncate text-sm">{info.name}</span>
+        <StateChip isChecking={isChecking} row={row} />
       </div>
 
-      {StateIcon === null || row === undefined ? null : (
-        <StateIcon
-          aria-hidden="true"
-          className={cn("mt-1 size-3.5 shrink-0", CHECK_TONES[row.state])}
-        />
-      )}
+      <AccountStatus isChecking={isChecking} provider={provider} row={row} />
     </div>
+  );
+}
+
+function StateChip({
+  isChecking,
+  row,
+}: {
+  isChecking: boolean;
+  row: EnvironmentCheck | undefined;
+}) {
+  if (row === undefined) {
+    return isChecking ? (
+      <Spinner className="size-3.5 text-muted-foreground" />
+    ) : null;
+  }
+  const Icon = CHECK_ICONS[row.state];
+
+  return (
+    <Badge className="gap-1" variant="outline">
+      <Icon
+        aria-hidden="true"
+        className={cn("size-3", CHECK_TONES[row.state])}
+      />
+      {STATE_LABELS[row.state]}
+    </Badge>
   );
 }
 

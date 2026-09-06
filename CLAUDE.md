@@ -582,7 +582,8 @@ classifier, the auth probe).
     binary on `$PATH`. `codex login status` is the auth probe: exit 0 =
     logged in, *"Not logged in"* + exit 1 locks the composer for Codex
     sessions.
-  - **What Experimental means here**: `context` is per-turn usage, not a
+  - **What `experimental: true` means here** (the flag stays in `PROVIDER_INFO`, the
+    badge is gone): `context` is per-turn usage, not a
     window reading, so the meter never shows, and `todo_list` does not speak
     the checklist's `TaskCreate` vocabulary, so no plan dock. The bundled
     skills *are* delivered, through a mirrored `CODEX_HOME` rather than a
@@ -1632,8 +1633,9 @@ because that says `loaded` — never because of who it is.
   project or into any provider's home. **Copilot is the gap**: this account is blocked by an
   org policy (*"Access denied by policy settings"*), so its delivery is proven only as far as
   the CLI's own loader — `configLoaderScanPluginDirPaths` + `LoadPluginFeatureForInstalled`
-  resolve `agent/skills` with `tier: "plugin-dir"` — and it keeps its Experimental badge until
-  someone runs the matrix on a login that works.
+  resolve `agent/skills` with `tier: "plugin-dir"` — and it stays `experimental: true` in
+  `PROVIDER_INFO` until someone runs the matrix on a login that works. The flag is data
+  only now: no badge is drawn from it anywhere, in the model menu or in Settings.
 - **What it costs, per turn, measured on the same prompt** (bundle attached and skill-aware
   conventions, against neither): Claude **+1215** tokens, Grok **+978**, Codex **+605**. The
   catalog itself is cheap — +505, +480 and +68 respectively — because a runtime lists name and
