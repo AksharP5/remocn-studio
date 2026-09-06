@@ -1,11 +1,16 @@
 import { Cause, Duration, Effect, Exit } from "effect";
 import { describe, expect, it } from "vitest";
 import type { SignInPoll, SignInStart } from "@/shared/account";
+import type { EntitlementDocument } from "@/shared/entitlement";
 import {
   AccountError,
   accountError,
   awaitSignIn,
+  awaitSubscription,
+  CHECKOUT_PATIENCE,
+  CHECKOUT_POLL,
   isSignedOut,
+  isSubscribed,
   lastSeen,
   planWording,
   pollDelay,
@@ -229,5 +234,97 @@ describe("lastSeen", () => {
     );
     expect(lastSeen(new Date(NOW - 5000).toISOString(), NOW)).toBe("just now");
     expect(lastSeen("garbage", NOW)).toBe("");
+  });
+});
+
+const PAID: EntitlementDocument = {
+  devices: [],
+  expiresAt: "2026-09-13T09:00:00.000Z",
+  graceEndsAt: null,
+  issuedAt: "2026-09-06T09:00:00.000Z",
+  plan: "pro",
+  trialEndsAt: null,
+};
+
+const ON_TRIAL: EntitlementDocument = {
+  ...PAID,
+  trialEndsAt: "2026-09-11T09:00:00.000Z",
+};
+
+describe("isSubscribed", () => {
+  it("is a paid plan and nothing else", () => {
+    expect(isSubscribed(PAID, NOW)).toBe(true);
+    expect(isSubscribed(ON_TRIAL, NOW)).toBe(false);
+    expect(isSubscribed({ ...PAID, plan: "free" }, NOW)).toBe(false);
+    expect(
+      isSubscribed({ ...PAID, graceEndsAt: "2026-09-09T09:00:00.000Z" }, NOW)
+    ).toBe(false);
+  });
+});
+
+function purchase(
+  answers: readonly (EntitlementDocument | null | AccountError)[],
+  options: { patienceMs?: number } = {}
+) {
+  const slept: number[] = [];
+  let clock = NOW;
+  let index = 0;
+  const read = Effect.suspend(() => {
+    const answer =
+      (index < answers.length ? answers[index] : answers.at(-1)) ?? null;
+    index += 1;
+    return answer instanceof AccountError
+      ? Effect.fail(answer)
+      : Effect.succeed(answer);
+  });
+  const sleep = (delay: Duration.Duration) =>
+    Effect.sync(() => {
+      slept.push(Duration.toSeconds(delay));
+      clock += Duration.toMillis(delay);
+    });
+  return {
+    run: () =>
+      Effect.runSyncExit(
+        awaitSubscription(read, {
+          now: () => clock,
+          patience: Duration.millis(options.patienceMs ?? 12_000),
+          sleep,
+        })
+      ),
+    slept,
+  };
+}
+
+describe("awaitSubscription", () => {
+  it("polls every five seconds until the document says paid", () => {
+    const flow = purchase([ON_TRIAL, null, PAID]);
+    expect(flow.run()).toEqual(Exit.succeed("active"));
+    expect(flow.slept).toEqual([5, 5, 5]);
+  });
+
+  it("gives up after its patience runs out", () => {
+    const flow = purchase([ON_TRIAL]);
+    expect(flow.run()).toEqual(Exit.succeed("timedOut"));
+    expect(flow.slept).toEqual([5, 5, 5]);
+  });
+
+  it("skips a poll the server could not answer, and keeps waiting", () => {
+    const flow = purchase([
+      new AccountError({ kind: "offline", message: "unreachable" }),
+      PAID,
+    ]);
+    expect(flow.run()).toEqual(Exit.succeed("active"));
+  });
+
+  it("ends on a 401, because the device was signed out under it", () => {
+    const flow = purchase([
+      new AccountError({ kind: "unauthorized", message: "Sign in first." }),
+    ]);
+    expect(Exit.isFailure(flow.run())).toBe(true);
+  });
+
+  it("waits ten minutes at five-second steps by default", () => {
+    expect(Duration.toSeconds(CHECKOUT_POLL)).toBe(5);
+    expect(Duration.toMinutes(CHECKOUT_PATIENCE)).toBe(10);
   });
 });

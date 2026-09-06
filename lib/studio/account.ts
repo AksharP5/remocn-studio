@@ -9,9 +9,13 @@ import {
   type AccountMe,
   type AccountStatus,
   BILLING_PAGE_PATH,
+  type BillingPeriod,
+  type CheckoutStart,
   decodeAccountFailure,
   decodeAccountMe,
   decodeAccountStatus,
+  decodeCheckoutStart,
+  decodePortalLink,
   decodeSignInPoll,
   decodeSignInStart,
   type SignInPoll,
@@ -20,6 +24,8 @@ import {
 import {
   type AccountPlan,
   decodeSignedEntitlement,
+  type EntitlementDocument,
+  planAt,
   type SignedEntitlement,
 } from "@/shared/entitlement";
 
@@ -104,6 +110,17 @@ export const fetchMe: Effect.Effect<AccountMe, AccountError> = command(
 export const fetchEntitlement: Effect.Effect<SignedEntitlement, AccountError> =
   command("account_entitlement", decodeSignedEntitlement);
 
+export function startCheckout(
+  period: BillingPeriod
+): Effect.Effect<CheckoutStart, AccountError> {
+  return command("account_checkout", decodeCheckoutStart, { period });
+}
+
+export const portalLink: Effect.Effect<string, AccountError> = command(
+  "account_portal",
+  decodePortalLink
+).pipe(Effect.map((link) => link.url));
+
 export function revokeDevice(id: string): Effect.Effect<void, AccountError> {
   return command("account_revoke_device", nothing, { id });
 }
@@ -165,6 +182,65 @@ export function awaitSignIn(
     );
 
   return step(0);
+}
+
+// A subscription, and only that: a trial and a grace period are Pro too, but
+// neither is what a checkout was opened to buy. The server drops
+// `trialEndsAt` once a subscription is paid for, which is what lets a purchase
+// made mid-trial read as one.
+export function isSubscribed(
+  document: EntitlementDocument,
+  now: number
+): boolean {
+  return planAt(document, now).kind === "pro";
+}
+
+export const CHECKOUT_POLL: Duration.Duration = Duration.seconds(5);
+
+export const CHECKOUT_PATIENCE: Duration.Duration = Duration.minutes(10);
+
+export type CheckoutOutcome = "active" | "timedOut";
+
+// Polls the entitlement while the checkout is open in the browser: every five
+// seconds, for ten minutes, then gives up with a button rather than for ever.
+// A poll that fails is not the purchase failing — the browser has the
+// person's attention, not the app — so it is skipped, not raised; only a 401
+// ends the wait, and it ends it as a failure.
+export function awaitSubscription(
+  read: Effect.Effect<EntitlementDocument | null, AccountError>,
+  options: {
+    now?: () => number;
+    patience?: Duration.Duration;
+    sleep?: (delay: Duration.Duration) => Effect.Effect<void>;
+  } = {}
+): Effect.Effect<CheckoutOutcome, AccountError> {
+  const sleep = options.sleep ?? Effect.sleep;
+  const now = options.now ?? Date.now;
+  const patience = Duration.toMillis(options.patience ?? CHECKOUT_PATIENCE);
+  const deadline = now() + patience;
+
+  const step = (): Effect.Effect<CheckoutOutcome, AccountError> =>
+    sleep(CHECKOUT_POLL).pipe(
+      Effect.andThen(
+        read.pipe(
+          Effect.catch((cause) =>
+            cause.kind === "unauthorized"
+              ? Effect.fail(cause)
+              : Effect.succeed<EntitlementDocument | null>(null)
+          )
+        )
+      ),
+      Effect.flatMap((document) => {
+        if (document !== null && isSubscribed(document, now())) {
+          return Effect.succeed<CheckoutOutcome>("active");
+        }
+        return now() >= deadline
+          ? Effect.succeed<CheckoutOutcome>("timedOut")
+          : step();
+      })
+    );
+
+  return step();
 }
 
 export function failureKindOf(

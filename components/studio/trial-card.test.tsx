@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Page from "@/app/page";
+import { YEARLY_LABEL } from "@/components/studio/upgrade-menu";
 import { ThemeProvider } from "@/components/theme-provider";
 import { signedBy } from "@/lib/studio/entitlement.fixture";
 
@@ -30,6 +31,7 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
 const STORE_RID = 7;
 const ORIGIN = "https://remocn.test";
 const TRIAL_LINE = /Pro trial\d+ days left/;
+const WAITING_LINE = /Finish the purchase in the browser/;
 
 const SIDECAR_READY = {
   attempt: 0,
@@ -69,6 +71,15 @@ const TRIAL = signed({
   trialEndsAt: "2099-01-01T00:00:00.000Z",
 });
 
+const GRACE = signed({
+  devices: [],
+  expiresAt: "2099-01-01T00:00:00.000Z",
+  graceEndsAt: "2099-01-01T00:00:00.000Z",
+  issuedAt: "2026-09-06T09:00:00.000Z",
+  plan: "pro",
+  trialEndsAt: null,
+});
+
 const TRIAL_OVER = signed({
   devices: [],
   expiresAt: "2099-01-01T00:00:00.000Z",
@@ -79,6 +90,7 @@ const TRIAL_OVER = signed({
 });
 
 interface Studio {
+  checkouts?: string[];
   document?: ReturnType<typeof signed>;
   settings?: [string, string][];
   signedIn: boolean;
@@ -127,6 +139,13 @@ function mockStudio(studio: Studio) {
       }
       if (cmd === "account_sign_in_cancel" || cmd === "account_sign_out") {
         return null;
+      }
+      if (cmd === "account_checkout") {
+        studio.checkouts?.push((payload as { period: string }).period);
+        return { checkoutUrl: `${ORIGIN}/checkout/abc` };
+      }
+      if (cmd === "account_portal") {
+        return { url: "https://creem.test/portal/xyz" };
       }
       if (cmd === "sidecar_request") {
         const { method } = payload as { method: string };
@@ -231,6 +250,46 @@ describe("the trial card", () => {
 
     expect(await screen.findByText("Your Pro trial ended Sep 1")).toBeVisible();
     expect(screen.getByRole("button", { name: "Upgrade" })).toBeVisible();
+  });
+
+  it("offers the two prices and opens the checkout in the browser", async () => {
+    const studio: Studio = {
+      checkouts: [],
+      document: TRIAL_OVER,
+      settings: [["trialCardsDismissed", JSON.stringify(["invite"])]],
+      signedIn: true,
+      written: [],
+    };
+    mockStudio(studio);
+    await renderShell();
+    await screen.findByText("Your Pro trial ended Sep 1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Upgrade" }));
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: YEARLY_LABEL })
+    );
+
+    await waitFor(() => expect(studio.checkouts).toEqual(["year"]));
+    await waitFor(() => expect(opened).toEqual([`${ORIGIN}/checkout/abc`]));
+    expect(await screen.findByText(WAITING_LINE)).toBeVisible();
+  });
+
+  it("sends a declined card to the billing portal", async () => {
+    const studio: Studio = {
+      document: GRACE,
+      settings: [["trialCardsDismissed", JSON.stringify(["invite"])]],
+      signedIn: true,
+      written: [],
+    };
+    mockStudio(studio);
+    await renderShell();
+
+    expect(await screen.findByText("Your card was declined")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Update card" }));
+
+    await waitFor(() =>
+      expect(opened).toEqual(["https://creem.test/portal/xyz"])
+    );
   });
 });
 

@@ -12,8 +12,10 @@ import type { Account } from "@/hooks/use-account";
 import { lastSeen, planWording } from "@/lib/studio/account";
 import { cn } from "@/lib/utils";
 import type { AccountDevice, AccountMe } from "@/shared/account";
+import { CheckoutStatus } from "./checkout-status";
 import { SignInControls } from "./sign-in-controls";
 import { useStudio } from "./studio-provider";
+import { UpgradeMenu } from "./upgrade-menu";
 
 const CORE_PENDING = "Waiting for the Tauri core";
 const DEVICE_LIMIT = 2;
@@ -77,28 +79,37 @@ export function AccountSection() {
 
 function PlanRow({ account, now }: { account: Account; now: number }) {
   const wording = account.plan === null ? null : planWording(account.plan, now);
+  const canUpgrade = account.plan !== null && account.plan.kind !== "pro";
 
   return (
-    <div className="flex items-start justify-between gap-6">
-      <div className="flex min-w-0 flex-col gap-1">
-        <span className="text-sm">
-          {wording === null ? "Plan" : wording.name}
-        </span>
-        <p
-          className={cn(
-            "text-xs leading-snug",
-            wording?.alarming ? "text-amber-500" : "text-muted-foreground"
-          )}
-        >
-          {wording === null
-            ? "The plan could not be read. Refresh to try again."
-            : wording.note}
-        </p>
+    <div className="flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-6">
+        <div className="flex min-w-0 flex-col gap-1">
+          <span className="text-sm">
+            {wording === null ? "Plan" : wording.name}
+          </span>
+          <p
+            className={cn(
+              "text-xs leading-snug",
+              wording?.alarming ? "text-amber-500" : "text-muted-foreground"
+            )}
+          >
+            {wording === null
+              ? "The plan could not be read. Refresh to try again."
+              : wording.note}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {canUpgrade && account.checkout === null ? (
+            <UpgradeMenu account={account} />
+          ) : null}
+          <Button onClick={account.openBillingPage} size="sm" variant="outline">
+            <CreditCardIcon data-icon="inline-start" />
+            Manage billing
+          </Button>
+        </div>
       </div>
-      <Button onClick={account.openBillingPage} size="sm" variant="outline">
-        <CreditCardIcon data-icon="inline-start" />
-        Manage billing
-      </Button>
+      <CheckoutStatus account={account} />
     </div>
   );
 }

@@ -36,7 +36,12 @@ import {
   useSettingsDialog,
 } from "@/hooks/use-settings-dialog";
 import { useSidecarStatus } from "@/hooks/use-sidecar-status";
-import { type Tools, useTools } from "@/hooks/use-tools";
+import {
+  PRO_ONLY,
+  PRO_ONLY_UPGRADE,
+  type Tools,
+  useTools,
+} from "@/hooks/use-tools";
 import { type Tours, useTours } from "@/hooks/use-tours";
 import { type TrialCardState, useTrialCard } from "@/hooks/use-trial-card";
 import { type Updates, useUpdates } from "@/hooks/use-updates";
@@ -305,6 +310,8 @@ function StudioStateProvider({
     isMissing: opened?.missing ?? false,
     isShown: panes.isPreviewShown,
     isWaiting: turn.permission !== null || turn.source !== null,
+    lockedReason:
+      account.phase.kind === "signedIn" ? PRO_ONLY_UPGRADE : PRO_ONLY,
     onArm: trialCard.reopen,
     openedProjectId: opened?.id ?? null,
     preview,

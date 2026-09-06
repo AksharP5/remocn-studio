@@ -8,18 +8,22 @@ import {
   type AccountError,
   accountPageUrl,
   awaitSignIn,
+  awaitSubscription,
   billingPageUrl,
   cancelSignIn,
   failureKindOf,
   fetchEntitlement,
   fetchMe,
   isSignedOut,
+  isSubscribed,
   openInBrowser,
   pollSignIn,
+  portalLink,
   readAccountStatus,
   revokeDevice as revokeDeviceOnServer,
   type SignInOutcome,
   signOut as signOutOnServer,
+  startCheckout,
   startSignIn,
 } from "@/lib/studio/account";
 import {
@@ -30,7 +34,7 @@ import {
   REFRESH_EVERY,
   readEntitlement,
 } from "@/lib/studio/entitlement";
-import type { AccountDevice, AccountMe } from "@/shared/account";
+import type { AccountDevice, AccountMe, BillingPeriod } from "@/shared/account";
 import {
   type AccountPlan,
   type EntitlementDocument,
@@ -55,13 +59,29 @@ export interface DeviceLimitHit {
   message: string;
 }
 
+// `opening` asks the server for a page; `waiting` has it open in the browser
+// and polls; `timedOut` stopped polling and offers Check again; `active` is
+// the one line the purchase ends on.
+export type CheckoutPhase = "active" | "opening" | "timedOut" | "waiting";
+
+export interface CheckoutState {
+  period: BillingPeriod;
+  phase: CheckoutPhase;
+  url: string | null;
+}
+
 export interface Account {
   cancelSignIn: () => void;
+  checkAgain: () => void;
+  checkout: CheckoutState | null;
   deviceLimit: DeviceLimitHit | null;
+  dismissCheckout: () => void;
   error: string | null;
   isBusy: boolean;
   openAccountPage: () => void;
   openBillingPage: () => void;
+  openCheckoutPage: () => void;
+  openPortal: () => void;
   openVerification: () => void;
   origin: string | null;
   phase: AccountPhase;
@@ -71,6 +91,7 @@ export interface Account {
   signIn: () => void;
   signOut: () => void;
   tier: PlanTier;
+  upgrade: (event: MouseEvent<HTMLElement>) => void;
 }
 
 const SESSION_ENDED = "This device was signed out. Sign in again to continue.";
@@ -99,7 +120,9 @@ export function useAccount({
   const [error, setError] = useState<string | null>(null);
   const [deviceLimit, setDeviceLimit] = useState<DeviceLimitHit | null>(null);
   const [isBusy, setBusy] = useState(false);
+  const [checkout, setCheckout] = useState<CheckoutState | null>(null);
   const flow = useRef<Fiber.Fiber<unknown, unknown> | null>(null);
+  const purchase = useRef<Fiber.Fiber<unknown, unknown> | null>(null);
   const daily = useRef<Fiber.Fiber<unknown, unknown> | null>(null);
   const live = useRef(true);
 
@@ -121,6 +144,11 @@ export function useAccount({
   const signedOut = useCallback(
     (message: string | null) => {
       Effect.runFork(cache.clear);
+      if (purchase.current !== null) {
+        Effect.runFork(Fiber.interrupt(purchase.current));
+        purchase.current = null;
+      }
+      setCheckout(null);
       setPhase(SIGNED_OUT);
       setError(message);
     },
@@ -218,6 +246,10 @@ export function useAccount({
       if (daily.current !== null) {
         Effect.runFork(Fiber.interrupt(daily.current));
         daily.current = null;
+      }
+      if (purchase.current !== null) {
+        Effect.runFork(Fiber.interrupt(purchase.current));
+        purchase.current = null;
       }
     };
   }, [refresh]);
@@ -373,6 +405,165 @@ export function useAccount({
     });
   }, []);
 
+  // The entitlement as the checkout poll reads it: the same policy the boot
+  // uses, so a cached document cannot answer "paid" — only the server can.
+  const readDocument = useMemo(
+    () =>
+      readEntitlement({ cache, fetch: fetchEntitlement, publicKey }).pipe(
+        Effect.map((reading) =>
+          reading.source === "server" ? reading.document : null
+        )
+      ),
+    [cache, publicKey]
+  );
+
+  const settleCheckout = useCallback(
+    (outcome: "active" | "timedOut") =>
+      outcome === "active"
+        ? loadAccount.pipe(
+            Effect.tap((loaded) =>
+              Effect.sync(() => settle(Exit.succeed(loaded)))
+            ),
+            Effect.andThen(
+              Effect.sync(() => {
+                setCheckout((current) =>
+                  current === null ? null : { ...current, phase: "active" }
+                );
+              })
+            ),
+            Effect.asVoid
+          )
+        : Effect.sync(() => {
+            setCheckout((current) =>
+              current === null ? null : { ...current, phase: "timedOut" }
+            );
+          }),
+    [loadAccount, settle]
+  );
+
+  // Buying is the sign-in's shape again: a page opened in the browser, a poll
+  // that waits for the server to say so, and no return trip into the app.
+  const upgrade = useCallback(
+    (event: MouseEvent<HTMLElement>) => {
+      const period: BillingPeriod =
+        event.currentTarget.getAttribute("data-period") === "year"
+          ? "year"
+          : "month";
+      if (purchase.current !== null) {
+        return;
+      }
+      setError(null);
+      setCheckout({ period, phase: "opening", url: null });
+
+      purchase.current = Effect.runFork(
+        startCheckout(period).pipe(
+          Effect.tap((start) =>
+            Effect.sync(() => {
+              setCheckout({ period, phase: "waiting", url: start.checkoutUrl });
+            })
+          ),
+          Effect.tap((start) =>
+            openInBrowser(start.checkoutUrl).pipe(
+              Effect.catch((cause) =>
+                Effect.sync(() => {
+                  setError(cause.message);
+                })
+              )
+            )
+          ),
+          Effect.andThen(awaitSubscription(readDocument, { sleep })),
+          Effect.flatMap(settleCheckout),
+          Effect.onExit((exit) =>
+            Effect.sync(() => {
+              purchase.current = null;
+              if (!live.current || Exit.isSuccess(exit)) {
+                return;
+              }
+              if (isSignedOut(exit.cause)) {
+                signedOut(SESSION_ENDED);
+                return;
+              }
+              const message = causeMessage(exit.cause);
+              setCheckout(null);
+              if (message !== null) {
+                setError(message);
+              }
+            })
+          ),
+          Effect.ignore
+        )
+      );
+    },
+    [readDocument, settleCheckout, signedOut, sleep]
+  );
+
+  const checkAgain = useCallback(() => {
+    setBusy(true);
+    setError(null);
+    Effect.runPromiseExit(
+      readDocument.pipe(
+        Effect.flatMap((document) =>
+          settleCheckout(
+            document !== null && isSubscribed(document, Date.now())
+              ? "active"
+              : "timedOut"
+          )
+        )
+      )
+    ).then((exit) => {
+      if (!live.current) {
+        return;
+      }
+      setBusy(false);
+      if (Exit.isFailure(exit)) {
+        if (isSignedOut(exit.cause)) {
+          signedOut(SESSION_ENDED);
+          return;
+        }
+        setError(causeMessage(exit.cause));
+      }
+    });
+  }, [readDocument, settleCheckout, signedOut]);
+
+  const dismissCheckout = useCallback(() => {
+    if (purchase.current !== null) {
+      Effect.runFork(Fiber.interrupt(purchase.current));
+      purchase.current = null;
+    }
+    setCheckout(null);
+  }, []);
+
+  const openCheckoutPage = useCallback(() => {
+    if (checkout?.url === null || checkout === null) {
+      return;
+    }
+    Effect.runPromiseExit(openInBrowser(checkout.url)).then((exit) => {
+      if (live.current && Exit.isFailure(exit)) {
+        setError(causeMessage(exit.cause));
+      }
+    });
+  }, [checkout]);
+
+  const openPortal = useCallback(() => {
+    setBusy(true);
+    setError(null);
+    Effect.runPromiseExit(portalLink.pipe(Effect.flatMap(openInBrowser))).then(
+      (exit) => {
+        if (!live.current) {
+          return;
+        }
+        setBusy(false);
+        if (Exit.isFailure(exit)) {
+          if (isSignedOut(exit.cause)) {
+            signedOut(SESSION_ENDED);
+            return;
+          }
+          setError(causeMessage(exit.cause));
+        }
+      }
+    );
+  }, [signedOut]);
+
   const openAccountPage = useCallback(() => {
     openPage(origin === null ? null : accountPageUrl(origin));
   }, [openPage, origin]);
@@ -405,11 +596,16 @@ export function useAccount({
   return useMemo(
     () => ({
       cancelSignIn: cancel,
+      checkAgain,
+      checkout,
       deviceLimit,
+      dismissCheckout,
       error,
       isBusy,
       openAccountPage,
       openBillingPage,
+      openCheckoutPage,
+      openPortal,
       openVerification,
       origin,
       phase,
@@ -419,14 +615,20 @@ export function useAccount({
       signIn,
       signOut,
       tier,
+      upgrade,
     }),
     [
       cancel,
+      checkAgain,
+      checkout,
       deviceLimit,
+      dismissCheckout,
       error,
       isBusy,
       openAccountPage,
       openBillingPage,
+      openCheckoutPage,
+      openPortal,
       openVerification,
       origin,
       phase,
@@ -436,6 +638,7 @@ export function useAccount({
       signIn,
       signOut,
       tier,
+      upgrade,
     ]
   );
 }

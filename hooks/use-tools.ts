@@ -24,6 +24,7 @@ export interface ToolSettings {
   isMissing: boolean;
   isShown: boolean;
   isWaiting: boolean;
+  lockedReason?: string;
   onArm?: () => void;
   openedProjectId: string | null;
   preview: PreviewControl;
@@ -34,6 +35,7 @@ export function useTools({
   composer,
   isDocs,
   isLocked = false,
+  lockedReason = PRO_ONLY,
   isMissing,
   isShown,
   isWaiting,
@@ -51,6 +53,7 @@ export function useTools({
     isServing: preview.isServing,
     isShown,
     isWaiting,
+    lockedReason,
     openedProjectId,
     previewProjectId,
   });
@@ -149,18 +152,22 @@ export function useTools({
 export const PRO_ONLY =
   "Inspect and Snapshot are part of Pro. Sign in to start the free trial.";
 
+export const PRO_ONLY_UPGRADE =
+  "Inspect and Snapshot are part of Pro. Upgrade to keep them.";
+
 function unavailableOf(state: {
   isDocs: boolean;
   isLocked: boolean;
   isMissing: boolean;
   isServing: boolean;
+  lockedReason: string;
   isShown: boolean;
   isWaiting: boolean;
   openedProjectId: string | null;
   previewProjectId: string | null;
 }): string | null {
   if (state.isLocked) {
-    return PRO_ONLY;
+    return state.lockedReason;
   }
   if (!state.isShown) {
     return "The preview pane is hidden.";

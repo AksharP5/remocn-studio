@@ -5,16 +5,26 @@ import { Button } from "@/components/ui/button";
 import type { Account } from "@/hooks/use-account";
 import { shortDay } from "@/lib/studio/account";
 import type { TrialCard as TrialCardModel } from "@/lib/studio/trial-card";
+import { CheckoutStatus } from "./checkout-status";
 import { AboveComposer, NoticeCard } from "./notice-card";
 import { SignInControls } from "./sign-in-controls";
 import { useStudio } from "./studio-provider";
+import { UpgradeMenu } from "./upgrade-menu";
 
 export function TrialCard() {
   const { account, trialCard } = useStudio();
   const { card } = trialCard;
 
+  // The purchase ends with the plan turning Pro, which takes the card away:
+  // the one line saying so still has to land somewhere the person is looking.
   if (card === null) {
-    return null;
+    return account.checkout?.phase === "active" ? (
+      <AboveComposer>
+        <NoticeCard aria-label="Subscription">
+          <CheckoutStatus account={account} />
+        </NoticeCard>
+      </AboveComposer>
+    ) : null;
   }
 
   return (
@@ -100,12 +110,13 @@ function Body({ account, card }: { account: Account; card: TrialCardModel }) {
           The studio works as Free now. Upgrade to keep Inspect, Snapshot, the
           skills bundle and the pipeline.
         </p>
-        <div>
-          <Button onClick={account.openBillingPage} size="sm">
-            <ExternalLinkIcon data-icon="inline-start" />
-            Upgrade
-          </Button>
-        </div>
+        {account.checkout === null ? (
+          <div>
+            <UpgradeMenu account={account} />
+          </div>
+        ) : (
+          <CheckoutStatus account={account} />
+        )}
       </>
     );
   }
@@ -115,11 +126,15 @@ function Body({ account, card }: { account: Account; card: TrialCardModel }) {
       <p className="text-muted-foreground text-xs leading-snug">
         Pro stays on until{" "}
         {card.until === null ? "the grace period ends" : shortDay(card.until)},
-        then the studio goes back to Free. Update the card on your account page
+        then the studio goes back to Free. Update the card in the billing portal
         to keep it.
       </p>
       <div>
-        <Button onClick={account.openBillingPage} size="sm">
+        <Button
+          disabled={account.isBusy}
+          onClick={account.openPortal}
+          size="sm"
+        >
           <ExternalLinkIcon data-icon="inline-start" />
           Update card
         </Button>
