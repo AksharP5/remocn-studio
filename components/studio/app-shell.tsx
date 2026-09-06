@@ -197,7 +197,8 @@ function ShellPanes({
 }
 
 function ShellLayout({ isBooting }: { isBooting: boolean }) {
-  const { isProjectsShown, projects, settingsView, turns } = useStudio();
+  const { isProjectsShown, preferences, projects, settingsView, turns } =
+    useStudio();
   const collapse = useSidebarCollapse(isProjectsShown);
 
   return (
@@ -215,7 +216,12 @@ function ShellLayout({ isBooting }: { isBooting: boolean }) {
         <Titlebar
           className="h-24"
           isBooting={isBooting}
-          mood={projects.length === 0 ? null : shellMood(turns)}
+          isStill={!preferences.titlebarMotion}
+          mood={
+            projects.length === 0 || !preferences.titlebarShader
+              ? null
+              : shellMood(turns)
+          }
         />
       </div>
 

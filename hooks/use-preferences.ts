@@ -6,6 +6,8 @@ import {
   type StudioSettings,
   saveAssetOffers,
   saveCrashReports,
+  saveTitlebarMotion,
+  saveTitlebarShader,
 } from "@/lib/studio/settings";
 import { CRASH_CONSENT_DEFAULT } from "@/shared/crash";
 
@@ -14,13 +16,25 @@ export interface Preferences {
   crashReports: boolean;
   setAssetOffers: (enabled: boolean) => void;
   setCrashReports: (enabled: boolean) => void;
+  setTitlebarMotion: (enabled: boolean) => void;
+  setTitlebarShader: (shown: boolean) => void;
+  titlebarMotion: boolean;
+  titlebarShader: boolean;
 }
 
 export function usePreferences(settings: StudioSettings | null): Preferences {
   const [offers, setOffers] = useState<boolean | null>(null);
   const [crashes, setCrashes] = useState<boolean | null>(null);
+  const [shader, setShader] = useState<boolean | null>(null);
+  const [motion, setMotion] = useState<boolean | null>(null);
 
   const assetOffers = offers ?? settings?.assetOffers ?? true;
+
+  // The band's shader is on by default, and so is its drift: both are the
+  // studio's own look, and both are a person's to turn off — the second
+  // without losing the first, since a still field is still the mood.
+  const titlebarShader = shader ?? settings?.titlebarShader ?? true;
+  const titlebarMotion = motion ?? settings?.titlebarMotion ?? true;
 
   // Opt-in: a setting that has never been answered is off. The default lives
   // in `shared/crash.ts` beside the reader Rust mirrors, so the webview and
@@ -41,8 +55,36 @@ export function usePreferences(settings: StudioSettings | null): Preferences {
     Effect.runFork(saveCrashReports(enabled));
   }, []);
 
+  const setTitlebarShader = useCallback((shown: boolean) => {
+    setShader(shown);
+    Effect.runFork(saveTitlebarShader(shown));
+  }, []);
+
+  const setTitlebarMotion = useCallback((enabled: boolean) => {
+    setMotion(enabled);
+    Effect.runFork(saveTitlebarMotion(enabled));
+  }, []);
+
   return useMemo(
-    () => ({ assetOffers, crashReports, setAssetOffers, setCrashReports }),
-    [assetOffers, crashReports, setAssetOffers, setCrashReports]
+    () => ({
+      assetOffers,
+      crashReports,
+      setAssetOffers,
+      setCrashReports,
+      setTitlebarMotion,
+      setTitlebarShader,
+      titlebarMotion,
+      titlebarShader,
+    }),
+    [
+      assetOffers,
+      crashReports,
+      setAssetOffers,
+      setCrashReports,
+      setTitlebarMotion,
+      setTitlebarShader,
+      titlebarMotion,
+      titlebarShader,
+    ]
   );
 }

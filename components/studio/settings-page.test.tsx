@@ -173,6 +173,28 @@ describe("the settings page", () => {
     });
   });
 
+  it("turns the title bar's shader and its motion off, and remembers both", async () => {
+    await renderShell();
+    await openSettings();
+
+    const motion = screen.getByRole("switch", { name: "Animate it" });
+    const shader = screen.getByRole("switch", { name: "Show the shader" });
+    expect(shader).toBeChecked();
+    expect(motion).toBeChecked();
+
+    fireEvent.click(motion);
+    await waitFor(() => {
+      expect(written).toContainEqual(["titlebarMotion", "disabled"]);
+    });
+
+    fireEvent.click(shader);
+    expect(shader).not.toBeChecked();
+    expect(motion).toHaveAttribute("data-disabled");
+    await waitFor(() => {
+      expect(written).toContainEqual(["titlebarShader", "hidden"]);
+    });
+  });
+
   it("applies a theme choice to the document", async () => {
     await renderShell();
     await openSettings();

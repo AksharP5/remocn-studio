@@ -36,6 +36,7 @@ import {
   type ThemeChoice,
   useThemeChoice,
 } from "@/hooks/use-theme-choice";
+import type { ShellMood } from "@/lib/studio/mood";
 import { modKeyLabel } from "@/lib/studio/platform";
 import { cn } from "@/lib/utils";
 import type { AppEnvironment, EnvironmentCheck } from "@/shared/ipc";
@@ -49,6 +50,7 @@ import { CHECK_ICONS, CHECK_TONES } from "./environment-checklist";
 import { ProviderIcon } from "./provider-icon";
 import { ProviderSteps } from "./provider-steps";
 import { useStudio } from "./studio-provider";
+import { MoodField } from "./titlebar";
 import { UpdatesBody } from "./update-status";
 
 type SectionId = SettingsSection;
@@ -279,6 +281,15 @@ const THEME_TILES: readonly {
 ];
 
 function AppearanceSection() {
+  return (
+    <div className="flex flex-col gap-8">
+      <ThemeGroup />
+      <TitlebarGroup />
+    </div>
+  );
+}
+
+function ThemeGroup() {
   const { choice, select } = useThemeChoice();
 
   const onPickTheme = useCallback(
@@ -293,7 +304,13 @@ function AppearanceSection() {
 
   return (
     <section aria-label="Theme" className="flex flex-col gap-3">
-      <h3 className="text-sm">Theme</h3>
+      <div className="flex flex-col gap-1">
+        <h3 className="text-sm">Theme</h3>
+        <p className="text-muted-foreground text-xs leading-snug">
+          {THEME_TILES.find((tile) => tile.id === choice)?.caption ??
+            "Dark is the default until a choice is made"}
+        </p>
+      </div>
 
       <div className="flex gap-3">
         {THEME_TILES.map((tile) => (
@@ -328,11 +345,80 @@ function AppearanceSection() {
           </button>
         ))}
       </div>
+    </section>
+  );
+}
 
-      <p className="text-muted-foreground text-xs">
-        {THEME_TILES.find((tile) => tile.id === choice)?.caption ??
-          "Dark is the default until a choice is made"}
-      </p>
+const SAMPLE_MOOD: ShellMood = { isBusy: false, tone: "idle" };
+
+// The band under the traffic lights, with the shader the shell breathes
+// through: on by default, and both halves are a person's to turn off. The
+// sample is the same field the shell draws, so the switches show their
+// effect where the person is looking rather than behind the page.
+function TitlebarGroup() {
+  const { preferences } = useStudio();
+
+  return (
+    <section aria-label="Title bar" className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <h3 className="text-sm">Title bar</h3>
+        <p className="text-muted-foreground text-xs leading-snug">
+          The band at the top of the window carries a shader that shifts with
+          what the studio is doing: calm while idle, faster while a turn runs,
+          another hue while something waits on you or has failed.
+        </p>
+      </div>
+
+      <div
+        aria-hidden="true"
+        className="relative h-16 overflow-hidden rounded-md bg-sidebar ring-1 ring-foreground/10 ring-inset"
+      >
+        {preferences.titlebarShader ? (
+          <MoodField
+            isBooting={false}
+            isStill={!preferences.titlebarMotion}
+            mood={SAMPLE_MOOD}
+          />
+        ) : null}
+      </div>
+
+      <div className="flex flex-col gap-5">
+        <div className="flex items-start justify-between gap-6">
+          <div className="flex min-w-0 flex-col gap-1">
+            <Label className="text-sm" htmlFor="settings-titlebar-shader">
+              Show the shader
+            </Label>
+            <p className="text-muted-foreground text-xs leading-snug">
+              Off leaves the band plain, in the sidebar&rsquo;s own colour
+            </p>
+          </div>
+          <Switch
+            checked={preferences.titlebarShader}
+            className="mt-0.5"
+            id="settings-titlebar-shader"
+            onCheckedChange={preferences.setTitlebarShader}
+          />
+        </div>
+
+        <div className="flex items-start justify-between gap-6">
+          <div className="flex min-w-0 flex-col gap-1">
+            <Label className="text-sm" htmlFor="settings-titlebar-motion">
+              Animate it
+            </Label>
+            <p className="text-muted-foreground text-xs leading-snug">
+              Off holds one frame of the field; the hue still follows the mood.
+              Also off whenever macOS asks to reduce motion.
+            </p>
+          </div>
+          <Switch
+            checked={preferences.titlebarMotion}
+            className="mt-0.5"
+            disabled={!preferences.titlebarShader}
+            id="settings-titlebar-motion"
+            onCheckedChange={preferences.setTitlebarMotion}
+          />
+        </div>
+      </div>
     </section>
   );
 }

@@ -39,10 +39,12 @@ const TONES = {
 export function Titlebar({
   className,
   isBooting = false,
+  isStill = false,
   mood,
 }: {
   className?: string;
   isBooting?: boolean;
+  isStill?: boolean;
   mood: ShellMood | null;
 }) {
   return (
@@ -59,16 +61,23 @@ export function Titlebar({
       data-slot="titlebar"
       data-tauri-drag-region
     >
-      {mood === null ? null : <MoodField isBooting={isBooting} mood={mood} />}
+      {mood === null ? null : (
+        <MoodField isBooting={isBooting} isStill={isStill} mood={mood} />
+      )}
     </div>
   );
 }
 
-function MoodField({
+// `isStill` freezes the drift without losing the field: a speed of zero is
+// what the reduced-motion probe already hands the shader, so a person's
+// choice and the OS's take the same path.
+export function MoodField({
   isBooting,
+  isStill = false,
   mood,
 }: {
   isBooting: boolean;
+  isStill?: boolean;
   mood: ShellMood;
 }) {
   // A mood first mounted beneath the splash is already part of the assembled
@@ -93,8 +102,15 @@ function MoodField({
         brightness={BRIGHTNESS}
         contrast={CONTRAST}
         scale={SCALE}
-        speed={mood.isBusy ? BUSY : CALM}
+        speed={speedOf(mood, isStill)}
       />
     </div>
   );
+}
+
+function speedOf(mood: ShellMood, isStill: boolean): number {
+  if (isStill) {
+    return 0;
+  }
+  return mood.isBusy ? BUSY : CALM;
 }

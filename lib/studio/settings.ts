@@ -19,6 +19,8 @@ const CRASH_REPORTS_KEY = "crashReports";
 const PREVIEW_PANE_KEY = "previewPane";
 const PROJECTS_PANE_KEY = "projectsPane";
 const TASK_DOCK_KEY = "taskDock";
+const TITLEBAR_SHADER_KEY = "titlebarShader";
+const TITLEBAR_MOTION_KEY = "titlebarMotion";
 const PANE_VIEW_KEY = "paneView";
 const TOURS_SEEN_KEY = "toursSeen";
 const TRIAL_CARDS_KEY = "trialCardsDismissed";
@@ -44,6 +46,8 @@ export interface StudioSettings {
   previewPane: boolean | null;
   projectsPane: boolean | null;
   taskDock: boolean | null;
+  titlebarMotion: boolean | null;
+  titlebarShader: boolean | null;
   toursSeen: readonly string[];
   trialCardsDismissed: readonly string[];
 }
@@ -72,6 +76,8 @@ export const hydrateSettings: Effect.Effect<StudioSettings> = openStore.pipe(
       previewPane: shownOf(cache.get(PREVIEW_PANE_KEY)),
       projectsPane: shownOf(cache.get(PROJECTS_PANE_KEY)),
       taskDock: shownOf(cache.get(TASK_DOCK_KEY)),
+      titlebarMotion: enabledOf(cache.get(TITLEBAR_MOTION_KEY)),
+      titlebarShader: shownOf(cache.get(TITLEBAR_SHADER_KEY)),
       toursSeen: idsOf(cache.get(TOURS_SEEN_KEY)),
       trialCardsDismissed: idsOf(cache.get(TRIAL_CARDS_KEY)),
     };
@@ -189,6 +195,14 @@ export function saveTrialCardsDismissed(
 
 export function savePaneView(view: PaneView): Effect.Effect<void> {
   return remember(PANE_VIEW_KEY, view);
+}
+
+export function saveTitlebarShader(shown: boolean): Effect.Effect<void> {
+  return remember(TITLEBAR_SHADER_KEY, shown ? "shown" : "hidden");
+}
+
+export function saveTitlebarMotion(enabled: boolean): Effect.Effect<void> {
+  return remember(TITLEBAR_MOTION_KEY, enabled ? "enabled" : "disabled");
 }
 
 export function saveAssetOffers(enabled: boolean): Effect.Effect<void> {

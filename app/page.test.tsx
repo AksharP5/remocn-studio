@@ -168,7 +168,7 @@ describe("app shell", () => {
     await renderShell();
 
     expect(screen.getByRole("heading", { name: "Videos" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Chat" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Chat" })).toBeVisible();
     // The right pane's title is its Preview | Docs switch: the word is the
     // control now, so there is nothing left for a heading to repeat.
     expect(
