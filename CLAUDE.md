@@ -3136,12 +3136,17 @@ waits for the server to say so, and no return trip into the app.
   answers only the `checkout_url`; `account_portal` does the same for the billing portal.
   The two prices in the menu are `PRO_PRICE` in `shared/account.ts`, a mirror of the
   landing's `lib/pricing.ts` — the one place in the app that quotes a number.
-- **One button, two prices, no closure per row.** `UpgradeMenu` is a `DropdownMenu` whose
-  rows carry `data-period`, and `upgrade` on `useAccount` reads the period off the event —
-  the `noJsxPropsBind` shape every per-item handler here takes. It sits on the trial
-  card's *trial ended* state and in Settings › Account beside *Manage billing*, and the
-  Inspect / Snapshot tooltip on a signed-in Free account says *Upgrade to keep them*; the
-  click on those buttons still opens the card, where the menu is.
+- **Buying happens in Settings › Account, on the same two cards the landing draws.**
+  `PricingCards` is the account page's `UpgradeTiers` in the studio's tokens: a Yearly /
+  Monthly toggle (yearly first, it is the cheaper one), Free marked as the plan the person
+  is on, Pro's button carrying the period as `data-period` for `upgrade` to read off the
+  event — the `noJsxPropsBind` shape every per-item handler here takes. The trial card's
+  *Upgrade* and the Inspect / Snapshot tooltip only lead there; a menu of two prices on
+  the card was the first version, and two prices with no features beside them is a
+  choice nobody can make. The plan itself reads as one surface above the cards: the name,
+  a badge with what is left, the sentence under it, and on a trial a bar of how much is
+  spent between its two dates — `trialStartedAt` on the document, which the landing now
+  emits so a thirty-day waitlist trial does not draw as seven.
 - **The poll is `awaitSubscription`, pure and tested like `awaitSignIn`.** Every five
   seconds for ten minutes, reading the entitlement through the same `readEntitlement` the
   boot uses but counting only a *server* answer — a cached document can never say "paid".

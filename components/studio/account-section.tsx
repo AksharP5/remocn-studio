@@ -6,19 +6,33 @@ import {
   LogOutIcon,
   RotateCwIcon,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Progress,
+  ProgressIndicator,
+  ProgressTrack,
+} from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import type { Account } from "@/hooks/use-account";
-import { lastSeen, planWording } from "@/lib/studio/account";
+import {
+  lastSeen,
+  type PlanWording,
+  planWording,
+  shortDay,
+  TRIAL_DAYS,
+  trialSpent,
+} from "@/lib/studio/account";
 import { cn } from "@/lib/utils";
 import type { AccountDevice, AccountMe } from "@/shared/account";
 import { CheckoutStatus } from "./checkout-status";
+import { PricingCards } from "./pricing-cards";
 import { SignInControls } from "./sign-in-controls";
 import { useStudio } from "./studio-provider";
-import { UpgradeMenu } from "./upgrade-menu";
 
 const CORE_PENDING = "Waiting for the Tauri core";
 const DEVICE_LIMIT = 2;
+const TRIAL_MS = TRIAL_DAYS * 24 * 60 * 60 * 1000;
 
 export function AccountSection() {
   const { account } = useStudio();
@@ -68,7 +82,9 @@ export function AccountSection() {
         </Button>
       </div>
 
-      <PlanRow account={account} now={now} />
+      <PlanSection account={account} now={now} />
+
+      <Plans account={account} />
 
       <Devices account={account} me={me} now={now} />
 
@@ -77,16 +93,28 @@ export function AccountSection() {
   );
 }
 
-function PlanRow({ account, now }: { account: Account; now: number }) {
-  const wording = account.plan === null ? null : planWording(account.plan, now);
-  const canUpgrade = account.plan !== null && account.plan.kind !== "pro";
+// The plan reads as one surface: the name and a badge with what is left,
+// the sentence under it, and — on a trial — how far along it is, drawn as a
+// bar with the two dates at its ends. Buying lives in the tiers below it,
+// which exist only while there is something to buy.
+function PlanSection({ account, now }: { account: Account; now: number }) {
+  const { plan } = account;
+  const wording = plan === null ? null : planWording(plan, now);
 
   return (
-    <div className="flex flex-col gap-3">
+    <section aria-label="Plan" className="flex flex-col gap-3">
       <div className="flex items-start justify-between gap-6">
         <div className="flex min-w-0 flex-col gap-1">
-          <span className="text-sm">
-            {wording === null ? "Plan" : wording.name}
+          <span className="flex items-center gap-2">
+            <span className="font-heading font-medium text-base">
+              {wording === null ? "Plan" : wording.name}
+            </span>
+            {plan?.kind === "trial" ? (
+              <Badge variant="outline">{wording?.note}</Badge>
+            ) : null}
+            {plan?.kind === "grace" ? (
+              <Badge variant="warning">Payment failed</Badge>
+            ) : null}
           </span>
           <p
             className={cn(
@@ -94,23 +122,98 @@ function PlanRow({ account, now }: { account: Account; now: number }) {
               wording?.alarming ? "text-amber-500" : "text-muted-foreground"
             )}
           >
-            {wording === null
-              ? "The plan could not be read. Refresh to try again."
-              : wording.note}
+            {detailOf(account, wording)}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {canUpgrade && account.checkout === null ? (
-            <UpgradeMenu account={account} />
-          ) : null}
-          <Button onClick={account.openBillingPage} size="sm" variant="outline">
-            <CreditCardIcon data-icon="inline-start" />
-            Manage billing
-          </Button>
-        </div>
+        <Button
+          className="shrink-0"
+          onClick={account.openBillingPage}
+          size="sm"
+          variant="outline"
+        >
+          <CreditCardIcon data-icon="inline-start" />
+          Manage billing
+        </Button>
       </div>
-      <CheckoutStatus account={account} />
-    </div>
+      {plan?.kind === "trial" ? <TrialProgress now={now} plan={plan} /> : null}
+      {plan?.kind === "pro" ? <CheckoutStatus account={account} /> : null}
+    </section>
+  );
+}
+
+function detailOf(account: Account, wording: PlanWording | null): string {
+  const { plan } = account;
+  if (plan === null || wording === null) {
+    return "The plan could not be read. Refresh to try again.";
+  }
+  switch (plan.kind) {
+    case "trial":
+      return `Every Pro tool is unlocked until ${shortDay(plan.endsAt)}.`;
+    case "pro":
+      return "Your card and your invoices live in the billing portal.";
+    case "grace":
+      return `The last charge did not go through. Pro keeps working until ${shortDay(plan.accessUntil)}.`;
+    default:
+      return plan.unverified
+        ? wording.note
+        : "Making and exporting videos, on the agent subscription you already pay for.";
+  }
+}
+
+function TrialProgress({
+  now,
+  plan,
+}: {
+  now: number;
+  plan: { endsAt: string; startedAt: string | null };
+}) {
+  const spent = trialSpent(plan, now);
+  const started =
+    plan.startedAt ??
+    new Date(Date.parse(plan.endsAt) - TRIAL_MS).toISOString();
+
+  return (
+    <Progress
+      aria-label="Trial spent"
+      className="gap-1.5"
+      value={Math.round(spent * 100)}
+    >
+      <ProgressTrack className="h-1.5">
+        <ProgressIndicator />
+      </ProgressTrack>
+      <div className="flex justify-between text-muted-foreground text-xs tabular-nums">
+        <span>Started {shortDay(started)}</span>
+        <span>Ends {shortDay(plan.endsAt)}</span>
+      </div>
+    </Progress>
+  );
+}
+
+// The two tiers, for anyone not already paying: the plan they are on is
+// marked, Pro starts a checkout. Same cards as the account page.
+function Plans({ account }: { account: Account }) {
+  const { plan } = account;
+  if (plan === null || plan.kind === "pro" || plan.kind === "grace") {
+    return null;
+  }
+  const onTrial = plan.kind === "trial";
+
+  return (
+    <section aria-label="Plans" className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <span className="text-sm">Plans</span>
+        <p className="text-muted-foreground text-xs leading-snug">
+          {onTrial
+            ? "When the trial ends the app stays free; only the directing half switches off. Keep it by picking a period."
+            : "Pro adds the directing half: the motion design skills, the pipeline, Inspect and Snapshot."}
+        </p>
+      </div>
+      <PricingCards
+        account={account}
+        freeMark={onTrial ? "Where the trial lands you" : "Your plan"}
+        proCta={onTrial ? "Keep Pro" : "Upgrade to Pro"}
+      />
+    </section>
   );
 }
 

@@ -8,7 +8,6 @@ import {
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Page from "@/app/page";
-import { YEARLY_LABEL } from "@/components/studio/upgrade-menu";
 import { ThemeProvider } from "@/components/theme-provider";
 import { signedBy } from "@/lib/studio/entitlement.fixture";
 
@@ -32,6 +31,7 @@ const STORE_RID = 7;
 const ORIGIN = "https://remocn.test";
 const TRIAL_LINE = /Pro trial\d+ days left/;
 const WAITING_LINE = /Finish the purchase in the browser/;
+const DAYS_LEFT = /^\d+ days left$/;
 
 const SIDECAR_READY = {
   attempt: 0,
@@ -252,7 +252,9 @@ describe("the trial card", () => {
     expect(screen.getByRole("button", { name: "Upgrade" })).toBeVisible();
   });
 
-  it("offers the two prices and opens the checkout in the browser", async () => {
+  // Buying lives in Settings › Account, where the two tiers are; the card's
+  // Upgrade only takes the person there.
+  it("opens Settings › Account, whose tiers start the checkout", async () => {
     const studio: Studio = {
       checkouts: [],
       document: TRIAL_OVER,
@@ -265,13 +267,16 @@ describe("the trial card", () => {
     await screen.findByText("Your Pro trial ended Sep 1");
 
     fireEvent.click(screen.getByRole("button", { name: "Upgrade" }));
+    const dialog = await screen.findByRole("dialog");
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Monthly" }));
     fireEvent.click(
-      await screen.findByRole("menuitem", { name: YEARLY_LABEL })
+      within(dialog).getByRole("button", { name: "Upgrade to Pro" })
     );
 
-    await waitFor(() => expect(studio.checkouts).toEqual(["year"]));
+    await waitFor(() => expect(studio.checkouts).toEqual(["month"]));
     await waitFor(() => expect(opened).toEqual([`${ORIGIN}/checkout/abc`]));
-    expect(await screen.findByText(WAITING_LINE)).toBeVisible();
+    expect(await within(dialog).findByText(WAITING_LINE)).toBeVisible();
   });
 
   it("sends a declined card to the billing portal", async () => {
@@ -332,6 +337,14 @@ describe("Settings › Account", () => {
       await within(dialog).findByText("someone@example.com")
     ).toBeVisible();
     expect(within(dialog).getByText("Pro trial")).toBeVisible();
+    expect(within(dialog).getByText(DAYS_LEFT)).toBeVisible();
+    expect(
+      within(dialog).getByRole("progressbar", { name: "Trial spent" })
+    ).toBeVisible();
+    expect(within(dialog).getByText("Ends Jan 1")).toBeVisible();
+    expect(
+      within(dialog).getByRole("button", { name: "Keep Pro" })
+    ).toBeVisible();
     expect(screen.getByText("MacBook Pro")).toBeVisible();
     expect(screen.getByText("· This Mac")).toBeVisible();
     expect(

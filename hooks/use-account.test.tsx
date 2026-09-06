@@ -168,6 +168,7 @@ function mockCore(core: Core) {
 function gate() {
   const waiters: { ms: number; resume: () => void }[] = [];
   return {
+    pending: () => waiters.length,
     release: () => {
       waiters.sort((a, b) => a.ms - b.ms);
       waiters.shift()?.resume();
@@ -185,7 +186,11 @@ function gate() {
 function mount(cache: EntitlementCache = memoryCache().cache) {
   const clock = gate();
   const view = renderHook(() => useAccount({ cache, sleep: clock.sleep }));
-  return { ...view, release: () => act(() => clock.release()) };
+  return {
+    ...view,
+    pending: clock.pending,
+    release: () => act(() => clock.release()),
+  };
 }
 
 function polls(core: Core) {
@@ -462,7 +467,7 @@ describe("useAccount", () => {
   it("opens the checkout in the browser and polls until the plan is paid", async () => {
     const core: Core = { calls: [], polls: [], signedIn: true };
     mockCore(core);
-    const { release, result } = mount();
+    const { pending, release, result } = mount();
     await waitFor(() => expect(result.current.plan?.kind).toBe("trial"));
 
     act(() => result.current.upgrade(clickUpgrade("year")));
@@ -471,7 +476,11 @@ describe("useAccount", () => {
     expect(core.calls).toContain("checkout:year");
     expect(opened).toEqual([CHECKOUT_URL]);
 
+    // Two sleeps are pending: the daily refresh and the five-second poll.
+    // A release fires the shorter one, and the poll's next sleep is only
+    // registered once its read answers, so the count is what to wait on.
     const before = core.calls.filter((call) => call === "account_entitlement");
+    await waitFor(() => expect(pending()).toBe(2));
     release();
     await waitFor(() =>
       expect(
@@ -481,6 +490,7 @@ describe("useAccount", () => {
     expect(result.current.checkout?.phase).toBe("waiting");
 
     core.document = PAID;
+    await waitFor(() => expect(pending()).toBe(2));
     release();
 
     await waitFor(() => expect(result.current.checkout?.phase).toBe("active"));

@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLinkIcon, XIcon } from "lucide-react";
+import { ExternalLinkIcon, SparklesIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Account } from "@/hooks/use-account";
 import { shortDay } from "@/lib/studio/account";
@@ -9,10 +9,9 @@ import { CheckoutStatus } from "./checkout-status";
 import { AboveComposer, NoticeCard } from "./notice-card";
 import { SignInControls } from "./sign-in-controls";
 import { useStudio } from "./studio-provider";
-import { UpgradeMenu } from "./upgrade-menu";
 
 export function TrialCard() {
-  const { account, trialCard } = useStudio();
+  const { account, settingsDialog, trialCard } = useStudio();
   const { card } = trialCard;
 
   // The purchase ends with the plan turning Pro, which takes the card away:
@@ -42,7 +41,11 @@ export function TrialCard() {
             <XIcon />
           </Button>
         </header>
-        <Body account={account} card={card} />
+        <Body
+          account={account}
+          card={card}
+          onUpgrade={settingsDialog.openAccount}
+        />
         {account.error === null ? null : (
           <p className="break-words text-destructive text-xs" role="alert">
             {account.error}
@@ -68,7 +71,15 @@ function titleOf(card: TrialCardModel): string {
   }
 }
 
-function Body({ account, card }: { account: Account; card: TrialCardModel }) {
+function Body({
+  account,
+  card,
+  onUpgrade,
+}: {
+  account: Account;
+  card: TrialCardModel;
+  onUpgrade: () => void;
+}) {
   if (card.kind === "invite") {
     return (
       <>
@@ -112,7 +123,10 @@ function Body({ account, card }: { account: Account; card: TrialCardModel }) {
         </p>
         {account.checkout === null ? (
           <div>
-            <UpgradeMenu account={account} />
+            <Button onClick={onUpgrade} size="sm">
+              <SparklesIcon data-icon="inline-start" />
+              Upgrade
+            </Button>
           </div>
         ) : (
           <CheckoutStatus account={account} />
