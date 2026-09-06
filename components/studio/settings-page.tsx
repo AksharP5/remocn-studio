@@ -11,17 +11,19 @@ import {
   LightbulbIcon,
   MailIcon,
   MessageSquareIcon,
+  RefreshCwIcon,
   RotateCwIcon,
   SlidersHorizontalIcon,
   SunMoonIcon,
 } from "lucide-react";
 import type { MouseEvent } from "react";
-import { useCallback } from "react";
+import { Fragment, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { useCopyCommand } from "@/hooks/use-copy-command";
@@ -38,6 +40,7 @@ import {
 } from "@/hooks/use-theme-choice";
 import type { ShellMood } from "@/lib/studio/mood";
 import { modKeyLabel } from "@/lib/studio/platform";
+import { downloadedLabel, downloadedShare } from "@/lib/studio/updates";
 import { cn } from "@/lib/utils";
 import type { AppEnvironment, EnvironmentCheck } from "@/shared/ipc";
 import {
@@ -51,7 +54,7 @@ import { ProviderIcon } from "./provider-icon";
 import { ProviderSteps } from "./provider-steps";
 import { useStudio } from "./studio-provider";
 import { MoodField } from "./titlebar";
-import { UpdatesBody } from "./update-status";
+import { updateSummary } from "./update-status";
 
 type SectionId = SettingsSection;
 
@@ -158,13 +161,15 @@ export function SettingsPage() {
               </p>
             </header>
 
-            {section === "account" ? <AccountSection /> : null}
-            {section === "appearance" ? <AppearanceSection /> : null}
-            {section === "behavior" ? <BehaviorSection /> : null}
-            {section === "stock" ? <StockSection /> : null}
-            {section === "updates" ? <UpdatesSection /> : null}
-            {section === "accounts" ? <AccountsSection /> : null}
-            {section === "feedback" ? <FeedbackSection /> : null}
+            <div className="flex flex-col gap-8">
+              {section === "account" ? <AccountSection /> : null}
+              {section === "appearance" ? <AppearanceSection /> : null}
+              {section === "behavior" ? <BehaviorSection /> : null}
+              {section === "stock" ? <StockSection /> : null}
+              {section === "updates" ? <UpdatesSection /> : null}
+              {section === "accounts" ? <AccountsSection /> : null}
+              {section === "feedback" ? <FeedbackSection /> : null}
+            </div>
           </div>
         </div>
       </div>
@@ -280,12 +285,78 @@ const THEME_TILES: readonly {
   },
 ];
 
+// Every section is a column of groups, and every group is the same shape:
+// a heading, one sentence under it, and the body — so a person who has read
+// one has read them all. Groups are set apart by space alone, twice the gap
+// the rows inside them keep, and a group's action sits on its heading line.
+function Group({
+  action,
+  children,
+  description,
+  title,
+}: {
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  description?: React.ReactNode;
+  title: string;
+}) {
+  return (
+    <section aria-label={title} className="flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-6">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h3 className="text-sm">{title}</h3>
+          {description === undefined ? null : (
+            <p className="text-muted-foreground text-xs leading-snug">
+              {description}
+            </p>
+          )}
+        </div>
+        {action === undefined ? null : <div className="shrink-0">{action}</div>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+// A setting: its name and a sentence on the leading side, the control on the
+// trailing side, top-aligned so a description that wraps never moves the
+// switch. `htmlFor` makes the name the control's label.
+function Row({
+  children,
+  description,
+  htmlFor,
+  title,
+}: {
+  children: React.ReactNode;
+  description: React.ReactNode;
+  htmlFor?: string;
+  title: string;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-6">
+      <div className="flex min-w-0 flex-col gap-1">
+        {htmlFor === undefined ? (
+          <span className="text-sm">{title}</span>
+        ) : (
+          <Label className="text-sm" htmlFor={htmlFor}>
+            {title}
+          </Label>
+        )}
+        <p className="text-muted-foreground text-xs leading-snug">
+          {description}
+        </p>
+      </div>
+      <div className="mt-0.5 shrink-0">{children}</div>
+    </div>
+  );
+}
+
 function AppearanceSection() {
   return (
-    <div className="flex flex-col gap-8">
+    <>
       <ThemeGroup />
       <TitlebarGroup />
-    </div>
+    </>
   );
 }
 
@@ -303,15 +374,13 @@ function ThemeGroup() {
   );
 
   return (
-    <section aria-label="Theme" className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <h3 className="text-sm">Theme</h3>
-        <p className="text-muted-foreground text-xs leading-snug">
-          {THEME_TILES.find((tile) => tile.id === choice)?.caption ??
-            "Dark is the default until a choice is made"}
-        </p>
-      </div>
-
+    <Group
+      description={
+        THEME_TILES.find((tile) => tile.id === choice)?.caption ??
+        "Dark is the default until a choice is made"
+      }
+      title="Theme"
+    >
       <div className="flex gap-3">
         {THEME_TILES.map((tile) => (
           <button
@@ -345,7 +414,7 @@ function ThemeGroup() {
           </button>
         ))}
       </div>
-    </section>
+    </Group>
   );
 }
 
@@ -359,16 +428,10 @@ function TitlebarGroup() {
   const { preferences } = useStudio();
 
   return (
-    <section aria-label="Title bar" className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <h3 className="text-sm">Title bar</h3>
-        <p className="text-muted-foreground text-xs leading-snug">
-          The band at the top of the window carries a shader that shifts with
-          what the studio is doing: calm while idle, faster while a turn runs,
-          another hue while something waits on you or has failed.
-        </p>
-      </div>
-
+    <Group
+      description="The band at the top of the window carries a shader that shifts with what the studio is doing: calm while idle, faster while a turn runs, another hue while something waits on you or has failed."
+      title="Title bar"
+    >
       <div
         aria-hidden="true"
         className="relative h-16 overflow-hidden rounded-md bg-sidebar ring-1 ring-foreground/10 ring-inset"
@@ -383,43 +446,32 @@ function TitlebarGroup() {
       </div>
 
       <div className="flex flex-col gap-5">
-        <div className="flex items-start justify-between gap-6">
-          <div className="flex min-w-0 flex-col gap-1">
-            <Label className="text-sm" htmlFor="settings-titlebar-shader">
-              Show the shader
-            </Label>
-            <p className="text-muted-foreground text-xs leading-snug">
-              Off leaves the band plain, in the sidebar&rsquo;s own colour
-            </p>
-          </div>
+        <Row
+          description="Off leaves the band plain, in the sidebar’s own colour"
+          htmlFor="settings-titlebar-shader"
+          title="Show the shader"
+        >
           <Switch
             checked={preferences.titlebarShader}
-            className="mt-0.5"
             id="settings-titlebar-shader"
             onCheckedChange={preferences.setTitlebarShader}
           />
-        </div>
+        </Row>
 
-        <div className="flex items-start justify-between gap-6">
-          <div className="flex min-w-0 flex-col gap-1">
-            <Label className="text-sm" htmlFor="settings-titlebar-motion">
-              Animate it
-            </Label>
-            <p className="text-muted-foreground text-xs leading-snug">
-              Off holds one frame of the field; the hue still follows the mood.
-              Also off whenever macOS asks to reduce motion.
-            </p>
-          </div>
+        <Row
+          description="Off holds one frame of the field; the hue still follows the mood. Also off whenever macOS asks to reduce motion."
+          htmlFor="settings-titlebar-motion"
+          title="Animate it"
+        >
           <Switch
             checked={preferences.titlebarMotion}
-            className="mt-0.5"
             disabled={!preferences.titlebarShader}
             id="settings-titlebar-motion"
             onCheckedChange={preferences.setTitlebarMotion}
           />
-        </div>
+        </Row>
       </div>
-    </section>
+    </Group>
   );
 }
 
@@ -427,53 +479,55 @@ function BehaviorSection() {
   const { preferences, tours, updates } = useStudio();
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-start justify-between gap-6">
-        <div className="flex min-w-0 flex-col gap-1">
-          <Label className="text-sm" htmlFor="settings-asset-offers">
-            Library suggestions
-          </Label>
-          <p className="text-muted-foreground text-xs leading-snug">
-            When a turn ends, offer to save the pictures and clips it carried
-            into the asset library
-          </p>
+    <>
+      <Group
+        description="What the studio offers on its own, without being asked"
+        title="Suggestions"
+      >
+        <div className="flex flex-col gap-5">
+          <Row
+            description="When a turn ends, offer to save the pictures and clips it carried into the asset library"
+            htmlFor="settings-asset-offers"
+            title="Library suggestions"
+          >
+            <Switch
+              checked={preferences.assetOffers}
+              id="settings-asset-offers"
+              onCheckedChange={preferences.setAssetOffers}
+            />
+          </Row>
+
+          {/* Replaying forgets every "Got it". Nothing appears while this
+              page is open — a tip never competes with something already on
+              screen — so the first one arrives after it is closed. */}
+          <Row
+            description="A short pointer the first time a part of the studio becomes usable, one at a time, never twice"
+            title="Tips"
+          >
+            <Button
+              disabled={!tours.hasSeenAny}
+              onClick={tours.replay}
+              size="sm"
+              variant="outline"
+            >
+              <LightbulbIcon data-icon="inline-start" />
+              Replay tips
+            </Button>
+          </Row>
         </div>
-        <Switch
-          checked={preferences.assetOffers}
-          className="mt-0.5"
-          id="settings-asset-offers"
-          onCheckedChange={preferences.setAssetOffers}
+      </Group>
+
+      <Group
+        description="Nothing leaves this Mac unless a switch here says so"
+        title="Privacy"
+      >
+        <CrashReportsRow
+          environment={updates.environment}
+          onChange={preferences.setCrashReports}
+          value={preferences.crashReports}
         />
-      </div>
-
-      {/* Replaying forgets every "Got it". Nothing appears while this page
-          is open — a tip never competes with something already on screen — so
-          the first one arrives after it is closed. */}
-      <div className="flex items-start justify-between gap-6">
-        <div className="flex min-w-0 flex-col gap-1">
-          <span className="text-sm">Tips</span>
-          <p className="text-muted-foreground text-xs leading-snug">
-            A short pointer the first time a part of the studio becomes usable,
-            one at a time, never twice
-          </p>
-        </div>
-        <Button
-          disabled={!tours.hasSeenAny}
-          onClick={tours.replay}
-          size="sm"
-          variant="outline"
-        >
-          <LightbulbIcon data-icon="inline-start" />
-          Replay tips
-        </Button>
-      </div>
-
-      <CrashReportsRow
-        environment={updates.environment}
-        onChange={preferences.setCrashReports}
-        value={preferences.crashReports}
-      />
-    </div>
+      </Group>
+    </>
   );
 }
 
@@ -492,23 +546,17 @@ function CrashReportsRow({
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-start justify-between gap-6">
-        <div className="flex min-w-0 flex-col gap-1">
-          <Label className="text-sm" htmlFor="settings-crash-reports">
-            Send crash reports
-          </Label>
-          <p className="text-muted-foreground text-xs leading-snug">
-            When the studio, its agent process or its preview crashes, send the
-            error and where in the code it happened. Off unless you turn it on.
-          </p>
-        </div>
+      <Row
+        description="When the studio, its agent process or its preview crashes, send the error and where in the code it happened. Off unless you turn it on."
+        htmlFor="settings-crash-reports"
+        title="Send crash reports"
+      >
         <Switch
           checked={value}
-          className="mt-0.5"
           id="settings-crash-reports"
           onCheckedChange={onChange}
         />
-      </div>
+      </Row>
 
       <p className="text-muted-foreground text-xs leading-snug">
         Your prompts, your conversations with the agent and the contents of your
@@ -526,40 +574,166 @@ function CrashReportsRow({
 }
 
 function FeedbackSection() {
-  const { feedback } = useStudio();
+  const { feedback, turn, updates } = useStudio();
 
   return (
-    <div className="flex flex-col gap-3">
-      <p className="text-muted-foreground text-xs leading-snug">
-        Feedback is an email: the button opens your mail client with the
-        studio&rsquo;s version, your macOS version and the session&rsquo;s agent
-        already filled in. You write the rest and send it yourself &mdash;
-        nothing leaves the app on its own.
-      </p>
-      <p className="text-muted-foreground text-xs leading-snug">
-        A screenshot says more than a paragraph &mdash; attach one to the email
-        by hand before sending.
-      </p>
-      <div>
-        <Button onClick={feedback.send} size="sm" variant="outline">
-          <MailIcon data-icon="inline-start" />
-          Email feedback
-        </Button>
-      </div>
-      {feedback.error === null ? null : (
-        <p className="break-words text-destructive text-xs">{feedback.error}</p>
-      )}
-    </div>
+    <>
+      <Group
+        description="Feedback is an email you write and send yourself; nothing leaves the app on its own"
+        title="Email"
+      >
+        <p className="text-muted-foreground text-xs leading-snug">
+          The button opens your mail client with the studio&rsquo;s version,
+          your macOS version and the session&rsquo;s agent already filled in. A
+          screenshot says more than a paragraph &mdash; attach one by hand
+          before sending.
+        </p>
+        <div>
+          <Button onClick={feedback.send} size="sm" variant="outline">
+            <MailIcon data-icon="inline-start" />
+            Email feedback
+          </Button>
+        </div>
+        {feedback.error === null ? null : (
+          <p className="break-words text-destructive text-xs" role="alert">
+            {feedback.error}
+          </p>
+        )}
+      </Group>
+
+      <Group
+        description="Filled into the email before you see it, and nothing else"
+        title="What the email carries"
+      >
+        <Facts
+          rows={[
+            ["Studio", updates.version ?? "—"],
+            [
+              "Build",
+              updates.environment === null
+                ? "—"
+                : ENVIRONMENTS[updates.environment],
+            ],
+            ["macOS", updates.os ?? "—"],
+            ["Agent", PROVIDER_INFO[turn.provider].name],
+          ]}
+        />
+      </Group>
+    </>
   );
 }
 
+// Two columns of facts: the name in the leading column, the value in mono
+// beside it, every row on the same two edges.
+function Facts({ rows }: { rows: readonly (readonly [string, string])[] }) {
+  return (
+    <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-1.5 text-xs">
+      {rows.map(([name, value]) => (
+        <Fragment key={name}>
+          <dt className="text-muted-foreground">{name}</dt>
+          <dd className="font-mono tabular-nums">{value}</dd>
+        </Fragment>
+      ))}
+    </dl>
+  );
+}
+
+const ENVIRONMENTS: Record<AppEnvironment, string> = {
+  development: "Development",
+  production: "Production",
+};
+
+// The popover in the sidebar keeps `UpdatesBody`, sized for a popover; the
+// page has room for the facts and the notes to stand apart.
 function UpdatesSection() {
-  const { updates } = useStudio();
+  const { hasRunningTurns, updates } = useStudio();
+  const { download, release } = updates;
 
   return (
-    <div className="flex flex-col gap-3">
-      <UpdatesBody updates={updates} />
-    </div>
+    <>
+      <Group description={updateSummary(updates)} title="This build">
+        <Facts
+          rows={[
+            ["Installed", updates.version ?? "—"],
+            [
+              "Build",
+              updates.environment === null
+                ? "—"
+                : ENVIRONMENTS[updates.environment],
+            ],
+            ["macOS", updates.os ?? "—"],
+          ]}
+        />
+      </Group>
+
+      <Group
+        action={
+          <Button
+            disabled={
+              updates.unavailable !== null ||
+              updates.isChecking ||
+              updates.isInstalling
+            }
+            onClick={updates.check}
+            size="sm"
+            title={updates.unavailable ?? "Ask GitHub for the newest release"}
+            variant="outline"
+          >
+            {updates.isChecking ? (
+              <Spinner className="size-3.5" data-icon="inline-start" />
+            ) : (
+              <RefreshCwIcon data-icon="inline-start" />
+            )}
+            Check now
+          </Button>
+        }
+        description={
+          release === null
+            ? "Releases are checked on launch and once a day; installing replaces the app and restarts it"
+            : `${release.version} is ready to install`
+        }
+        title="Releases"
+      >
+        {release?.body ? (
+          <div className="max-h-64 overflow-y-auto rounded-md bg-muted/40 p-3">
+            <p className="whitespace-pre-wrap text-muted-foreground text-xs leading-relaxed">
+              {release.body}
+            </p>
+          </div>
+        ) : null}
+
+        {download === null ? null : (
+          <Progress className="gap-1.5" value={downloadedShare(download)}>
+            <span className="text-muted-foreground text-xs tabular-nums">
+              {downloadedLabel(download)}
+            </span>
+          </Progress>
+        )}
+
+        {release === null ? null : (
+          <div>
+            <Button
+              disabled={updates.isInstalling}
+              onClick={updates.install}
+              size="sm"
+            >
+              <CircleArrowUpIcon data-icon="inline-start" />
+              Install and restart
+            </Button>
+          </div>
+        )}
+
+        {release !== null && hasRunningTurns && !updates.isInstalling ? (
+          <p className="text-amber-500 text-xs">
+            A turn is still running — installing restarts the app and stops it.
+          </p>
+        ) : null}
+
+        {updates.error === null ? null : (
+          <p className="text-destructive text-xs">{updates.error}</p>
+        )}
+      </Group>
+    </>
   );
 }
 
@@ -567,37 +741,40 @@ function AccountsSection() {
   const { accounts, settingsView } = useStudio();
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="mb-1 flex items-center justify-between gap-3">
-        <p className="text-muted-foreground text-xs">
-          Each provider is asked with its own probe — a session can only start
-          on one that is signed in
-        </p>
+    <Group
+      action={
         <Button
           disabled={accounts.isChecking}
           onClick={accounts.recheck}
-          size="xs"
-          variant="ghost"
+          size="sm"
+          variant="outline"
         >
           {accounts.isChecking ? (
-            <Spinner className="size-3" data-icon="inline-start" />
+            <Spinner className="size-3.5" data-icon="inline-start" />
           ) : (
             <RotateCwIcon data-icon="inline-start" />
           )}
           Recheck
         </Button>
+      }
+      description="Each provider is asked with its own probe; a session can only start on one that is signed in"
+      title="Providers"
+    >
+      {/* The rows sit in a list inset by the width of their own padding, so
+          their text keeps the group's leading edge and the open one can carry
+          a background without shifting. */}
+      <div className="-mx-3 flex flex-col">
+        {AGENT_PROVIDERS.map((provider) => (
+          <AccountRow
+            isChecking={accounts.isChecking}
+            isFocused={settingsView.provider === provider}
+            key={provider}
+            provider={provider}
+            row={accounts.rows[provider]}
+          />
+        ))}
       </div>
-
-      {AGENT_PROVIDERS.map((provider) => (
-        <AccountRow
-          isChecking={accounts.isChecking}
-          isFocused={settingsView.provider === provider}
-          key={provider}
-          provider={provider}
-          row={accounts.rows[provider]}
-        />
-      ))}
-    </div>
+    </Group>
   );
 }
 
@@ -619,8 +796,8 @@ function AccountRow({
   return (
     <div
       className={cn(
-        "flex items-start gap-3 rounded-md py-2.5",
-        isFocused && "-mx-2 bg-muted/50 px-2"
+        "flex items-start gap-3 rounded-md px-3 py-3",
+        isFocused && "bg-muted/50"
       )}
       data-provider={provider}
       ref={anchor}
@@ -718,46 +895,51 @@ function StockSection() {
   const canSave = stockKey.value.trim().length > 0;
 
   return (
-    <section aria-label="Pexels" className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
+    <Group
+      description="Searching Pexels from the Assets pane needs a key of your own. It is free at pexels.com/api, kept in the studio’s data folder on this Mac, and never leaves it except to talk to Pexels."
+      title="Pexels"
+    >
+      <div className="flex flex-col gap-2">
         <Label className="text-sm" htmlFor="settings-pexels-key">
-          Pexels API key
+          API key
         </Label>
-        <p className="text-muted-foreground text-xs leading-snug">
-          The key is free at pexels.com/api. It is kept in the studio’s own data
-          folder on this machine and never leaves it except to talk to Pexels.
-        </p>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <Input
-          className="flex-1"
-          id="settings-pexels-key"
-          onChange={stockKey.onChange}
-          placeholder={
-            stockKey.isConfigured === true ? "A key is saved" : "Paste your key"
-          }
-          type="password"
-          value={stockKey.value}
-        />
-        <Button
-          disabled={!canSave}
-          onClick={stockKey.onSave}
-          size="sm"
-          variant="outline"
-        >
-          Save
-        </Button>
-        {stockKey.isConfigured === true ? (
-          <Button onClick={stockKey.onForget} size="sm" variant="ghost">
-            Remove
+        <div className="flex items-center gap-2">
+          <Input
+            className="flex-1"
+            id="settings-pexels-key"
+            onChange={stockKey.onChange}
+            placeholder={
+              stockKey.isConfigured === true
+                ? "A key is saved"
+                : "Paste your key"
+            }
+            type="password"
+            value={stockKey.value}
+          />
+          <Button
+            disabled={!canSave}
+            onClick={stockKey.onSave}
+            size="sm"
+            variant="outline"
+          >
+            Save
           </Button>
-        ) : null}
+          {stockKey.isConfigured === true ? (
+            <Button onClick={stockKey.onForget} size="sm" variant="ghost">
+              Remove
+            </Button>
+          ) : null}
+        </div>
+        <p className="text-muted-foreground text-xs">
+          {stockKey.isConfigured === true
+            ? "A key is saved on this Mac."
+            : "No key yet; the Stock tab in Assets stays empty until there is one."}
+        </p>
       </div>
 
       {stockKey.error === null ? null : (
         <p className="break-words text-destructive text-xs">{stockKey.error}</p>
       )}
-    </section>
+    </Group>
   );
 }

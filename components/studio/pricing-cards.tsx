@@ -88,7 +88,7 @@ export function PricingCards({
             {option.hint === null ? null : (
               <span
                 className={cn(
-                  "ml-1.5 tabular-nums",
+                  "ms-1.5 tabular-nums",
                   period === option.value
                     ? "text-primary"
                     : "text-muted-foreground"

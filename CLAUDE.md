@@ -3146,6 +3146,17 @@ hiding half of every section.
   window. The rail keeps the pane's rules: no weight change between states, the open
   section on a muted background, and the drag region under the traffic lights is the
   rail's own top inset.
+- **Every section is a column of groups, and every group is one shape.** `Group` in
+  `settings-page.tsx` is a heading, one sentence under it, and the body, with the group's
+  own action — Recheck, Check now — on its heading line; `Row` is a setting's name and
+  sentence on the leading side and its control on the trailing side, top-aligned so a
+  description that wraps never moves the switch. Groups are set apart by space alone
+  (`gap-8`, twice the `gap-5` the rows inside keep) and no rules. Behavior is
+  *Suggestions* and *Privacy*; Updates is *This build* (facts) and *Releases* (notes in a
+  scrolling card, the install button); Feedback is *Email* and *What the email carries*,
+  the same facts the email is filled with; AI Accounts is one *Providers* group whose rows
+  are inset by their own padding so their text keeps the heading's edge. The sidebar's
+  update popover keeps `UpdatesBody`, sized for a popover; the page draws its own.
 - **In tests it is a region named Settings**, not a `dialog` role — `findByRole("region",
   { name: "Settings" })` is what `settings-page.test.tsx` and `trial-card.test.tsx` open.
 
