@@ -21,6 +21,7 @@ const PROJECTS_PANE_KEY = "projectsPane";
 const TASK_DOCK_KEY = "taskDock";
 const PANE_VIEW_KEY = "paneView";
 const TOURS_SEEN_KEY = "toursSeen";
+const TRIAL_CARDS_KEY = "trialCardsDismissed";
 const LAYOUT_KEY_PREFIX = "layout:";
 
 const cache = new Map<string, string>();
@@ -44,6 +45,7 @@ export interface StudioSettings {
   projectsPane: boolean | null;
   taskDock: boolean | null;
   toursSeen: readonly string[];
+  trialCardsDismissed: readonly string[];
 }
 
 export const hydrateSettings: Effect.Effect<StudioSettings> = openStore.pipe(
@@ -71,6 +73,7 @@ export const hydrateSettings: Effect.Effect<StudioSettings> = openStore.pipe(
       projectsPane: shownOf(cache.get(PROJECTS_PANE_KEY)),
       taskDock: shownOf(cache.get(TASK_DOCK_KEY)),
       toursSeen: idsOf(cache.get(TOURS_SEEN_KEY)),
+      trialCardsDismissed: idsOf(cache.get(TRIAL_CARDS_KEY)),
     };
   })
 );
@@ -176,6 +179,12 @@ export function saveTaskDock(shown: boolean): Effect.Effect<void> {
 // which is why it is written whole rather than appended to.
 export function saveToursSeen(ids: readonly string[]): Effect.Effect<void> {
   return remember(TOURS_SEEN_KEY, JSON.stringify(ids));
+}
+
+export function saveTrialCardsDismissed(
+  ids: readonly string[]
+): Effect.Effect<void> {
+  return remember(TRIAL_CARDS_KEY, JSON.stringify(ids));
 }
 
 export function savePaneView(view: PaneView): Effect.Effect<void> {

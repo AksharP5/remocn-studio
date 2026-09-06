@@ -4,6 +4,7 @@ import {
   BotIcon,
   CheckIcon,
   CircleArrowUpIcon,
+  CircleUserRoundIcon,
   CopyIcon,
   ImagesIcon,
   LightbulbIcon,
@@ -43,6 +44,7 @@ import {
   type AgentProvider,
   PROVIDER_INFO,
 } from "@/shared/providers";
+import { AccountSection } from "./account-section";
 import { CHECK_ICONS, CHECK_TONES } from "./environment-checklist";
 import { ProviderIcon } from "./provider-icon";
 import { ProviderSteps } from "./provider-steps";
@@ -57,6 +59,12 @@ const SECTIONS: readonly {
   id: SectionId;
   label: string;
 }[] = [
+  {
+    description: "Your Remocn account, plan and devices",
+    icon: CircleUserRoundIcon,
+    id: "account",
+    label: "Account",
+  },
   {
     description: "How the studio looks",
     icon: SunMoonIcon,
@@ -125,6 +133,7 @@ export function SettingsDialog() {
           </header>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+            {section === "account" ? <AccountSection /> : null}
             {section === "appearance" ? <AppearanceSection /> : null}
             {section === "behavior" ? <BehaviorSection /> : null}
             {section === "stock" ? <StockSection /> : null}

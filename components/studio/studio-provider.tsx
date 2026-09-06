@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, use, useCallback, useMemo } from "react";
+import { type Account, useAccount } from "@/hooks/use-account";
 import { useAppMenu } from "@/hooks/use-app-menu";
 import { type ClaudeEffort, useClaudeEffort } from "@/hooks/use-claude-effort";
 import { type Composer, useComposer } from "@/hooks/use-composer";
@@ -32,6 +33,7 @@ import {
 import { useSidecarStatus } from "@/hooks/use-sidecar-status";
 import { type Tools, useTools } from "@/hooks/use-tools";
 import { type Tours, useTours } from "@/hooks/use-tours";
+import { type TrialCardState, useTrialCard } from "@/hooks/use-trial-card";
 import { type Updates, useUpdates } from "@/hooks/use-updates";
 import { useWorkspace, type Workspace } from "@/hooks/use-workspace";
 import type { AppMenuModel } from "@/lib/studio/app-menu";
@@ -47,6 +49,7 @@ export type Studio = ClaudeEffort &
   StudioModels &
   Panes &
   Workspace & {
+    account: Account;
     accounts: Accounts;
     composer: Composer;
     docs: Docs;
@@ -62,6 +65,7 @@ export type Studio = ClaudeEffort &
     settingsDialog: SettingsDialog;
     tools: Tools;
     tours: Tours;
+    trialCard: TrialCardState;
     turn: OpenTurn;
     updates: Updates;
   };
@@ -117,6 +121,8 @@ function StudioStateProvider({
   workspace: Workspace;
 }) {
   const model = useModels(settings);
+  const account = useAccount();
+  const trialCard = useTrialCard({ account, settings });
   const accounts = useProviderAccounts();
   const effort = useClaudeEffort(settings);
   const preferences = usePreferences(settings);
@@ -283,6 +289,7 @@ function StudioStateProvider({
     isMissing: opened?.missing ?? false,
     isShown: panes.isPreviewShown,
     isWaiting: turn.permission !== null || turn.source !== null,
+    onArm: trialCard.reopen,
     openedProjectId: opened?.id ?? null,
     preview,
     previewProjectId,
@@ -342,7 +349,8 @@ function StudioStateProvider({
         environment.isBlocking ||
         newProject.isOpen ||
         newVideo.isOpen ||
-        settingsDialog.isOpen,
+        settingsDialog.isOpen ||
+        trialCard.card !== null,
       isPaneShown: panes.isProjectsShown,
 
       isRunning: workspace.hasRunningTurns,
@@ -355,6 +363,7 @@ function StudioStateProvider({
       ...model,
       ...effort,
       ...panes,
+      account,
       accounts,
       composer,
       docs,
@@ -370,10 +379,12 @@ function StudioStateProvider({
       settingsDialog,
       tools,
       tours,
+      trialCard,
       turn,
       updates,
     }),
     [
+      account,
       accounts,
       composer,
       docs,
@@ -392,6 +403,7 @@ function StudioStateProvider({
       settingsDialog,
       tools,
       tours,
+      trialCard,
       turn,
       updates,
       workspace,

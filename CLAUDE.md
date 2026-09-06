@@ -2966,6 +2966,106 @@ get one anchored card, the first time they are genuinely usable (REM-253).
   runtime — is REM-10 and the environment checklist. The tips are about what the studio
   can do, and they start only once a project is open.
 
+### Signing in, and what a trial card is for
+
+Free needs no account; signing in is the door to the trial and to Pro (REM-347). The
+studio signs in through the landing's better-auth **device authorization** grant, the
+same way a CLI does: it asks for a code, opens the confirmation page in the browser, and
+polls until the person confirms there.
+
+- **The token never enters the webview, and neither does the HTTP.** `src-tauri/src/account.rs`
+  holds both: the session token lives in the login keychain under
+  `com.remocn.remocn-studio` / `session-token` through the `keyring` crate, and every
+  request to the account server is a Rust command — `account_sign_in_start`,
+  `account_sign_in_poll`, `account_sign_in_cancel`, `account_me`, `account_entitlement`,
+  `account_revoke_device`, `account_sign_out`, `account_status`. Two measurements forced
+  this rather than a `fetch` from the page: the landing sets no CORS headers, so a
+  `tauri://localhost` origin cannot call it; and the device's *name* travels in the
+  `User-Agent` (`Remocn Studio/<version> (macOS <os>; <ComputerName>)`, the shape
+  `describeDevice` parses), a header a browser refuses to let a page set. The issue's
+  `auth_read` — a command handing the token to the webview — therefore does not exist:
+  a command that *uses* the token is one fewer place it can be logged from.
+- **The pending device code stays in Rust too.** `account_sign_in_start` keeps it in a
+  `Mutex` and answers only the user code, the confirmation URL, the lifetime and the
+  interval; `account_sign_in_poll` reads it back. So the page holds nothing it could
+  replay, and cancelling is `account_sign_in_cancel` clearing the slot.
+- **Polling is a fiber, and Stop is an interrupt.** `awaitSignIn` in
+  `lib/studio/account.ts` is the loop — sleep the server's interval, poll, and add five
+  seconds per `slow_down` (`pollDelay`, tested on its own); `expired_token`,
+  `access_denied` and the device limit are *outcomes* of that effect, not failures, so
+  the hook words each of them and a genuine failure is the only thing that reaches the
+  error line. `useAccount` keeps the fiber in a ref and `Effect.onInterrupt` tells the
+  core to forget the code, exactly as a turn's cancel sends the cancel frame. The wait is
+  injectable (`sleep` in `AccountOptions`) so the hook's test steps the loop through a
+  gate instead of a timer — a `sleep` of zero starved jsdom's event loop and hung the
+  suite for a hundred seconds before the gate existed.
+- **A `401` is this device having been signed out, and the core forgets the token.** The
+  account page's *Sign out on this device* deletes the session, so the app's next request
+  gets `401`; `signed()` in `account.rs` clears the keychain on exactly that status and
+  answers `kind: "unauthorized"`, which the webview turns into *This device was signed
+  out* and the signed-out state. Offline (`is_connect`/`is_timeout`) and any other status
+  are `offline` and `server`, and both leave the token where it is.
+- **The device limit is answered in the browser, not in the app, and that is a gap
+  worth knowing.** `session.create.before` throws `device_limit` with the device list
+  *after* `redeemDeviceCode` has consumed the code and *before* a session exists — so
+  the app has a list and no token to revoke with, and the code it holds is spent. The
+  card therefore shows the devices with their last-seen times, opens `/account` to sign
+  one out, and *Try again* starts a fresh grant. Revoking from inside the card needs a
+  backend endpoint that accepts something other than a session (REM-341 follow-up).
+- **The plan is read from the entitlement document, and only from it.**
+  `shared/entitlement.ts` is the contract with the landing's `buildEntitlement` +
+  `signEntitlement`: `{ payload, signature, algorithm }`, the payload base64 of the
+  document's JSON, pinned by a fixture test in the shape the server emits. `planAt`
+  reads the four states Settings › Account shows — free (remembering an ended trial),
+  trial, pro, grace — from `plan`, `trialEndsAt` and `graceEndsAt`; the app computes no
+  date of its own, so the trial starts when the *server* says it started, which is at
+  first sign-in and never at install. **What REM-346 still owns:** verifying the
+  signature against the Ed25519 public key, the seven-day cache in app data, and the
+  gate itself. Until then the document is decoded and trusted per read.
+- **The document cannot tell a subscription that began mid-trial from the trial**, nor
+  an active subscription from one whose `graceEndsAt` merely lingers from an earlier
+  failure: it carries no subscription status, where `planStateFor` on the landing checks
+  `status` first. `planAt` reads grace before trial before pro, which is right for every
+  document the current backend emits and wrong for those two if the server ever leaves
+  the fields set — a `status` field on the document is the fix, and it is server-side.
+- **The trial card is the environment checklist's slot, worded three ways.**
+  `trialCardOf` in `lib/studio/trial-card.ts` is the pure rule: `invite` while signed
+  out (and while signing in — the card hosts the pending state), `trialEnded` once a
+  free document names a `trialEndsAt` in the past, `grace` while `graceEndsAt` is ahead.
+  Each carries an id — `invite`, `trial-ended:<date>`, `grace:<date>` — and
+  `trialCardsDismissed` in `settings.json` is the list of ids answered with the ×, so an
+  ended trial asks once and a second trial (there is none, but the id says so) would ask
+  again. Nothing about the dismissal reaches the server.
+- **Inspect and Snapshot bring the invite back on Free.** `useTools` takes `onArm`, called
+  when either mode is armed, and `useTrialCard.reopen` lifts the dismissal for this launch
+  only when `isOnFree` — signed out, or a document whose plan is free; an unread plan is
+  not Free. REM-346 will disable those buttons on Free and route the click here; today
+  the card returns beside a mode that still works.
+- **No card until the core has answered.** `phase: "unknown"` — no `account_status` yet,
+  or no core at all, which is every existing test's fake — shows nothing, so a browser
+  tab running `bun dev` and the whole suite see the studio as it was. A card that
+  appeared before the app knew whether someone was signed in would be the wrong card
+  half the time.
+- **The origin is `REMOCN_STUDIO_ACCOUNT_URL`, and it lives in `.env`.** Baked at
+  compile time with `option_env!`, and `src-tauri/build.rs` is what puts it there: it
+  reads the repo's `.env` itself and emits `cargo:rustc-env`, with the process
+  environment winning (the release job sets it in `publish.yml`). Measured before that
+  existed: `bun tauri dev` loads `.env` into bun's own `process.env` but the value never
+  reached the compiled binary, so the app reported the variable unset with the line
+  sitting right there in the file. `rerun-if-changed` on `.env` means editing the value
+  rebuilds the core on the next `bun tauri dev`. The same variable on the *running* core's environment wins
+  over the baked one, for a landing on `localhost:3000`. There is no literal fallback in
+  the code — unset, every account command answers *REMOCN_STUDIO_ACCOUNT_URL is not
+  set* rather than quietly talking to a domain nobody chose. The webview learns the
+  origin from `account_status` and builds `/account/billing` from it for *Manage
+  billing*, *Upgrade* and *Update card*, and `/account` for the device-limit card; the confirmation URL itself comes from the server's
+  `verification_uri_complete`.
+- **A development build is unsigned, and the keychain knows.** macOS ties an item's
+  access to the binary that wrote it; each rebuild of `target/debug/remocn-studio` is a
+  different binary, so the first keychain read after a rebuild may raise the system's
+  own *wants to use your confidential information* prompt. A released, signed build
+  asks once. Nothing in the app can suppress it, and nothing should.
+
 ### A project installs with its own package manager
 
 bun had two jobs and they break differently: it is the sidecar's runtime — now shipped, see *The
@@ -3504,7 +3604,9 @@ shared/               crash.ts: the consent contract and the one path scrubber;
                       motion.ts: the movement taxonomy — roles, the props each
                       expects, and the dictionary of named behaviours;
                       pipeline.ts: the seven stages, their templates, and
-                      `docsFolderOf` — the one place a video's documents live
+                      `docsFolderOf` — the one place a video's documents live;
+                      account.ts + entitlement.ts: the account server's answers
+                      and the signed entitlement document, as Schema
 sidecar/              bun: frame loop, method handlers, SQLite history;
                       crash.ts gates @sentry/bun on the consent Rust passes in;
                       contained.ts is the one containment check the permission
@@ -3549,7 +3651,9 @@ scripts/              build-time tooling; skills-sync.ts is the vendoring step,
 sidecar/preview/      the --preview-host child: project resolution, webpack watch, server,
                       stills for Snapshot and the mp4 export
 src-tauri/            Rust core (Tauri v2), the sidecar supervisor, pasted-image writes;
-                      crash.rs reads the consent and holds the panic reporter
+                      crash.rs reads the consent and holds the panic reporter;
+                      account.rs holds the session token in the keychain and is
+                      the only thing that talks to the account server
 public/               static assets
 ```
 
