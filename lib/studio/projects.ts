@@ -9,9 +9,11 @@ import type {
   Project,
   ProjectDraft,
   ScaffoldEvent,
+  TemplateProject,
   Video,
   VideoSize,
 } from "@/shared/ipc";
+import type { TemplateDraft } from "@/shared/templates";
 
 export const listProjects: Effect.Effect<readonly Project[], SidecarError> =
   Effect.gen(function* () {
@@ -41,6 +43,20 @@ export function createProject(
     const id = yield* newRequestId;
 
     return yield* requestSidecar({ id, method: "project.create", params });
+  });
+}
+
+export function createFromTemplate(
+  params: TemplateDraft
+): Effect.Effect<TemplateProject, SidecarError> {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+
+    return yield* requestSidecar({
+      id,
+      method: "project.fromTemplate",
+      params,
+    });
   });
 }
 

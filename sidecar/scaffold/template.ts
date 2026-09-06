@@ -21,6 +21,7 @@ const NAME_SLOT = /__VIDEO_NAME__/g;
 // resource ships both. It is not part of a project: `video.create` is the
 // only thing that reads it, for the first video and for every one after.
 export const VIDEO_TEMPLATE = "video-template";
+export const VIDEO_TEMPLATES = "video-templates";
 export const REGISTRY_TEMPLATE = "registry.tsx";
 export const VIDEOS_DIR = "videos";
 
@@ -103,7 +104,11 @@ function template<A>(
 // and the registry is placed by `ensureRegistry`, which also has to reach a
 // project the studio never scaffolded.
 function skipVideoTemplate(entry: string): boolean {
-  return entry === VIDEO_TEMPLATE || entry === REGISTRY_TEMPLATE;
+  return (
+    entry === VIDEO_TEMPLATE ||
+    entry === VIDEO_TEMPLATES ||
+    entry === REGISTRY_TEMPLATE
+  );
 }
 
 export function packageName(target: string): string {
@@ -122,7 +127,7 @@ function rewriteFor(target: string): (entry: string) => Rewrite | null {
     entry === MANIFEST ? (content) => named(content, name) : null;
 }
 
-async function copyInto(
+export async function copyInto(
   source: string,
   target: string,
   rewrite: (entry: string) => Rewrite | null,

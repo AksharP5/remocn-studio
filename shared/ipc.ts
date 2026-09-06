@@ -16,12 +16,14 @@ import {
   ProviderStep,
   ToolVerb,
 } from "./providers";
+import { TemplateDraft } from "./templates";
 
-export const SIDECAR_PROTOCOL = 27;
+export const SIDECAR_PROTOCOL = 28;
 
 export const SIDECAR_STATUS_EVENT = "sidecar://status";
 export const SIDECAR_NOTIFY_EVENT = "sidecar://notify";
 export const QUIT_REQUESTED_EVENT = "app://quit-requested";
+export const DEEP_LINK_EVENT = "app://deep-link";
 
 export const HOST_PID_ENV = "REMOCN_STUDIO_HOST_PID";
 export const DATA_DIR_ENV = "REMOCN_STUDIO_DATA_DIR";
@@ -79,6 +81,7 @@ export const METHOD_NAMES = [
   "project.check",
   "project.create",
   "project.files",
+  "project.fromTemplate",
   "project.install",
   "project.list",
   "project.open",
@@ -558,6 +561,11 @@ export const VideoDraft = Schema.Struct({
   width: Schema.Int,
 });
 
+export const TemplateProject = Schema.Struct({
+  project: Project,
+  video: Video,
+});
+
 export const VideoName = Schema.Struct({
   name: Schema.NonEmptyString,
   videoId: Schema.NonEmptyString,
@@ -848,6 +856,7 @@ export type VideoDocuments = (typeof VideoDocuments)["Type"];
 export type DocumentRef = (typeof DocumentRef)["Type"];
 export type DocumentText = (typeof DocumentText)["Type"];
 export type VideoDraft = (typeof VideoDraft)["Type"];
+export type TemplateProject = (typeof TemplateProject)["Type"];
 export type VideoName = (typeof VideoName)["Type"];
 export type VideoRemoved = (typeof VideoRemoved)["Type"];
 export type VideoReconcile = (typeof VideoReconcile)["Type"];
@@ -1132,6 +1141,11 @@ export const SIDECAR_METHODS = {
   "project.files": {
     params: ProjectRef,
     result: ProjectFiles,
+    stream: Schema.Never,
+  },
+  "project.fromTemplate": {
+    params: TemplateDraft,
+    result: TemplateProject,
     stream: Schema.Never,
   },
   "project.install": {

@@ -43,6 +43,8 @@ sentry = { version = "0.49", optional = true, default-features = false, features
     "panic",
     "transport",
 ] }
+tauri-plugin-deep-link = "2"
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 
 [features]
 default = []

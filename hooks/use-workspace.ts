@@ -1,6 +1,6 @@
 "use client";
 
-import { Effect } from "effect";
+import { Effect, Exit } from "effect";
 import type { MouseEvent } from "react";
 import { useCallback, useMemo } from "react";
 import {
@@ -14,8 +14,10 @@ import {
 import { type StudioProjects, useProjects } from "@/hooks/use-projects";
 import { type Scaffolds, useScaffold } from "@/hooks/use-scaffold";
 import { type StudioSessions, useSessions } from "@/hooks/use-sessions";
+import type { TemplateOutcome } from "@/hooks/use-template-links";
 import { type Turns, useTurns } from "@/hooks/use-turns";
 import { type StudioVideos, useVideos } from "@/hooks/use-videos";
+import { causeMessage } from "@/lib/error-message";
 import type { VideoFormat } from "@/lib/studio/formats";
 import {
   newestChat,
@@ -26,6 +28,7 @@ import {
   videoOf,
 } from "@/lib/studio/groups";
 import { saveSessionMode } from "@/lib/studio/history";
+import { createFromTemplate } from "@/lib/studio/projects";
 import type { StudioSettings } from "@/lib/studio/settings";
 import type { PlanTier } from "@/shared/entitlement";
 import type {
@@ -35,6 +38,7 @@ import type {
   SessionMode,
   Video,
 } from "@/shared/ipc";
+import type { TemplateDraft } from "@/shared/templates";
 
 export interface Workspace
   extends StudioProjects,
@@ -56,6 +60,7 @@ export interface Workspace
   onSelectSession: (event: MouseEvent<HTMLButtonElement>) => void;
   openedProject: Project | null;
   openedVideo: Video | null;
+  openTemplate: (draft: TemplateDraft) => Promise<TemplateOutcome>;
   startSessionIn: (videoId: string) => void;
 }
 
@@ -75,7 +80,7 @@ export function useWorkspace(
     projects;
   const { forgetSessionsOf, replaceSession, selectSession, startSession } =
     sessions;
-  const { createVideo, selectVideo } = videos;
+  const { createVideo, rememberVideo, selectVideo } = videos;
   const { expandVideo } = expansion;
   const { setTurnMode, stopTurn } = turns;
   const rows = sessions.sessions;
@@ -150,6 +155,28 @@ export function useWorkspace(
       startScaffold,
       startSession,
     ]
+  );
+
+  // The same gesture as the wizard — a project, its first video, the scaffold
+  // and a fresh chat — with the sidecar having already written the video from
+  // the template, so only the install is left for the scaffold to do.
+  const openTemplate = useCallback(
+    async (draft: TemplateDraft): Promise<TemplateOutcome> => {
+      const exit = await Effect.runPromiseExit(createFromTemplate(draft));
+      if (Exit.isFailure(exit)) {
+        return { error: causeMessage(exit.cause) ?? "interrupted" };
+      }
+
+      const { project, video } = exit.value;
+      rememberProject(project);
+      startScaffold(project.id);
+      rememberVideo(video);
+      expandVideo(video.id);
+      startSession();
+
+      return { project };
+    },
+    [expandVideo, rememberProject, rememberVideo, startScaffold, startSession]
   );
 
   const activeProjectId = projects.activeProject?.id ?? null;
@@ -322,6 +349,7 @@ export function useWorkspace(
       openedProject,
       openedVideo,
       openFolder,
+      openTemplate,
       relocateProject,
       removeProject,
       renameProject,
@@ -344,6 +372,7 @@ export function useWorkspace(
       openedVideo,
       openFolder,
       openSession,
+      openTemplate,
       projects,
       relocateProject,
       removeProject,

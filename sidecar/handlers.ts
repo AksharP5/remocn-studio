@@ -14,6 +14,7 @@ import type { Asset, AssetDraft } from "@/shared/library";
 import type { PipelineStage } from "@/shared/pipeline";
 import { AGENT_PROVIDERS } from "@/shared/providers";
 import { freeSlug, slugFor } from "@/shared/slug";
+import { templateProjectName } from "@/shared/templates";
 import { makeAccountCache } from "./agent/account";
 import { makeGate } from "./agent/gate";
 import { makeModeSwitch } from "./agent/mode";
@@ -85,6 +86,11 @@ import {
   type ScaffoldError,
   VIDEOS_DIR,
 } from "./scaffold/template";
+import {
+  DEFAULT_PROJECTS_DIR,
+  expandTemplateVideo,
+  mintFolder,
+} from "./scaffold/templates";
 import { makeGateway } from "./tools/gateway";
 
 const TOKENS = [
@@ -562,6 +568,38 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
         projectFiles(remotionRootOf(project.path)),
         unlisted
       );
+    }),
+
+  // A link opened the app with a template and its props: the project, its first
+  // video and the props in that video's module are all written here, and the
+  // webview then runs the ordinary scaffold for the install. Free or signed
+  // out makes no difference — the template is not a Pro feature.
+  "project.fromTemplate": ({ params }) =>
+    Effect.gen(function* () {
+      const projects = yield* ProjectStore;
+      const videos = yield* VideoStore;
+      const name = templateProjectName(params.template, params.props);
+
+      const path = yield* Effect.tryPromise({
+        catch: (cause) => new HandlerError({ message: errorMessage(cause) }),
+        try: () => mintFolder(params.parent ?? DEFAULT_PROJECTS_DIR, name),
+      });
+
+      const project = yield* Effect.mapError(projects.open(path), unstored);
+
+      yield* Effect.mapError(expandTemplate(path), unscaffolded);
+      yield* Effect.mapError(ensureRegistry(path), unscaffolded);
+      const slug = yield* Effect.mapError(
+        expandTemplateVideo(path, params.template, params.props),
+        unscaffolded
+      );
+
+      const video = yield* Effect.mapError(
+        videos.create({ compositionId: slug, name, projectId: project.id }),
+        unstored
+      );
+
+      return { project, video };
     }),
 
   "project.install": ({ emit, log, params }) =>
