@@ -33,6 +33,7 @@ import { type Queue, useQueue } from "@/hooks/use-queue";
 import { useReconciledVideos } from "@/hooks/use-reconciled-videos";
 import { type SettingsView, useSettingsView } from "@/hooks/use-settings-view";
 import { useSidecarStatus } from "@/hooks/use-sidecar-status";
+import { useTemplateLinks } from "@/hooks/use-template-links";
 import {
   PRO_ONLY,
   PRO_ONLY_UPGRADE,
@@ -176,6 +177,10 @@ function StudioStateProvider({
   );
 
   const newProject = useNewProject(createAndShow);
+
+  const { openTemplate } = workspace;
+  const showVideos = useCallback(() => showPane("videos"), [showPane]);
+  useTemplateLinks({ onOpened: showVideos, openTemplate });
 
   const { addVideo } = workspace;
   const addAndShow = useCallback(

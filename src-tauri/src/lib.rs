@@ -2,6 +2,7 @@ mod account;
 mod commands;
 mod crash;
 mod ipc;
+mod links;
 mod paste;
 mod sidecar;
 mod terminal;
@@ -10,6 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use tauri::{Emitter, Manager, RunEvent, WindowEvent};
+use tauri_plugin_deep_link::DeepLinkExt;
 
 use ipc::QUIT_EVENT;
 use sidecar::Sidecar;
@@ -42,7 +44,16 @@ pub fn run() {
         .filter(|data_dir| crash::consent_in(data_dir))
         .and_then(|_| crash::start(&version));
 
+    // Single-instance goes first, and with the `deep-link` feature it hands a
+    // second launch's argv to the deep-link plugin before our callback runs —
+    // which is how a link reaches a running app on Windows and Linux. macOS
+    // delivers both the cold start and the running case as `RunEvent::Opened`,
+    // which the deep-link plugin turns into the same `on_open_url`.
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            links::focus(app);
+        }))
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::new().build())
@@ -66,6 +77,7 @@ pub fn run() {
             commands::sidecar_restart,
             commands::sidecar_status,
             commands::studio_build,
+            links::take_deep_links,
             paste::save_pasted_image,
             paste::save_proxy,
             terminal::open_terminal,
@@ -80,6 +92,19 @@ pub fn run() {
         })
         .setup(|app| {
             app.manage(account::Account::new(app.handle()));
+            app.manage(links::DeepLinks::default());
+
+            // The URLs that started the app, where the platform hands them over
+            // before setup (Windows and Linux argv); on macOS a cold start
+            // arrives through `on_open_url` once the run loop is up, so the
+            // same listener covers both and the webview drains one queue.
+            if let Ok(Some(urls)) = app.deep_link().get_current() {
+                links::receive(app.handle(), urls.into_iter().map(|url| url.to_string()));
+            }
+            let handle = app.handle().clone();
+            app.deep_link().on_open_url(move |event| {
+                links::receive(&handle, event.urls().into_iter().map(|url| url.to_string()));
+            });
             app.manage(Sidecar::start(app.handle().clone()));
 
             let handle = app.handle().clone();

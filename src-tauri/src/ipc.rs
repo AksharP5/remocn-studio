@@ -1,10 +1,11 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-pub const PROTOCOL: u32 = 27;
+pub const PROTOCOL: u32 = 28;
 pub const STATUS_EVENT: &str = "sidecar://status";
 pub const NOTIFY_EVENT: &str = "sidecar://notify";
 pub const QUIT_EVENT: &str = "app://quit-requested";
+pub const DEEP_LINK_EVENT: &str = "app://deep-link";
 pub const HOST_PID_ENV: &str = "REMOCN_STUDIO_HOST_PID";
 pub const DATA_DIR_ENV: &str = "REMOCN_STUDIO_DATA_DIR";
 pub const PREVIEW_ENTRY_ENV: &str = "REMOCN_STUDIO_PREVIEW_ENTRY";

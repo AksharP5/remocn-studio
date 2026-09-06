@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { ComponentProps, ComponentType } from "react";
 import { Composition } from "remotion";
 
 interface VideoMeta {
@@ -10,7 +10,9 @@ interface VideoMeta {
 
 interface VideoModule {
   default: ComponentType;
+  defaultProps?: Record<string, unknown>;
   meta: VideoMeta;
+  schema?: ComponentProps<typeof Composition>["schema"];
 }
 
 interface WebpackContext {
@@ -50,11 +52,13 @@ export function Videos() {
         return (
           <Composition
             component={video.default}
+            defaultProps={video.defaultProps}
             durationInFrames={video.meta.durationInFrames}
             fps={video.meta.fps}
             height={video.meta.height}
             id={id}
             key={id}
+            schema={video.schema}
             width={video.meta.width}
           />
         );

@@ -29,6 +29,7 @@ export interface StudioVideos {
   reconcile: (projectId: string, compositions: readonly string[]) => void;
   registerVideo: (videoId: string) => Promise<boolean>;
   reloadVideos: () => void;
+  rememberVideo: (video: Video) => void;
   removeVideo: (videoId: string) => Promise<boolean>;
   renameVideo: (videoId: string, name: string) => Promise<Video | null>;
   restoreVideo: (videoId: string) => Promise<Video | null>;
@@ -135,6 +136,17 @@ export function useVideos(projectId: string | null): StudioVideos {
     []
   );
 
+  const remember = useCallback((video: Video) => {
+    opened.current = video.projectId;
+    setVideos((current) => [
+      video,
+      ...current.filter(
+        (row) => row.projectId === video.projectId && row.id !== video.id
+      ),
+    ]);
+    setActiveId(video.id);
+  }, []);
+
   const rename = useCallback(async (videoId: string, name: string) => {
     const exit = await Effect.runPromiseExit(renameVideo(videoId, name));
 
@@ -219,6 +231,7 @@ export function useVideos(projectId: string | null): StudioVideos {
       reconcile,
       registerVideo: register,
       reloadVideos,
+      rememberVideo: remember,
       removeVideo: remove,
       renameVideo: rename,
       restoreVideo: restore,
@@ -235,6 +248,7 @@ export function useVideos(projectId: string | null): StudioVideos {
       reconcile,
       register,
       reloadVideos,
+      remember,
       remove,
       rename,
       restore,
