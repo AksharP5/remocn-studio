@@ -11,6 +11,7 @@ import { AnchoredToastProvider, ToastProvider } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useFrozenWidth } from "@/hooks/use-frozen-width";
 import { useHydratedSettings } from "@/hooks/use-hydrated-settings";
+import { usePlanTier } from "@/hooks/use-plan-tier";
 import { usePlatformAttribute } from "@/hooks/use-platform";
 import { usePreviewCollapse } from "@/hooks/use-preview-collapse";
 import { useSidebarCollapse } from "@/hooks/use-sidebar-collapse";
@@ -52,13 +53,14 @@ export function AppShell() {
 
 function StudioBoot() {
   const settings = useHydratedSettings();
-  const workspace = useWorkspace(settings);
+  const plan = usePlanTier();
+  const workspace = useWorkspace(settings, plan.read);
   const splash = useSplash(isStudioBootReady(workspace));
   const isBooting = splash.phase !== "gone";
 
   return (
     <>
-      <StudioProvider settings={settings} workspace={workspace}>
+      <StudioProvider plan={plan} settings={settings} workspace={workspace}>
         <TooltipProvider delay={500}>
           <ToastProvider>
             <AnchoredToastProvider>

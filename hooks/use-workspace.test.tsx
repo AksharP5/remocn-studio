@@ -102,7 +102,7 @@ function harness(sessions: readonly HistorySession[]) {
     { shouldMockEvents: true }
   );
 
-  return renderHook(() => useWorkspace(SETTINGS));
+  return renderHook(() => useWorkspace(SETTINGS, () => "pro"));
 }
 
 afterEach(() => {

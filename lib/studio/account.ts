@@ -19,8 +19,8 @@ import {
 } from "@/shared/account";
 import {
   type AccountPlan,
-  decodeEntitlement,
-  type EntitlementDocument,
+  decodeSignedEntitlement,
+  type SignedEntitlement,
 } from "@/shared/entitlement";
 
 export type AccountErrorKind = AccountFailure["kind"] | "decode" | "transport";
@@ -101,25 +101,8 @@ export const fetchMe: Effect.Effect<AccountMe, AccountError> = command(
   decodeAccountMe
 );
 
-export const fetchEntitlement: Effect.Effect<
-  EntitlementDocument,
-  AccountError
-> = Effect.tryPromise({
-  catch: accountError,
-  try: () => invoke<unknown>("account_entitlement"),
-}).pipe(
-  Effect.flatMap((data) =>
-    decodeEntitlement(data).pipe(
-      Effect.mapError(
-        (cause) =>
-          new AccountError({
-            kind: "decode",
-            message: `${DECODE_FAILED} ${errorMessage(cause)}`,
-          })
-      )
-    )
-  )
-);
+export const fetchEntitlement: Effect.Effect<SignedEntitlement, AccountError> =
+  command("account_entitlement", decodeSignedEntitlement);
 
 export function revokeDevice(id: string): Effect.Effect<void, AccountError> {
   return command("account_revoke_device", nothing, { id });
@@ -247,14 +230,26 @@ export function planWording(plan: AccountPlan, now: number): PlanWording {
       };
     default:
       return {
-        alarming: false,
+        alarming: plan.unverified,
         name: "Free",
-        note:
-          plan.trialEndedAt === null
-            ? "See what Pro adds"
-            : `Trial ended ${shortDay(plan.trialEndedAt)}`,
+        note: freeNote(plan),
       };
   }
+}
+
+export const UNVERIFIED_NOTE =
+  "The subscription could not be verified. Go online to check it.";
+
+function freeNote(plan: {
+  trialEndedAt: string | null;
+  unverified: boolean;
+}): string {
+  if (plan.unverified) {
+    return UNVERIFIED_NOTE;
+  }
+  return plan.trialEndedAt === null
+    ? "See what Pro adds"
+    : `Trial ended ${shortDay(plan.trialEndedAt)}`;
 }
 
 function trialNote(left: number): string {

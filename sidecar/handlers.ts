@@ -17,6 +17,7 @@ import { freeSlug, slugFor } from "@/shared/slug";
 import { makeAccountCache } from "./agent/account";
 import { makeGate } from "./agent/gate";
 import { makeModeSwitch } from "./agent/mode";
+import { pipelineAllowed, serversFor } from "./agent/plan";
 import { adapterFor } from "./agent/registry";
 import {
   abandonSourceAssets,
@@ -85,7 +86,6 @@ import {
   VIDEOS_DIR,
 } from "./scaffold/template";
 import { makeGateway } from "./tools/gateway";
-import { DESIGN_SERVER, LIBRARY_SERVER, PIPELINE_SERVER } from "./tools/specs";
 
 const TOKENS = [
   "Streaming",
@@ -335,7 +335,9 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
                 briefs: {
                   assets: assetBrief(placed, addCommandFor(project.path)),
                   media: mediaBrief(placedMedia),
-                  pipeline: pipelineBrief(stages, video),
+                  pipeline: pipelineAllowed(params.plan)
+                    ? pipelineBrief(stages, video)
+                    : null,
                 },
                 cwd: project.path,
                 emit,
@@ -344,11 +346,12 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
                 onApprove: approved,
                 onMode: switcher.bind,
                 record: recorder.event,
-                tools: {
-                  [DESIGN_SERVER]: gateway.transport(DESIGN_SERVER, turnId),
-                  [LIBRARY_SERVER]: gateway.transport(LIBRARY_SERVER, turnId),
-                  [PIPELINE_SERVER]: gateway.transport(PIPELINE_SERVER, turnId),
-                },
+                tools: Object.fromEntries(
+                  serversFor(params.plan).map((server) => [
+                    server,
+                    gateway.transport(server, turnId),
+                  ])
+                ),
                 turnId,
                 video,
               })

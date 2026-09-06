@@ -39,7 +39,7 @@ export interface TurnCallbacks {
   readonly onContext: (usage: ContextUsage) => void;
   readonly onMode: (apply: ApplyMode) => void;
   readonly onStop: () => void;
-  readonly tools: Readonly<Record<ToolServer, StdioTransport>>;
+  readonly tools: Readonly<Partial<Record<ToolServer, StdioTransport>>>;
   readonly video: string | null;
 }
 
@@ -115,7 +115,8 @@ function optionsOf(params: PromptParams, callbacks: TurnCallbacks): Options {
   const plugins = pluginsFor(callbacks.knowledge);
   const conventions = conventionsFor(
     callbacks.knowledge.loaded,
-    callbacks.video
+    callbacks.video,
+    params.plan
   );
 
   const hooks = gateHooks(params.mode, callbacks.cwd);

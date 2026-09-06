@@ -27,6 +27,7 @@ import {
 } from "@/lib/studio/groups";
 import { saveSessionMode } from "@/lib/studio/history";
 import type { StudioSettings } from "@/lib/studio/settings";
+import type { PlanTier } from "@/shared/entitlement";
 import type {
   HistorySession,
   Project,
@@ -58,11 +59,14 @@ export interface Workspace
   startSessionIn: (videoId: string) => void;
 }
 
-export function useWorkspace(settings: StudioSettings | null): Workspace {
+export function useWorkspace(
+  settings: StudioSettings | null,
+  plan: () => PlanTier
+): Workspace {
   const projects = useProjects(settings);
   const sessions = useSessions();
   const actions = useProjectActions();
-  const turns = useTurns(sessions.rememberSession);
+  const turns = useTurns(sessions.rememberSession, plan);
   const scaffolds = useScaffold(projects.replaceProject);
   const videos = useVideos(projects.activeProject?.id ?? null);
   const expansion = useExpandedVideos(settings, videos.activeVideo?.id ?? null);

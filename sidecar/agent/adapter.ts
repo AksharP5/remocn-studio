@@ -33,7 +33,9 @@ export interface TurnServices {
   readonly onApprove: (mode: SessionMode) => Effect.Effect<void>;
   readonly onMode: (apply: ApplyMode) => Effect.Effect<void>;
   readonly record: (event: AgentEvent) => Effect.Effect<void>;
-  readonly tools: Readonly<Record<ToolServer, StdioTransport>>;
+  // Keyed by server, and a Free turn is served fewer of them: the pipeline
+  // is Pro, so its key is simply absent rather than pointing at a refusal.
+  readonly tools: Readonly<Partial<Record<ToolServer, StdioTransport>>>;
   readonly turnId: string;
   // The composition this turn is about, by slug — the folder under src/videos
   // and the id the preview plays. Null when the row could not be read, which

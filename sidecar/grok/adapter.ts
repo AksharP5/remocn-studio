@@ -58,7 +58,7 @@ export const grokAdapter: AgentAdapter = {
         } satisfies PromptResult);
       }
 
-      const knowledge = locateBundle(services.cwd);
+      const knowledge = locateBundle(services.cwd, params.plan);
 
       return acpTurn(
         {

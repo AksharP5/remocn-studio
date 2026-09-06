@@ -9,8 +9,15 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Page from "@/app/page";
 import { ThemeProvider } from "@/components/theme-provider";
+import { signedBy } from "@/lib/studio/entitlement.fixture";
 
 const opened: string[] = [];
+
+vi.mock("@/shared/entitlement", async (importOriginal) => {
+  const original = await importOriginal<object>();
+  const { testPublicKey } = await import("@/lib/studio/entitlement.fixture");
+  return { ...original, ENTITLEMENT_PUBLIC_KEY: await testPublicKey() };
+});
 
 vi.mock("@tauri-apps/plugin-opener", () => ({
   openUrl: (url: string) => {
@@ -51,13 +58,7 @@ const ME = {
   },
 };
 
-function signed(document: Record<string, unknown>) {
-  return {
-    algorithm: "ed25519",
-    payload: btoa(JSON.stringify(document)),
-    signature: "c2ln",
-  };
-}
+const signed = signedBy;
 
 const TRIAL = signed({
   devices: [],

@@ -48,6 +48,7 @@ function params(shape: Partial<PromptParams>): PromptParams {
     media: [],
     mode: "auto",
     model: null,
+    plan: "pro",
     playing: null,
     projectId: PROJECT_ID,
     prompt: "make a title card",

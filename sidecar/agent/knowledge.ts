@@ -1,8 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Effect } from "effect";
+import type { PlanTier } from "@/shared/entitlement";
 import type { AgentEvent } from "@/shared/ipc";
 import { PLUGIN_DIR_ENV } from "@/shared/ipc";
+import { PLAN_REASON, skillsAllowed } from "./plan";
 
 export const INTERACTIVITY_SKILL = "remotion-interactivity";
 
@@ -51,7 +53,17 @@ export function noBundle(reason: string): KnowledgeBundle {
   };
 }
 
-export function locateBundle(cwd: string): KnowledgeBundle {
+// The plan is asked before the disk is: a Free turn never learns whether
+// the bundle is there, and the reason it carries is the one token
+// `knowledgeNotice` stays silent on.
+export function locateBundle(
+  cwd: string,
+  plan: PlanTier = "pro"
+): KnowledgeBundle {
+  if (!skillsAllowed(plan)) {
+    return noBundle(PLAN_REASON);
+  }
+
   const dir = process.env[PLUGIN_DIR_ENV];
 
   if (dir === undefined || dir.length === 0 || !existsSync(dir)) {
@@ -96,7 +108,11 @@ export function bundleVersion(dir: string): string {
 }
 
 export function knowledgeNotice(bundle: KnowledgeBundle): AgentEvent | null {
-  if (bundle.loaded || bundle.reason === null) {
+  if (
+    bundle.loaded ||
+    bundle.reason === null ||
+    bundle.reason === PLAN_REASON
+  ) {
     return null;
   }
 
@@ -118,9 +134,7 @@ export function announce(
   }
 ): Effect.Effect<void> {
   const lines = [
-    bundle.loaded
-      ? `knowledge: bundled skills loaded from ${bundle.source} (${bundle.path})`
-      : `knowledge: bundled skills not loaded — ${bundle.reason}`,
+    attachLine(bundle),
     ...(bundle.collisions.length === 0
       ? []
       : [
@@ -133,6 +147,16 @@ export function announce(
   return Effect.forEach(lines, services.log, { discard: true }).pipe(
     Effect.andThen(notice === null ? Effect.void : services.emit(notice))
   );
+}
+
+function attachLine(bundle: KnowledgeBundle): string {
+  if (bundle.loaded) {
+    return `knowledge: bundled skills loaded from ${bundle.source} (${bundle.path})`;
+  }
+  if (bundle.reason === PLAN_REASON) {
+    return "knowledge: bundled skills withheld — the session is on Free";
+  }
+  return `knowledge: bundled skills not loaded — ${bundle.reason}`;
 }
 
 function invalidIn(dir: string): string | null {

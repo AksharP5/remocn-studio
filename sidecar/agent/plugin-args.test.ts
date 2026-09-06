@@ -25,6 +25,7 @@ const params: PromptParams = {
   media: [],
   mode: "auto",
   model: null,
+  plan: "pro",
   playing: null,
   projectId: "project-1",
   prompt: "make me a video",

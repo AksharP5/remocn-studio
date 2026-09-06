@@ -71,6 +71,7 @@ function harness(options: { holdBlocks?: boolean } = {}) {
   const cancelled: string[] = [];
   const byHistory = new Map<string, string>();
   const modes = new Map<string, string>();
+  const plans = new Map<string, string>();
   const blocks: ((entries: TranscriptEntry[]) => void)[] = [];
 
   mockIPC((cmd, payload) => {
@@ -78,11 +79,17 @@ function harness(options: { holdBlocks?: boolean } = {}) {
       const call = payload as {
         id: string;
         method: string;
-        params: { historyId?: string; mode?: string; sessionId?: string };
+        params: {
+          historyId?: string;
+          mode?: string;
+          plan?: string;
+          sessionId?: string;
+        };
       };
       if (call.method === "agent.prompt") {
         byHistory.set(call.params.historyId ?? "", call.id);
         modes.set(call.params.historyId ?? "", call.params.mode ?? "");
+        plans.set(call.params.historyId ?? "", call.params.plan ?? "");
         return new Promise<PromptResult>((resolve) => {
           inflight.set(call.id, resolve);
         });
@@ -135,6 +142,7 @@ function harness(options: { holdBlocks?: boolean } = {}) {
       });
     },
     sentMode: (historyId: string) => modes.get(historyId) ?? null,
+    sentPlan: (historyId: string) => plans.get(historyId) ?? null,
     wasCancelled: (historyId: string) =>
       cancelled.includes(byHistory.get(historyId) ?? ""),
   };
@@ -484,5 +492,46 @@ describe("useTurns", () => {
     });
 
     expect(result.current.turns.get("a")?.queue).toHaveLength(0);
+  });
+
+  it("sends the plan the account holds when the turn starts", async () => {
+    const ipc = harness();
+    const { result } = renderHook(() => useTurns(vi.fn(), () => "pro"));
+
+    act(() => {
+      result.current.sendTurn(turn("a"));
+    });
+
+    await waitFor(() => expect(ipc.sentPlan("a")).toBe("pro"));
+  });
+
+  it("runs as Free when nothing says otherwise", async () => {
+    const ipc = harness();
+    const { result } = renderHook(() => useTurns(vi.fn()));
+
+    act(() => {
+      result.current.sendTurn(turn("a"));
+    });
+
+    await waitFor(() => expect(ipc.sentPlan("a")).toBe("free"));
+  });
+
+  // A downgrade bites the next turn: the queued message reads the plan when
+  // it goes out, not when it was written, and the running turn is untouched.
+  it("reads the plan again when a queued message goes out", async () => {
+    const ipc = harness();
+    let plan: "free" | "pro" = "pro";
+    const { result } = renderHook(() => useTurns(vi.fn(), () => plan));
+
+    act(() => {
+      result.current.sendTurn(turn("a"));
+      result.current.sendTurn(turn("a", "and a subtitle"));
+    });
+    await waitFor(() => expect(ipc.sentPlan("a")).toBe("pro"));
+
+    plan = "free";
+    await ipc.finish("a");
+
+    await waitFor(() => expect(ipc.sentPlan("a")).toBe("free"));
   });
 });

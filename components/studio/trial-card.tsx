@@ -51,6 +51,8 @@ function titleOf(card: TrialCardModel): string {
       return card.until === null
         ? "Your Pro trial has ended"
         : `Your Pro trial ended ${shortDay(card.until)}`;
+    case "unverified":
+      return "The subscription could not be verified";
     default:
       return "Your card was declined";
   }
@@ -66,6 +68,27 @@ function Body({ account, card }: { account: Account; card: TrialCardModel }) {
           sign in.
         </p>
         <SignInControls account={account} now={Date.now()} />
+      </>
+    );
+  }
+
+  if (card.kind === "unverified") {
+    return (
+      <>
+        <p className="text-muted-foreground text-xs leading-snug">
+          The studio has been offline longer than the last plan document lasts,
+          so it works as Free until it can reach the account server again.
+        </p>
+        <div>
+          <Button
+            disabled={account.isBusy}
+            onClick={account.refresh}
+            size="sm"
+            variant="outline"
+          >
+            Check again
+          </Button>
+        </div>
       </>
     );
   }

@@ -1,5 +1,6 @@
 import { Effect, type Exit, Schema, type SchemaError } from "effect";
 import { Audiomap } from "./audiomap";
+import { PlanTier } from "./entitlement";
 import {
   Asset,
   AssetDraft,
@@ -16,7 +17,7 @@ import {
   ToolVerb,
 } from "./providers";
 
-export const SIDECAR_PROTOCOL = 26;
+export const SIDECAR_PROTOCOL = 27;
 
 export const SIDECAR_STATUS_EVENT = "sidecar://status";
 export const SIDECAR_NOTIFY_EVENT = "sidecar://notify";
@@ -286,6 +287,12 @@ const provider = AgentProvider.pipe(
   Schema.withDecodingDefault(Effect.succeed(DEFAULT_AGENT_PROVIDER))
 );
 
+// A turn that names no plan runs as Free: the tier is what the webview could
+// prove, and a field that went missing must never read as Pro.
+const plan = PlanTier.pipe(
+  Schema.withDecodingDefault(Effect.succeed<PlanTier>("free"))
+);
+
 export const PromptParams = Schema.Struct({
   assets,
   attachments: Schema.Array(PromptAttachment),
@@ -295,6 +302,7 @@ export const PromptParams = Schema.Struct({
   media,
   mode: SessionMode,
   model: Schema.NullOr(Schema.NonEmptyString),
+  plan,
   playing: frame,
   projectId: Schema.NonEmptyString,
   prompt: Schema.String,

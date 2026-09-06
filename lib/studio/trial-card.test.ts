@@ -41,7 +41,11 @@ describe("trialCardOf", () => {
   it("comes back when the trial ends, once per trial", () => {
     const account = {
       kind: "signedIn" as const,
-      plan: { kind: "free" as const, trialEndedAt: "2026-09-01T00:00:00Z" },
+      plan: {
+        kind: "free" as const,
+        trialEndedAt: "2026-09-01T00:00:00Z",
+        unverified: false,
+      },
     };
     expect(trialCardOf(account, ["invite"])).toEqual({
       id: "trial-ended:2026-09-01T00:00:00Z",
@@ -56,7 +60,10 @@ describe("trialCardOf", () => {
   it("is quiet for a free account that never had a trial", () => {
     expect(
       trialCardOf(
-        { kind: "signedIn", plan: { kind: "free", trialEndedAt: null } },
+        {
+          kind: "signedIn",
+          plan: { kind: "free", trialEndedAt: null, unverified: false },
+        },
         []
       )
     ).toBeNull();
@@ -83,7 +90,10 @@ describe("isOnFree", () => {
   it("counts signed out and a free plan, never an unread one", () => {
     expect(isOnFree({ kind: "signedOut" })).toBe(true);
     expect(
-      isOnFree({ kind: "signedIn", plan: { kind: "free", trialEndedAt: null } })
+      isOnFree({
+        kind: "signedIn",
+        plan: { kind: "free", trialEndedAt: null, unverified: false },
+      })
     ).toBe(true);
     expect(isOnFree({ kind: "signedIn", plan: null })).toBe(false);
     expect(isOnFree({ kind: "signedIn", plan: { kind: "pro" } })).toBe(false);

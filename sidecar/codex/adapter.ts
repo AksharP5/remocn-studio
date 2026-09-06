@@ -79,12 +79,12 @@ export const codexAdapter: AgentAdapter = {
       const translator = makeTranslator(params.mode);
       const controller = new AbortController();
 
-      const attached = codexHome(locateBundle(services.cwd));
+      const attached = codexHome(locateBundle(services.cwd, params.plan));
       yield* announce(attached.knowledge, services);
 
       const codex = new Codex({
         codexPathOverride: executable,
-        config: configOf(services, attached.knowledge),
+        config: configOf(params, services, attached.knowledge),
         ...(attached.home === null
           ? {}
           : { env: { ...inherited(), CODEX_HOME: attached.home } }),
@@ -186,10 +186,15 @@ function inherited(): Record<string, string> {
 // project. The skills themselves arrive through the mirrored home in
 // `home.ts`, and the brief only claims them once that attach succeeded.
 function configOf(
+  params: PromptParams,
   services: TurnServices,
   knowledge: KnowledgeBundle
 ): NonNullable<CodexOptions["config"]> {
-  const conventions = conventionsFor(knowledge.loaded, services.video);
+  const conventions = conventionsFor(
+    knowledge.loaded,
+    services.video,
+    params.plan
+  );
 
   return {
     developer_instructions:

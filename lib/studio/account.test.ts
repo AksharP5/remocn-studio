@@ -175,13 +175,18 @@ describe("planWording", () => {
   it("names the ended trial on a free plan", () => {
     expect(
       planWording(
-        { kind: "free", trialEndedAt: "2026-09-01T09:00:00.000Z" },
+        {
+          kind: "free",
+          trialEndedAt: "2026-09-01T09:00:00.000Z",
+          unverified: false,
+        },
         NOW
       ).note
     ).toBe("Trial ended Sep 1");
-    expect(planWording({ kind: "free", trialEndedAt: null }, NOW).note).toBe(
-      "See what Pro adds"
-    );
+    expect(
+      planWording({ kind: "free", trialEndedAt: null, unverified: false }, NOW)
+        .note
+    ).toBe("See what Pro adds");
   });
 
   it("raises the alarm on a failed card", () => {
