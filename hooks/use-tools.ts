@@ -20,6 +20,7 @@ export interface Tools {
 export interface ToolSettings {
   composer: Composer;
   isDocs: boolean;
+  isLocked?: boolean;
   isMissing: boolean;
   isShown: boolean;
   isWaiting: boolean;
@@ -32,6 +33,7 @@ export interface ToolSettings {
 export function useTools({
   composer,
   isDocs,
+  isLocked = false,
   isMissing,
   isShown,
   isWaiting,
@@ -44,6 +46,7 @@ export function useTools({
 
   const unavailable = unavailableOf({
     isDocs,
+    isLocked,
     isMissing,
     isServing: preview.isServing,
     isShown,
@@ -66,7 +69,13 @@ export function useTools({
 
   useOnPreview(preview, onMessage);
 
+  // On Free the buttons are the way to the trial card: a click arms nothing
+  // and brings the invite back, which is what `onArm` does on Free anyway.
   const toggleInspect = useCallback(() => {
+    if (isLocked) {
+      onArm?.();
+      return;
+    }
     if (unavailable !== null) {
       return;
     }
@@ -74,9 +83,13 @@ export function useTools({
       onArm?.();
     }
     setTool(tool === "inspect" ? null : "inspect");
-  }, [onArm, tool, unavailable]);
+  }, [isLocked, onArm, tool, unavailable]);
 
   const toggleSnapshot = useCallback(() => {
+    if (isLocked) {
+      onArm?.();
+      return;
+    }
     if (unavailable !== null) {
       return;
     }
@@ -84,7 +97,7 @@ export function useTools({
       onArm?.();
     }
     setTool(tool === "snapshot" ? null : "snapshot");
-  }, [onArm, tool, unavailable]);
+  }, [isLocked, onArm, tool, unavailable]);
 
   // The comment card and the composer answer Escape themselves and prevent the
   // default; anything they left alone disarms the mode.
@@ -133,8 +146,12 @@ export function useTools({
   );
 }
 
+export const PRO_ONLY =
+  "Inspect and Snapshot are part of Pro. Sign in to start the free trial.";
+
 function unavailableOf(state: {
   isDocs: boolean;
+  isLocked: boolean;
   isMissing: boolean;
   isServing: boolean;
   isShown: boolean;
@@ -142,6 +159,9 @@ function unavailableOf(state: {
   openedProjectId: string | null;
   previewProjectId: string | null;
 }): string | null {
+  if (state.isLocked) {
+    return PRO_ONLY;
+  }
   if (!state.isShown) {
     return "The preview pane is hidden.";
   }

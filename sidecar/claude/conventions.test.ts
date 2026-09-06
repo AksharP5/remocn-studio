@@ -14,6 +14,7 @@ import {
 } from "@/sidecar/agent/knowledge";
 import {
   conventionsFor,
+  FREE_CONVENTIONS,
   pipelineBrief,
   STUDIO_CONVENTIONS,
 } from "@/sidecar/claude/conventions";
@@ -21,6 +22,50 @@ import {
 const NAMED = `\`${LESSONS_SKILL}\``;
 const MARKUP = `\`${INTERACTIVITY_SKILL}\``;
 const MOTION = `\`${MOTION_SKILL}\``;
+
+describe("conventionsFor on Free", () => {
+  it("keeps the structure: the lane, Root.tsx, the audiomap, editability", () => {
+    const text = conventionsFor(false, null, "free");
+    const compact = text.replaceAll("\n", " ");
+
+    expect(text).toBe(FREE_CONVENTIONS);
+    expect(compact).toContain("working on exactly one of them");
+    expect(text).toContain("never edit `Root.tsx`");
+    expect(text).toContain("beat_cut");
+    expect(text).toContain("Keep the result editable");
+    expect(text).toContain("[Element #N]");
+  });
+
+  it("drops every craft mandate and every Pro tool, whatever the bundle said", () => {
+    for (const text of [
+      conventionsFor(true, null, "free"),
+      conventionsFor(false, null, "free"),
+    ]) {
+      expect(text).not.toContain(BUNDLE_NAME);
+      expect(text).not.toContain(LESSONS_SKILL);
+      expect(text).not.toContain(MOTION_SKILL);
+      expect(text).not.toContain(INTERACTIVITY_SKILL);
+      expect(text).not.toContain("mcp__remocn-pipeline__");
+      expect(text).not.toContain("design_check");
+      expect(text).not.toContain("Unless the project's brand");
+      expect(text).not.toContain("InteractivitySchema");
+      expect(text).not.toContain("runs inside a camera");
+      expect(text).not.toContain("the movement dictionary");
+      expect(text).not.toContain("seven-stage");
+      expect(text).not.toContain("moodboard");
+    }
+  });
+
+  it("is the whole of what a Pro turn reads, minus the craft and the pipeline", () => {
+    expect(STUDIO_CONVENTIONS).toContain(
+      FREE_CONVENTIONS.split("\n\n")[0] ?? ""
+    );
+    for (const paragraph of FREE_CONVENTIONS.split("\n\n")) {
+      expect(STUDIO_CONVENTIONS).toContain(paragraph);
+    }
+    expect(STUDIO_CONVENTIONS.length).toBeGreaterThan(FREE_CONVENTIONS.length);
+  });
+});
 
 describe("conventionsFor", () => {
   it("orders the lessons skill by the name the bundle ships it under", () => {

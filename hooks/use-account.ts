@@ -22,11 +22,21 @@ import {
   signOut as signOutOnServer,
   startSignIn,
 } from "@/lib/studio/account";
+import {
+  type EntitlementCache,
+  type EntitlementReading,
+  type EntitlementSource,
+  entitlementCache,
+  REFRESH_EVERY,
+  readEntitlement,
+} from "@/lib/studio/entitlement";
 import type { AccountDevice, AccountMe } from "@/shared/account";
 import {
   type AccountPlan,
   type EntitlementDocument,
+  type PlanTier,
   planAt,
+  tierOf,
 } from "@/shared/entitlement";
 
 export type AccountPhase =
@@ -34,6 +44,7 @@ export type AccountPhase =
       kind: "signedIn";
       document: EntitlementDocument | null;
       me: AccountMe | null;
+      source: EntitlementSource;
     }
   | { kind: "signedOut" }
   | { kind: "signingIn"; userCode: string; verificationUri: string }
@@ -59,6 +70,7 @@ export interface Account {
   revokeDevice: (event: MouseEvent<HTMLButtonElement>) => void;
   signIn: () => void;
   signOut: () => void;
+  tier: PlanTier;
 }
 
 const SESSION_ENDED = "This device was signed out. Sign in again to continue.";
@@ -69,47 +81,79 @@ const SIGN_IN_DECLINED = "The sign-in was declined in the browser.";
 const UNKNOWN: AccountPhase = { kind: "unknown" };
 const SIGNED_OUT: AccountPhase = { kind: "signedOut" };
 
-const loadAccount = Effect.all([fetchMe, fetchEntitlement], {
-  concurrency: 2,
-});
+type Loaded = readonly [Exit.Exit<AccountMe, AccountError>, EntitlementReading];
 
 export interface AccountOptions {
+  cache?: EntitlementCache;
+  publicKey?: string;
   sleep?: (delay: Duration.Duration) => Effect.Effect<void>;
 }
 
-export function useAccount({ sleep }: AccountOptions = {}): Account {
+export function useAccount({
+  cache = entitlementCache,
+  publicKey,
+  sleep = Effect.sleep,
+}: AccountOptions = {}): Account {
   const [phase, setPhase] = useState<AccountPhase>(UNKNOWN);
   const [origin, setOrigin] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deviceLimit, setDeviceLimit] = useState<DeviceLimitHit | null>(null);
   const [isBusy, setBusy] = useState(false);
   const flow = useRef<Fiber.Fiber<unknown, unknown> | null>(null);
+  const daily = useRef<Fiber.Fiber<unknown, unknown> | null>(null);
   const live = useRef(true);
 
+  // The profile and the plan are read together but fail apart: an account
+  // server that is down still leaves the cached document, so the plan the
+  // person paid for survives a bad connection. Only a 401 ends the session.
+  const loadAccount = useMemo(
+    () =>
+      Effect.all(
+        [
+          Effect.exit(fetchMe),
+          readEntitlement({ cache, fetch: fetchEntitlement, publicKey }),
+        ],
+        { concurrency: 2 }
+      ),
+    [cache, publicKey]
+  );
+
+  const signedOut = useCallback(
+    (message: string | null) => {
+      Effect.runFork(cache.clear);
+      setPhase(SIGNED_OUT);
+      setError(message);
+    },
+    [cache]
+  );
+
   const settle = useCallback(
-    (exit: Exit.Exit<readonly [AccountMe, EntitlementDocument], unknown>) => {
+    (exit: Exit.Exit<Loaded, AccountError>) => {
       if (!live.current) {
         return;
       }
-      if (Exit.isSuccess(exit)) {
-        const [me, document] = exit.value;
-        setPhase({ document, kind: "signedIn", me });
-        setError(null);
+      if (Exit.isFailure(exit)) {
+        if (isSignedOut(exit.cause)) {
+          signedOut(SESSION_ENDED);
+          return;
+        }
+        setError(causeMessage(exit.cause));
         return;
       }
-      if (isSignedOut(exit.cause)) {
-        setPhase(SIGNED_OUT);
-        setError(SESSION_ENDED);
+      const [me, reading] = exit.value;
+      if (Exit.isFailure(me) && isSignedOut(me.cause)) {
+        signedOut(SESSION_ENDED);
         return;
       }
-      setPhase((current) =>
-        current.kind === "signedIn"
-          ? current
-          : { document: null, kind: "signedIn", me: null }
-      );
-      setError(causeMessage(exit.cause));
+      setPhase({
+        document: reading.document,
+        kind: "signedIn",
+        me: Exit.isSuccess(me) ? me.value : null,
+        source: reading.source,
+      });
+      setError(Exit.isFailure(me) ? causeMessage(me.cause) : reading.error);
     },
-    []
+    [signedOut]
   );
 
   const refresh = useCallback(() => {
@@ -120,7 +164,28 @@ export function useAccount({ sleep }: AccountOptions = {}): Account {
       }
       settle(exit);
     });
-  }, [settle]);
+  }, [loadAccount, settle]);
+
+  // Once a day, for as long as the session is signed in: the server's own
+  // reading of the plan, so a subscription that ended or a card that failed
+  // reaches the app without a relaunch.
+  useEffect(() => {
+    if (phase.kind !== "signedIn" || daily.current !== null) {
+      if (phase.kind !== "signedIn" && daily.current !== null) {
+        Effect.runFork(Fiber.interrupt(daily.current));
+        daily.current = null;
+      }
+      return;
+    }
+    daily.current = Effect.runFork(
+      sleep(REFRESH_EVERY).pipe(
+        Effect.andThen(loadAccount),
+        Effect.tap((loaded) => Effect.sync(() => settle(Exit.succeed(loaded)))),
+        Effect.catch((cause) => Effect.sync(() => settle(Exit.fail(cause)))),
+        Effect.forever
+      )
+    );
+  }, [loadAccount, phase.kind, settle, sleep]);
 
   useEffect(() => {
     live.current = true;
@@ -149,6 +214,10 @@ export function useAccount({ sleep }: AccountOptions = {}): Account {
       if (flow.current !== null) {
         Effect.runFork(Fiber.interrupt(flow.current));
         flow.current = null;
+      }
+      if (daily.current !== null) {
+        Effect.runFork(Fiber.interrupt(daily.current));
+        daily.current = null;
       }
     };
   }, [refresh]);
@@ -181,7 +250,7 @@ export function useAccount({ sleep }: AccountOptions = {}): Account {
           });
       }
     },
-    [settle]
+    [loadAccount, settle]
   );
 
   const signIn = useCallback(() => {
@@ -260,10 +329,10 @@ export function useAccount({ sleep }: AccountOptions = {}): Account {
         setError(causeMessage(exit.cause));
         return;
       }
-      setPhase(SIGNED_OUT);
+      signedOut(null);
       setDeviceLimit(null);
     });
-  }, []);
+  }, [signedOut]);
 
   const revokeDevice = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
@@ -281,8 +350,7 @@ export function useAccount({ sleep }: AccountOptions = {}): Account {
         if (Exit.isFailure(exit)) {
           setBusy(false);
           if (isSignedOut(exit.cause)) {
-            setPhase(SIGNED_OUT);
-            setError(SESSION_ENDED);
+            signedOut(SESSION_ENDED);
             return;
           }
           setError(causeMessage(exit.cause));
@@ -291,7 +359,7 @@ export function useAccount({ sleep }: AccountOptions = {}): Account {
         refresh();
       });
     },
-    [phase, refresh, signOut]
+    [phase, refresh, signOut, signedOut]
   );
 
   const openPage = useCallback((url: string | null) => {
@@ -332,6 +400,8 @@ export function useAccount({ sleep }: AccountOptions = {}): Account {
     [phase]
   );
 
+  const tier = tierOf(plan);
+
   return useMemo(
     () => ({
       cancelSignIn: cancel,
@@ -348,6 +418,7 @@ export function useAccount({ sleep }: AccountOptions = {}): Account {
       revokeDevice,
       signIn,
       signOut,
+      tier,
     }),
     [
       cancel,
@@ -364,6 +435,7 @@ export function useAccount({ sleep }: AccountOptions = {}): Account {
       revokeDevice,
       signIn,
       signOut,
+      tier,
     ]
   );
 }

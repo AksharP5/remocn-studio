@@ -37,7 +37,7 @@ export const claudeAdapter: AgentAdapter = {
       const sessionId = yield* Ref.make(params.sessionId);
       const failure = yield* Ref.make<AgentFailure | null>(null);
       const context = yield* Ref.make<ContextUsage | null>(null);
-      const knowledge = locateBundle(services.cwd);
+      const knowledge = locateBundle(services.cwd, params.plan);
 
       yield* announce(knowledge, services);
 

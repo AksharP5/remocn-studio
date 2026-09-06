@@ -17,6 +17,11 @@ import { type NewProject, useNewProject } from "@/hooks/use-new-project";
 import { type NewVideo, useNewVideo } from "@/hooks/use-new-video";
 import { type OpenTurn, useOpenTurn } from "@/hooks/use-open-turn";
 import { type Panes, usePanes } from "@/hooks/use-panes";
+import {
+  type PlanHandle,
+  useFollowPlanTier,
+  usePlanTier,
+} from "@/hooks/use-plan-tier";
 import { type Preferences, usePreferences } from "@/hooks/use-preferences";
 import { usePlayingFrame, usePreview } from "@/hooks/use-preview";
 import { useProjectMenu } from "@/hooks/use-project-menu";
@@ -82,10 +87,12 @@ export function useStudio(): Studio {
 
 export function StudioProvider({
   children,
+  plan,
   settings,
   workspace,
 }: {
   children: React.ReactNode;
+  plan?: PlanHandle;
   settings?: StudioSettings | null;
   workspace?: Workspace;
 }) {
@@ -94,7 +101,11 @@ export function StudioProvider({
   }
 
   return (
-    <StudioStateProvider settings={settings ?? null} workspace={workspace}>
+    <StudioStateProvider
+      plan={plan ?? null}
+      settings={settings ?? null}
+      workspace={workspace}
+    >
       {children}
     </StudioStateProvider>
   );
@@ -102,10 +113,11 @@ export function StudioProvider({
 
 function HydratedStudioProvider({ children }: { children: React.ReactNode }) {
   const settings = useHydratedSettings();
-  const workspace = useWorkspace(settings);
+  const plan = usePlanTier();
+  const workspace = useWorkspace(settings, plan.read);
 
   return (
-    <StudioStateProvider settings={settings} workspace={workspace}>
+    <StudioStateProvider plan={plan} settings={settings} workspace={workspace}>
       {children}
     </StudioStateProvider>
   );
@@ -113,15 +125,18 @@ function HydratedStudioProvider({ children }: { children: React.ReactNode }) {
 
 function StudioStateProvider({
   children,
+  plan,
   settings,
   workspace,
 }: {
   children: React.ReactNode;
+  plan: PlanHandle | null;
   settings: StudioSettings | null;
   workspace: Workspace;
 }) {
   const model = useModels(settings);
   const account = useAccount();
+  useFollowPlanTier(plan, account.tier);
   const trialCard = useTrialCard({ account, settings });
   const accounts = useProviderAccounts();
   const effort = useClaudeEffort(settings);
@@ -286,6 +301,7 @@ function StudioStateProvider({
   const tools = useTools({
     composer,
     isDocs: docs.mode === "docs",
+    isLocked: trialCard.isOnFree,
     isMissing: opened?.missing ?? false,
     isShown: panes.isPreviewShown,
     isWaiting: turn.permission !== null || turn.source !== null,

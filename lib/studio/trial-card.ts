@@ -1,6 +1,6 @@
 import type { AccountPlan } from "@/shared/entitlement";
 
-export type TrialCardKind = "grace" | "invite" | "trialEnded";
+export type TrialCardKind = "grace" | "invite" | "trialEnded" | "unverified";
 
 export interface TrialCard {
   id: string;
@@ -49,6 +49,9 @@ function signedInCard(plan: AccountPlan | null): TrialCard | null {
       kind: "grace",
       until: plan.accessUntil,
     };
+  }
+  if (plan.kind === "free" && plan.unverified) {
+    return { id: "unverified", kind: "unverified", until: null };
   }
   if (plan.kind === "free" && plan.trialEndedAt !== null) {
     return {

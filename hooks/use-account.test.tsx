@@ -3,9 +3,20 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { Effect } from "effect";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAccount } from "@/hooks/use-account";
+import type { EntitlementCache } from "@/lib/studio/entitlement";
+import { signedBy } from "@/lib/studio/entitlement.fixture";
 import type { SignInPoll } from "@/shared/account";
+import type { SignedEntitlement } from "@/shared/entitlement";
 
 const opened: string[] = [];
+
+// The hook verifies every document against the shipped public key, so the
+// tests sign with a pair of their own and swap the public half in.
+vi.mock("@/shared/entitlement", async (importOriginal) => {
+  const original = await importOriginal<object>();
+  const { testPublicKey } = await import("@/lib/studio/entitlement.fixture");
+  return { ...original, ENTITLEMENT_PUBLIC_KEY: await testPublicKey() };
+});
 
 vi.mock("@tauri-apps/plugin-opener", () => ({
   openUrl: (url: string) => {
@@ -19,6 +30,8 @@ const UNAUTHORIZED = { kind: "unauthorized", message: "Sign in first." };
 const DECLINED = /declined/;
 const EXPIRED = /expired/;
 const SIGNED_OUT = /signed out/;
+const UNREACHABLE = /could not reach/;
+const NOT_SIGNED = /not signed/;
 
 const ME = {
   devices: [
@@ -54,16 +67,35 @@ const DOCUMENT = {
   trialEndsAt: "2099-01-01T00:00:00.000Z",
 };
 
-const SIGNED = {
-  algorithm: "ed25519",
-  payload: btoa(JSON.stringify(DOCUMENT)),
-  signature: "c2ln",
+const STALE = {
+  ...DOCUMENT,
+  expiresAt: "2026-01-01T00:00:00.000Z",
+  trialEndsAt: "2026-01-01T00:00:00.000Z",
 };
+
+const OFFLINE = { kind: "offline", message: "The studio could not reach it." };
 
 interface Core {
   calls: string[];
+  document?: Record<string, unknown>;
+  offline?: boolean;
   polls: SignInPoll[];
   signedIn: boolean;
+}
+
+function memoryCache(initial: SignedEntitlement | null = null) {
+  const state = { stored: initial };
+  const cache: EntitlementCache = {
+    clear: Effect.sync(() => {
+      state.stored = null;
+    }),
+    read: Effect.sync(() => state.stored),
+    write: (signed) =>
+      Effect.sync(() => {
+        state.stored = signed;
+      }),
+  };
+  return { cache, state };
 }
 
 function mockCore(core: Core) {
@@ -89,9 +121,17 @@ function mockCore(core: Core) {
       case "account_sign_in_cancel":
         return null;
       case "account_me":
+        if (core.offline === true) {
+          return Promise.reject(OFFLINE);
+        }
         return core.signedIn ? ME : Promise.reject(UNAUTHORIZED);
       case "account_entitlement":
-        return core.signedIn ? SIGNED : Promise.reject(UNAUTHORIZED);
+        if (core.offline === true) {
+          return Promise.reject(OFFLINE);
+        }
+        return core.signedIn
+          ? signedBy(core.document ?? DOCUMENT)
+          : Promise.reject(UNAUTHORIZED);
       case "account_revoke_device":
         core.calls.push(`revoke:${(payload as { id: string }).id}`);
         return null;
@@ -119,9 +159,9 @@ function gate() {
   };
 }
 
-function mount() {
+function mount(cache: EntitlementCache = memoryCache().cache) {
   const clock = gate();
-  const view = renderHook(() => useAccount({ sleep: clock.sleep }));
+  const view = renderHook(() => useAccount({ cache, sleep: clock.sleep }));
   return { ...view, release: () => act(() => clock.release()) };
 }
 
@@ -313,5 +353,102 @@ describe("useAccount", () => {
 
     await waitFor(() => expect(result.current.phase.kind).toBe("signedOut"));
     expect(result.current.error).toMatch(SIGNED_OUT);
+  });
+
+  it("caches the signed document and reads it back when the server is unreachable", async () => {
+    const { cache, state } = memoryCache();
+    const core: Core = { calls: [], polls: [], signedIn: true };
+    mockCore(core);
+    const { result } = mount(cache);
+    await waitFor(() => expect(result.current.plan?.kind).toBe("trial"));
+    expect(state.stored).not.toBeNull();
+
+    core.offline = true;
+    act(() => result.current.refresh());
+
+    await waitFor(() => expect(result.current.isBusy).toBe(false));
+    expect(result.current.phase.kind).toBe("signedIn");
+    expect(result.current.plan?.kind).toBe("trial");
+    expect(result.current.tier).toBe("pro");
+    expect(result.current.error).toMatch(UNREACHABLE);
+  });
+
+  it("is free and says so once the cached document has expired", async () => {
+    const { cache } = memoryCache(await signedBy(STALE));
+    const core: Core = { calls: [], offline: true, polls: [], signedIn: true };
+    mockCore(core);
+    const { result } = mount(cache);
+
+    await waitFor(() => expect(result.current.phase.kind).toBe("signedIn"));
+    expect(result.current.plan).toEqual({
+      kind: "free",
+      trialEndedAt: STALE.trialEndsAt,
+      unverified: true,
+    });
+    expect(result.current.tier).toBe("free");
+  });
+
+  it("refuses a document that is not signed by the server", async () => {
+    const core: Core = { calls: [], polls: [], signedIn: true };
+    mockIPC((cmd) => {
+      if (cmd === "account_status") {
+        return { origin: ORIGIN, signedIn: true };
+      }
+      if (cmd === "account_me") {
+        return ME;
+      }
+      if (cmd === "account_entitlement") {
+        return {
+          algorithm: "ed25519",
+          payload: btoa(JSON.stringify(DOCUMENT)),
+          signature: "c2ln",
+        };
+      }
+      throw new Error(`unexpected command: ${cmd}`);
+    });
+    const { result } = mount();
+
+    await waitFor(() => expect(result.current.phase.kind).toBe("signedIn"));
+    expect(result.current.plan).toBeNull();
+    expect(result.current.tier).toBe("free");
+    expect(result.current.error).toMatch(NOT_SIGNED);
+    expect(core.calls).toEqual([]);
+  });
+
+  it("forgets the cached document when the device is signed out", async () => {
+    const { cache, state } = memoryCache();
+    const core: Core = { calls: [], polls: [], signedIn: true };
+    mockCore(core);
+    const { result } = mount(cache);
+    await waitFor(() => expect(state.stored).not.toBeNull());
+
+    core.signedIn = false;
+    act(() => result.current.refresh());
+
+    await waitFor(() => expect(result.current.phase.kind).toBe("signedOut"));
+    expect(state.stored).toBeNull();
+    expect(result.current.tier).toBe("free");
+  });
+
+  it("reads the plan again once a day while signed in", async () => {
+    const core: Core = { calls: [], polls: [], signedIn: true };
+    mockCore(core);
+    const { release, result } = mount();
+    await waitFor(() => expect(result.current.phase.kind).toBe("signedIn"));
+    const before = core.calls.filter((call) => call === "account_entitlement");
+
+    core.document = {
+      ...DOCUMENT,
+      plan: "free",
+      trialEndsAt: "2026-01-01T00:00:00.000Z",
+    };
+    release();
+
+    await waitFor(() =>
+      expect(
+        core.calls.filter((call) => call === "account_entitlement").length
+      ).toBe(before.length + 1)
+    );
+    await waitFor(() => expect(result.current.tier).toBe("free"));
   });
 });

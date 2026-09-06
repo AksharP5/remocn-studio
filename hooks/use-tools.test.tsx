@@ -2,11 +2,13 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Composer } from "@/hooks/use-composer";
 import type { PreviewControl } from "@/hooks/use-preview";
-import { type ToolSettings, useTools } from "@/hooks/use-tools";
+import { PRO_ONLY, type ToolSettings, useTools } from "@/hooks/use-tools";
+import { PRO_FEATURES } from "@/shared/entitlement";
 
 const PROJECT = "project-1";
 
-function harness(options: { isDocs?: boolean } = {}) {
+function harness(options: { isDocs?: boolean; isLocked?: boolean } = {}) {
+  const onArm = vi.fn();
   vi.stubGlobal("requestAnimationFrame", () => 1);
   vi.stubGlobal("cancelAnimationFrame", () => undefined);
 
@@ -32,20 +34,25 @@ function harness(options: { isDocs?: boolean } = {}) {
   const settings = (isDocs: boolean): ToolSettings => ({
     composer,
     isDocs,
+    isLocked: options.isLocked ?? false,
     isMissing: false,
     isShown: true,
     isWaiting: false,
+    onArm,
     openedProjectId: PROJECT,
     preview,
     previewProjectId: PROJECT,
   });
 
-  return renderHook(
-    (props: { isDocs: boolean }) => useTools(settings(props.isDocs)),
-    {
-      initialProps: { isDocs: options.isDocs ?? false },
-    }
-  );
+  return {
+    ...renderHook(
+      (props: { isDocs: boolean }) => useTools(settings(props.isDocs)),
+      {
+        initialProps: { isDocs: options.isDocs ?? false },
+      }
+    ),
+    onArm,
+  };
 }
 
 afterEach(() => {
@@ -86,5 +93,39 @@ describe("useTools in Docs", () => {
 
     expect(result.current.snapshot.isArmed).toBe(false);
     expect(result.current.snapshot.canSnapshot).toBe(false);
+  });
+});
+
+// The two buttons are the webview's half of the Pro list; the sidecar's
+// half is pinned in `sidecar/agent/plan.test.ts`.
+describe("useTools on Free", () => {
+  it("gates exactly the two features the plan list says it does", () => {
+    expect(PRO_FEATURES).toContain("inspect");
+    expect(PRO_FEATURES).toContain("snapshot");
+  });
+
+  it("disables both buttons with the Pro reason and arms nothing", () => {
+    const { result } = harness({ isLocked: true });
+
+    expect(result.current.inspect.canInspect).toBe(false);
+    expect(result.current.snapshot.canSnapshot).toBe(false);
+    expect(result.current.inspect.unavailable).toBe(PRO_ONLY);
+    expect(result.current.snapshot.unavailable).toBe(PRO_ONLY);
+
+    act(() => result.current.inspect.toggle());
+    expect(result.current.inspect.isArmed).toBe(false);
+    act(() => result.current.snapshot.toggle());
+    expect(result.current.snapshot.isArmed).toBe(false);
+  });
+
+  // A click on a locked button is the way back to the trial card, which is
+  // what `onArm` opens on Free.
+  it("opens the trial card on a click instead", () => {
+    const { onArm, result } = harness({ isLocked: true });
+
+    act(() => result.current.inspect.toggle());
+    act(() => result.current.snapshot.toggle());
+
+    expect(onArm).toHaveBeenCalledTimes(2);
   });
 });

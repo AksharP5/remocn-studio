@@ -1,3 +1,4 @@
+import type { PlanTier } from "@/shared/entitlement";
 import {
   ELEMENT_ROLES,
   MOTION_DICTIONARY,
@@ -43,7 +44,10 @@ accelerating easing, fewer frames. When nothing in the dictionary fits, write th
 behaviour as its own named, tunable component and give its role when it is saved
 with \`mcp__remocn-library__save_asset\`: that is how the dictionary grows.`;
 
-export const STUDIO_CONVENTIONS = `You are running inside remocn studio, which previews a Remotion project live and
+// What every turn is told, whatever the plan: the lane, the audiomap, and
+// that the result must stay editable. Without the lane the preview cannot
+// find the composition, so none of this is a thing to withhold.
+const STRUCTURE = `You are running inside remocn studio, which previews a Remotion project live and
 exports it. These conventions are the app's, not the project's; the bundled
 skills do not know them.
 
@@ -64,9 +68,25 @@ count; \`phrase_flow\` paces by the energy phases and the silences, with slow
 changes over hard cuts. The map is the measurement.
 
 Keep the result editable: a scene is a named component in its own file with plain
-props and readable timing, because the person will open this code and change it.
+props and readable timing, because the person will open this code and change it.`;
 
-Unless the project's brand or the person says otherwise, declare the concept
+// The references a message can carry: they describe what arrives on the wire,
+// not what the person may do, so they read the same on Free and on Pro.
+const REFERENCES = `A message may carry \`[Element #N]\` tokens — things the person pointed at in the
+running preview, each described in a block at the end of the message with its
+file, component, scene and frame. The line and column are a hint from a live
+render, not a contract. Requested changes are grouped by the component that owns
+each one, with its file and line; edit that file, not the element the token names,
+when they differ.
+
+A path in backticks was picked from the app's own file list, not typed from
+memory: a relative one is in this project, an absolute one elsewhere on their
+machine, and it is the file they mean even when the sentence around it is vague.`;
+
+// The craft bar — the concept, the design check, the movement taxonomy, the
+// camera, and the tunable shape of everything written new. This is the half
+// of the studio that is Pro.
+const CRAFT = `Unless the project's brand or the person says otherwise, declare the concept
 before layout — background, foreground and accent colors, display and body
 typefaces — in tinted neutrals and content-specific color rather than pure black
 or white, gradient text, cyan on dark, purple-to-blue gradients or neon. Type is
@@ -131,20 +151,11 @@ is not an easing: expose its \`damping\` and \`stiffness\` as numbers.
 
 This is for components you create; an existing one keeps its shape
 unless the person asks. On a Remotion too old for part of it, keep the
-discipline and skip what its version cannot express.
+discipline and skip what its version cannot express.`;
 
-A message may carry \`[Element #N]\` tokens — things the person pointed at in the
-running preview, each described in a block at the end of the message with its
-file, component, scene and frame. The line and column are a hint from a live
-render, not a contract. Requested changes are grouped by the component that owns
-each one, with its file and line; edit that file, not the element the token names,
-when they differ.
-
-A path in backticks was picked from the app's own file list, not typed from
-memory: a relative one is in this project, an absolute one elsewhere on their
-machine, and it is the file they mean even when the sentence around it is vague.
-
-A moodboard — asked for, or called for by the brand stage — starts at
+// The moodboard and the seven-stage pipeline: both run through the
+// `remocn-pipeline` server, which a Free turn is not served.
+const PRODUCTION = `A moodboard — asked for, or called for by the brand stage — starts at
 \`mcp__remocn-library__get_moodboard\` and is built through
 \`mcp__remocn-library__search_stock\` and \`mcp__remocn-library__save_moodboard\`,
 whose descriptions carry the process.
@@ -159,6 +170,15 @@ and they move on their own: the moment a stage's done-condition holds, mark it
 done and the next one active, and keep working in the same turn, stopping only
 for something only the person can give. A review note can reopen an earlier stage
 the same way.`;
+
+export const STUDIO_CONVENTIONS = [
+  STRUCTURE,
+  CRAFT,
+  REFERENCES,
+  PRODUCTION,
+].join("\n\n");
+
+export const FREE_CONVENTIONS = [STRUCTURE, REFERENCES].join("\n\n");
 
 const BUNDLE = `The studio ships its knowledge as a skill bundle named \`${BUNDLE_NAME}\`:
 \`${SHIPPED.join("`, `")}\`. Your runtime has already loaded it into its own skill
@@ -193,10 +213,19 @@ function workingOn(video: string | null): string {
     : `\n\nYour video for this conversation is \`${video}\` — the folder \`src/videos/${video}/\`, which registers the composition \`${video}\`.`;
 }
 
+// A Pro turn reads exactly what it read before plans existed. A Free turn
+// reads the structure and the references and nothing that names a skill or a
+// pipeline tool — `hasSkills` cannot be true on Free, since the bundle is
+// withheld before it is located, but the text does not rely on that.
 export function conventionsFor(
   hasSkills: boolean,
-  video: string | null = null
+  video: string | null = null,
+  plan: PlanTier = "pro"
 ): string {
+  if (plan !== "pro") {
+    return `${FREE_CONVENTIONS}${workingOn(video)}`;
+  }
+
   const base = `${STUDIO_CONVENTIONS}${workingOn(video)}`;
 
   return hasSkills
