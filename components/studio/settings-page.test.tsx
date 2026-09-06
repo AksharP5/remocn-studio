@@ -119,7 +119,8 @@ describe("the settings page", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Updates" }));
     expect(screen.getByRole("heading", { name: "Updates" })).toBeVisible();
-    expect(screen.getByText("Installed")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Check now" })).toBeVisible();
+    expect(screen.getByText("macOS")).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: "Behavior" }));
     expect(

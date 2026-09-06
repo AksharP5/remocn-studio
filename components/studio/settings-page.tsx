@@ -38,6 +38,7 @@ import {
   type ThemeChoice,
   useThemeChoice,
 } from "@/hooks/use-theme-choice";
+import { shortDay } from "@/lib/studio/account";
 import type { ShellMood } from "@/lib/studio/mood";
 import { modKeyLabel } from "@/lib/studio/platform";
 import { downloadedLabel, downloadedShare } from "@/lib/studio/updates";
@@ -647,96 +648,113 @@ const ENVIRONMENTS: Record<AppEnvironment, string> = {
   production: "Production",
 };
 
-// The popover in the sidebar keeps `UpdatesBody`, sized for a popover; the
-// page has room for the facts and the notes to stand apart.
+// The popover in the sidebar keeps `UpdatesBody`, sized for a popover. The
+// page reads top to bottom as one card: the version, its build and the
+// macOS it runs on, the studio's own sentence about it, and the check on the
+// same line as the thing it checks. A release that is ready is a second
+// card under it, with its notes and the install button, and it exists only
+// while there is one — an empty "Releases" group said nothing.
 function UpdatesSection() {
   const { hasRunningTurns, updates } = useStudio();
   const { download, release } = updates;
 
   return (
     <>
-      <Group description={updateSummary(updates)} title="This build">
-        <Facts
-          rows={[
-            ["Installed", updates.version ?? "—"],
-            [
-              "Build",
-              updates.environment === null
-                ? "—"
-                : ENVIRONMENTS[updates.environment],
-            ],
-            ["macOS", updates.os ?? "—"],
-          ]}
-        />
-      </Group>
-
       <Group
-        action={
-          <Button
-            disabled={
-              updates.unavailable !== null ||
-              updates.isChecking ||
-              updates.isInstalling
-            }
-            onClick={updates.check}
-            size="sm"
-            title={updates.unavailable ?? "Ask GitHub for the newest release"}
-            variant="outline"
-          >
-            {updates.isChecking ? (
-              <Spinner className="size-3.5" data-icon="inline-start" />
-            ) : (
-              <RefreshCwIcon data-icon="inline-start" />
-            )}
-            Check now
-          </Button>
-        }
-        description={
-          release === null
-            ? "Releases are checked on launch and once a day; installing replaces the app and restarts it"
-            : `${release.version} is ready to install`
-        }
-        title="Releases"
+        description="Releases are checked on launch and once a day; installing replaces the app and restarts it"
+        title="This build"
       >
-        {release?.body ? (
-          <div className="max-h-64 overflow-y-auto rounded-md bg-muted/40 p-3">
-            <p className="whitespace-pre-wrap text-muted-foreground text-xs leading-relaxed">
-              {release.body}
-            </p>
-          </div>
-        ) : null}
-
-        {download === null ? null : (
-          <Progress className="gap-1.5" value={downloadedShare(download)}>
-            <span className="text-muted-foreground text-xs tabular-nums">
-              {downloadedLabel(download)}
-            </span>
-          </Progress>
-        )}
-
-        {release === null ? null : (
-          <div>
+        <div className="flex flex-col gap-3 rounded-xl bg-card p-4 shadow-xs ring-1 ring-border">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex min-w-0 flex-col gap-1">
+              <span className="flex items-baseline gap-2">
+                <span className="font-heading font-semibold text-2xl tabular-nums tracking-tight">
+                  {updates.version ?? "—"}
+                </span>
+                {updates.environment === null ? null : (
+                  <Badge variant="outline">
+                    {ENVIRONMENTS[updates.environment]}
+                  </Badge>
+                )}
+              </span>
+              <span className="text-muted-foreground text-xs">
+                {updateSummary(updates)}
+              </span>
+            </div>
             <Button
-              disabled={updates.isInstalling}
-              onClick={updates.install}
+              className="shrink-0"
+              disabled={
+                updates.unavailable !== null ||
+                updates.isChecking ||
+                updates.isInstalling
+              }
+              onClick={updates.check}
               size="sm"
+              title={updates.unavailable ?? "Ask GitHub for the newest release"}
+              variant="outline"
             >
-              <CircleArrowUpIcon data-icon="inline-start" />
-              Install and restart
+              {updates.isChecking ? (
+                <Spinner className="size-3.5" data-icon="inline-start" />
+              ) : (
+                <RefreshCwIcon data-icon="inline-start" />
+              )}
+              Check now
             </Button>
           </div>
-        )}
 
-        {release !== null && hasRunningTurns && !updates.isInstalling ? (
-          <p className="text-amber-500 text-xs">
-            A turn is still running — installing restarts the app and stops it.
-          </p>
-        ) : null}
+          <Facts rows={[["macOS", updates.os ?? "—"]]} />
 
-        {updates.error === null ? null : (
-          <p className="text-destructive text-xs">{updates.error}</p>
-        )}
+          {updates.error === null ? null : (
+            <p className="text-destructive text-xs">{updates.error}</p>
+          )}
+        </div>
       </Group>
+
+      {release === null ? null : (
+        <Group
+          description={
+            release.date === null
+              ? "Newer than this build"
+              : `Published ${shortDay(release.date)}, newer than this build`
+          }
+          title={`${release.version} is ready`}
+        >
+          <div className="flex flex-col gap-3 rounded-xl bg-card p-4 shadow-xs ring-1 ring-primary/40">
+            {release.body ? (
+              <div className="max-h-64 overflow-y-auto rounded-md bg-muted/40 p-3">
+                <p className="whitespace-pre-wrap text-muted-foreground text-xs leading-relaxed">
+                  {release.body}
+                </p>
+              </div>
+            ) : null}
+
+            {download === null ? null : (
+              <Progress className="gap-1.5" value={downloadedShare(download)}>
+                <span className="text-muted-foreground text-xs tabular-nums">
+                  {downloadedLabel(download)}
+                </span>
+              </Progress>
+            )}
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                disabled={updates.isInstalling}
+                onClick={updates.install}
+                size="sm"
+              >
+                <CircleArrowUpIcon data-icon="inline-start" />
+                Install and restart
+              </Button>
+              {hasRunningTurns && !updates.isInstalling ? (
+                <span className="text-amber-500 text-xs">
+                  A turn is still running — installing restarts the app and
+                  stops it.
+                </span>
+              ) : null}
+            </div>
+          </div>
+        </Group>
+      )}
     </>
   );
 }
