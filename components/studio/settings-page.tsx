@@ -53,7 +53,7 @@ import {
   PROVIDER_INFO,
 } from "@/shared/providers";
 import { AccountSection } from "./account-section";
-import { CHECK_ICONS, CHECK_TONES } from "./environment-checklist";
+import { CHECK_ICONS } from "./environment-checklist";
 import { ProviderIcon } from "./provider-icon";
 import { ProviderSteps } from "./provider-steps";
 import { useStudio } from "./studio-provider";
@@ -781,15 +781,26 @@ function AccountsSection() {
 
 const STATE_LABELS = {
   failed: "Action needed",
-  ok: "Ready",
+  ok: "Signed in",
   pending: "Checking",
   warn: "Check",
 } satisfies Record<EnvironmentState, string>;
 
-// One card per provider: the mark and the name lead, the probe's verdict
-// sits on the same line as a chip that says it in a word, and the setup
-// steps — when there are any — unfold under the sentence with the card's
-// own inset, so a provider with work to do grows and the others stay put.
+const STATE_VARIANTS = {
+  failed: "error",
+  ok: "success",
+  pending: "outline",
+  warn: "warning",
+} satisfies Record<
+  EnvironmentState,
+  "error" | "outline" | "success" | "warning"
+>;
+
+// One card per provider, one row inside it: the mark, then the name with the
+// probe's sentence right under it, then the verdict as a chip that says it in
+// a word and a colour. The setup steps, when there are any, unfold under the
+// sentence in the same column, so a provider with work to do grows downward
+// and its neighbours stay put.
 function AccountRow({
   isChecking,
   isFocused,
@@ -807,21 +818,22 @@ function AccountRow({
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 rounded-xl bg-card p-4 shadow-xs ring-1 ring-border",
+        "flex items-start gap-3 rounded-xl bg-card p-3 shadow-xs ring-1 ring-border",
         isFocused && "ring-primary/40"
       )}
       data-provider={provider}
       ref={anchor}
     >
-      <div className="flex items-center gap-3">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-foreground">
-          <ProviderIcon className="size-4" provider={provider} />
-        </span>
-        <span className="min-w-0 flex-1 truncate text-sm">{info.name}</span>
-        <StateChip isChecking={isChecking} row={row} />
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-foreground">
+        <ProviderIcon className="size-4" provider={provider} />
+      </span>
+
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="text-sm leading-tight">{info.name}</span>
+        <AccountStatus isChecking={isChecking} provider={provider} row={row} />
       </div>
 
-      <AccountStatus isChecking={isChecking} provider={provider} row={row} />
+      <StateChip isChecking={isChecking} row={row} />
     </div>
   );
 }
@@ -835,17 +847,18 @@ function StateChip({
 }) {
   if (row === undefined) {
     return isChecking ? (
-      <Spinner className="size-3.5 text-muted-foreground" />
+      <Spinner className="mt-2 size-3.5 text-muted-foreground" />
     ) : null;
   }
   const Icon = CHECK_ICONS[row.state];
 
   return (
-    <Badge className="gap-1" variant="outline">
-      <Icon
-        aria-hidden="true"
-        className={cn("size-3", CHECK_TONES[row.state])}
-      />
+    <Badge
+      className="mt-1.5 gap-1"
+      size="lg"
+      variant={STATE_VARIANTS[row.state]}
+    >
+      <Icon aria-hidden="true" className="size-3.5" />
       {STATE_LABELS[row.state]}
     </Badge>
   );
@@ -873,7 +886,7 @@ function AccountStatus({
   }
 
   return (
-    <>
+    <div className="flex flex-col gap-0.5">
       <span className="text-muted-foreground text-xs leading-snug">
         {row.title}
       </span>
@@ -908,7 +921,7 @@ function AccountStatus({
           </Button>
         </span>
       ) : null}
-    </>
+    </div>
   );
 }
 
