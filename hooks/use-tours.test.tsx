@@ -38,6 +38,8 @@ const SETTINGS: StudioSettings = {
   previewPane: null,
   projectsPane: null,
   taskDock: null,
+  titlebarMotion: null,
+  titlebarShader: null,
   toursSeen: [],
   trialCardsDismissed: [],
 };

@@ -31,12 +31,14 @@ import {
 } from "@/hooks/use-provider-accounts";
 import { type Queue, useQueue } from "@/hooks/use-queue";
 import { useReconciledVideos } from "@/hooks/use-reconciled-videos";
-import {
-  type SettingsDialog,
-  useSettingsDialog,
-} from "@/hooks/use-settings-dialog";
+import { type SettingsView, useSettingsView } from "@/hooks/use-settings-view";
 import { useSidecarStatus } from "@/hooks/use-sidecar-status";
-import { type Tools, useTools } from "@/hooks/use-tools";
+import {
+  PRO_ONLY,
+  PRO_ONLY_UPGRADE,
+  type Tools,
+  useTools,
+} from "@/hooks/use-tools";
 import { type Tours, useTours } from "@/hooks/use-tours";
 import { type TrialCardState, useTrialCard } from "@/hooks/use-trial-card";
 import { type Updates, useUpdates } from "@/hooks/use-updates";
@@ -67,7 +69,7 @@ export type Studio = ClaudeEffort &
     preferences: Preferences;
     queue: Queue;
     settings: StudioSettings | null;
-    settingsDialog: SettingsDialog;
+    settingsView: SettingsView;
     tools: Tools;
     tours: Tours;
     trialCard: TrialCardState;
@@ -141,7 +143,7 @@ function StudioStateProvider({
   const accounts = useProviderAccounts();
   const effort = useClaudeEffort(settings);
   const preferences = usePreferences(settings);
-  const settingsDialog = useSettingsDialog();
+  const settingsView = useSettingsView();
   const updates = useUpdates();
 
   // The build reading is the updater's, and it is deliberately shared: the two
@@ -305,6 +307,8 @@ function StudioStateProvider({
     isMissing: opened?.missing ?? false,
     isShown: panes.isPreviewShown,
     isWaiting: turn.permission !== null || turn.source !== null,
+    lockedReason:
+      account.phase.kind === "signedIn" ? PRO_ONLY_UPGRADE : PRO_ONLY,
     onArm: trialCard.reopen,
     openedProjectId: opened?.id ?? null,
     preview,
@@ -365,7 +369,7 @@ function StudioStateProvider({
         environment.isBlocking ||
         newProject.isOpen ||
         newVideo.isOpen ||
-        settingsDialog.isOpen ||
+        settingsView.isOpen ||
         trialCard.card !== null,
       isPaneShown: panes.isProjectsShown,
 
@@ -392,7 +396,7 @@ function StudioStateProvider({
       preferences,
       queue,
       settings,
-      settingsDialog,
+      settingsView,
       tools,
       tours,
       trialCard,
@@ -416,7 +420,7 @@ function StudioStateProvider({
       preferences,
       queue,
       settings,
-      settingsDialog,
+      settingsView,
       tools,
       tours,
       trialCard,

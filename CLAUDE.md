@@ -582,7 +582,8 @@ classifier, the auth probe).
     binary on `$PATH`. `codex login status` is the auth probe: exit 0 =
     logged in, *"Not logged in"* + exit 1 locks the composer for Codex
     sessions.
-  - **What Experimental means here**: `context` is per-turn usage, not a
+  - **What `experimental: true` means here** (the flag stays in `PROVIDER_INFO`, the
+    badge is gone): `context` is per-turn usage, not a
     window reading, so the meter never shows, and `todo_list` does not speak
     the checklist's `TaskCreate` vocabulary, so no plan dock. The bundled
     skills *are* delivered, through a mirrored `CODEX_HOME` rather than a
@@ -1632,8 +1633,9 @@ because that says `loaded` — never because of who it is.
   project or into any provider's home. **Copilot is the gap**: this account is blocked by an
   org policy (*"Access denied by policy settings"*), so its delivery is proven only as far as
   the CLI's own loader — `configLoaderScanPluginDirPaths` + `LoadPluginFeatureForInstalled`
-  resolve `agent/skills` with `tier: "plugin-dir"` — and it keeps its Experimental badge until
-  someone runs the matrix on a login that works.
+  resolve `agent/skills` with `tier: "plugin-dir"` — and it stays `experimental: true` in
+  `PROVIDER_INFO` until someone runs the matrix on a login that works. The flag is data
+  only now: no badge is drawn from it anywhere, in the model menu or in Settings.
 - **What it costs, per turn, measured on the same prompt** (bundle attached and skill-aware
   conventions, against neither): Claude **+1215** tokens, Grok **+978**, Codex **+605**. The
   catalog itself is cheap — +505, +480 and +68 respectively — because a runtime lists name and
@@ -2944,7 +2946,7 @@ get one anchored card, the first time they are genuinely usable (REM-253).
   no queue to drain and nothing that can put two cards on screen at once. Catalog order
   is the priority when several features become available together.
 - **Nothing competes with something already asking.** A permission card, a wizard, the
-  environment checklist, the Settings dialog: `isBlocked` withholds every tip while one
+  environment checklist, the Settings page: `isBlocked` withholds every tip while one
   of those is up. Availability alone is not enough either — a tip waits out a two-second
   dwell first, so a pane opened on the way somewhere else never flashes a card.
 - **The anchor is named by the tip.** The element carries `data-tour="<id>"` and
@@ -3021,12 +3023,13 @@ polls until the person confirms there.
   date of its own, so the trial starts when the *server* says it started, which is at
   first sign-in and never at install. The signature is checked, the document is
   cached, and the plan gates the app — see *The line between Free and Pro*.
-- **The document cannot tell a subscription that began mid-trial from the trial**, nor
-  an active subscription from one whose `graceEndsAt` merely lingers from an earlier
-  failure: it carries no subscription status, where `planStateFor` on the landing checks
-  `status` first. `planAt` reads grace before trial before pro, which is right for every
-  document the current backend emits and wrong for those two if the server ever leaves
-  the fields set — a `status` field on the document is the fix, and it is server-side.
+- **A paid subscription retires the trial on the server's side** (REM-348). `planAt`
+  reads grace before trial before pro, and the document carries no subscription status,
+  so a purchase made mid-trial used to read as the trial it was made in; `buildEntitlement`
+  on the landing now emits `trialEndsAt: null` once a subscription is paid, which is what
+  lets `isSubscribed` — plan `pro`, no trial, no grace — mean "bought". What the document
+  still cannot tell apart is an active subscription from one whose `graceEndsAt` merely
+  lingers from an earlier failure; a `status` field on the document is the fix, server-side.
 - **The trial card is the environment checklist's slot, worded three ways.**
   `trialCardOf` in `lib/studio/trial-card.ts` is the pure rule: `invite` while signed
   out (and while signing in — the card hosts the pending state), `trialEnded` once a
@@ -3038,8 +3041,9 @@ polls until the person confirms there.
 - **Inspect and Snapshot bring the invite back on Free.** `useTools` takes `onArm`, called
   when either mode is armed, and `useTrialCard.reopen` lifts the dismissal for this launch
   only when `isOnFree` — signed out, or a document whose plan is free; an unread plan is
-  not Free. REM-346 will disable those buttons on Free and route the click here; today
-  the card returns beside a mode that still works.
+  not Free. On Free the buttons are disabled and the click is routed here — see *The line
+  between Free and Pro* — with the tooltip worded for whoever is reading it: sign in to
+  start the trial, or upgrade to keep them.
 - **No card until the core has answered.** `phase: "unknown"` — no `account_status` yet,
   or no core at all, which is every existing test's fake — shows nothing, so a browser
   tab running `bun dev` and the whole suite see the studio as it was. A card that
@@ -3123,6 +3127,92 @@ that its gates and the list agree, so a feature added to Pro cannot be gated now
   key in the landing repo's `.env`; if production signs with another pair, the app
   reads every document as forged and lands on Free with the *not signed by the account
   server* line — the failure direction that keeps nothing it cannot prove.
+
+### Settings is a page, not a dialog
+
+Settings takes the whole window: a rail on the left, one readable column on the right,
+nothing floating and no dim behind it. It was a `Dialog` at `sm:max-w-2xl` × 480px until
+Account grew a trial bar, two pricing cards and a device list, and a scrolling dialog was
+hiding half of every section.
+
+- **The shell stays mounted underneath, `inert`.** `SettingsPage` is a `fixed inset-0`
+  layer over `ShellLayout`, which keeps its state — the preview's iframe, a running turn,
+  the sidecar's channel — and takes no key and no focus while the page is up. A second
+  Tauri window was the alternative and is the one this repo has already ruled out: a second
+  `useTurns`, a second permission gate, a channel that belongs to one window.
+- **`useSettingsView` is the old dialog hook under an honest name**, same API plus `close`,
+  and every way in is unchanged — the gear, ⌘,, the sidebar's account row, the trial card's
+  Upgrade, the model menu's *Sign in* into AI Accounts. Escape is the way back, and it
+  yields to a menu or a popover that answered first (`defaultPrevented`).
+- **No entrance animation on purpose.** It should feel like switching a tab, not opening a
+  window. The rail keeps the pane's rules: no weight change between states, the open
+  section on a muted background, and the drag region under the traffic lights is the
+  rail's own top inset.
+- **Every section is a column of groups, and every group is one shape.** `Group` in
+  `settings-page.tsx` is a heading, one sentence under it, and the body, with the group's
+  own action — Recheck, Check now — on its heading line; `Row` is a setting's name and
+  sentence on the leading side and its control on the trailing side, top-aligned so a
+  description that wraps never moves the switch. Groups are set apart by space alone
+  (`gap-8`, twice the `gap-5` the rows inside keep) and no rules. Behavior is
+  *Suggestions* and *Privacy*; Updates is *This build* (facts) and *Releases* (notes in a
+  scrolling card, the install button); Feedback is *Email* and *What the email carries*,
+  the same facts the email is filled with; AI Accounts is one *Providers* group whose rows
+  are inset by their own padding so their text keeps the heading's edge. The sidebar's
+  update popover keeps `UpdatesBody`, sized for a popover; the page draws its own.
+- **In tests it is a region named Settings**, not a `dialog` role — `findByRole("region",
+  { name: "Settings" })` is what `settings-page.test.tsx` and `trial-card.test.tsx` open.
+
+### The title bar's shader is a preference
+
+Appearance carries a *Title bar* group beside the theme: a sample of the band's own
+field and two switches, *Show the shader* and *Animate it*. Both are on by default —
+they are the studio's look — and both are `settings.json` keys, `titlebarShader`
+(`shown`/`hidden`) and `titlebarMotion` (`enabled`/`disabled`), read by `usePreferences`
+beside the crash consent. The shell passes `mood: null` when the shader is off, which is
+the path an empty app already takes, and `isStill` when motion is off, which hands the
+field a speed of zero — the same value the reduced-motion probe hands it, so a person's
+choice and the OS's cannot disagree. `MoodField` is exported for the sample, so the
+switches show their effect where the person is looking rather than behind the page.
+
+### Upgrading from the app
+
+Buying is the sign-in's shape again (REM-348): a page opened in the browser, a poll that
+waits for the server to say so, and no return trip into the app.
+
+- **The app never sees a card, or a price it did not ship.** `account_checkout` in
+  `account.rs` posts the period to `/api/studio/checkout` with the device's bearer and
+  answers only the `checkout_url`; `account_portal` does the same for the billing portal.
+  The two prices in the menu are `PRO_PRICE` in `shared/account.ts`, a mirror of the
+  landing's `lib/pricing.ts` — the one place in the app that quotes a number.
+- **Buying happens in Settings › Account, on the same two cards the landing draws.**
+  `PricingCards` is the account page's `UpgradeTiers` in the studio's tokens: a Yearly /
+  Monthly toggle (yearly first, it is the cheaper one), Free marked as the plan the person
+  is on, Pro's button carrying the period as `data-period` for `upgrade` to read off the
+  event — the `noJsxPropsBind` shape every per-item handler here takes. The trial card's
+  *Upgrade* and the Inspect / Snapshot tooltip only lead there; a menu of two prices on
+  the card was the first version, and two prices with no features beside them is a
+  choice nobody can make. The plan itself reads as one surface above the cards: the name,
+  a badge with what is left, the sentence under it, and on a trial a bar of how much is
+  spent between its two dates — `trialStartedAt` on the document, which the landing now
+  emits so a thirty-day waitlist trial does not draw as seven.
+- **The poll is `awaitSubscription`, pure and tested like `awaitSignIn`.** Every five
+  seconds for ten minutes, reading the entitlement through the same `readEntitlement` the
+  boot uses but counting only a *server* answer — a cached document can never say "paid".
+  A poll the server could not answer is skipped, not raised, because the browser has the
+  person's attention and not the app; only a `401` ends the wait, as a sign-out. Past the
+  patience it stops and offers *Check again*, which is one poll on a button. Success is
+  `isSubscribed` — plan `pro` with no trial and no grace — and ends on one line,
+  *Subscription active*; since the plan turning Pro takes the trial card away, that line
+  gets a card of its own above the composer when nothing else is showing it.
+- **Cancel is a fiber interrupt** on the purchase, and signing out, a `401` and unmount all
+  interrupt it too. The checkout URL is kept so *Open the checkout again* costs no second
+  request — a second `POST /checkout` would be a second Creem attempt.
+- **A declined card goes to the portal, not the account page.** The grace card's *Update
+  card* is `openPortal`; the server answers *no subscription* for an account with none,
+  and that sentence is the error line rather than a page that would say the same.
+- **What the running app has to confirm:** a test-card purchase from the app ending on
+  `Pro` in Settings without a relaunch, and a manual `past_due` on the server showing the
+  grace card on the next daily read.
 
 ### A project installs with its own package manager
 

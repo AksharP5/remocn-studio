@@ -1,6 +1,7 @@
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { Effect } from "effect";
+import { Duration, Effect } from "effect";
+import type { MouseEvent } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAccount } from "@/hooks/use-account";
 import type { EntitlementCache } from "@/lib/studio/entitlement";
@@ -32,6 +33,7 @@ const EXPIRED = /expired/;
 const SIGNED_OUT = /signed out/;
 const UNREACHABLE = /could not reach/;
 const NOT_SIGNED = /not signed/;
+const NO_SUBSCRIPTION = /no subscription/;
 
 const ME = {
   devices: [
@@ -78,10 +80,15 @@ const OFFLINE = { kind: "offline", message: "The studio could not reach it." };
 interface Core {
   calls: string[];
   document?: Record<string, unknown>;
+  hasSubscription?: boolean;
   offline?: boolean;
   polls: SignInPoll[];
   signedIn: boolean;
 }
+
+const PAID = { ...DOCUMENT, trialEndsAt: null };
+const CHECKOUT_URL = `${ORIGIN}/checkout/abc`;
+const PORTAL_URL = "https://creem.test/portal/xyz";
 
 function memoryCache(initial: SignedEntitlement | null = null) {
   const state = { stored: initial };
@@ -138,6 +145,16 @@ function mockCore(core: Core) {
       case "account_sign_out":
         core.signedIn = false;
         return null;
+      case "account_checkout":
+        core.calls.push(`checkout:${(payload as { period: string }).period}`);
+        return { checkoutUrl: CHECKOUT_URL };
+      case "account_portal":
+        return core.hasSubscription === true
+          ? { url: PORTAL_URL }
+          : Promise.reject({
+              kind: "server",
+              message: "There's nothing to manage yet — no subscription.",
+            });
       default:
         throw new Error(`unexpected command: ${cmd}`);
     }
@@ -146,15 +163,22 @@ function mockCore(core: Core) {
 
 // The wait between polls is a gate the test opens: a poll happens when the
 // test says so, never on a timer, so the flow is stepped rather than raced.
+// The shortest wait goes first, so the daily refresh — a day long — fires
+// only when no five-second poll is pending.
 function gate() {
-  const waiters: (() => void)[] = [];
+  const waiters: { ms: number; resume: () => void }[] = [];
   return {
+    pending: () => waiters.length,
     release: () => {
-      waiters.shift()?.();
+      waiters.sort((a, b) => a.ms - b.ms);
+      waiters.shift()?.resume();
     },
-    sleep: () =>
+    sleep: (delay: Duration.Duration) =>
       Effect.callback<void>((resume) => {
-        waiters.push(() => resume(Effect.void));
+        waiters.push({
+          ms: Duration.toMillis(delay),
+          resume: () => resume(Effect.void),
+        });
       }),
   };
 }
@@ -162,7 +186,11 @@ function gate() {
 function mount(cache: EntitlementCache = memoryCache().cache) {
   const clock = gate();
   const view = renderHook(() => useAccount({ cache, sleep: clock.sleep }));
-  return { ...view, release: () => act(() => clock.release()) };
+  return {
+    ...view,
+    pending: clock.pending,
+    release: () => act(() => clock.release()),
+  };
 }
 
 function polls(core: Core) {
@@ -428,6 +456,83 @@ describe("useAccount", () => {
     await waitFor(() => expect(result.current.phase.kind).toBe("signedOut"));
     expect(state.stored).toBeNull();
     expect(result.current.tier).toBe("free");
+  });
+
+  function clickUpgrade(period: "month" | "year") {
+    const button = document.createElement("button");
+    button.setAttribute("data-period", period);
+    return { currentTarget: button } as unknown as MouseEvent<HTMLElement>;
+  }
+
+  it("opens the checkout in the browser and polls until the plan is paid", async () => {
+    const core: Core = { calls: [], polls: [], signedIn: true };
+    mockCore(core);
+    const { pending, release, result } = mount();
+    await waitFor(() => expect(result.current.plan?.kind).toBe("trial"));
+
+    act(() => result.current.upgrade(clickUpgrade("year")));
+
+    await waitFor(() => expect(result.current.checkout?.phase).toBe("waiting"));
+    expect(core.calls).toContain("checkout:year");
+    expect(opened).toEqual([CHECKOUT_URL]);
+
+    // Two sleeps are pending: the daily refresh and the five-second poll.
+    // A release fires the shorter one, and the poll's next sleep is only
+    // registered once its read answers, so the count is what to wait on.
+    const before = core.calls.filter((call) => call === "account_entitlement");
+    await waitFor(() => expect(pending()).toBe(2));
+    release();
+    await waitFor(() =>
+      expect(
+        core.calls.filter((call) => call === "account_entitlement").length
+      ).toBe(before.length + 1)
+    );
+    expect(result.current.checkout?.phase).toBe("waiting");
+
+    core.document = PAID;
+    await waitFor(() => expect(pending()).toBe(2));
+    release();
+
+    await waitFor(() => expect(result.current.checkout?.phase).toBe("active"));
+    expect(result.current.plan).toEqual({ kind: "pro" });
+    expect(result.current.tier).toBe("pro");
+
+    act(() => result.current.dismissCheckout());
+    expect(result.current.checkout).toBeNull();
+  });
+
+  it("cancels the wait without touching the plan", async () => {
+    const core: Core = { calls: [], polls: [], signedIn: true };
+    mockCore(core);
+    const { result } = mount();
+    await waitFor(() => expect(result.current.plan?.kind).toBe("trial"));
+
+    act(() => result.current.upgrade(clickUpgrade("month")));
+    await waitFor(() => expect(result.current.checkout?.phase).toBe("waiting"));
+    act(() => result.current.dismissCheckout());
+
+    expect(result.current.checkout).toBeNull();
+    expect(result.current.plan?.kind).toBe("trial");
+    expect(result.current.error).toBeNull();
+  });
+
+  it("opens the billing portal, and says so when there is none", async () => {
+    const core: Core = {
+      calls: [],
+      hasSubscription: true,
+      polls: [],
+      signedIn: true,
+    };
+    mockCore(core);
+    const { result } = mount();
+    await waitFor(() => expect(result.current.phase.kind).toBe("signedIn"));
+
+    act(() => result.current.openPortal());
+    await waitFor(() => expect(opened).toEqual([PORTAL_URL]));
+
+    core.hasSubscription = false;
+    act(() => result.current.openPortal());
+    await waitFor(() => expect(result.current.error).toMatch(NO_SUBSCRIPTION));
   });
 
   it("reads the plan again once a day while signed in", async () => {

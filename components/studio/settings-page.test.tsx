@@ -81,13 +81,13 @@ async function renderShell() {
 
 async function openSettings() {
   fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
-  return await screen.findByRole("dialog");
+  return await screen.findByRole("region", { name: "Settings" });
 }
 
 const OPT_IN_WORDING = /Off unless you turn it on/;
 const NEVER_SENT_WORDING = /prompts, your conversations with the agent/;
 
-describe("the settings dialog", () => {
+describe("the settings page", () => {
   let written: [string, unknown][];
 
   beforeEach(() => {
@@ -108,7 +108,9 @@ describe("the settings dialog", () => {
 
     fireEvent.keyDown(window, { key: ",", metaKey: true });
 
-    expect(await screen.findByRole("dialog")).toBeVisible();
+    expect(
+      await screen.findByRole("region", { name: "Settings" })
+    ).toBeVisible();
   });
 
   it("switches sections from the rail", async () => {
@@ -117,7 +119,8 @@ describe("the settings dialog", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Updates" }));
     expect(screen.getByRole("heading", { name: "Updates" })).toBeVisible();
-    expect(screen.getByText("Installed")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Check now" })).toBeVisible();
+    expect(screen.getByText("macOS")).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: "Behavior" }));
     expect(
@@ -168,6 +171,28 @@ describe("the settings dialog", () => {
     expect(toggle).not.toBeChecked();
     await waitFor(() => {
       expect(written).toContainEqual(["assetOffers", "disabled"]);
+    });
+  });
+
+  it("turns the title bar's shader and its motion off, and remembers both", async () => {
+    await renderShell();
+    await openSettings();
+
+    const motion = screen.getByRole("switch", { name: "Animate it" });
+    const shader = screen.getByRole("switch", { name: "Show the shader" });
+    expect(shader).toBeChecked();
+    expect(motion).toBeChecked();
+
+    fireEvent.click(motion);
+    await waitFor(() => {
+      expect(written).toContainEqual(["titlebarMotion", "disabled"]);
+    });
+
+    fireEvent.click(shader);
+    expect(shader).not.toBeChecked();
+    expect(motion).toHaveAttribute("data-disabled");
+    await waitFor(() => {
+      expect(written).toContainEqual(["titlebarShader", "hidden"]);
     });
   });
 

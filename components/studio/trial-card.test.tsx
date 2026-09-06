@@ -30,6 +30,8 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
 const STORE_RID = 7;
 const ORIGIN = "https://remocn.test";
 const TRIAL_LINE = /Pro trial\d+ days left/;
+const WAITING_LINE = /Finish the purchase in the browser/;
+const DAYS_LEFT = /^\d+ days left$/;
 
 const SIDECAR_READY = {
   attempt: 0,
@@ -69,6 +71,15 @@ const TRIAL = signed({
   trialEndsAt: "2099-01-01T00:00:00.000Z",
 });
 
+const GRACE = signed({
+  devices: [],
+  expiresAt: "2099-01-01T00:00:00.000Z",
+  graceEndsAt: "2099-01-01T00:00:00.000Z",
+  issuedAt: "2026-09-06T09:00:00.000Z",
+  plan: "pro",
+  trialEndsAt: null,
+});
+
 const TRIAL_OVER = signed({
   devices: [],
   expiresAt: "2099-01-01T00:00:00.000Z",
@@ -79,6 +90,7 @@ const TRIAL_OVER = signed({
 });
 
 interface Studio {
+  checkouts?: string[];
   document?: ReturnType<typeof signed>;
   settings?: [string, string][];
   signedIn: boolean;
@@ -127,6 +139,13 @@ function mockStudio(studio: Studio) {
       }
       if (cmd === "account_sign_in_cancel" || cmd === "account_sign_out") {
         return null;
+      }
+      if (cmd === "account_checkout") {
+        studio.checkouts?.push((payload as { period: string }).period);
+        return { checkoutUrl: `${ORIGIN}/checkout/abc` };
+      }
+      if (cmd === "account_portal") {
+        return { url: "https://creem.test/portal/xyz" };
       }
       if (cmd === "sidecar_request") {
         const { method } = payload as { method: string };
@@ -232,12 +251,57 @@ describe("the trial card", () => {
     expect(await screen.findByText("Your Pro trial ended Sep 1")).toBeVisible();
     expect(screen.getByRole("button", { name: "Upgrade" })).toBeVisible();
   });
+
+  // Buying lives in Settings › Account, where the two tiers are; the card's
+  // Upgrade only takes the person there.
+  it("opens Settings › Account, whose tiers start the checkout", async () => {
+    const studio: Studio = {
+      checkouts: [],
+      document: TRIAL_OVER,
+      settings: [["trialCardsDismissed", JSON.stringify(["invite"])]],
+      signedIn: true,
+      written: [],
+    };
+    mockStudio(studio);
+    await renderShell();
+    await screen.findByText("Your Pro trial ended Sep 1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Upgrade" }));
+    const dialog = await screen.findByRole("region", { name: "Settings" });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Monthly" }));
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Upgrade to Pro" })
+    );
+
+    await waitFor(() => expect(studio.checkouts).toEqual(["month"]));
+    await waitFor(() => expect(opened).toEqual([`${ORIGIN}/checkout/abc`]));
+    expect(await within(dialog).findByText(WAITING_LINE)).toBeVisible();
+  });
+
+  it("sends a declined card to the billing portal", async () => {
+    const studio: Studio = {
+      document: GRACE,
+      settings: [["trialCardsDismissed", JSON.stringify(["invite"])]],
+      signedIn: true,
+      written: [],
+    };
+    mockStudio(studio);
+    await renderShell();
+
+    expect(await screen.findByText("Your card was declined")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Update card" }));
+
+    await waitFor(() =>
+      expect(opened).toEqual(["https://creem.test/portal/xyz"])
+    );
+  });
 });
 
 describe("Settings › Account", () => {
   async function openAccount() {
     fireEvent.click(await screen.findByRole("button", { name: "Account" }));
-    await screen.findByRole("dialog");
+    await screen.findByRole("region", { name: "Settings" });
   }
 
   it("offers Sign in while nobody is", async () => {
@@ -268,11 +332,19 @@ describe("Settings › Account", () => {
 
     await openAccount();
 
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await screen.findByRole("region", { name: "Settings" });
     expect(
       await within(dialog).findByText("someone@example.com")
     ).toBeVisible();
     expect(within(dialog).getByText("Pro trial")).toBeVisible();
+    expect(within(dialog).getByText(DAYS_LEFT)).toBeVisible();
+    expect(
+      within(dialog).getByRole("progressbar", { name: "Trial spent" })
+    ).toBeVisible();
+    expect(within(dialog).getByText("Ends Jan 1")).toBeVisible();
+    expect(
+      within(dialog).getByRole("button", { name: "Keep Pro" })
+    ).toBeVisible();
     expect(screen.getByText("MacBook Pro")).toBeVisible();
     expect(screen.getByText("· This Mac")).toBeVisible();
     expect(

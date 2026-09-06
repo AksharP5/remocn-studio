@@ -76,6 +76,22 @@ export const AccountFailure = Schema.Struct({
 
 export type AccountFailure = (typeof AccountFailure)["Type"];
 
+export const BillingPeriod = Schema.Literals(["month", "year"]);
+
+export type BillingPeriod = (typeof BillingPeriod)["Type"];
+
+// The launch prices, per month, mirrored from the landing's `lib/pricing.ts`:
+// the menu quotes them and nothing else does.
+export const PRO_PRICE = { monthly: 19, yearly: 15 } as const;
+
+export const CheckoutStart = Schema.Struct({ checkoutUrl: Schema.String });
+
+export type CheckoutStart = (typeof CheckoutStart)["Type"];
+
+export const PortalLink = Schema.Struct({ url: Schema.String });
+
+export type PortalLink = (typeof PortalLink)["Type"];
+
 export const ACCOUNT_PAGE_PATH = "/account";
 export const BILLING_PAGE_PATH = "/account/billing";
 
@@ -84,3 +100,5 @@ export const decodeAccountStatus = Schema.decodeUnknownExit(AccountStatus);
 export const decodeSignInStart = Schema.decodeUnknownExit(SignInStart);
 export const decodeSignInPoll = Schema.decodeUnknownExit(SignInPoll);
 export const decodeAccountFailure = Schema.decodeUnknownExit(AccountFailure);
+export const decodeCheckoutStart = Schema.decodeUnknownExit(CheckoutStart);
+export const decodePortalLink = Schema.decodeUnknownExit(PortalLink);

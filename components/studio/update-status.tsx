@@ -56,7 +56,7 @@ export function UpdatesBody({ updates }: { updates: Updates }) {
 
   return (
     <>
-      <p className="text-muted-foreground text-xs">{describe(updates)}</p>
+      <p className="text-muted-foreground text-xs">{updateSummary(updates)}</p>
 
       <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
         <dt className="text-muted-foreground">Installed</dt>
@@ -128,7 +128,7 @@ export function UpdatesBody({ updates }: { updates: Updates }) {
   );
 }
 
-function describe(updates: Updates): string {
+export function updateSummary(updates: Updates): string {
   if (updates.unavailable !== null) {
     return updates.unavailable;
   }

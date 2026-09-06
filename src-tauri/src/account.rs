@@ -21,6 +21,8 @@ const DEVICE_TOKEN_PATH: &str = "/api/auth/device/token";
 const SIGN_OUT_PATH: &str = "/api/auth/sign-out";
 const ME_PATH: &str = "/api/studio/me";
 const ENTITLEMENT_PATH: &str = "/api/studio/entitlement";
+const CHECKOUT_PATH: &str = "/api/studio/checkout";
+const PORTAL_PATH: &str = "/api/studio/portal";
 const NOT_SIGNED_IN: &str = "You are not signed in.";
 const NO_SIGN_IN_PENDING: &str = "No sign-in is in progress.";
 
@@ -60,6 +62,18 @@ pub struct SignInStart {
     pub interval: u64,
     pub user_code: String,
     pub verification_uri: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckoutStart {
+    pub checkout_url: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PortalLink {
+    pub url: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -259,6 +273,51 @@ pub async fn account_entitlement(account: State<'_, Account>) -> Result<Value, A
     account
         .signed(account.client.get(account.url(ENTITLEMENT_PATH)?))
         .await
+}
+
+/// Starts a hosted checkout for one billing period. The page it answers with
+/// is opened in the browser; the app never sees a card.
+#[tauri::command]
+pub async fn account_checkout(
+    account: State<'_, Account>,
+    period: String,
+) -> Result<CheckoutStart, AccountFailure> {
+    if period != "month" && period != "year" {
+        return Err(failure(
+            FailureKind::Server,
+            "The billing period is either month or year.",
+        ));
+    }
+    let body = account
+        .signed(
+            account
+                .client
+                .post(account.url(CHECKOUT_PATH)?)
+                .json(&json!({ "period": period })),
+        )
+        .await?;
+    let checkout_url = text(&body, "checkout_url").ok_or_else(|| {
+        failure(
+            FailureKind::Server,
+            "The server answered without a checkout page.",
+        )
+    })?;
+    Ok(CheckoutStart { checkout_url })
+}
+
+/// A link into the billing portal — the card and the invoices live there.
+#[tauri::command]
+pub async fn account_portal(account: State<'_, Account>) -> Result<PortalLink, AccountFailure> {
+    let body = account
+        .signed(account.client.post(account.url(PORTAL_PATH)?))
+        .await?;
+    let url = text(&body, "url").ok_or_else(|| {
+        failure(
+            FailureKind::Server,
+            "The server answered without a billing portal link.",
+        )
+    })?;
+    Ok(PortalLink { url })
 }
 
 #[tauri::command]

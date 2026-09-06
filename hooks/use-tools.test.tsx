@@ -7,7 +7,9 @@ import { PRO_FEATURES } from "@/shared/entitlement";
 
 const PROJECT = "project-1";
 
-function harness(options: { isDocs?: boolean; isLocked?: boolean } = {}) {
+function harness(
+  options: { isDocs?: boolean; isLocked?: boolean; lockedReason?: string } = {}
+) {
   const onArm = vi.fn();
   vi.stubGlobal("requestAnimationFrame", () => 1);
   vi.stubGlobal("cancelAnimationFrame", () => undefined);
@@ -38,6 +40,7 @@ function harness(options: { isDocs?: boolean; isLocked?: boolean } = {}) {
     isMissing: false,
     isShown: true,
     isWaiting: false,
+    lockedReason: options.lockedReason,
     onArm,
     openedProjectId: PROJECT,
     preview,
@@ -116,6 +119,12 @@ describe("useTools on Free", () => {
     expect(result.current.inspect.isArmed).toBe(false);
     act(() => result.current.snapshot.toggle());
     expect(result.current.snapshot.isArmed).toBe(false);
+  });
+
+  it("words the reason for whoever is reading it", () => {
+    const { result } = harness({ isLocked: true, lockedReason: "Upgrade." });
+
+    expect(result.current.inspect.unavailable).toBe("Upgrade.");
   });
 
   // A click on a locked button is the way back to the trial card, which is
