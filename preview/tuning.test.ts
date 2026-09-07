@@ -392,6 +392,52 @@ describe("text and type", () => {
   });
 });
 
+describe("an asset field", () => {
+  const IMG_SCHEMA = {
+    src: { default: undefined, description: "Source", type: "asset" as const },
+  };
+
+  function shown(values: Readonly<Record<string, unknown>>) {
+    const tuning = describeTuning({
+      componentName: "<Interactive.Img>",
+      schema: IMG_SCHEMA,
+      targetId: "img-1",
+      values,
+    });
+
+    return tuning?.fields.at(0) ?? null;
+  }
+
+  // Before this it was not in `SUPPORTED` at all, so a picture-carrying
+  // element opened a pane with nothing in it and nothing saying why.
+  it("is a row, grouped with what the element is painted with", () => {
+    (window as { remotion_staticBase?: string }).remotion_staticBase =
+      "/static-abc";
+
+    expect(shown({ src: "/static-abc/library/logo%20one.png" })).toMatchObject({
+      group: "Fill",
+      label: "Source",
+      readOnly: false,
+      type: "asset",
+      value: "library/logo one.png",
+    });
+  });
+
+  // A composition is free to point at a picture that is not the project's.
+  it("keeps a value that names no static file of ours", () => {
+    (window as { remotion_staticBase?: string }).remotion_staticBase =
+      "/static-abc";
+
+    expect(shown({ src: "https://example.com/a.png" })?.value).toBe(
+      "https://example.com/a.png"
+    );
+  });
+
+  it("is dropped when the runtime holds nothing for it", () => {
+    expect(shown({ src: undefined })).toBeNull();
+  });
+});
+
 describe("publishPlan", () => {
   const KEYFRAMED = {
     keyframes: [

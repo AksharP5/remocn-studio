@@ -5,6 +5,8 @@
 import {
   ColorControl as DialColorControl,
   EasingVisualization as DialEasingVisualization,
+  ImageControl as DialImageControl,
+  DialPad,
   SelectControl as DialSelectControl,
   Slider as DialSlider,
   TextControl as DialTextControl,
@@ -23,6 +25,8 @@ import { useScrubEdit } from "@/hooks/use-scrub-edit";
 import {
   axisSliderOf,
   type DialSliderSpec,
+  padAxesFrom,
+  padOf,
   sliderOf,
   valueFromSlider,
 } from "@/lib/studio/dialkit";
@@ -36,6 +40,7 @@ import {
   presetByLabel,
 } from "@/lib/studio/easing";
 import type { TuningField } from "@/lib/studio/preview";
+import { assetName, assetOptions, assetUrl } from "@/lib/studio/static-files";
 import { VERBATIM_INPUT } from "@/lib/studio/text-input";
 import {
   type Composite,
@@ -44,12 +49,19 @@ import {
   fromPercent,
   isPercent,
   toPercent,
+  withAxes,
   withAxis,
 } from "@/lib/studio/tuning";
 import { cn } from "@/lib/utils";
 import type { TuningValue } from "@/shared/ipc";
 
 export type Change = (path: string, value: TuningValue) => void;
+
+/** The project's own pictures, and where the app can load them from. */
+export interface AssetOptions {
+  readonly base: string | null;
+  readonly names: readonly string[];
+}
 
 const ROW =
   "grid min-h-7 grid-cols-[minmax(2.5rem,30%)_minmax(0,1fr)_1.25rem] items-center gap-x-2";
@@ -69,6 +81,7 @@ const NUMERIC = new Set(["number", "rotation-degrees", "scale"]);
 
 export function TuningRow({
   animated,
+  assets,
   duration,
   field,
   fonts,
@@ -78,6 +91,7 @@ export function TuningRow({
   refusal,
 }: {
   animated?: boolean;
+  assets?: AssetOptions;
   duration: number;
   field: TuningField;
   fonts?: readonly string[];
@@ -109,6 +123,7 @@ export function TuningRow({
             <span />
           )
         }
+        assets={assets}
         duration={duration}
         field={field}
         fonts={fonts}
@@ -145,6 +160,7 @@ export function TuningRow({
 
 function FieldControl({
   action,
+  assets,
   duration,
   field,
   fonts,
@@ -152,6 +168,7 @@ function FieldControl({
   original,
 }: {
   action: React.ReactNode;
+  assets?: AssetOptions;
   duration: number;
   field: TuningField;
   fonts?: readonly string[];
@@ -160,6 +177,17 @@ function FieldControl({
 }) {
   if (field.readOnly === true) {
     return <ReadOnlyControl action={action} field={field} />;
+  }
+
+  if (field.type === "asset") {
+    return (
+      <AssetControl
+        action={action}
+        assets={assets ?? { base: null, names: [] }}
+        field={field}
+        onChange={onChange}
+      />
+    );
   }
 
   if (field.type === "text-content") {
@@ -295,6 +323,42 @@ function FieldControl({
   );
 }
 
+/**
+ * The picture an element is made of, chosen from what the project already has.
+ *
+ * The options are the images in its own `public/`, which is the value space
+ * `staticFile()` names and the only one both the preview can serve and the
+ * agent can write. dialkit's own upload is hidden in `app/globals.css`: it
+ * hands back a data URL, there is no seam to redirect it to a file, and a data
+ * URL in somebody's TSX is exactly what a picker must not produce. A picture
+ * the project does not have yet arrives the way every other one does — dragged
+ * into the composer, or picked out of the library as `[Asset #N]`.
+ */
+function AssetControl({
+  action,
+  assets,
+  field,
+  onChange,
+}: {
+  action: React.ReactNode;
+  assets: AssetOptions;
+  field: TuningField;
+  onChange: Change;
+}) {
+  const name = String(field.value);
+
+  return (
+    <DialControl action={action} title={field.label}>
+      <DialImageControl
+        label={field.label}
+        onChange={(url) => onChange(field.path, assetName(url, assets.base))}
+        options={assetOptions(assets.names, assets.base)}
+        value={assetUrl(name, assets.base)}
+      />
+    </DialControl>
+  );
+}
+
 function ReadOnlyControl({
   action,
   field,
@@ -406,16 +470,24 @@ function FontFamilyControl({
 
 function DialControl({
   action,
+  align,
   children,
   title,
 }: {
   action: React.ReactNode;
+  /** Where the reset sits: centred on the control, or on its first row. A pad
+      is a square and centring on it puts the button in the middle of nothing. */
+  align?: "top";
   children: React.ReactNode;
   /** The label whole, since the one on screen is clipped to a single line. */
   title?: string;
 }) {
   return (
-    <div className="dialkit-control-with-action" title={title}>
+    <div
+      className="dialkit-control-with-action"
+      data-align={align}
+      title={title}
+    >
       {children}
       <span className="dialkit-control-action">{action}</span>
     </div>
@@ -518,6 +590,25 @@ function AxesControl({
   onChange: Change;
   original: Composite;
 }) {
+  const pad = padOf(field, composite, original);
+
+  if (pad !== null) {
+    return (
+      <DialControl action={action} align="top" title={field.label}>
+        <DialPad
+          label={field.label}
+          labels={pad.labels}
+          onChange={(point) =>
+            onChange(field.path, withAxes(composite, padAxesFrom(pad, point)))
+          }
+          value={pad.value}
+          x={[...pad.x]}
+          y={[...pad.y]}
+        />
+      </DialControl>
+    );
+  }
+
   const sliders = composite.axes.map((axis, index) =>
     axisSliderOf(
       field,

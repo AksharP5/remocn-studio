@@ -1,4 +1,5 @@
 import { anchorOf, CANVAS_SELECTOR } from "./anchor";
+import { assetBase, assetNames, forgetAssets, staticBase } from "./assets";
 import { post } from "./bridge";
 import { displayName, fiberOf, nearestInFibers } from "./fiber";
 import { covers, OVERLAY_ATTR, pickAt } from "./picker";
@@ -166,6 +167,9 @@ export function clearSelection(): void {
   chain = new Map();
   picked = null;
   selected = null;
+  // The rebuild that clears a selection is a turn having written to the
+  // project, which is the one thing that changes what is in `public/`.
+  forgetAssets();
   paint();
 }
 
@@ -572,7 +576,11 @@ async function report(
   const target = resolved(root, spot) ?? stack.at(0) ?? null;
   const frame = stage.frame();
 
+  const assets = await assetNames();
+
   post({
+    assetBase: assetBase(staticBase(), window.location.href),
+    assets,
     element: {
       column: target?.column ?? null,
       component: spot?.componentName ?? target?.name ?? null,

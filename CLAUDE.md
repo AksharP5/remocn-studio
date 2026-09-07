@@ -2526,6 +2526,88 @@ result on screen and hands the agent a `{path, from, to}` diff to write into the
   may not, so writing takes the unit from whichever half declared one and from the type when
   neither did. A value it cannot parse — `calc(100% - 4px)` — falls back to a plain text
   field rather than being guessed at.
+- **A position is one gesture, so a pair is a pad** (REM-356). `translate`,
+  `transform-origin` and `uv-coordinate` are places on the frame, and two sliders make
+  moving something diagonally two drags of numbers that are not numbers to anyone. `padOf`
+  in `lib/studio/dialkit.ts` turns the axes `axisSliderOf` already computed into dialkit's
+  `[default, min, max, step]` notation — the same ranges, per axis, because the pad is a
+  different instrument over the same numbers and not a different reading of them. `scale`
+  as a string is two independent factors and `rotation-css` is one number: both keep their
+  sliders.
+  - **Y is mirrored inside its range, not negated.** A pad's Y grows upward and all three
+    of these measure it downward — CSS `translate` and `transform-origin` from the top
+    edge, and Remotion's own `uv-coordinate`, whose `[0, 0]` is the top-left corner
+    (`getBilinearUvHandlePosition` mixes the top and bottom edges by `uv[1]`, read out of
+    `@remotion/studio`). So `padAxesFrom` applies `min + max - y`: on a symmetric translate
+    span that *is* a sign flip, and it leaves an origin's 0–100 and a uv's 0–1 the right way
+    up, where negating them would not. It is its own inverse, so one function reads the
+    value and writes it back, and the pad's own default — where a double-click and Home
+    land — is the original value mirrored the same way. Pinned by tests on all three types.
+  - The units stay in `withAxes`; the pad knows nothing about `px` or `%`. `uv-coordinate`
+    also carries a `visual: {type: "line" | "ellipse"}` hint about what to draw under the
+    point, which this version ignores.
+  - **The reset moves to the caption row.** A pad is as tall as it is wide, and the shared
+    `.dialkit-control-action` centres on its control — which for a square drops the button
+    into the middle of the plane. `data-align="top"` pins it half a `--dial-row-height` down
+    instead, where every other row keeps it.
+- **A picture is a field, and it was silently missing** (REM-356). Remotion 4.0.516 added an
+  `asset` type — `<Interactive.Img src>`, `AnimatedImage`, `CanvasImage` — and it was not in
+  `SUPPORTED`, so an element made of a picture opened a pane with the picture absent and
+  nothing saying why. It is a `dialkit` `ImageControl` now, in the Fill group, because `src`
+  matches none of the Fill patterns, which are about colour.
+  - **The pane holds the name, not the URL.** What the runtime holds is whatever
+    `staticFile()` returned: the page's static base — a per-host random path — plus the
+    file's name, encoded segment by segment. That URL is relative to a page the app is not
+    and has no business in a request to the agent, so `preview/assets.ts` reads the name out
+    of it and `lib/studio/static-files.ts` builds an absolute URL back for the control,
+    which draws the value it is given. A value naming no static file of ours — a remote
+    https image — passes through both ways untouched.
+  - **Writing goes through Remotion's own file token.** `assetValue` sends
+    `remotion-file:<name>`, which `computeEffectiveSchemaValuesDotNotation` resolves against
+    the static base for exactly the fields it knows to be assets. Setting the resolved URL
+    would work equally well today; the token is what the runtime is written against.
+  - **The options are the project's own `public/`,** served by the host at
+    `/__remocn/static-files` (`sidecar/preview/statics.ts`) and carried on the `selection`
+    message beside `fonts`, for the same reason: only the page knows either. The listing is
+    read per request rather than at start-up, because the agent adds pictures mid-session,
+    and the page forgets its copy on a rebuild — which is that turn having written.
+  - **An asset always goes to the agent, never to the codemod.** The pane holds a name and
+    the file holds the call that resolves it; writing the name over `staticFile(…)` would
+    leave a string nothing serves. `src={staticFile(…)}` reads as `computed` anyway, so the
+    rule in `shared/codemod.ts` only catches a literal `src="…"`.
+  - **The library and upload are deliberately not in the picker.** Offering a library asset
+    means copying a file into somebody's `public/library/` on a hover-pick — a write nobody
+    asked for — and the library already reaches a project through `[Asset #N]`, after which
+    the picker lists it like any other file. dialkit's upload is worse: it reads the file
+    into a **data URL** and offers no seam to send it anywhere else, and a data URL is the
+    one value this control must never produce. The button is hidden in `app/globals.css`,
+    and `dialkit-contract.test.tsx` fails if a version bump moves the class or the
+    `readAsDataURL` behind it.
+- **A spring is three numbers and one movement, so the response leads them** (REM-356).
+  `springsIn` in `lib/studio/spring.ts` finds a triple by the *shape* of its paths — any
+  prefix ending in `damping` and `stiffness`, with `mass` optional at Remotion's own default
+  of 1 — and `paneRows` inserts a `SpringVisualization` above the first of the three,
+  wherever in the section the schema happened to declare them. The conventions ask for
+  `spring.damping` / `spring.stiffness` / `spring.mass`, one group per spring and prefixed
+  where a component has more than one; matching by shape rather than by that name is what
+  keeps an existing component working, since it keeps whatever it has.
+  - **It is a readout, not a control, and `SpringControl` is why.** The full control needs a
+    panel registered in dialkit's `DialStore` — `updateTransitionMode` without
+    `registerPanel` simply returns — and its Time mode parameterises Motion's
+    `visualDuration`/`bounce`, which is a different solver from Remotion's. Physics maps one
+    for one, so `isSimpleMode={false}` plots the real response. What does **not** map is the
+    time axis: dialkit draws a fixed two seconds where Remotion runs the spring over the
+    frames the component asks for. The curve is the shape, never the timing.
+- **Sections fold, and the fold is remembered** (REM-356). An element on a real video opens
+  with eight groups and Remotion puts Transform on every one of them, so the section a
+  person came for is routinely below the fold of a 340px pane. The heading is a button; a
+  folded one shows its row count, so a fold never hides that there is something in there.
+  Three things about it are deliberate: the rows are **hidden, not unmounted**, or folding
+  mid-edit would throw away what was being typed; `collapsedPropGroups` in `settings.json`
+  holds the **collapsed** names rather than the open ones, so a group the pane gains later
+  opens with everything else instead of arriving shut; and `usePropGroups` is called in
+  `PropsPane`, outside the `PropsPanel` that is keyed on `instanceId`, or every pick would
+  reset the fold.
 - **Nothing the schema declares is dropped in silence any more, and two of the rules are
   coercions.** The pane whitelisted eleven field types and refused every value that did not
   match its declared type — which is how `fontWeight: 800` (a number, against 4.0.520's enum
@@ -2596,14 +2678,19 @@ result on screen and hands the agent a `{path, from, to}` diff to write into the
     `aria-labelledby`.
   - **`TextControl` forwards nothing to its `<textarea>`**, so the `text-content` field —
     the one whose words are written back into the person's TSX — keeps our own `Textarea`
-    and its `VERBATIM_INPUT`. Everything 2.0 adds beyond this (`DialPad`, `ImageControl`,
-    `SpringVisualization`, a controlled `Folder`) is deliberately not adopted here.
+    and its `VERBATIM_INPUT`. `DialPad`, `ImageControl` and `SpringVisualization` were taken
+    up in REM-356 and are pinned in the same file. What is still not adopted: `Folder`
+    instead of the section headings — the pane's sections are a design tool's inspector and
+    `Folder` brings its own chrome — `ButtonGroup`/`Action`, since Replay and Reset already
+    have their places, and `PresetManager`, `ShortcutsMenu` and `DialTimeline`, which all
+    need `DialStore.registerPanel`; the timeline is besides a clip editor in seconds, which
+    is not what frames and `interpolate()` are.
 - **The slider is dialkit's own, role and keyboard included** — `role="slider"`, the tab
   stop, `aria-value*` and arrows/Shift/Home/End/Enter all live on `.dialkit-slider` since
   2.0. It draws its label inside its own track and names itself after it, which is the one
-  thing it will not let us set separately: where the visible label has to stay short — the
-  X/Y pair sharing 340px, a numbered array item — the field's name is carried by a
-  `role="group"` around them instead. A `<fieldset>`, which is what biome's
+  thing it will not let us set separately: where the visible label has to stay short — a
+  numbered array item, or the X/Y pair a `scale` string still uses — the field's name is
+  carried by a `role="group"` around them instead. A `<fieldset>`, which is what biome's
   `useSemanticElements` asks for, is min-content wide by default, which is exactly what a
   two-column grid in that pane cannot afford.
 
@@ -3936,8 +4023,9 @@ preview/              what the *project's* webpack compiles instead of Studio's 
                       entry.tsx, the two-way bridge, hot reload, grab, source paths,
                       the element picker, anchor.ts (the per-instance selector a
                       selection is identified by), stack.ts (the JSX call site
-                      Remotion records, which is where a value is written) and the
-                      snapshot marquee
+                      Remotion records, which is where a value is written),
+                      assets.ts (the one reader of an `asset` value, both ways)
+                      and the snapshot marquee
 shared/               codemod.ts: what the studio may write and what it must ask for;
                       crash.ts: the consent contract and the one path scrubber;
                       ipc.ts: the typed contract, and the media types it carries;
@@ -3998,9 +4086,10 @@ scripts/              build-time tooling; skills-sync.ts is the vendoring step,
                       crash-sink.ts / sourcemaps.ts are crash reporting's
                       verification and its release step
 sidecar/preview/      the --preview-host child: project resolution, webpack watch, server,
-                      stills for Snapshot and the mp4 export; codemod.ts drives the
-                      project's own @remotion/studio-codemods and answers with text,
-                      never with a write
+                      stills for Snapshot and the mp4 export; statics.ts lists the
+                      project's public/ for the pane's asset picker; codemod.ts
+                      drives the project's own @remotion/studio-codemods and answers
+                      with text, never with a write
 src-tauri/            Rust core (Tauri v2), the sidecar supervisor, pasted-image writes;
                       crash.rs reads the consent and holds the panic reporter;
                       account.rs holds the session token in the keychain and is

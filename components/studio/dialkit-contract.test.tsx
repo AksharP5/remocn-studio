@@ -1,9 +1,13 @@
+import { readFileSync } from "node:fs";
 import { fireEvent, render, screen } from "@testing-library/react";
 import {
   ColorControl,
+  DialPad,
   EasingVisualization,
+  ImageControl,
   SelectControl,
   Slider,
+  SpringVisualization,
   TextControl,
   Toggle,
 } from "dialkit";
@@ -158,6 +162,83 @@ describe("DialKit advanced controls", () => {
     expect(container.querySelector('input[type="color"]')).toBeNull();
     expect(swatch.getAttribute("aria-haspopup")).toBe("dialog");
     expect(swatch.classList.contains("dialkit-color-swatch")).toBe(true);
+  });
+
+  // The pad is what a pair of numbers is edited on now. Its axes take the
+  // slider's own `[default, min, max, step]`, its Y grows upward, and it
+  // carries a spinbutton per axis — which is the half of it jsdom can drive,
+  // the plane itself being measured with `getBoundingClientRect`.
+  it("is two spinbuttons over one plane, with Y the way up a pad has it", () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <DialPad
+        label="Offset"
+        onChange={onChange}
+        value={{ x: 12, y: -40 }}
+        x={[0, -100, 100, 1]}
+        y={[0, -120, 120, 1]}
+      />
+    );
+
+    const y = screen.getByLabelText("Offset Y") as HTMLInputElement;
+
+    expect(container.querySelector(".dialkit-pad-plane")).not.toBeNull();
+    expect(y.value).toBe("-40");
+    expect(y.getAttribute("aria-valuemin")).toBe("-120");
+
+    fireEvent.keyDown(y, { key: "ArrowUp" });
+    expect(onChange).toHaveBeenCalledWith({ x: 12, y: -39 });
+  });
+
+  // The picture control the `asset` field type needed. Its options are the
+  // `src` it draws, so a value and an option are URLs; and its picker is a
+  // popover that closes itself under jsdom, as the colour one does.
+  it("draws the value it is given and names it from the options", () => {
+    const { container } = render(
+      <ImageControl
+        label="Source"
+        onChange={vi.fn()}
+        options={[{ label: "bg.png", value: "https://host/static/bg.png" }]}
+        value="https://host/static/bg.png"
+      />
+    );
+
+    expect(screen.getByText("bg.png")).toBeDefined();
+    expect(
+      container.querySelector<HTMLImageElement>(".dialkit-image-img")?.src
+    ).toBe("https://host/static/bg.png");
+  });
+
+  // dialkit's upload reads a file into a data URL and hands it to `onChange`;
+  // there is no seam to send it anywhere else, and a data URL is the one value
+  // the studio must not write into somebody's TSX. So the button is hidden in
+  // CSS, and this is what says a version bump has not moved the class.
+  it("uploads by data URL, which is why the pane hides that button", () => {
+    const source = readFileSync(
+      "node_modules/dialkit/dist/image-control.js",
+      "utf8"
+    );
+
+    expect(source).toContain("readAsDataURL");
+    expect(source).toContain("dialkit-button dialkit-image-upload");
+    expect(readFileSync("app/globals.css", "utf8")).toContain(
+      ".remocn-dialkit .dialkit-image-upload {\n  display: none;\n}"
+    );
+  });
+
+  // Physics only. Time mode parameterises Motion's own solver, which Remotion
+  // does not use, and the full `SpringControl` needs a registered panel.
+  it("plots a spring from damping, stiffness and mass alone", () => {
+    const { container } = render(
+      <SpringVisualization
+        isSimpleMode={false}
+        spring={{ damping: 20, mass: 1, stiffness: 180, type: "spring" }}
+      />
+    );
+
+    const curve = container.querySelector(".dialkit-spring-viz path");
+
+    expect(curve?.getAttribute("d")?.startsWith("M 0")).toBe(true);
   });
 
   // A `text-content` field is written back into the person's TSX, so it has to

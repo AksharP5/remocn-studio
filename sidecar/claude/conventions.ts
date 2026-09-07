@@ -147,7 +147,11 @@ enum can hold one of its own names and nothing else. A curve exists only where i
 is sampled — name its window beside it (\`entryFrames\` by \`entryEasing\`), and a
 movement that is off by default keeps its curve under an enum variant
 (\`exit: { none: {}, fade: { exitAt, exitFrames, exitEasing } }\`). A \`spring()\`
-is not an easing: expose its \`damping\` and \`stiffness\` as numbers.
+is not an easing: expose its physics as numbers under a dotted \`spring\` group —
+\`spring.damping\`, \`spring.stiffness\` and \`spring.mass\` — one group per spring,
+prefixed where a component has more than one (\`entry.spring.damping\`), so the
+pane can draw the response above the three of them instead of three unrelated
+dials.
 
 This is for components you create; an existing one keeps its shape
 unless the person asks. On a Remotion too old for part of it, keep the

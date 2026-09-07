@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ASSET_IS_A_CALL,
   COMPUTED_IN_CODE,
   FONT_NOT_LOADED,
   isTypeScriptFile,
@@ -102,6 +103,16 @@ describe("a font family", () => {
     expect(
       route({ fonts: [], type: "font-family", value: "Playfair Display" })
     ).toEqual({ reason: FONT_NOT_LOADED, route: "agent" });
+  });
+
+  // The pane holds an asset as the name of a file in `public/`; the file holds
+  // the call that resolves it. Writing the name over the call would leave a
+  // string nothing serves.
+  it("goes to the agent for a picture, even at a literal src", () => {
+    expect(route({ type: "asset", value: "library/logo.png" })).toEqual({
+      reason: ASSET_IS_A_CALL,
+      route: "agent",
+    });
   });
 });
 

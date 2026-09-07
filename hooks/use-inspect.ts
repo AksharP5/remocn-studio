@@ -67,6 +67,9 @@ export interface TextDraft {
 }
 
 export interface PendingComment {
+  /** Where the app can reach the project's static files, and their names. */
+  assetBase?: string | null;
+  assets?: readonly string[];
   element: PromptElement;
   fonts?: readonly string[];
   /** The frame each value was set at, so a keyframed edit lands on the one it
@@ -506,6 +509,8 @@ export function useInspect({
         open.tuning === null
           ? null
           : {
+              assetBase: open.assetBase ?? null,
+              assets: open.assets ?? [],
               fonts: open.fonts ?? [],
               open: open.open,
               originals: open.originals,
@@ -706,10 +711,22 @@ export function useInspect({
         return;
       }
 
-      const { fonts, open, originals, statuses, targets, text, video, window } =
-        item.tuning;
+      const {
+        assetBase,
+        assets,
+        fonts,
+        open,
+        originals,
+        statuses,
+        targets,
+        text,
+        video,
+        window,
+      } = item.tuning;
 
       setCard({
+        assetBase,
+        assets,
         element: item.element,
         fonts,
         frames: {},
@@ -861,6 +878,8 @@ function originalsOf(
 
 function cardOf(message: PreviewSelection): PendingComment {
   return {
+    assetBase: message.assetBase,
+    assets: message.assets,
     element: message.element,
     fonts: message.fonts,
     frames: {},

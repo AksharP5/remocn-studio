@@ -85,6 +85,8 @@ const TARGET = {
 };
 
 const TUNED = {
+  assetBase: null,
+  assets: [],
   fonts: [],
   open: 0,
   originals: {},

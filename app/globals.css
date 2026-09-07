@@ -53,6 +53,15 @@
   translate: 0 -50%;
 }
 
+/* A pad is as tall as it is wide, so centring the reset on it drops the button
+   into the middle of the plane. On its caption row — half of `--dial-row-height`
+   — it lands where every other row keeps it. */
+.remocn-dialkit
+  .dialkit-control-with-action[data-align="top"]
+  .dialkit-control-action {
+  top: calc(var(--dial-row-height) / 2);
+}
+
 .remocn-dialkit .dialkit-composite-control {
   display: grid;
   gap: 0.375rem;
@@ -92,6 +101,15 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.375rem;
+}
+
+/* dialkit's image picker uploads by reading the file into a data URL, and
+   there is no seam to send it anywhere else. A data URL is the one thing this
+   control must not produce: it would be written into somebody's TSX and
+   carried in every frame of the preview. The pictures on offer are the ones
+   the project already has; a new one arrives through the composer. */
+.remocn-dialkit .dialkit-image-upload {
+  display: none;
 }
 
 .remocn-dialkit .dialkit-easing-handles {

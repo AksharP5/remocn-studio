@@ -1,8 +1,10 @@
+import { assetName, staticBase } from "./assets";
 import type { StatusKind, TargetStatuses, TuningValue } from "./bridge";
 import { allInFibers, hostOf, nearestInFibers } from "./fiber";
 
 type FieldType =
   | "array"
+  | "asset"
   | "boolean"
   | "color"
   | "enum"
@@ -393,6 +395,7 @@ function unique(ids: readonly string[]): string[] {
 
 const SUPPORTED = new Set<Exclude<FieldType, "hidden">>([
   "array",
+  "asset",
   "boolean",
   "color",
   "enum",
@@ -687,6 +690,17 @@ function readingOf(field: SchemaField, value: unknown): FieldReading | null {
 
   const described = field.description ?? null;
 
+  // An asset's value is the URL `staticFile()` produced; the pane holds the
+  // name behind it, which is the only half of that URL worth carrying.
+  if (field.type === "asset" && typeof value === "string") {
+    return {
+      description: described,
+      readOnly: false,
+      type: "asset",
+      value: assetName(value, staticBase()),
+    };
+  }
+
   if (isFieldValue(field, value)) {
     return {
       description: described,
@@ -788,6 +802,12 @@ function groupOf(path: string, type: FieldType): string {
 
   if (TYPOGRAPHY.test(path) || BARE_TYPOGRAPHY.test(path)) {
     return "Typography";
+  }
+
+  // The picture an element is made of is what it is painted with — and
+  // `src` matches none of the Fill patterns, which are about colour.
+  if (type === "asset") {
+    return "Fill";
   }
 
   if (ENTRY.test(path)) {

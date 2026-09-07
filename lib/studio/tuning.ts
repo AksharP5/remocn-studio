@@ -105,9 +105,21 @@ export function withAxis(
   index: number,
   value: number
 ): TuningValue {
-  const axes = composite.axes.map((axis, at) =>
-    at === index ? { ...axis, value } : axis
+  return withAxes(
+    composite,
+    composite.axes.map((axis, at) => (at === index ? value : axis.value))
   );
+}
+
+/** The same value with every axis replaced, in the shape the field came in. */
+export function withAxes(
+  composite: Composite,
+  values: readonly number[]
+): TuningValue {
+  const axes = composite.axes.map((axis, at) => ({
+    ...axis,
+    value: values[at] ?? axis.value,
+  }));
 
   if (composite.kind === "array") {
     return axes.map((axis) => axis.value);

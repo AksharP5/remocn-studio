@@ -75,6 +75,7 @@ export const TuningValue = Schema.Union([
 
 export const TuningFieldType = Schema.Literals([
   "array",
+  "asset",
   "boolean",
   "color",
   "enum",
@@ -167,6 +168,15 @@ export const PreviewMessage = Schema.Union([
     unmeasured: Schema.Boolean,
   }),
   Schema.Struct({
+    // Where the app can reach the project's static files, and which of them
+    // are pictures. Page-level context, carried on the selection exactly as
+    // the loaded font families are: only the page knows either.
+    assetBase: Schema.NullOr(Schema.String).pipe(
+      Schema.withDecodingDefault(Effect.succeed(null))
+    ),
+    assets: Schema.Array(Schema.String).pipe(
+      Schema.withDecodingDefault(Effect.succeed([]))
+    ),
     element: PromptElement,
     fonts: Schema.Array(Schema.String).pipe(
       Schema.withDecodingDefault(Effect.succeed([]))
