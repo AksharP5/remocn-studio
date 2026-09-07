@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import {
   ColorControl,
   EasingVisualization,
@@ -9,6 +9,9 @@ import {
 } from "dialkit";
 import { describe, expect, it, vi } from "vitest";
 
+// dialkit ships no changelog, in npm or in GitHub Releases, so what a version
+// gives us is read out of its `dist` and pinned here. Everything below is
+// something the pane stopped doing for itself at 2.0.
 describe("DialKit advanced controls", () => {
   it("renders as controlled React 19 components without DialRoot", () => {
     render(
@@ -48,5 +51,124 @@ describe("DialKit advanced controls", () => {
     expect(screen.getByDisplayValue("Hello")).toBeDefined();
     expect(document.querySelector(".dialkit-easing-viz")).not.toBeNull();
     expect(document.querySelector(".dialkit-panel")).toBeNull();
+  });
+
+  // 2.0 carries the role, the tab stop, the aria values and the keyboard
+  // itself. The pane's own `AccessibleDialSlider` wrapper added all four and
+  // is gone; a slider inside a slider is what keeping it would have meant.
+  it("is the slider itself, keyboard and all", () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <Slider
+        label="Blur"
+        max={40}
+        min={0}
+        onChange={onChange}
+        step={1}
+        value={12}
+      />
+    );
+
+    const slider = screen.getByRole("slider", { name: "Blur" });
+
+    expect(slider.classList.contains("dialkit-slider")).toBe(true);
+    expect(slider.getAttribute("tabindex")).toBe("0");
+    expect(slider.getAttribute("aria-valuemin")).toBe("0");
+    expect(slider.getAttribute("aria-valuemax")).toBe("40");
+    expect(slider.getAttribute("aria-valuenow")).toBe("12");
+    expect(container.querySelectorAll("[role='slider']").length).toBe(1);
+
+    fireEvent.keyDown(slider, { key: "ArrowRight" });
+    fireEvent.keyDown(slider, { key: "End" });
+    expect(onChange.mock.calls).toEqual([[13], [40]]);
+  });
+
+  // The pane drew its own SVG, its own handles and its own drag hook for this.
+  it("edits its own bezier handles once given an onChange", () => {
+    const onChange = vi.fn();
+    const { container, rerender } = render(
+      <EasingVisualization
+        easing={{ duration: 1, ease: [0.42, 0, 0.58, 1], type: "easing" }}
+        onChange={onChange}
+      />
+    );
+
+    const handles = [
+      ...container.querySelectorAll<HTMLButtonElement>(
+        ".dialkit-easing-handle"
+      ),
+    ];
+
+    expect(handles.length).toBe(2);
+    expect(handles.map((handle) => handle.disabled)).toEqual([false, false]);
+
+    fireEvent.keyDown(handles[0] as HTMLButtonElement, { key: "ArrowRight" });
+    expect(onChange).toHaveBeenCalledWith([0.43, 0, 0.58, 1]);
+
+    // No onChange is how the pane says "this value cannot be dragged" — an
+    // enum holds one of its own names and nothing else.
+    rerender(
+      <EasingVisualization
+        easing={{ duration: 1, ease: [0.42, 0, 0.58, 1], type: "easing" }}
+      />
+    );
+    expect(
+      [
+        ...container.querySelectorAll<HTMLButtonElement>(
+          ".dialkit-easing-handle"
+        ),
+      ].map((handle) => handle.disabled)
+    ).toEqual([true, true]);
+  });
+
+  // `colorValue()` used to flatten anything that was not a hex to #000000,
+  // because 1.4.3 only read hex. 2.0 parses rgb, hsl, oklch and Display P3.
+  it("keeps a colour that is not a hex", () => {
+    render(
+      <ColorControl
+        label="Tint"
+        onChange={vi.fn()}
+        value="oklch(0.72 0.19 45)"
+      />
+    );
+
+    expect(
+      (screen.getByLabelText("Tint color value") as HTMLInputElement).value
+    ).toBe("oklch(0.72 0.19 45)");
+    expect(
+      screen.getByRole("button", { name: "Pick tint color" })
+    ).toBeDefined();
+  });
+
+  // The picker is dialkit's own popover now, opened from a real button. The
+  // pane used to lay a native `<input type="color">` over the swatch, because
+  // WebKit opens nothing for the scripted click 1.4.3 made. Whether the
+  // popover then lands inside the 340px pane is the running app's answer:
+  // dialkit positions it against `getClientRects()`, which jsdom leaves empty,
+  // so an opened popover closes itself here on the first measurement.
+  it("opens its picker from a real button, with no native colour input", () => {
+    const { container } = render(
+      <div className="dialkit-root">
+        <ColorControl label="Tint" onChange={vi.fn()} value="#8b7bff" />
+      </div>
+    );
+
+    const swatch = screen.getByRole("button", { name: "Pick tint color" });
+
+    expect(container.querySelector('input[type="color"]')).toBeNull();
+    expect(swatch.getAttribute("aria-haspopup")).toBe("dialog");
+    expect(swatch.classList.contains("dialkit-color-swatch")).toBe(true);
+  });
+
+  // A `text-content` field is written back into the person's TSX, so it has to
+  // carry VERBATIM_INPUT — and 2.0's TextControl passes nothing through to its
+  // textarea. That is why the pane still draws its own for that one field.
+  it("forwards no attributes to its textarea", () => {
+    render(<TextControl label="Title" onChange={vi.fn()} value="Hello" />);
+
+    const textarea = screen.getByDisplayValue("Hello");
+
+    expect(textarea.hasAttribute("autocorrect")).toBe(false);
+    expect(textarea.hasAttribute("autocapitalize")).toBe(false);
   });
 });

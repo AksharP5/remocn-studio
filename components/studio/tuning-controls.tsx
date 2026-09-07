@@ -19,7 +19,6 @@ import {
   NumberFieldScrubArea,
 } from "@/components/ui/number-field";
 import { Textarea } from "@/components/ui/textarea";
-import { type BezierHandle, useBezierDrag } from "@/hooks/use-bezier-drag";
 import { useScrubEdit } from "@/hooks/use-scrub-edit";
 import {
   axisSliderOf,
@@ -29,24 +28,17 @@ import {
 } from "@/lib/studio/dialkit";
 import {
   BEZIER_PRESETS,
-  type Bezier,
   bezierOfValue,
-  CURVE_GUIDES,
-  CURVE_VIEW,
   cssBezier,
-  curvePath,
   type EasingKind,
   easingKindOf,
   matchPresetLabel,
   presetByLabel,
-  viewPoint,
-  withHandle,
 } from "@/lib/studio/easing";
 import type { TuningField } from "@/lib/studio/preview";
 import { VERBATIM_INPUT } from "@/lib/studio/text-input";
 import {
   type Composite,
-  colorValue,
   compositeOf,
   fractionOf,
   fromPercent,
@@ -77,6 +69,7 @@ const NUMERIC = new Set(["number", "rotation-degrees", "scale"]);
 
 export function TuningRow({
   animated,
+  duration,
   field,
   fonts,
   onChange,
@@ -85,6 +78,7 @@ export function TuningRow({
   refusal,
 }: {
   animated?: boolean;
+  duration: number;
   field: TuningField;
   fonts?: readonly string[];
   onChange: Change;
@@ -115,6 +109,7 @@ export function TuningRow({
             <span />
           )
         }
+        duration={duration}
         field={field}
         fonts={fonts}
         onChange={onChange}
@@ -150,12 +145,14 @@ export function TuningRow({
 
 function FieldControl({
   action,
+  duration,
   field,
   fonts,
   onChange,
   original,
 }: {
   action: React.ReactNode;
+  duration: number;
   field: TuningField;
   fonts?: readonly string[];
   onChange: Change;
@@ -207,6 +204,7 @@ function FieldControl({
     return (
       <EasingControl
         action={action}
+        duration={duration}
         field={field}
         kind={easing}
         onChange={onChange}
@@ -245,7 +243,7 @@ function FieldControl({
         <DialColorControl
           label={field.label}
           onChange={(value) => onChange(field.path, value)}
-          value={colorValue(field.value)}
+          value={String(field.value)}
         />
       </DialControl>
     );
@@ -268,12 +266,16 @@ function FieldControl({
     if (slider !== null) {
       return (
         <DialControl action={action} title={field.label}>
-          <AccessibleDialSlider
+          <DialSlider
             label={field.label}
+            max={slider.max}
+            min={slider.min}
             onChange={(value) =>
               onChange(field.path, valueFromSlider(field, value))
             }
-            spec={slider}
+            step={slider.step}
+            unit={slider.unit}
+            value={slider.value}
           />
         </DialControl>
       );
@@ -420,64 +422,6 @@ function DialControl({
   );
 }
 
-function AccessibleDialSlider({
-  label,
-  onChange,
-  spec,
-  visualLabel = label,
-}: {
-  label: string;
-  onChange: (value: number) => void;
-  spec: DialSliderSpec;
-  visualLabel?: string;
-}) {
-  const commitKey = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    let next: number | null = null;
-    const stride = event.shiftKey ? spec.step * 10 : spec.step;
-
-    if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
-      next = spec.value - stride;
-    } else if (event.key === "ArrowRight" || event.key === "ArrowUp") {
-      next = spec.value + stride;
-    } else if (event.key === "Home") {
-      next = spec.min;
-    } else if (event.key === "End") {
-      next = spec.max;
-    }
-
-    if (next === null) {
-      return;
-    }
-
-    event.preventDefault();
-    onChange(Math.min(spec.max, Math.max(spec.min, next)));
-  };
-
-  return (
-    <div
-      aria-label={label}
-      aria-valuemax={spec.max}
-      aria-valuemin={spec.min}
-      aria-valuenow={spec.value}
-      className="dialkit-accessible-slider"
-      onKeyDown={commitKey}
-      onPointerDownCapture={(event) => event.currentTarget.focus()}
-      role="slider"
-      tabIndex={0}
-    >
-      <DialSlider
-        label={visualLabel}
-        max={spec.max}
-        min={spec.min}
-        onChange={onChange}
-        step={spec.step}
-        unit={spec.unit}
-        value={spec.value}
-      />
-    </div>
-  );
-}
-
 /**
  * The workhorse: one field, three gestures. The whole surface is the scrub
  * area — drag anywhere to change the value, and a click that never moved
@@ -588,18 +532,35 @@ function AxesControl({
       <DialControl action={action}>
         <div className="dialkit-composite-control">
           <span className="dialkit-composite-label">{field.label}</span>
-          <div className="dialkit-composite-axes">
-            {composite.axes.map((axis, index) => (
-              <AccessibleDialSlider
-                key={axis.label}
-                label={`${field.label} ${axis.label}`}
-                onChange={(next) =>
-                  onChange(field.path, withAxis(composite, index, next))
-                }
-                spec={sliders[index] as DialSliderSpec}
-                visualLabel={axis.label}
-              />
-            ))}
+          {/* dialkit's slider draws its own label and names itself after it,
+              so a pair sharing 340px reads "X" and "Y" on screen and takes
+              the field's name from the group around them. */}
+          {/* biome-ignore lint/a11y/useSemanticElements: a <fieldset> is
+              min-content wide by default, which is exactly what a two-column
+              grid at half a 340px pane cannot afford. */}
+          <div
+            aria-label={field.label}
+            className="dialkit-composite-axes"
+            role="group"
+          >
+            {composite.axes.map((axis, index) => {
+              const spec = sliders[index] as DialSliderSpec;
+
+              return (
+                <DialSlider
+                  key={axis.label}
+                  label={axis.label}
+                  max={spec.max}
+                  min={spec.min}
+                  onChange={(next) =>
+                    onChange(field.path, withAxis(composite, index, next))
+                  }
+                  step={spec.step}
+                  unit={spec.unit}
+                  value={spec.value}
+                />
+              );
+            })}
           </div>
         </div>
       </DialControl>
@@ -668,6 +629,9 @@ function NumberControl({
   );
 }
 
+const HANDLE_MIN_Y = -1;
+const HANDLE_MAX_Y = 2;
+
 const BEZIER_AXES: readonly { at: 0 | 1 | 2 | 3; label: string }[] = [
   { at: 0, label: "x1" },
   { at: 1, label: "y1" },
@@ -684,16 +648,21 @@ const BEZIER_AXES: readonly { at: 0 | 1 | 2 | 3; label: string }[] = [
  */
 function EasingControl({
   action,
+  duration,
   field,
   kind,
   onChange,
 }: {
   action: React.ReactNode;
+  duration: number;
   field: TuningField;
   kind: EasingKind;
   onChange: Change;
 }) {
   const bezier = bezierOfValue(field.value);
+  // Handles are drawn only where they can be dragged: an enum holds one of its
+  // own names and nothing else, so dialkit is handed no `onChange` and draws
+  // its two handles disabled.
   const editable = kind === "bezier" && bezier !== null;
 
   // A stack, not a row. Every other control here is a dialkit pill with its
@@ -710,15 +679,14 @@ function EasingControl({
           {field.label}
         </span>
 
-        <EasingCurve
-          bezier={bezier}
-          onHandle={
-            editable
-              ? (handle, x, y) =>
-                  onChange(field.path, withHandle(bezier, handle, x, y))
-              : null
-          }
-        />
+        {bezier === null ? null : (
+          <DialEasingVisualization
+            easing={{ duration, ease: [...bezier], type: "easing" }}
+            onChange={
+              editable ? (ease) => onChange(field.path, [...ease]) : undefined
+            }
+          />
+        )}
 
         {kind === "enum" ? (
           <DialSelectControl
@@ -746,6 +714,24 @@ function EasingControl({
           />
         )}
 
+        {/* The dot runs the element's own window, so the curve is judged at
+            the speed it will really play. dialkit's `EasingConfig` carries the
+            same number and — measured in 2.0 — draws nothing from it. */}
+        {bezier === null ? null : (
+          <div className="relative h-3">
+            <span
+              className="absolute top-1/2 left-0 size-1.5 -translate-y-1/2 rounded-full bg-muted-foreground motion-reduce:hidden"
+              key={cssBezier(bezier)}
+              style={{
+                animationDuration: `${duration}s`,
+                animationIterationCount: "infinite",
+                animationName: "easing-preview",
+                animationTimingFunction: cssBezier(bezier),
+              }}
+            />
+          </div>
+        )}
+
         <p className="text-2xs text-muted-foreground">
           A curve only shows while the element moves. Replay to watch it.
         </p>
@@ -757,8 +743,8 @@ function EasingControl({
                 ariaLabel={`${field.label} ${axis.label}`}
                 handle={axis.label}
                 key={axis.label}
-                max={axis.at % 2 === 0 ? 1 : 1.5}
-                min={axis.at % 2 === 0 ? 0 : -0.5}
+                max={axis.at % 2 === 0 ? 1 : HANDLE_MAX_Y}
+                min={axis.at % 2 === 0 ? 0 : HANDLE_MIN_Y}
                 onCommit={(next) => {
                   const draft = [...bezier];
                   draft[axis.at] = next;
@@ -772,147 +758,6 @@ function EasingControl({
         ) : null}
       </div>
     </DialControl>
-  );
-}
-
-function EasingCurve({
-  bezier,
-  onHandle,
-}: {
-  bezier: Bezier | null;
-  onHandle: ((handle: BezierHandle, x: number, y: number) => void) | null;
-}) {
-  const drag = useBezierDrag((handle, x, y) => onHandle?.(handle, x, y));
-
-  if (bezier !== null && onHandle === null) {
-    return (
-      <div className="dialkit-easing-readout">
-        <DialEasingVisualization
-          easing={{ duration: 1, ease: [...bezier], type: "easing" }}
-        />
-      </div>
-    );
-  }
-
-  const start = viewPoint(0, 0);
-  const end = viewPoint(1, 1);
-  const first = bezier === null ? null : viewPoint(bezier[0], bezier[1]);
-  const second = bezier === null ? null : viewPoint(bezier[2], bezier[3]);
-
-  return (
-    <div className="control-surface w-full rounded-md p-2">
-      <svg
-        aria-hidden="true"
-        className="block aspect-square w-full touch-none overflow-visible"
-        data-curve
-        onPointerCancel={onHandle === null ? undefined : drag.cancel}
-        onPointerDown={onHandle === null ? undefined : drag.down}
-        onPointerMove={onHandle === null ? undefined : drag.move}
-        onPointerUp={onHandle === null ? undefined : drag.up}
-        role="presentation"
-        viewBox={`0 0 ${CURVE_VIEW} ${CURVE_VIEW}`}
-      >
-        {CURVE_GUIDES.map((guide) => (
-          <line
-            className="stroke-border"
-            key={guide}
-            strokeWidth="1"
-            x1="0"
-            x2={CURVE_VIEW}
-            y1={guide}
-            y2={guide}
-          />
-        ))}
-        {bezier === null || first === null || second === null ? null : (
-          <>
-            <path
-              className="fill-none stroke-primary"
-              d={curvePath(bezier)}
-              strokeLinecap="round"
-              strokeWidth="1.5"
-            />
-            <circle
-              className="fill-foreground/60"
-              cx={start.x}
-              cy={start.y}
-              r="2"
-            />
-            <circle
-              className="fill-foreground/60"
-              cx={end.x}
-              cy={end.y}
-              r="2"
-            />
-            {/* Handles are drawn only where they can be dragged. An enum can
-                hold one of its own names and nothing else, so its curve is a
-                reading — and a dot that looks grabbable and is not would be
-                the panel lying about what it can do. */}
-            {onHandle === null ? null : (
-              <>
-                <line
-                  className="stroke-muted-foreground/40"
-                  strokeWidth="1"
-                  x1={start.x}
-                  x2={first.x}
-                  y1={start.y}
-                  y2={first.y}
-                />
-                <line
-                  className="stroke-muted-foreground/40"
-                  strokeWidth="1"
-                  x1={end.x}
-                  x2={second.x}
-                  y1={end.y}
-                  y2={second.y}
-                />
-                <g className="cursor-grab" data-handle="1">
-                  <circle
-                    className="fill-transparent"
-                    cx={first.x}
-                    cy={first.y}
-                    r="8"
-                  />
-                  <circle
-                    className="fill-primary"
-                    cx={first.x}
-                    cy={first.y}
-                    r="3"
-                  />
-                </g>
-                <g className="cursor-grab" data-handle="2">
-                  <circle
-                    className="fill-transparent"
-                    cx={second.x}
-                    cy={second.y}
-                    r="8"
-                  />
-                  <circle
-                    className="fill-primary"
-                    cx={second.x}
-                    cy={second.y}
-                    r="3"
-                  />
-                </g>
-              </>
-            )}
-          </>
-        )}
-      </svg>
-      {bezier === null ? null : (
-        <div className="relative mt-1.5 h-3">
-          <span
-            className="absolute top-1/2 left-0 size-1.5 -translate-y-1/2 rounded-full bg-muted-foreground motion-reduce:hidden"
-            key={cssBezier(bezier)}
-            style={{
-              animationDuration: "1.8s",
-              animationIterationCount: "infinite",
-              animationName: "easing-preview",
-              animationTimingFunction: cssBezier(bezier),
-            }}
-          />
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -942,7 +787,14 @@ function ArrayControl({
         {action}
       </div>
 
-      <div className="flex flex-col gap-1" data-slot="array-items">
+      {/* biome-ignore lint/a11y/useSemanticElements: as above — a <fieldset>
+          brings a min-content width and a legend this list has no room for. */}
+      <div
+        aria-label={field.label}
+        className="flex flex-col gap-1"
+        data-slot="array-items"
+        role="group"
+      >
         {values.map((value, index) => (
           <ArrayItemControl
             action={
@@ -1027,12 +879,15 @@ function ArrayItemControl({
 
     if (slider !== null) {
       return (
-        <DialControl action={action}>
-          <AccessibleDialSlider
-            label={label}
+        <DialControl action={action} title={label}>
+          <DialSlider
+            label={String(index + 1)}
+            max={slider.max}
+            min={slider.min}
             onChange={(next) => onChange(valueFromSlider(itemField, next))}
-            spec={slider}
-            visualLabel={String(index + 1)}
+            step={slider.step}
+            unit={slider.unit}
+            value={slider.value}
           />
         </DialControl>
       );
@@ -1070,7 +925,7 @@ function ArrayItemControl({
         <DialColorControl
           label={String(index + 1)}
           onChange={onChange}
-          value={colorValue(value)}
+          value={value}
         />
       </DialControl>
     );

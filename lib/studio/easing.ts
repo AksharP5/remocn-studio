@@ -1,4 +1,4 @@
-import type { TuningField } from "@/lib/studio/preview";
+import type { PreviewWindow, TuningField } from "@/lib/studio/preview";
 import type { TuningValue } from "@/shared/ipc";
 
 export type Bezier = readonly [number, number, number, number];
@@ -152,64 +152,28 @@ export function cssBezier(bezier: Bezier): string {
   return `cubic-bezier(${bezier.join(", ")})`;
 }
 
-const HANDLE_MIN_Y = -0.5;
-const HANDLE_MAX_Y = 1.5;
+/**
+ * How long the preview dot takes to cross, in seconds: the element's own
+ * window, so the curve is watched at the speed it will really run. dialkit's
+ * `EasingConfig` wants the same number and — measured in 2.0 — ignores it,
+ * which is why the dot is still ours.
+ */
+export const PREVIEW_SECONDS = 1.8;
+const SHORTEST_PREVIEW = 0.15;
 
-export function withHandle(
-  bezier: Bezier,
-  handle: 1 | 2,
-  x: number,
-  y: number
-): number[] {
-  const next = [...bezier];
-  const at = handle === 1 ? 0 : 2;
+export function windowSeconds(
+  window: PreviewWindow | null | undefined,
+  fps: number
+): number {
+  if (window === null || window === undefined) {
+    return PREVIEW_SECONDS;
+  }
 
-  next[at] = hundredth(Math.min(1, Math.max(0, x)));
-  next[at + 1] = hundredth(Math.min(HANDLE_MAX_Y, Math.max(HANDLE_MIN_Y, y)));
+  const frames = window.until - window.from;
 
-  return next;
-}
+  if (!(Number.isFinite(frames) && frames > 0 && fps > 0)) {
+    return PREVIEW_SECONDS;
+  }
 
-function hundredth(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
-// The curve card's coordinate system: a 100×100 viewBox where progress 0→1
-// spans a horizontal inset and value 0→1 a vertical band, leaving headroom so
-// an overshooting handle (back easings) stays inside the card.
-export const CURVE_VIEW = 100;
-const X_INSET = 6;
-const Y_ZERO = 76;
-const Y_ONE = 24;
-
-export const CURVE_GUIDES: readonly number[] = [Y_ONE, Y_ZERO];
-
-export function viewPoint(x: number, y: number): { x: number; y: number } {
-  return {
-    x: X_INSET + x * (CURVE_VIEW - 2 * X_INSET),
-    y: Y_ZERO + y * (Y_ONE - Y_ZERO),
-  };
-}
-
-/** The inverse of `viewPoint`, from fractions of the rendered box. */
-export function curvePoint(
-  fractionX: number,
-  fractionY: number
-): { x: number; y: number } {
-  const x = (fractionX * CURVE_VIEW - X_INSET) / (CURVE_VIEW - 2 * X_INSET);
-  const y = (fractionY * CURVE_VIEW - Y_ZERO) / (Y_ONE - Y_ZERO);
-
-  return {
-    x: Math.min(1, Math.max(0, x)),
-    y: Math.min(HANDLE_MAX_Y, Math.max(HANDLE_MIN_Y, y)),
-  };
-}
-
-export function curvePath(bezier: Bezier): string {
-  const start = viewPoint(0, 0);
-  const first = viewPoint(bezier[0], bezier[1]);
-  const second = viewPoint(bezier[2], bezier[3]);
-  const end = viewPoint(1, 1);
-
-  return `M ${start.x} ${start.y} C ${first.x} ${first.y}, ${second.x} ${second.y}, ${end.x} ${end.y}`;
+  return Math.max(SHORTEST_PREVIEW, frames / fps);
 }

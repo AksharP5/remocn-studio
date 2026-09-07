@@ -28,6 +28,7 @@ import {
 import { usePreviewFrame } from "@/hooks/use-preview";
 import { type TimeStrip, useTimeStrip } from "@/hooks/use-time-strip";
 import { useWheelScroll } from "@/hooks/use-wheel-scroll";
+import { windowSeconds } from "@/lib/studio/easing";
 import type { TuningField, TuningTarget } from "@/lib/studio/preview";
 import { VERBATIM_INPUT } from "@/lib/studio/text-input";
 import { changedFields, subtitleOf, titleOf } from "@/lib/studio/tuning";
@@ -123,6 +124,7 @@ export function PropsPanel({
     onSeek,
     span: card.window ?? null,
   });
+  const duration = windowSeconds(card.window, card.element.fps);
 
   return (
     <Pane>
@@ -220,6 +222,7 @@ export function PropsPanel({
                     {grouped.map((field) => (
                       <TuningRow
                         animated={isFieldAnimated(card, field)}
+                        duration={duration}
                         field={field}
                         fonts={card.fonts}
                         key={field.path}

@@ -23,8 +23,8 @@
   :is(
     .dialkit-slider-value,
     .dialkit-slider-input,
-    .dialkit-color-hex,
-    .dialkit-color-hex-input
+    .dialkit-color-value,
+    .dialkit-color-css-input
   ) {
   font-family: var(--font-geist-mono), monospace;
 }
@@ -51,12 +51,6 @@
   top: 50%;
   right: 0;
   translate: 0 -50%;
-}
-
-.remocn-dialkit .dialkit-accessible-slider:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 1px;
-  border-radius: var(--dial-radius);
 }
 
 .remocn-dialkit .dialkit-composite-control {
@@ -100,50 +94,10 @@
   gap: 0.375rem;
 }
 
-/* The colour picker opens on a real click, not a scripted one. dialkit hides
-   its `<input type="color">` at zero size with `pointer-events: none` and asks
-   the swatch to `.click()` it — which WebKit ignores, so the swatch did
-   nothing at all in this webview. The input is put back over the swatch
-   instead: invisible, but the thing the pointer actually lands on. That is the
-   same arrangement the pane's own colour control used before dialkit, and it
-   is why that one worked. */
-.remocn-dialkit .dialkit-color-inputs {
-  position: relative;
-}
-
-.remocn-dialkit .dialkit-color-picker-native {
-  position: absolute;
-  inset-block: 0;
-  inset-inline-end: 0;
-  width: 20px;
-  height: 100%;
-  padding: 0;
-  pointer-events: auto;
-  cursor: pointer;
-  background: transparent;
-  border: 0;
-  opacity: 0;
-}
-
-/* The input the pointer lands on is invisible, so its focus has to show
-   somewhere: the swatch behind it wears the ring. */
-.remocn-dialkit
-  .dialkit-color-inputs:has(.dialkit-color-picker-native:focus-visible)
-  .dialkit-color-swatch {
-  outline: 2px solid var(--ring);
-  outline-offset: 1px;
-}
-
 .remocn-dialkit .dialkit-easing-handles {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.375rem;
-}
-
-.remocn-dialkit .dialkit-easing-readout {
-  width: 100%;
-  overflow: hidden;
-  border-radius: var(--dial-radius);
 }
 
 @custom-variant dark (&:is(.dark *));

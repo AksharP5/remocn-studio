@@ -21,7 +21,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.4.0",
-    "dialkit": "1.4.3",
+    "dialkit": "2.0.0",
     "diff": "^9.0.0",
     "effect": "4.0.0-beta.101",
     "embla-carousel-react": "^8.6.0",

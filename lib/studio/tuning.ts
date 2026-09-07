@@ -209,10 +209,6 @@ export function hexLabel(value: TuningValue): string {
   return typeof value === "string" ? value.replace(HASH, "") : "";
 }
 
-export function colorValue(value: TuningValue): string {
-  return typeof value === "string" && value.startsWith("#") ? value : "#000000";
-}
-
 function labelAt(type: string, index: number): string {
   return AXIS_LABELS[type]?.[index] ?? String(index + 1);
 }
