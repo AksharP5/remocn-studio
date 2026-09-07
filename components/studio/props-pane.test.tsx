@@ -67,6 +67,9 @@ function link(overrides: Partial<TuningTarget> = {}): TuningTarget {
 function draw(
   fields: readonly TuningField[],
   handlers: Partial<{
+    assetBase: string;
+    groups: { collapsed: readonly string[]; toggle: (group: string) => void };
+    assets: readonly string[];
     card: PendingComment;
     frame: number;
     onCancel: () => void;
@@ -84,6 +87,8 @@ function draw(
 ) {
   const target = handlers.target ?? link({ fields });
   const card: PendingComment = {
+    assetBase: handlers.assetBase ?? null,
+    assets: handlers.assets ?? [],
     element: ELEMENT,
     frames: {},
     open: 0,
@@ -105,6 +110,7 @@ function draw(
       card={shown}
       cwd="/Users/me/projects/my-video"
       frame={handlers.frame ?? 42}
+      groups={handlers.groups}
       onCancel={handlers.onCancel ?? vi.fn()}
       onChange={(handlers.onChange ?? vi.fn()) as never}
       onChangeText={handlers.onChangeText ?? vi.fn()}
@@ -217,9 +223,9 @@ describe("PropsPanel", () => {
     expect(onChange).toHaveBeenCalledWith("blur", 13);
   });
 
-  it("splits a two-value transform into editable X and Y", () => {
+  it("puts a two-value transform on one pad, Y the way up a pad has it", () => {
     const onChange = vi.fn();
-    draw(
+    const { container } = draw(
       [
         field({
           group: "Transform",
@@ -232,23 +238,19 @@ describe("PropsPanel", () => {
       { onChange }
     );
 
-    // dialkit's slider draws its own label and names itself after it, so the
-    // pair reads "X" and "Y" at half a 340px pane and takes the field's name
-    // from the group around them.
-    const axes = screen.getByRole("group", { name: "Offset" });
+    // Two sliders were what this used to be. A position is one gesture, and
+    // the pad measures its Y upward where the CSS measures it down.
+    expect(container.querySelector(".dialkit-pad-plane")).not.toBeNull();
+    expect(container.querySelectorAll("[role='slider']").length).toBe(0);
+    expect((screen.getByLabelText("Offset X") as HTMLInputElement).value).toBe(
+      "-12"
+    );
+    expect((screen.getByLabelText("Offset Y") as HTMLInputElement).value).toBe(
+      "-8"
+    );
 
-    expect(
-      screen.getByRole("slider", { name: "X" }).getAttribute("aria-valuenow")
-    ).toBe("-12");
-    expect(
-      screen.getByRole("slider", { name: "Y" }).getAttribute("aria-valuenow")
-    ).toBe("8");
-    expect(axes.querySelectorAll("[role='slider']").length).toBe(2);
-
-    fireEvent.keyDown(screen.getByRole("slider", { name: "Y" }), {
-      key: "ArrowUp",
-    });
-    expect(onChange).toHaveBeenCalledWith("style.translate", "-12px 9px");
+    fireEvent.keyDown(screen.getByLabelText("Offset Y"), { key: "ArrowUp" });
+    expect(onChange).toHaveBeenCalledWith("style.translate", "-12px 7px");
   });
 
   it("shows opacity as a percentage and stores it as a fraction", () => {
@@ -910,5 +912,98 @@ describe("the text a Remotion too old to declare it still shows", () => {
     draw(fields, { card });
 
     expect(screen.getByText("Add 1")).toBeDefined();
+  });
+});
+
+describe("a picture and a spring", () => {
+  // `asset` was not in `SUPPORTED` at all: an element carrying a picture drew
+  // a pane with the picture missing from it and nothing saying why.
+  it("offers the project's own pictures for an asset field", () => {
+    const base = "http://127.0.0.1:5173/static-abc/";
+    const { container } = draw(
+      [
+        field({
+          group: "Fill",
+          label: "Source",
+          path: "src",
+          type: "asset",
+          value: "bg.png",
+        }),
+      ],
+      { assetBase: base, assets: ["bg.png", "library/logo.png"] }
+    );
+
+    expect(
+      container.querySelector<HTMLImageElement>(".dialkit-image-img")?.src
+    ).toBe(`${base}bg.png`);
+    expect(screen.getByText("bg.png")).toBeDefined();
+  });
+
+  // Damping, stiffness and mass are one movement, so the response leads them
+  // rather than leaving three unrelated dials to be read as three parameters.
+  it("draws a spring's response above its three numbers", () => {
+    const { container } = draw([
+      field({ label: "Damping", path: "spring.damping", value: 20 }),
+      field({ label: "Stiffness", path: "spring.stiffness", value: 180 }),
+      field({ label: "Mass", path: "spring.mass", value: 1 }),
+    ]);
+
+    // The response leads the three numbers rather than sitting under them.
+    const viz = container.querySelector(".dialkit-spring-viz");
+    const row = viz?.closest(".dialkit-composite-control");
+
+    expect(screen.getByText("Spring")).toBeDefined();
+    expect(row?.parentElement?.children.length).toBe(4);
+    expect(row?.previousElementSibling).toBeNull();
+  });
+
+  it("leaves a section with no spring in it alone", () => {
+    const { container } = draw([
+      field({ label: "Blur", path: "blur", value: 4 }),
+    ]);
+
+    expect(container.querySelector(".dialkit-spring-viz")).toBeNull();
+  });
+});
+
+const TRANSFORM = /Transform/;
+
+describe("folding a section", () => {
+  const rows = [
+    field({ group: "Transform", label: "Offset", path: "a", value: 1 }),
+    field({ group: "Layer", label: "Opacity", path: "b", value: 2 }),
+  ];
+
+  it("opens every section when nothing has been folded", () => {
+    draw(rows, { groups: { collapsed: [], toggle: vi.fn() } });
+
+    expect(
+      screen
+        .getByRole("button", { name: "Transform" })
+        .getAttribute("aria-expanded")
+    ).toBe("true");
+    expect(screen.getByLabelText("Offset")).toBeDefined();
+  });
+
+  it("hides the rows of a folded section and says how many there are", () => {
+    draw(rows, { groups: { collapsed: ["Transform"], toggle: vi.fn() } });
+
+    const heading = screen.getByRole("button", { name: TRANSFORM });
+
+    expect(heading.getAttribute("aria-expanded")).toBe("false");
+    expect(heading.textContent).toContain("1");
+    // Hidden, not unmounted: a fold must not throw away an edit in progress.
+    expect(screen.getByLabelText("Offset")).toBeDefined();
+    expect(screen.getByLabelText("Offset").closest("[hidden]")).not.toBeNull();
+    expect(screen.getByLabelText("Opacity").closest("[hidden]")).toBeNull();
+  });
+
+  it("names the section it folds", () => {
+    const toggle = vi.fn();
+    draw(rows, { groups: { collapsed: [], toggle } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Layer" }));
+
+    expect(toggle).toHaveBeenCalledWith("Layer");
   });
 });

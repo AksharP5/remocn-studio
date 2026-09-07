@@ -128,6 +128,30 @@ describe("decodePreviewMessage", () => {
     ).toBe(12);
   });
 
+  // The page carries the project's pictures and the base to load them from,
+  // as it carries the loaded font families: only the page knows either. A page
+  // built before this shipped sends neither, and the picker then offers what
+  // it can, which is the value the element already holds.
+  it("takes the project's static pictures, or none at all", () => {
+    const withAssets = decodePreviewMessage({
+      ...selected,
+      assetBase: "http://127.0.0.1:5173/static-abc/",
+      assets: ["bg.png", "library/logo.png"],
+    });
+    const without = decodePreviewMessage(selected);
+
+    expect(
+      Exit.isSuccess(withAssets) &&
+        withAssets.value.type === "selection" &&
+        withAssets.value.assets
+    ).toEqual(["bg.png", "library/logo.png"]);
+    expect(
+      Exit.isSuccess(without) &&
+        without.value.type === "selection" &&
+        without.value.assetBase
+    ).toBeNull();
+  });
+
   it("accepts a selection whose source could not be resolved", () => {
     const decoded = decodePreviewMessage({
       ...selected,

@@ -14,8 +14,10 @@ import { PreviewError } from "./project";
 import { RENDER_BASE } from "./protocol";
 import type { Proxies } from "./proxies";
 import { byteRange, UNSATISFIABLE } from "./range";
+import { staticFiles } from "./statics";
 
 export const HOT_PATH = "/__remocn/hot";
+export const STATICS_PATH = "/__remocn/static-files";
 
 const FRESH = "no-store";
 const REVALIDATED = "no-cache";
@@ -156,6 +158,14 @@ function handle(
     return;
   }
 
+  // Read per request rather than at start-up: the agent adds pictures to
+  // `public/` during a session, and the picker that reads this is opened long
+  // after the host began serving.
+  if (pathname === STATICS_PATH) {
+    sendJson(staticFiles(options.publicDir), response);
+    return;
+  }
+
   if (pathname === "/" || pathname === "/index.html") {
     // Which composition the page plays is the page's, not the host's: one
     // bundle serves every video in the project, and each pane opens its own
@@ -261,6 +271,14 @@ function sendPage(body: string, response: ServerResponse): void {
     "content-type": "text/html; charset=utf-8",
   });
   response.end(body);
+}
+
+function sendJson(body: unknown, response: ServerResponse): void {
+  response.writeHead(200, {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+  });
+  response.end(JSON.stringify(body));
 }
 
 function sendGrab(source: string | null, response: ServerResponse): void {

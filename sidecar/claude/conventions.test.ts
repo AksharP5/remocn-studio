@@ -186,6 +186,19 @@ describe("conventionsFor", () => {
     }
   });
 
+  // The pane finds a spring by the shape of its paths, so the names in the
+  // conventions and the names `springsIn` groups on are one decision.
+  it("names the three numbers a spring is made of", () => {
+    for (const text of [conventionsFor(true), conventionsFor(false)]) {
+      const compact = text.replaceAll("\n", " ");
+
+      expect(compact).toContain("`spring.damping`, `spring.stiffness` and");
+      expect(compact).toContain("`spring.mass`");
+      expect(compact).toContain("one group per spring");
+      expect(compact).toContain("`entry.spring.damping`");
+    }
+  });
+
   it("sends a requested change to the component the block says owns it", () => {
     for (const text of [conventionsFor(true), conventionsFor(false)]) {
       const compact = text.replaceAll("\n", " ");

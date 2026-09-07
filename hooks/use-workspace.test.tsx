@@ -10,6 +10,7 @@ const SETTINGS: StudioSettings = {
   claudeEffort: null,
   claudeModel: null,
   codexModel: null,
+  collapsedPropGroups: [],
   copilotModel: null,
   crashReports: null,
   expandedVideos: [],

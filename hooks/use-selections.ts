@@ -15,6 +15,8 @@ import type {
 } from "@/shared/ipc";
 
 export interface SelectionTuning {
+  assetBase: string | null;
+  assets: readonly string[];
   fonts: readonly string[];
   open: number;
   originals: Readonly<Record<string, Readonly<Record<string, TuningValue>>>>;

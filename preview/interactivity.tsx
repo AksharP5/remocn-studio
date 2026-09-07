@@ -8,6 +8,7 @@ import {
 } from "react";
 import { Internals } from "remotion";
 import { anchorContainer, anchorOf, resolveAnchor } from "./anchor";
+import { assetValue } from "./assets";
 import type { TargetStatuses, TuningNodePath, TuningValue } from "./bridge";
 import { originOf } from "./stack";
 import { type TimeWindow, windowOf } from "./timing";
@@ -441,7 +442,16 @@ export function InteractivityRuntime({
         // The frame rides with the value because a keyframed key is edited at
         // one: the override adds or moves the keyframe there, and a replay has
         // to rebuild it at the same frame rather than at whatever is on screen.
-        [path]: { frame: frame(), value },
+        [path]: {
+          frame: frame(),
+          // The pane holds an asset as the name of a file in `public/`; the
+          // runtime wants the URL, and resolves Remotion's own file token to
+          // it for exactly the fields it knows to be assets.
+          value:
+            field.type === "asset" && typeof value === "string"
+              ? assetValue(value)
+              : value,
+        },
       });
 
       if (!entry.live.includes(controls.overrideId)) {

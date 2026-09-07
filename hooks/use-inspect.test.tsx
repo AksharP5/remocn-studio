@@ -117,6 +117,8 @@ const TUNING: TuningTarget = {
 };
 
 const SELECTION = {
+  assetBase: null,
+  assets: [],
   element: ELEMENT,
   fonts: [],
   rect: { height: 0.2, width: 0.4, x: 0.1, y: 0.1 },

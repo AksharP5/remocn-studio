@@ -1,5 +1,10 @@
 import type { TuningField } from "@/lib/studio/preview";
-import { fromPercent, isPercent, toPercent } from "@/lib/studio/tuning";
+import {
+  type Composite,
+  fromPercent,
+  isPercent,
+  toPercent,
+} from "@/lib/studio/tuning";
 import type { TuningValue } from "@/shared/ipc";
 
 export interface DialSliderSpec {
@@ -9,6 +14,18 @@ export interface DialSliderSpec {
   readonly unit?: string;
   readonly value: number;
 }
+
+/** dialkit's own axis notation: `[default, min, max, step]`. */
+export type DialPadAxisSpec = readonly [number, number, number, number];
+
+export interface DialPadSpec {
+  readonly labels: { readonly x: string; readonly y: string };
+  readonly value: { readonly x: number; readonly y: number };
+  readonly x: DialPadAxisSpec;
+  readonly y: DialPadAxisSpec;
+}
+
+const PADDED = new Set(["transform-origin", "translate", "uv-coordinate"]);
 
 export function sliderOf(
   field: TuningField,
@@ -150,4 +167,93 @@ function inferredStep(range: number): number {
 
 function scaleMaximum(original: number): number {
   return Math.max(3, Math.ceil(Math.abs(original) * 3));
+}
+
+/**
+ * A pair edited as one point rather than as two sliders.
+ *
+ * Only the three field types that really are a position on the frame —
+ * `translate`, `transform-origin` and `uv-coordinate`. `scale` as a string is
+ * two independent factors and `rotation-css` is one number, so both keep their
+ * sliders. The ranges are the ones `axisSliderOf` already computed for those
+ * sliders, per axis; the pad is a different instrument over the same numbers.
+ */
+export function padOf(
+  field: TuningField,
+  composite: Composite,
+  original: Composite
+): DialPadSpec | null {
+  if (!PADDED.has(field.type) || composite.axes.length !== 2) {
+    return null;
+  }
+
+  const axes = composite.axes.map((axis, index) =>
+    axisSliderOf(
+      field,
+      axis.value,
+      original.axes[index]?.value ?? axis.value,
+      axis.unit
+    )
+  );
+  const [x, y] = axes;
+
+  if (x === null || y === null || x === undefined || y === undefined) {
+    return null;
+  }
+
+  const originals = composite.axes.map(
+    (axis, index) => original.axes[index]?.value ?? axis.value
+  );
+
+  return {
+    labels: {
+      x: composite.axes[0]?.label ?? "X",
+      y: composite.axes[1]?.label ?? "Y",
+    },
+    value: { x: x.value, y: flipAxis(y.value, y) },
+    x: [clampAxis(originals[0] ?? x.value, x), x.min, x.max, x.step],
+    y: [
+      flipAxis(clampAxis(originals[1] ?? y.value, y), y),
+      y.min,
+      y.max,
+      y.step,
+    ],
+  };
+}
+
+/**
+ * The two numbers a pad point stands for, in the value's own direction.
+ *
+ * A pad's Y grows upward and every one of these three field types measures it
+ * downward — CSS translate and `transform-origin` from the top edge, and
+ * Remotion's own `uv-coordinate`, whose `[0, 0]` is the top-left corner
+ * (`getBilinearUvHandlePosition` mixes the top and bottom edges by `uv[1]`).
+ * So Y is mirrored inside its own range rather than negated: `min + max - y`,
+ * which for a symmetric translate span *is* a sign flip, leaves an origin's
+ * 0–100 and a uv's 0–1 the right way up, and is its own inverse — the same
+ * function reads the value and writes it back.
+ */
+export function padAxesFrom(
+  pad: DialPadSpec,
+  point: { readonly x: number; readonly y: number }
+): [number, number] {
+  return [point.x, flipAxis(point.y, spanOf(pad.y))];
+}
+
+function flipAxis(
+  value: number,
+  span: { readonly max: number; readonly min: number }
+): number {
+  return span.min + span.max - value;
+}
+
+function clampAxis(
+  value: number,
+  span: { readonly max: number; readonly min: number }
+): number {
+  return Math.min(span.max, Math.max(span.min, value));
+}
+
+function spanOf(axis: DialPadAxisSpec): { max: number; min: number } {
+  return { max: axis[2], min: axis[1] };
 }

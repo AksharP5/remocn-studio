@@ -30,6 +30,7 @@ export const NOT_TYPESCRIPT = "the file is not TypeScript";
 export const COMPUTED_IN_CODE = "the code computes this value";
 export const FONT_NOT_LOADED = "that font is not loaded in the preview";
 export const NO_STATUS = "the studio could not read this value in the code";
+export const ASSET_IS_A_CALL = "an asset is written as staticFile(…)";
 
 const TO_CODE: Routed = { reason: null, route: "code" };
 
@@ -70,6 +71,14 @@ export function routeOf(input: {
   // ships no font directory to look one up in.
   if (input.type === "font-family" && !isLoaded(input.fonts, input.value)) {
     return { reason: FONT_NOT_LOADED, route: "agent" };
+  }
+
+  // The pane holds an asset as the name of a file in `public/`, and the code
+  // holds the call that resolves it. Writing the name where the call is would
+  // leave a string the bundler serves from nowhere; `src={staticFile(…)}` is
+  // read as computed anyway, so this only catches a literal `src="…"`.
+  if (input.type === "asset") {
+    return { reason: ASSET_IS_A_CALL, route: "agent" };
   }
 
   return TO_CODE;

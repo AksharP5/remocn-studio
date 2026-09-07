@@ -1,6 +1,8 @@
 "use client";
 
+import { SpringVisualization } from "dialkit";
 import {
+  ChevronDownIcon,
   ChevronRightIcon,
   CornerDownLeftIcon,
   LibraryBigIcon,
@@ -26,10 +28,12 @@ import {
   type TuningRefusal,
 } from "@/hooks/use-inspect";
 import { usePreviewFrame } from "@/hooks/use-preview";
+import { type PropGroups, usePropGroups } from "@/hooks/use-prop-groups";
 import { type TimeStrip, useTimeStrip } from "@/hooks/use-time-strip";
 import { useWheelScroll } from "@/hooks/use-wheel-scroll";
 import { windowSeconds } from "@/lib/studio/easing";
 import type { TuningField, TuningTarget } from "@/lib/studio/preview";
+import { paneRows, type SpringReadout } from "@/lib/studio/spring";
 import { VERBATIM_INPUT } from "@/lib/studio/text-input";
 import { changedFields, subtitleOf, titleOf } from "@/lib/studio/tuning";
 import { cn } from "@/lib/utils";
@@ -55,10 +59,12 @@ const GROUP_ORDER = [
 ];
 
 export function PropsPane() {
-  const { openedProject, tools } = useStudio();
+  const { openedProject, settings, tools } = useStudio();
   const { inspect } = tools;
   const { card } = inspect;
   const frame = usePreviewFrame(tools.preview);
+  // Outside the keyed panel below, so a fold survives picking another element.
+  const groups = usePropGroups(settings);
 
   if (card === null || card.tuning === null) {
     return null;
@@ -69,6 +75,7 @@ export function PropsPane() {
       card={card}
       cwd={openedProject?.path ?? null}
       frame={frame}
+      groups={groups}
       key={card.targets.at(0)?.instanceId || "element"}
       onCancel={inspect.cancelComment}
       onChange={inspect.changeTuning}
@@ -88,6 +95,7 @@ export function PropsPanel({
   card,
   cwd,
   frame,
+  groups: folds,
   onCancel,
   onChange,
   onChangeText,
@@ -102,6 +110,8 @@ export function PropsPanel({
   card: PendingComment;
   cwd: string | null;
   frame: number;
+  /** Which sections are folded shut, and how to fold one. */
+  groups?: PropGroups;
   onCancel: () => void;
   onChange: (path: string, value: TuningValue) => void;
   onChangeText: (value: string) => void;
@@ -125,6 +135,10 @@ export function PropsPanel({
     span: card.window ?? null,
   });
   const duration = windowSeconds(card.window, card.element.fps);
+  const assets = {
+    base: card.assetBase ?? null,
+    names: card.assets ?? [],
+  };
 
   return (
     <Pane>
@@ -215,23 +229,39 @@ export function PropsPanel({
                   className="border-border border-t px-4 py-3 first:border-t-0"
                   key={group}
                 >
-                  <h3 className="pb-2 font-medium text-foreground text-sm">
-                    {group}
-                  </h3>
-                  <div className="flex flex-col gap-2.5">
-                    {grouped.map((field) => (
-                      <TuningRow
-                        animated={isFieldAnimated(card, field)}
-                        duration={duration}
-                        field={field}
-                        fonts={card.fonts}
-                        key={field.path}
-                        onChange={onChange}
-                        onReset={onReset}
-                        original={card.originals[field.targetId]?.[field.path]}
-                        refusal={refusalFor(refusal, field)}
-                      />
-                    ))}
+                  <GroupHeading
+                    count={grouped.length}
+                    group={group}
+                    isOpen={!folds?.collapsed.includes(group)}
+                    onToggle={folds?.toggle}
+                  />
+                  <div
+                    className="flex flex-col gap-2.5"
+                    hidden={folds?.collapsed.includes(group) === true}
+                  >
+                    {paneRows(grouped).map((row) =>
+                      row.kind === "spring" ? (
+                        <SpringResponse
+                          key={`spring:${row.spring.prefix}`}
+                          spring={row.spring}
+                        />
+                      ) : (
+                        <TuningRow
+                          animated={isFieldAnimated(card, row.field)}
+                          assets={assets}
+                          duration={duration}
+                          field={row.field}
+                          fonts={card.fonts}
+                          key={row.field.path}
+                          onChange={onChange}
+                          onReset={onReset}
+                          original={
+                            card.originals[row.field.targetId]?.[row.field.path]
+                          }
+                          refusal={refusalFor(refusal, row.field)}
+                        />
+                      )
+                    )}
                   </div>
                 </section>
               ))}
@@ -282,6 +312,85 @@ export function PropsPanel({
         </div>
       </PaneBody>
     </Pane>
+  );
+}
+
+/**
+ * A section's name, and the click that folds it.
+ *
+ * An element on a real video opens with eight of these, and Remotion puts
+ * Transform on every one of them — so the section a person came for is
+ * routinely below the fold of a 340px pane. The count is what a folded
+ * section says instead of its rows, so a fold never hides that there is
+ * something in there.
+ */
+function GroupHeading({
+  count,
+  group,
+  isOpen,
+  onToggle,
+}: {
+  count: number;
+  group: string;
+  isOpen: boolean;
+  onToggle?: (group: string) => void;
+}) {
+  // The name rides on the button rather than in a closure, so a pane of eight
+  // sections does not remint eight handlers on every render.
+  const toggle = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      onToggle?.(event.currentTarget.value);
+    },
+    [onToggle]
+  );
+
+  return (
+    <h3 className="pb-2 font-medium text-foreground text-sm">
+      <button
+        aria-expanded={isOpen}
+        className="-mx-1 flex w-[calc(100%+0.5rem)] items-center gap-1 rounded-sm px-1 py-0.5 text-left hover:bg-muted/50"
+        onClick={toggle}
+        type="button"
+        value={group}
+      >
+        {isOpen ? (
+          <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground" />
+        ) : (
+          <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground" />
+        )}
+        <span className="min-w-0 flex-1 truncate">{group}</span>
+        {isOpen ? null : (
+          <span className="shrink-0 text-muted-foreground text-xs tabular-nums">
+            {count}
+          </span>
+        )}
+      </button>
+    </h3>
+  );
+}
+
+/**
+ * The three numbers of a `spring()` are one movement, so the pane draws the
+ * response above them rather than leaving damping, stiffness and mass to be
+ * read as three unrelated dials. It is a readout and not a control: dialkit's
+ * own `SpringControl` needs a panel registered in its store, and its Time mode
+ * parameterises Motion's solver rather than Remotion's. The curve is the
+ * shape; the seconds under it are dialkit's fixed window, not the scene's.
+ */
+function SpringResponse({ spring }: { spring: SpringReadout }) {
+  return (
+    <div className="dialkit-composite-control">
+      <span className="dialkit-composite-label">{spring.label}</span>
+      <SpringVisualization
+        isSimpleMode={false}
+        spring={{
+          damping: spring.damping,
+          mass: spring.mass,
+          stiffness: spring.stiffness,
+          type: "spring",
+        }}
+      />
+    </div>
   );
 }
 

@@ -19,6 +19,7 @@ const CRASH_REPORTS_KEY = "crashReports";
 const PREVIEW_PANE_KEY = "previewPane";
 const PROJECTS_PANE_KEY = "projectsPane";
 const TASK_DOCK_KEY = "taskDock";
+const PROP_GROUPS_KEY = "collapsedPropGroups";
 const TITLEBAR_SHADER_KEY = "titlebarShader";
 const TITLEBAR_MOTION_KEY = "titlebarMotion";
 const PANE_VIEW_KEY = "paneView";
@@ -37,6 +38,9 @@ export interface StudioSettings {
   claudeEffort: EffortLevel | null;
   claudeModel: string | null;
   codexModel: string | null;
+  /** The property groups folded shut, by name. Collapsed rather than expanded,
+      so a group the pane gains later opens with everything else. */
+  collapsedPropGroups: readonly string[];
   copilotModel: string | null;
   crashReports: boolean | null;
   expandedVideos: readonly string[];
@@ -67,6 +71,7 @@ export const hydrateSettings: Effect.Effect<StudioSettings> = openStore.pipe(
       claudeEffort: effortOf(cache.get(CLAUDE_EFFORT_KEY)),
       claudeModel: cache.get(CLAUDE_MODEL_KEY) ?? null,
       codexModel: cache.get(CODEX_MODEL_KEY) ?? null,
+      collapsedPropGroups: idsOf(cache.get(PROP_GROUPS_KEY)),
       copilotModel: cache.get(COPILOT_MODEL_KEY) ?? null,
       crashReports: enabledOf(cache.get(CRASH_REPORTS_KEY)),
       expandedVideos: idsOf(cache.get(EXPANDED_VIDEOS_KEY)),
@@ -179,6 +184,12 @@ export function saveProjectsPane(shown: boolean): Effect.Effect<void> {
 
 export function saveTaskDock(shown: boolean): Effect.Effect<void> {
   return remember(TASK_DOCK_KEY, shown ? "shown" : "hidden");
+}
+
+export function saveCollapsedPropGroups(
+  groups: readonly string[]
+): Effect.Effect<void> {
+  return remember(PROP_GROUPS_KEY, JSON.stringify(groups));
 }
 
 // The tips a person has answered. Replaying them is this list going empty,
