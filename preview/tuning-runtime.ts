@@ -1,15 +1,9 @@
-import type { PreviewCommand, TuningValue } from "./bridge";
+import type { PreviewCommand, TargetStatuses, TuningValue } from "./bridge";
 import type { TuningTarget } from "./tuning";
 
 export interface TuningReply {
   readonly error: string | null;
   readonly ok: boolean;
-}
-
-export interface TuningReading {
-  readonly path: string;
-  readonly targetId: string;
-  readonly value: TuningValue;
 }
 
 export interface TuningRuntime {
@@ -20,10 +14,8 @@ export interface TuningRuntime {
     path: string,
     value: TuningValue
   ) => TuningReply;
+  readonly statuses: (targets: readonly TargetStatuses[]) => void;
   readonly targetsOf: (element: Element) => readonly TuningTarget[];
-  readonly valuesOf: (
-    targetId: string
-  ) => Readonly<Record<string, unknown>> | null;
 }
 
 let active: TuningRuntime | null = null;
@@ -46,39 +38,16 @@ export function clearTuning(): void {
   active?.clear();
 }
 
-export function tuningValues(
-  targetIds: readonly string[]
-): readonly TuningReading[] {
-  const readings: TuningReading[] = [];
-
-  for (const targetId of targetIds) {
-    const values = active?.valuesOf(targetId) ?? null;
-
-    if (values === null) {
-      continue;
-    }
-
-    for (const [path, value] of Object.entries(values)) {
-      if (path.length > 0 && isTuningValue(value)) {
-        readings.push({ path, targetId, value });
-      }
-    }
-  }
-
-  return readings;
-}
-
-function isTuningValue(value: unknown): value is TuningValue {
-  return Array.isArray(value) ? value.every(isPlain) : isPlain(value);
-}
-
-function isPlain(value: unknown): boolean {
-  return (
-    value === null ||
-    typeof value === "boolean" ||
-    typeof value === "number" ||
-    typeof value === "string"
-  );
+/**
+ * What the codemod read out of the file, for the targets the pane has open.
+ *
+ * This is the whole of the studio's knowledge about the code: without it a
+ * value can still be dragged — the runtime is handed a synthetic static status
+ * — but nothing is known about where it came from, so nothing can be written
+ * back.
+ */
+export function applyStatuses(targets: readonly TargetStatuses[]): void {
+  active?.statuses(targets);
 }
 
 export function tune(

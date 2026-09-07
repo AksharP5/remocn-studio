@@ -36,3 +36,14 @@ export function skillsAllowed(plan: PlanTier): boolean {
 export function pipelineAllowed(plan: PlanTier): boolean {
   return plan === "pro";
 }
+
+// The disk is the sidecar's, so the gate on writing into the person's project
+// is the sidecar's too. On Free the properties pane never opens — Inspect is
+// locked — so nothing should ever reach this; a refusal here is what makes
+// that a fact rather than a consequence.
+export function writesAllowed(plan: PlanTier): boolean {
+  return plan === "pro";
+}
+
+export const WRITES_ARE_PRO =
+  "Writing values back into the code is part of Pro.";

@@ -21,20 +21,26 @@ const RECT = { height: 0.2, width: 0.4, x: 0.1, y: 0.1 };
 
 const PLAIN: PendingComment = {
   element: ELEMENT,
+  frames: {},
   open: 0,
   originals: {},
   rect: RECT,
+  statuses: {},
   targets: [],
   tuning: null,
+  video: null,
 };
 
 const TITLE = {
   componentName: "Title",
   fields: [],
+  identity: null,
   instanceId: "",
   instances: 1,
+  keys: [],
   name: null,
   ordinal: 1,
+  origin: null,
   targetId: "title-1",
   where: null,
 };

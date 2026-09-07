@@ -6,15 +6,22 @@ import {
   type SidecarError,
 } from "@/lib/studio/sidecar";
 import {
+  CodeNodePath,
+  CodePropStatus,
   type PreviewEvent,
   type PreviewParams,
   type PreviewResult,
   PromptElement,
+  type StatusParams,
+  type StatusResult,
   type Still,
   type StillEvent,
   type StillParams,
+  VideoConfigValues,
   type Warmed,
   type WarmParams,
+  type WriteParams,
+  type WriteResult,
 } from "@/shared/ipc";
 
 export const PREVIEW_MESSAGE_SOURCE = "remocn-preview";
@@ -112,14 +119,30 @@ export const TuningWhere = Schema.Struct({
 export const TuningTarget = Schema.Struct({
   componentName: Schema.NonEmptyString,
   fields: Schema.Array(TuningField),
+  // Remotion's own identity for the component, and the flattened schema keys a
+  // status is asked for. A page from an older build sends neither, and a target
+  // with no keys is simply one nothing can be read for.
+  identity: Schema.NullOr(Schema.String).pipe(
+    Schema.withDecodingDefault(Effect.succeed(null))
+  ),
   instanceId: Schema.String.pipe(
     Schema.withDecodingDefault(Effect.succeed(""))
   ),
   instances: Schema.Int.pipe(Schema.withDecodingDefault(Effect.succeed(1))),
+  keys: Schema.Array(Schema.String).pipe(
+    Schema.withDecodingDefault(Effect.succeed([]))
+  ),
   name: Schema.NullOr(Schema.String).pipe(
     Schema.withDecodingDefault(Effect.succeed(null))
   ),
   ordinal: Schema.Int.pipe(Schema.withDecodingDefault(Effect.succeed(1))),
+  // The JSX call site, from Remotion's own stack — where a value is written.
+  // `where` is a different fact and stays: it is what React Grab resolved for
+  // the node, which is the component's own file and the pane's subtitle.
+  origin: Schema.NullOr(TuningWhere).pipe(
+    Schema.withDecodingDefault(Effect.succeed(null))
+  ),
+  schema: Schema.optionalKey(Schema.Unknown),
   targetId: Schema.NonEmptyString,
   where: Schema.NullOr(TuningWhere).pipe(
     Schema.withDecodingDefault(Effect.succeed(null))
@@ -158,6 +181,11 @@ export const PreviewMessage = Schema.Union([
     ),
     tuning,
     type: Schema.Literal("selection"),
+    // Only the page knows the composition's numbers, and the codemod needs
+    // them to read a prop written as an expression over `fps` or `width`.
+    video: Schema.NullOr(VideoConfigValues).pipe(
+      Schema.withDecodingDefault(Effect.succeed(null))
+    ),
     window: Schema.NullOr(PreviewWindow).pipe(
       Schema.withDecodingDefault(Effect.succeed(null))
     ),
@@ -167,17 +195,6 @@ export const PreviewMessage = Schema.Union([
     playing: Schema.Boolean,
     source: from,
     type: Schema.Literal("playhead"),
-  }),
-  Schema.Struct({
-    source: from,
-    type: Schema.Literal("tuning.values"),
-    values: Schema.Array(
-      Schema.Struct({
-        path: Schema.NonEmptyString,
-        targetId: Schema.NonEmptyString,
-        value: TuningValue,
-      })
-    ),
   }),
   Schema.Struct({
     paused: Schema.Boolean,
@@ -241,8 +258,14 @@ export const PreviewCommand = Schema.Union([
   }),
   Schema.Struct({
     source: to,
-    targetIds: Schema.Array(Schema.NonEmptyString),
-    type: Schema.Literal("tuning.read"),
+    targets: Schema.Array(
+      Schema.Struct({
+        nodePath: Schema.NullOr(CodeNodePath),
+        props: Schema.Record(Schema.String, CodePropStatus),
+        targetId: Schema.NonEmptyString,
+      })
+    ),
+    type: Schema.Literal("tuning.statuses"),
   }),
   Schema.Struct({
     // Whether anything is open to be highlighted *for*. `targetId: null` on its
@@ -290,15 +313,15 @@ export type PreviewComposition = Extract<
 >;
 export type PreviewSelection = Extract<PreviewMessage, { type: "selection" }>;
 export type PreviewPlayhead = Extract<PreviewMessage, { type: "playhead" }>;
-export type PreviewTuningValues = Extract<
-  PreviewMessage,
-  { type: "tuning.values" }
->;
 export type PreviewWindow = (typeof PreviewWindow)["Type"];
 export type TuningField = (typeof TuningField)["Type"];
 export type TuningTarget = (typeof TuningTarget)["Type"];
 export type TuningWhere = (typeof TuningWhere)["Type"];
 export type TuningValue = (typeof TuningValue)["Type"];
+export type TuningStatuses = Extract<
+  PreviewCommand,
+  { type: "tuning.statuses" }
+>["targets"][number];
 
 export const decodePreviewMessage = Schema.decodeUnknownExit(PreviewMessage);
 export const decodePreviewCommand = Schema.decodeUnknownExit(PreviewCommand);
@@ -336,13 +359,13 @@ export function pauseCommand(): PreviewCommand {
   return { source: PREVIEW_COMMAND_SOURCE, type: "pause" };
 }
 
-export function tuningReadCommand(
-  targetIds: readonly string[]
+export function tuningStatusesCommand(
+  targets: readonly TuningStatuses[]
 ): PreviewCommand {
   return {
     source: PREVIEW_COMMAND_SOURCE,
-    targetIds: [...targetIds],
-    type: "tuning.read",
+    targets: [...targets],
+    type: "tuning.statuses",
   };
 }
 
@@ -407,6 +430,30 @@ export function warmComposition(
     const id = yield* newRequestId;
 
     return yield* requestSidecar({ id, method: "preview.warm", params }).pipe(
+      Effect.onInterrupt(() => Effect.ignore(cancelSidecarRequest(id)))
+    );
+  });
+}
+
+export function readCodeStatuses(
+  params: StatusParams
+): Effect.Effect<StatusResult, SidecarError> {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+
+    return yield* requestSidecar({ id, method: "preview.status", params }).pipe(
+      Effect.onInterrupt(() => Effect.ignore(cancelSidecarRequest(id)))
+    );
+  });
+}
+
+export function writeCode(
+  params: WriteParams
+): Effect.Effect<WriteResult, SidecarError> {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+
+    return yield* requestSidecar({ id, method: "preview.write", params }).pipe(
       Effect.onInterrupt(() => Effect.ignore(cancelSidecarRequest(id)))
     );
   });

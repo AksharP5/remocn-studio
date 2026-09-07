@@ -51,10 +51,13 @@ function link(overrides: Partial<TuningTarget> = {}): TuningTarget {
   return {
     componentName: "Title",
     fields: [],
+    identity: null,
     instanceId: '[data-design-id="title"]',
     instances: 1,
+    keys: [],
     name: null,
     ordinal: 1,
+    origin: WHERE,
     targetId: "title-1",
     where: WHERE,
     ...overrides,
@@ -82,14 +85,17 @@ function draw(
   const target = handlers.target ?? link({ fields });
   const card: PendingComment = {
     element: ELEMENT,
+    frames: {},
     open: 0,
     originals: {
       "title-1": (handlers.originals ??
         Object.fromEntries(fields.map((f) => [f.path, f.value]))) as never,
     },
     rect: { height: 0.2, width: 0.4, x: 0.1, y: 0.1 },
+    statuses: {},
     targets: [target],
     tuning: target,
+    video: null,
     window: { from: 30, until: 60 },
   };
   const shown = handlers.card ?? card;
@@ -603,11 +609,14 @@ describe("the Interactive chain", () => {
   function chained(open: number, onOpenTarget = vi.fn()) {
     const card: PendingComment = {
       element: ELEMENT,
+      frames: {},
       open,
       originals: { "div-1": {}, "rig-1": {} },
       rect: { height: 0.2, width: 0.4, x: 0.1, y: 0.1 },
+      statuses: {},
       targets: [inner, outer],
       tuning: [inner, outer][open] as never,
+      video: null,
     };
 
     return {
@@ -637,11 +646,14 @@ describe("the Interactive chain", () => {
   it("prefers the agent's own name on a chip", () => {
     const card: PendingComment = {
       element: ELEMENT,
+      frames: {},
       open: 0,
       originals: { "div-1": {}, "rig-1": {} },
       rect: { height: 0.2, width: 0.4, x: 0.1, y: 0.1 },
+      statuses: {},
       targets: [{ ...inner, name: "Pushed line" }, outer],
       tuning: { ...inner, name: "Pushed line" },
+      video: null,
     };
 
     draw(inner.fields, { card, onOpenTarget: vi.fn() });
@@ -758,11 +770,14 @@ describe("the time strip", () => {
     const target = link({ fields: [field({ label: "Size", path: "size" })] });
     const card: PendingComment = {
       element: ELEMENT,
+      frames: {},
       open: 0,
       originals: { "title-1": {} },
       rect: { height: 0.2, width: 0.4, x: 0.1, y: 0.1 },
+      statuses: {},
       targets: [target],
       tuning: target,
+      video: null,
       window: null,
     };
 
@@ -782,13 +797,22 @@ describe("the time strip", () => {
       fields: [field({ label: "Offset", path: "offset", value: 12 })],
     });
     const card: PendingComment = {
-      animated: new Set(["title-1 offset"]),
       element: ELEMENT,
+      frames: {},
       open: 0,
       originals: { "title-1": { offset: 12 } },
       rect: { height: 0.2, width: 0.4, x: 0.1, y: 0.1 },
+      statuses: {
+        "title-1": {
+          id: "title-1",
+          nodePath: null,
+          props: { offset: { kind: "keyframed", status: {} } },
+          reason: null,
+        },
+      },
       targets: [target],
       tuning: target,
+      video: null,
       window: { from: 30, until: 60 },
     };
 
@@ -833,12 +857,15 @@ describe("the text a Remotion too old to declare it still shows", () => {
     return {
       card: {
         element: ELEMENT,
+        frames: {},
         open: 0,
         originals: { "title-1": { size: 0 } },
         rect: { height: 0.2, width: 0.4, x: 0.1, y: 0.1 },
+        statuses: {},
         targets: [target],
         text,
         tuning: target,
+        video: null,
         window: { from: 30, until: 60 },
       } as PendingComment,
       fields: shown,

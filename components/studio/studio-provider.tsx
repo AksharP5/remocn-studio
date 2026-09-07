@@ -49,6 +49,7 @@ import type { VideoFormat } from "@/lib/studio/formats";
 import type { StudioSettings } from "@/lib/studio/settings";
 import { currentTasks } from "@/lib/studio/tasks";
 import type { TourReveal } from "@/lib/studio/tours";
+import type { PlanTier } from "@/shared/entitlement";
 import type { ProjectDraft } from "@/shared/ipc";
 import { PROVIDER_INFO } from "@/shared/providers";
 import { ProjectDialogs } from "./project-dialogs";
@@ -279,6 +280,7 @@ function StudioStateProvider({
     draftId: workspace.draftId,
     effort: effort.claudeEffort,
     models: model.models,
+    plan: planReaderOf(plan),
     playing,
     projectId: workspace.activeProject?.id ?? null,
     session: workspace.openedSession,
@@ -287,11 +289,13 @@ function StudioStateProvider({
   });
 
   const opened = workspace.openedProject;
+  const openedId = opened?.id ?? null;
+  const openedMissing = opened?.missing ?? false;
 
   const composer = useComposer({
     onEscape: turn.isRunning ? turn.stop : undefined,
     onSubmit: turn.send,
-    projectId: opened?.id ?? null,
+    projectId: openedId,
   });
 
   const queue = useQueue(turn, composer);
@@ -301,7 +305,7 @@ function StudioStateProvider({
   const docs = useDocs({
     entries: turn.entries,
     isTurnRunning: workspace.hasRunningTurns,
-    projectId: opened?.id ?? null,
+    projectId: openedId,
     videoId: workspace.openedVideo?.id ?? null,
   });
 
@@ -309,19 +313,22 @@ function StudioStateProvider({
     composer,
     isDocs: docs.mode === "docs",
     isLocked: trialCard.isOnFree,
-    isMissing: opened?.missing ?? false,
+    isMissing: openedMissing,
     isShown: panes.isPreviewShown,
     isWaiting: turn.permission !== null || turn.source !== null,
     lockedReason:
       account.phase.kind === "signedIn" ? PRO_ONLY_UPGRADE : PRO_ONLY,
     onArm: trialCard.reopen,
-    openedProjectId: opened?.id ?? null,
+    openedProjectId: openedId,
     preview,
     previewProjectId,
+    // The pane reads the code of the project the *chat* is in, which is the
+    // same one the preview is showing whenever the tools are available at all.
+    writeProjectId: openedId,
   });
 
   const environment = useEnvironment(
-    opened === null || opened.missing ? null : opened.id,
+    openedMissing ? null : openedId,
     previewProjectId === opened?.id ? tools.preview.pick : null,
     turn.provider
   );
@@ -336,8 +343,8 @@ function StudioStateProvider({
   const drops = useFileDrops({
     drop: composer.drop,
     isComposerOpen:
-      opened !== null &&
-      !opened.missing &&
+      openedId !== null &&
+      !openedMissing &&
       !environment.isBlocking &&
       turn.permission === null &&
       turn.source === null,
@@ -367,7 +374,7 @@ function StudioStateProvider({
         composer.media.items.length > 0,
       hasPlan: currentTasks(turn.entries).length > 0,
       hasPreviewTools: tools.inspect.canInspect,
-      hasProject: opened !== null && !opened.missing,
+      hasProject: openedId !== null && !openedMissing,
       isBlocked:
         turn.permission !== null ||
         turn.source !== null ||
@@ -445,6 +452,10 @@ function StudioStateProvider({
       <ProjectDialogs menu={projectMenu} project={activeProject} />
     </StudioContext>
   );
+}
+
+function planReaderOf(plan: PlanHandle | null): (() => PlanTier) | undefined {
+  return plan === null ? undefined : plan.read;
 }
 
 function previewTarget(workspace: Workspace): string | null {

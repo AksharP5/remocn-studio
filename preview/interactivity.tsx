@@ -8,19 +8,22 @@ import {
 } from "react";
 import { Internals } from "remotion";
 import { anchorContainer, anchorOf, resolveAnchor } from "./anchor";
-import type { TuningValue } from "./bridge";
+import type { TargetStatuses, TuningNodePath, TuningValue } from "./bridge";
+import { originOf } from "./stack";
 import { type TimeWindow, windowOf } from "./timing";
 import {
   controlsChain,
+  type DraftValue,
   describeTuning,
+  emptyPlan,
   fieldAt,
   type InteractivitySchema,
   isFieldValue,
   isPlumbing,
   nameIn,
   nearestInteractive,
-  overridePlan,
   plainName,
+  publishPlan,
   type Rebound,
   rebind,
   sameMappings,
@@ -33,6 +36,7 @@ import {
 } from "./tuning-runtime";
 
 interface SequenceControls {
+  readonly componentIdentity?: string | null;
   readonly componentName: string;
   readonly currentRuntimeValueDotNotation: Readonly<Record<string, unknown>>;
   readonly overrideId: string;
@@ -44,12 +48,7 @@ interface InteractiveSequence {
   readonly refForOutline: { current: Element | null } | null;
 }
 
-interface NodePath {
-  readonly absolutePath: string;
-  readonly effectKeys: readonly string[][];
-  readonly nodePath: readonly (number | string)[];
-  readonly sequenceKeys: readonly string[];
-}
+type NodePath = TuningNodePath;
 
 interface TargetEntry {
   anchor: string;
@@ -59,6 +58,11 @@ interface TargetEntry {
   live: readonly string[];
   node: Element | null;
   nodePath: NodePath;
+  // What the codemod read out of the file for this element, once the app has
+  // asked for it. `null` until then, and for ever on a project whose Remotion
+  // is too old to answer — which is the one state that costs writing and
+  // nothing else.
+  statuses: TargetStatuses | null;
   window: TimeWindow | null;
 }
 
@@ -185,6 +189,24 @@ function mountedControls(entry: TargetEntry): SequenceControls | null {
   );
 }
 
+// Remotion records the JSX call site against the controls object itself, in
+// `development`, off `jsxDEV`'s source argument. It is the only coordinate that
+// names the element whose props are about to be rewritten — grab's resolution
+// names the component that rendered it, which is a different file.
+function stackOf(controls: SequenceControls): string | null {
+  const read = (
+    Internals as unknown as {
+      getStackForControls?: (value: unknown) => string | null;
+    }
+  ).getStackForControls;
+
+  return typeof read === "function" ? read(controls) : null;
+}
+
+function rootPath(): string {
+  return (globalThis as unknown as { remocn_root?: string }).remocn_root ?? "/";
+}
+
 function debugging(): boolean {
   return (
     (globalThis as unknown as { remocn_debug?: boolean }).remocn_debug === true
@@ -225,7 +247,7 @@ export function InteractivityRuntime({
   const setters = useContext(Internals.VisualModeSettersContext);
   const [mappings, setMappings] = useState<Record<string, NodePath>>({});
   const mappingsRef = useRef<Record<string, NodePath>>({});
-  const drafts = useRef(new Map<string, Record<string, TuningValue>>());
+  const drafts = useRef(new Map<string, Record<string, DraftValue>>());
   const targets = useRef(new Map<string, TargetEntry>());
   const minted = useRef(0);
 
@@ -265,12 +287,17 @@ export function InteractivityRuntime({
         label: componentName,
         live: [],
         node: null,
+        // A key of our own until the codemod answers with Remotion's. It is
+        // never a real address, so nothing can be written through it — it only
+        // has to be unique, so two elements' drafts cannot collide.
         nodePath: {
           absolutePath: `remocn.${id}`,
           effectKeys: [],
           nodePath: ["remocn", id],
           sequenceKeys: [],
+          videoConfigValues: null,
         },
+        statuses: null,
         window: null,
       };
 
@@ -307,35 +334,48 @@ export function InteractivityRuntime({
     (
       key: string,
       controls: SequenceControls | null
-    ): Record<string, unknown> =>
-      controls === null
-        ? {}
-        : {
-            ...controls.currentRuntimeValueDotNotation,
-            ...drafts.current.get(key),
-          },
-    []
-  );
+    ): Record<string, unknown> => {
+      if (controls === null) {
+        return {};
+      }
 
-  const valuesOf = useCallback(
-    (key: string): Readonly<Record<string, unknown>> | null =>
-      controlsFor(key)?.currentRuntimeValueDotNotation ?? null,
-    [controlsFor]
+      const values: Record<string, unknown> = {
+        ...controls.currentRuntimeValueDotNotation,
+      };
+
+      for (const [path, held] of Object.entries(
+        drafts.current.get(key) ?? {}
+      )) {
+        values[path] = held.value;
+      }
+
+      return values;
+    },
+    []
   );
 
   const tunable = typeof setters.setPropStatuses === "function";
 
   const replay = useCallback(
     (entry: TargetEntry) => {
-      const plan = overridePlan(drafts.current.get(entry.key) ?? {});
+      const plan = publishPlan(
+        drafts.current.get(entry.key) ?? {},
+        entry.statuses
+      );
 
       setters.clearDragOverrides(entry.nodePath as never);
 
-      for (const { path, value } of plan.overrides) {
+      for (const step of plan.overrides) {
         setters.setDragOverrides(
           entry.nodePath as never,
-          path,
-          Internals.makeStaticDragOverride(value)
+          step.path,
+          step.keyframed === null
+            ? Internals.makeStaticDragOverride(step.value)
+            : (Internals.makeKeyframedDragOverride({
+                frame: step.frame,
+                status: step.keyframed as never,
+                value: step.value,
+              }) as never)
         );
       }
 
@@ -398,7 +438,10 @@ export function InteractivityRuntime({
 
       drafts.current.set(targetId, {
         ...drafts.current.get(targetId),
-        [path]: value,
+        // The frame rides with the value because a keyframed key is edited at
+        // one: the override adds or moves the keyframe there, and a replay has
+        // to rebuild it at the same frame rather than at whatever is on screen.
+        [path]: { frame: frame(), value },
       });
 
       if (!entry.live.includes(controls.overrideId)) {
@@ -444,7 +487,7 @@ export function InteractivityRuntime({
   );
 
   const clear = useCallback(() => {
-    const empty = overridePlan({}).statuses;
+    const empty = emptyPlan().statuses;
 
     for (const entry of targets.current.values()) {
       setters.clearDragOverrides(entry.nodePath as never);
@@ -498,7 +541,9 @@ export function InteractivityRuntime({
         const values = valuesFor(key, controls);
         const part = describeTuning({
           componentName: controls.componentName,
+          identity: controls.componentIdentity ?? null,
           instanceId: anchor,
+          origin: originOf(rootPath(), stackOf(controls)),
           schema: controls.schema,
           targetId: key,
           values,
@@ -535,9 +580,56 @@ export function InteractivityRuntime({
     [entryFor, interactive, syncMappings, valuesFor]
   );
 
+  // The codemod's answer lands after the pick, so a target may swap its
+  // address here: the overrides published under the placeholder are taken down
+  // first, or they would be left addressed to a key nothing reads.
+  const applyStatuses = useCallback(
+    (answered: readonly TargetStatuses[]) => {
+      let moved = false;
+
+      for (const answer of answered) {
+        const entry = targets.current.get(answer.targetId);
+
+        if (entry === undefined) {
+          continue;
+        }
+
+        if (answer.nodePath !== null && entry.nodePath !== answer.nodePath) {
+          setters.clearDragOverrides(entry.nodePath as never);
+          setters.setPropStatuses(
+            entry.nodePath as never,
+            () => emptyPlan().statuses as never
+          );
+          entry.nodePath = answer.nodePath;
+          moved = true;
+        }
+
+        entry.statuses = answer;
+      }
+
+      if (moved) {
+        syncMappings();
+      }
+
+      for (const answer of answered) {
+        const entry = targets.current.get(answer.targetId);
+        if (entry !== undefined) {
+          replay(entry);
+        }
+      }
+    },
+    [replay, setters, syncMappings]
+  );
+
   const runtime = useMemo<TuningRuntime>(
-    () => ({ clear, reset, set, targetsOf: selectedTargets, valuesOf }),
-    [clear, reset, selectedTargets, set, valuesOf]
+    () => ({
+      clear,
+      reset,
+      set,
+      statuses: applyStatuses,
+      targetsOf: selectedTargets,
+    }),
+    [applyStatuses, clear, reset, selectedTargets, set]
   );
 
   useEffect(() => activate(runtime), [runtime]);

@@ -1,6 +1,6 @@
 "use client";
 
-import { MousePointerClickIcon, XIcon } from "lucide-react";
+import { FileCode2Icon, MousePointerClickIcon, XIcon } from "lucide-react";
 import type { MouseEvent } from "react";
 import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
@@ -71,6 +71,10 @@ function SelectionChip({
 }) {
   const { element } = item;
   const changes = element.tuningChanges?.length ?? 0;
+  // Two chips can come out of one Add: this is the one the studio writes into
+  // the file when the message is sent, and it says so rather than reading as a
+  // second request for the same element.
+  const written = element.written === true;
   const show = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
       if (changes > 0 && !item.stale) {
@@ -104,19 +108,27 @@ function SelectionChip({
             />
           }
         >
-          <MousePointerClickIcon className="text-reference" />
+          {written ? (
+            <FileCode2Icon className="text-reference" />
+          ) : (
+            <MousePointerClickIcon className="text-reference" />
+          )}
           <span className="text-reference tabular-nums">{index + 1}</span>
           <span className="max-w-32 truncate">{labelOf(item)}</span>
           {changes > 0 ? (
             <span className="text-muted-foreground tabular-nums">
-              · {item.stale ? "Preview changed" : `${changes} changes`}
+              · {statusOf(item, changes, written)}
             </span>
           ) : null}
           <span className="text-muted-foreground tabular-nums">
             {frameTime(element.frame, element.fps)}
           </span>
         </TooltipTrigger>
-        <TooltipContent>{`${labelOf(item)} · ${whereOf(element, cwd)}`}</TooltipContent>
+        <TooltipContent>
+          {`${labelOf(item)} · ${whereOf(element, cwd)}${
+            written ? " · the studio writes these when you send" : ""
+          }`}
+        </TooltipContent>
       </Tooltip>
 
       <Button
@@ -144,6 +156,16 @@ function labelOf(item: Selection): string {
   const target = item.tuning?.targets[item.tuning.open];
 
   return target === undefined ? plainLabel(item.element) : titleOf(target);
+}
+
+function statusOf(item: Selection, changes: number, written: boolean): string {
+  if (item.stale) {
+    return "Preview changed";
+  }
+
+  return written
+    ? `${changes} to the code`
+    : `${changes} change${changes === 1 ? "" : "s"}`;
 }
 
 function plainLabel(element: PromptElement): string {

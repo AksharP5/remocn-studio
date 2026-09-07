@@ -11,7 +11,7 @@ import {
   snapshotCommand,
   tuneResetCommand,
   tuneSetCommand,
-  tuningReadCommand,
+  tuningStatusesCommand,
 } from "./preview";
 
 const picked = {
@@ -295,33 +295,84 @@ describe("decodePreviewMessage", () => {
     ).toBe(true);
   });
 
-  it("accepts the values the runtime reports for a target", () => {
+  // Everything the codemod needs to find the call site rides with the pick:
+  // the coordinate Remotion recorded, the schema keys a status is asked for,
+  // and the composition's own numbers.
+  it("carries the call site, the keys and the video config on a link", () => {
     const decoded = decodePreviewMessage({
-      source: "remocn-preview",
-      type: "tuning.values",
-      values: [
-        { path: "style.opacity", targetId: "anchor::Title", value: 0.4 },
-        { path: "easing", targetId: "anchor::Title", value: [0.2, 0, 0.1, 1] },
+      ...selected,
+      tuning: [
+        {
+          componentName: "<Interactive.H1>",
+          fields: [],
+          identity: "remotion.H1",
+          instanceId: '[data-design-id="headline"]',
+          instances: 1,
+          keys: ["style.fontSize"],
+          name: "Headline",
+          ordinal: 1,
+          origin: {
+            column: 7,
+            file: "/Users/me/video/src/TitleCard.tsx",
+            line: 24,
+          },
+          schema: { "style.fontSize": { default: 16, type: "number" } },
+          targetId: "anchor::H1",
+          where: null,
+        },
+      ],
+      video: { durationInFrames: 300, fps: 30, height: 1080, width: 1920 },
+    });
+
+    const link =
+      Exit.isSuccess(decoded) && decoded.value.type === "selection"
+        ? decoded.value.tuning[0]
+        : null;
+
+    expect(link?.origin).toEqual({
+      column: 7,
+      file: "/Users/me/video/src/TitleCard.tsx",
+      line: 24,
+    });
+    expect(link?.identity).toBe("remotion.H1");
+    expect(link?.keys).toEqual(["style.fontSize"]);
+    expect(link?.schema).toEqual({
+      "style.fontSize": { default: 16, type: "number" },
+    });
+    expect(
+      Exit.isSuccess(decoded) &&
+        decoded.value.type === "selection" &&
+        decoded.value.video?.fps
+    ).toBe(30);
+  });
+
+  // A page from an older build sends none of it, and the pane still opens —
+  // only writing is lost.
+  it("takes a link with no call site, no keys and no video at all", () => {
+    const decoded = decodePreviewMessage({
+      ...selected,
+      tuning: [
+        {
+          componentName: "<Interactive.H1>",
+          fields: [],
+          targetId: "anchor::H1",
+        },
       ],
     });
 
+    const link =
+      Exit.isSuccess(decoded) && decoded.value.type === "selection"
+        ? decoded.value.tuning[0]
+        : null;
+
+    expect(link?.origin).toBeNull();
+    expect(link?.identity).toBeNull();
+    expect(link?.keys).toEqual([]);
     expect(
       Exit.isSuccess(decoded) &&
-        decoded.value.type === "tuning.values" &&
-        decoded.value.values.length
-    ).toBe(2);
-  });
-
-  it("refuses a reported value with no path to put it on", () => {
-    expect(
-      Exit.isFailure(
-        decodePreviewMessage({
-          source: "remocn-preview",
-          type: "tuning.values",
-          values: [{ path: "", targetId: "anchor::Title", value: 1 }],
-        })
-      )
-    ).toBe(true);
+        decoded.value.type === "selection" &&
+        decoded.value.video
+    ).toBeNull();
   });
 
   it("carries the element's own timed window on the selection", () => {
@@ -493,22 +544,48 @@ describe("decodePreviewCommand", () => {
     expect(Exit.isSuccess(decodePreviewCommand(pauseCommand()))).toBe(true);
   });
 
-  it("accepts a read of what the runtime holds for a chain", () => {
+  it("carries the codemod's statuses back to the page whole", () => {
     const decoded = decodePreviewCommand(
-      tuningReadCommand(["anchor::Title", "anchor::CameraRig"])
+      tuningStatusesCommand([
+        {
+          nodePath: {
+            absolutePath: "/videos/promo/src/Title.tsx",
+            effectKeys: [],
+            nodePath: ["program", "body", 0, "openingElement"],
+            sequenceKeys: ["style.opacity"],
+            videoConfigValues: {
+              durationInFrames: 300,
+              fps: 30,
+              height: 1080,
+              width: 1920,
+            },
+          },
+          props: {
+            "style.opacity": {
+              kind: "keyframed",
+              status: { keyframes: [{ frame: 0, value: 0 }] },
+            },
+          },
+          targetId: "anchor::Title",
+        },
+      ])
     );
 
     expect(
       Exit.isSuccess(decoded) &&
-        decoded.value.type === "tuning.read" &&
-        decoded.value.targetIds.length
-    ).toBe(2);
+        decoded.value.type === "tuning.statuses" &&
+        decoded.value.targets[0]?.props["style.opacity"]?.kind
+    ).toBe("keyframed");
   });
 
-  it("refuses a read naming a target with no id", () => {
-    expect(Exit.isFailure(decodePreviewCommand(tuningReadCommand([""])))).toBe(
-      true
-    );
+  it("refuses statuses naming a target with no id", () => {
+    expect(
+      Exit.isFailure(
+        decodePreviewCommand(
+          tuningStatusesCommand([{ nodePath: null, props: {}, targetId: "" }])
+        )
+      )
+    ).toBe(true);
   });
 
   it("refuses a fractional frame", () => {

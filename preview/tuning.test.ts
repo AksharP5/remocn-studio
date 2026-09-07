@@ -8,8 +8,8 @@ import {
   isPlumbing,
   labelFor,
   nearestInteractive,
-  overridePlan,
   plainName,
+  publishPlan,
   rebind,
   sameMappings,
 } from "./tuning";
@@ -392,26 +392,100 @@ describe("text and type", () => {
   });
 });
 
-describe("overridePlan", () => {
-  it("publishes a prop status for exactly the overridden keys", () => {
-    const plan = overridePlan({ hidden: true, "style.fontSize": 120 });
+describe("publishPlan", () => {
+  const KEYFRAMED = {
+    keyframes: [
+      { frame: 0, value: 0 },
+      { frame: 30, value: 1 },
+    ],
+    status: "keyframed",
+  };
+
+  const STATUSES = {
+    nodePath: null,
+    props: {
+      hidden: { kind: "static" as const, status: { status: "static" } },
+      "style.color": {
+        kind: "computed" as const,
+        status: { status: "computed" },
+      },
+      "style.opacity": { kind: "keyframed" as const, status: KEYFRAMED },
+    },
+    targetId: "title-1",
+  };
+
+  it("hands a keyframed key its own status, so the animation survives the edit", () => {
+    const plan = publishPlan(
+      { "style.opacity": { frame: 12, value: 0.4 } },
+      STATUSES
+    );
 
     expect(plan.overrides).toEqual([
-      { path: "hidden", value: true },
-      { path: "style.fontSize", value: 120 },
+      { frame: 12, keyframed: KEYFRAMED, path: "style.opacity", value: 0.4 },
     ]);
-    expect(plan.statuses).toEqual({
-      canUpdate: true,
-      effects: [],
-      props: {
-        hidden: { codeValue: true, status: "static" },
-        "style.fontSize": { codeValue: 120, status: "static" },
+    expect(plan.statuses.props["style.opacity"]).toBe(KEYFRAMED);
+  });
+
+  it("publishes every status the codemod read, edited or not", () => {
+    const plan = publishPlan({ hidden: { frame: 0, value: true } }, STATUSES);
+
+    expect(Object.keys(plan.statuses.props).sort()).toEqual([
+      "hidden",
+      "style.color",
+      "style.opacity",
+    ]);
+  });
+
+  // A computed key has no status an override merges into: the runtime takes
+  // the incoming prop and drops the override. The frame has to move while the
+  // person composes the request, so this one key is told it is static.
+  it("stands a computed key on a static status while it is being edited", () => {
+    const plan = publishPlan(
+      { "style.color": { frame: 0, value: "#fff" } },
+      STATUSES
+    );
+
+    expect(plan.overrides).toEqual([
+      { frame: 0, keyframed: null, path: "style.color", value: "#fff" },
+    ]);
+    expect(plan.statuses.props["style.color"]).toEqual({
+      codeValue: "#fff",
+      keyframeDisplayOffsetAdjustment: null,
+      status: "static",
+    });
+  });
+
+  // A Remotion older than 4.0.513 answers nothing, and so does a file the
+  // resolver could not read. The pane still works there; only writing is lost.
+  it("falls back to a static status for every drafted key with no statuses", () => {
+    const plan = publishPlan(
+      {
+        hidden: { frame: 0, value: true },
+        "style.fontSize": { frame: 0, value: 120 },
+      },
+      null
+    );
+
+    expect(plan.overrides.map((step) => step.path)).toEqual([
+      "hidden",
+      "style.fontSize",
+    ]);
+    expect(plan.statuses.props).toEqual({
+      hidden: {
+        codeValue: true,
+        keyframeDisplayOffsetAdjustment: null,
+        status: "static",
+      },
+      "style.fontSize": {
+        codeValue: 120,
+        keyframeDisplayOffsetAdjustment: null,
+        status: "static",
       },
     });
   });
 
   it("withdraws every status once the draft is empty, so animations run again", () => {
-    const plan = overridePlan({});
+    const plan = publishPlan({}, null);
 
     expect(plan.overrides).toEqual([]);
     expect(plan.statuses).toEqual({ canUpdate: true, effects: [], props: {} });

@@ -8,14 +8,41 @@ export type TuningValue =
   | null
   | readonly (boolean | number | string | null)[];
 
+export type StatusKind = "computed" | "keyframed" | "static";
+
+/** Remotion's own subscription key, carried whole between the two ends. */
+export interface TuningNodePath {
+  readonly absolutePath: string;
+  readonly effectKeys: readonly (readonly string[])[];
+  readonly nodePath: readonly (number | string)[];
+  readonly sequenceKeys: readonly string[];
+  readonly videoConfigValues: {
+    readonly durationInFrames: number;
+    readonly fps: number;
+    readonly height: number;
+    readonly width: number;
+  } | null;
+}
+
+export interface TuningStatus {
+  readonly kind: StatusKind;
+  readonly status: unknown;
+}
+
+export interface TargetStatuses {
+  readonly nodePath: TuningNodePath | null;
+  readonly props: Readonly<Record<string, TuningStatus>>;
+  readonly targetId: string;
+}
+
 export type PreviewCommand =
   | { armed: boolean; type: "inspect" }
   | { armed: boolean; type: "snapshot" }
   | { frame: number; type: "seek" }
   | { from: number; type: "replay"; until: number }
   | { type: "pause" }
-  | { targetIds: readonly string[]; type: "tuning.read" }
-  | { targetId: string | null; type: "highlight" }
+  | { targets: readonly TargetStatuses[]; type: "tuning.statuses" }
+  | { open: boolean; targetId: string | null; type: "highlight" }
   | {
       path: string;
       requestId: string;

@@ -46,6 +46,7 @@ export const PRO_FEATURES = [
   "skills-bundle",
   "pipeline-tools",
   "craft-conventions",
+  "write-to-code",
   "inspect",
   "snapshot",
 ] as const;

@@ -14,6 +14,7 @@ import { type Media, useMedia } from "@/hooks/use-media";
 import { type Mentions, useMentions } from "@/hooks/use-mentions";
 import { type PickedAssets, usePickedAssets } from "@/hooks/use-picked-assets";
 import {
+  type Selection,
   type Selections,
   type SelectionTuning,
   useSelections,
@@ -25,6 +26,7 @@ import type { PreviewRect } from "@/lib/studio/preview";
 import { firstPlaceholder } from "@/lib/studio/templates";
 import type { QueuedMessage } from "@/lib/studio/turns";
 import type {
+  CodeEdit,
   PromptAttachment,
   PromptElement,
   PromptMedia,
@@ -46,13 +48,15 @@ import {
 
 export interface ComposerSettings {
   onEscape?: () => void;
+  // The whole selections, not their elements: a chip may carry codemod edits,
+  // and those are run before the message goes anywhere.
   onSubmit: (
     text: string,
     attachments: readonly PromptAttachment[],
-    elements: readonly PromptElement[],
+    selections: readonly Selection[],
     assets: readonly PromptAsset[],
     media: readonly PromptMedia[]
-  ) => boolean;
+  ) => boolean | Promise<boolean>;
   projectId: string | null;
 }
 
@@ -85,10 +89,11 @@ export interface Composer {
     element: PromptElement,
     rect: PreviewRect,
     comment: string,
-    tuning?: SelectionTuning | null
+    tuning?: SelectionTuning | null,
+    writes?: readonly CodeEdit[]
   ) => string;
   selections: Selections;
-  submit: () => void;
+  submit: () => Promise<void>;
   value: string;
   write: (phrase: string) => void;
 }
@@ -235,12 +240,13 @@ export function useComposer({
       element: PromptElement,
       rect: PreviewRect,
       comment: string,
-      tuning: SelectionTuning | null = null
+      tuning: SelectionTuning | null = null,
+      writes: readonly CodeEdit[] = []
     ) => {
       const field = caret.ref.current;
       const text = field?.value ?? latest.current;
       const at = caretFor(text, field?.selectionStart ?? text.length);
-      const added = selections.add(element, rect, tuning);
+      const added = selections.add(element, rect, tuning, writes);
 
       const written = insertAt(text, at, comment.trim());
       const next = insertReferences(
@@ -392,15 +398,18 @@ export function useComposer({
     [assets, attachments, caret, media, mentions, selections]
   );
 
-  const submit = useCallback(() => {
+  // Awaited, because a message carrying code edits writes them first and may
+  // stop on a card. Nothing is cleared until that settles, which is what makes
+  // "no" leave the composer exactly as it was.
+  const submit = useCallback(async () => {
     if (!canSubmit) {
       return;
     }
 
-    const taken = onSubmit(
+    const taken = await onSubmit(
       value,
       attachments.items,
-      selections.items.map((item) => item.element),
+      selections.items,
       assets.items,
       media.items
     );
@@ -477,7 +486,7 @@ export function useComposer({
 
       if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault();
-        submit();
+        submit().catch(() => undefined);
         return;
       }
 

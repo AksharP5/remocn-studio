@@ -6,14 +6,22 @@ import type {
   PreviewWindow,
   TuningTarget,
 } from "@/lib/studio/preview";
-import type { PromptElement, TuningValue } from "@/shared/ipc";
+import type {
+  CodeEdit,
+  CodeTargetStatus,
+  PromptElement,
+  TuningValue,
+  VideoConfigValues,
+} from "@/shared/ipc";
 
 export interface SelectionTuning {
   fonts: readonly string[];
   open: number;
   originals: Readonly<Record<string, Readonly<Record<string, TuningValue>>>>;
+  statuses: Readonly<Record<string, CodeTargetStatus>>;
   targets: readonly TuningTarget[];
   text: string | null;
+  video: VideoConfigValues | null;
   window: PreviewWindow | null;
 }
 
@@ -23,6 +31,8 @@ export interface Selection {
   rect: PreviewRect;
   stale: boolean;
   tuning: SelectionTuning | null;
+  /** The codemod edits this chip carries, run when the message is sent. */
+  writes: readonly CodeEdit[];
 }
 
 export interface Added {
@@ -34,7 +44,8 @@ export interface Selections {
   add: (
     element: PromptElement,
     rect: PreviewRect,
-    tuning?: SelectionTuning | null
+    tuning?: SelectionTuning | null,
+    writes?: readonly CodeEdit[]
   ) => Added;
   clear: () => void;
   items: Selection[];
@@ -59,11 +70,15 @@ export function useSelections(): Selections {
     (
       element: PromptElement,
       rect: PreviewRect,
-      tuning: SelectionTuning | null = null
+      tuning: SelectionTuning | null = null,
+      writes: readonly CodeEdit[] = []
     ): Added => {
       minted.current += 1;
       const id = `selection-${minted.current}`;
-      commit([...held.current, { element, id, rect, stale: false, tuning }]);
+      commit([
+        ...held.current,
+        { element, id, rect, stale: false, tuning, writes },
+      ]);
       return { id, index: held.current.length - 1 };
     },
     [commit]
@@ -97,6 +112,7 @@ export function useSelections(): Selections {
             rect: OFF_FRAME,
             stale: false,
             tuning: null,
+            writes: [],
           };
         })
       );

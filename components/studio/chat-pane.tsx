@@ -59,6 +59,7 @@ import { TaskDock } from "./task-dock";
 import { TemplateList } from "./template-list";
 import { Transcript } from "./transcript";
 import { TrialCard } from "./trial-card";
+import { WriteFailureCard } from "./write-failure-card";
 
 const PLACEHOLDERS = ["one", "two", "three"];
 const TICK = "1 second";
@@ -331,6 +332,15 @@ function Conversation({
             </AboveComposer>
           )}
 
+          {turn.writes.card === null ? null : (
+            <AboveComposer>
+              <WriteFailureCard
+                failure={turn.writes.card}
+                onAnswer={turn.writes.answer}
+              />
+            </AboveComposer>
+          )}
+
           {turn.permission === null ? null : (
             <AboveComposer>
               <PermissionCard
@@ -371,6 +381,7 @@ function Conversation({
             onProviderChange={turn.onProviderChange}
             onStop={turn.stop}
             provider={turn.provider}
+            writesBlocked={turn.writesBlocked}
           />
         </>
       )}

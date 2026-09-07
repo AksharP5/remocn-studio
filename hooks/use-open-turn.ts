@@ -1,6 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo } from "react";
+import {
+  type CodeWriteSettings,
+  type CodeWrites,
+  useCodeWrites,
+} from "@/hooks/use-code-writes";
+import type { Selection } from "@/hooks/use-selections";
 import type { Turns } from "@/hooks/use-turns";
 import type { PermissionAction } from "@/lib/studio/permission";
 import {
@@ -10,6 +16,7 @@ import {
   type QueuedMessage,
   type TurnState,
 } from "@/lib/studio/turns";
+import type { PlanTier } from "@/shared/entitlement";
 import {
   type ContextUsage,
   type EffortLevel,
@@ -32,11 +39,14 @@ export interface OpenTurnSettings {
   draftId: string;
   effort: EffortLevel | null;
   models: Record<AgentProvider, string>;
+  plan?: () => PlanTier;
   playing: () => PromptFrame | null;
   projectId: string | null;
   session: HistorySession | null;
   turns: Turns;
   videoId: string | null;
+  /** The code write, injected so a test can answer without a sidecar. */
+  writeCode?: CodeWriteSettings["write"];
 }
 
 export interface OpenTurn {
@@ -66,27 +76,34 @@ export interface OpenTurn {
   send: (
     prompt: string,
     attachments?: readonly PromptAttachment[],
-    elements?: readonly PromptElement[],
+    selections?: readonly Selection[],
     assets?: readonly PromptAsset[],
     media?: readonly PromptMedia[]
-  ) => boolean;
+  ) => Promise<boolean>;
   source: PendingSourceAsset | null;
   stages: readonly PipelineStage[];
   startedAt: number | null;
   stop: () => void;
   turnError: string | null;
+  writes: CodeWrites;
+  /** Why a message carrying code edits cannot go out yet, or nothing. */
+  writesBlocked: string | null;
 }
+
+const FREE = (): PlanTier => "free";
 
 export function useOpenTurn({
   changeMode,
   draftId,
   effort,
   models,
+  plan = FREE,
   playing,
   projectId,
   session,
   turns,
   videoId,
+  writeCode,
 }: OpenTurnSettings): OpenTurn {
   const openId = session?.id ?? draftId;
   const {
@@ -110,19 +127,58 @@ export function useOpenTurn({
     }
   }, [loadTurn, session]);
 
+  const writes = useCodeWrites({ plan, projectId, write: writeCode });
+  const { isVideoBusy, recordTurn } = turns;
+
+  // One turn at a time is already per video; a write is stricter, because it
+  // touches the same files the running turn is editing. There is no queue for
+  // it — the message waits in the composer with the reason on the button.
+  const writesBlocked =
+    videoId !== null && isVideoBusy(videoId)
+      ? "This video has a turn running, so the studio will not write to its files yet."
+      : null;
+
+  const runWrites = writes.run;
+
   const send = useCallback(
-    (
+    async (
       prompt: string,
       attachments: readonly PromptAttachment[] = [],
-      elements: readonly PromptElement[] = [],
+      selections: readonly Selection[] = [],
       assets: readonly PromptAsset[] = [],
       media: readonly PromptMedia[] = []
-    ) => {
+    ): Promise<boolean> => {
       if (projectId === null || videoId === null) {
         return false;
       }
+
+      const writing = selections.some(
+        (selection) => selection.writes.length > 0
+      );
+
+      if (writing && writesBlocked !== null) {
+        return false;
+      }
+
+      const outcome = writing
+        ? await runWrites(selections)
+        : { failed: new Set<number>(), ok: true, written: [] };
+
+      if (!outcome.ok) {
+        return false;
+      }
+
+      // A chip whose edits were refused is no longer a record of what the
+      // studio did — it becomes a request, and the agent is asked for it.
+      const elements: readonly PromptElement[] = selections.map(
+        (selection, index) =>
+          outcome.failed.has(index)
+            ? { ...selection.element, written: false }
+            : selection.element
+      );
+
       const model = models[turn.provider];
-      return sendTurn({
+      const input = {
         assets,
         attachments,
         effort,
@@ -135,7 +191,18 @@ export function useOpenTurn({
         projectId,
         prompt,
         videoId,
-      });
+      };
+
+      // Nothing left to ask for: every change went into the code, and the
+      // message is a record rather than a request.
+      const asks =
+        prompt.trim().length > 0 ||
+        attachments.length > 0 ||
+        assets.length > 0 ||
+        media.length > 0 ||
+        elements.some((element) => element.written !== true);
+
+      return asks ? sendTurn(input) : await recordTurn(input);
     },
     [
       effort,
@@ -143,10 +210,13 @@ export function useOpenTurn({
       openId,
       playing,
       projectId,
+      recordTurn,
+      runWrites,
       sendTurn,
       turn.mode,
       turn.provider,
       videoId,
+      writesBlocked,
     ]
   );
 
@@ -223,6 +293,8 @@ export function useOpenTurn({
       startedAt: turn.startedAt,
       stop,
       turnError: turn.error,
+      writes,
+      writesBlocked,
     }),
     [
       answerSource,
@@ -235,6 +307,8 @@ export function useOpenTurn({
       send,
       stop,
       turn,
+      writes,
+      writesBlocked,
     ]
   );
 }

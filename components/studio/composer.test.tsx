@@ -73,10 +73,13 @@ const WRAPPED_NAME = /TitleBase/;
 const TARGET = {
   componentName: "Title",
   fields: [],
+  identity: null,
   instanceId: "anchor-1",
   instances: 1,
+  keys: [],
   name: null,
   ordinal: 1,
+  origin: null,
   targetId: "anchor-1::Title",
   where: null,
 };
@@ -85,8 +88,10 @@ const TUNED = {
   fonts: [],
   open: 0,
   originals: {},
+  statuses: {},
   targets: [TARGET],
   text: null,
+  video: null,
   window: null,
 };
 

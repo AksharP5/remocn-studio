@@ -29,6 +29,7 @@ export interface ToolSettings {
   openedProjectId: string | null;
   preview: PreviewControl;
   previewProjectId: string | null;
+  writeProjectId?: string | null;
 }
 
 export function useTools({
@@ -43,6 +44,7 @@ export function useTools({
   openedProjectId,
   preview,
   previewProjectId,
+  writeProjectId = null,
 }: ToolSettings): Tools {
   const [tool, setTool] = useState<Tool>(null);
 
@@ -123,6 +125,7 @@ export function useTools({
     composer,
     isArmed: tool === "inspect",
     preview,
+    projectId: writeProjectId,
     toggle: toggleInspect,
     unavailable,
   });

@@ -8,7 +8,7 @@ import {
   answerSourceAsset,
   promptAgent,
 } from "@/lib/studio/agent";
-import { loadTranscript } from "@/lib/studio/history";
+import { loadTranscript, recordMessage } from "@/lib/studio/history";
 import type { PermissionAction } from "@/lib/studio/permission";
 import { loadPipeline } from "@/lib/studio/pipeline";
 import type { SidecarError } from "@/lib/studio/sidecar";
@@ -66,8 +66,13 @@ export interface Turns {
     mode: SessionMode | null
   ) => void;
   hasRunningTurns: boolean;
+  isVideoBusy: (videoId: string) => boolean;
   loadTurn: (session: HistorySession) => void;
   markOpen: (historyId: string | null) => void;
+  // A message that asks the agent for nothing — every change went into the
+  // code — still belongs in the transcript, so it is written there and no turn
+  // is started.
+  recordTurn: (input: StartTurn) => Promise<boolean>;
   removeQueued: (historyId: string, id: string) => void;
   sendTurn: (input: StartTurn) => boolean;
   setTurnMode: (historyId: string, mode: SessionMode) => void;
@@ -450,6 +455,64 @@ export function useTurns(
     [isVideoBusy, launch, update]
   );
 
+  const recordTurn = useCallback(
+    async (input: StartTurn): Promise<boolean> => {
+      const trimmed = input.prompt.trim();
+      const { historyId } = input;
+      const started = snapshot.current.get(historyId) ?? IDLE_TURN;
+
+      update(historyId, (current) => ({
+        ...current,
+        entries: appendUser(current.entries, {
+          assets: input.assets,
+          attachments: input.attachments,
+          elements: input.elements,
+          media: input.media,
+          text: trimmed,
+        }),
+        error: null,
+        unread: false,
+      }));
+
+      videos.current.set(historyId, input.videoId);
+
+      const exit = await Effect.runPromiseExit(
+        recordMessage({
+          assets: input.assets,
+          attachments: input.attachments,
+          effort: input.effort,
+          elements: input.elements,
+          historyId,
+          media: input.media,
+          mode: input.mode,
+          model: input.model,
+          plan: plan(),
+          playing: input.playing,
+          projectId: input.projectId,
+          prompt: trimmed,
+          provider: started.provider,
+          sessionId: started.sdkSessionId,
+          videoId: input.videoId,
+        })
+      );
+
+      if (exit._tag === "Failure") {
+        update(historyId, (current) => ({
+          ...current,
+          error: causeMessage(exit.cause),
+        }));
+        return true;
+      }
+
+      if (exit.value.session !== null) {
+        onSession(exit.value.session);
+      }
+
+      return true;
+    },
+    [onSession, plan, update]
+  );
+
   const removeQueued = useCallback(
     (historyId: string, id: string) => {
       update(historyId, (current) => dropQueued(current, id));
@@ -532,8 +595,10 @@ export function useTurns(
       answerSourceTurn,
       answerTurn,
       hasRunningTurns,
+      isVideoBusy,
       loadTurn,
       markOpen,
+      recordTurn,
       removeQueued,
       sendTurn,
       setTurnMode,
@@ -545,8 +610,10 @@ export function useTurns(
       answerSourceTurn,
       answerTurn,
       hasRunningTurns,
+      isVideoBusy,
       loadTurn,
       markOpen,
+      recordTurn,
       removeQueued,
       sendTurn,
       setTurnMode,

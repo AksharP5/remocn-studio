@@ -37,7 +37,13 @@ function describe(element: PromptElement, index: number): string {
     lines.push(`rendered through: ${element.stack.join(" ← ")}`);
   }
 
-  lines.push(...changeLines(element.tuningChanges ?? [], element.frame));
+  lines.push(
+    ...changeLines(
+      element.tuningChanges ?? [],
+      element.frame,
+      element.written === true
+    )
+  );
 
   lines.push(`markup: ${truncate(element.html)}`);
 
@@ -46,12 +52,13 @@ function describe(element: PromptElement, index: number): string {
 
 function changeLines(
   changes: readonly TuningChange[],
-  frame: number
+  frame: number,
+  written: boolean
 ): string[] {
   const grouped = new Map<string, string[]>();
 
   for (const change of changes) {
-    const heading = headingFor(change.owner);
+    const heading = headingFor(change.owner, written);
     const rows = grouped.get(heading) ?? [];
 
     rows.push(
@@ -69,15 +76,23 @@ function sampledNote(change: TuningChange, frame: number): string {
     : "";
 }
 
-function headingFor(owner: TuningOwner | undefined): string {
+// Two headings, one shape. A written change is a fact the agent has to know
+// and must not act on: the studio already rewrote that call site, and asking
+// for it a second time would land the same edit twice.
+function headingFor(owner: TuningOwner | undefined, written: boolean): string {
+  const asked = written ? "Already written by the studio" : "Requested changes";
+  const done = written
+    ? " These are in the file already — leave them exactly as they are."
+    : "";
+
   if (owner === undefined) {
-    return "Requested changes:";
+    return `${asked}:${done}`;
   }
 
   const called =
     owner.name === null || owner.name.length === 0 ? "" : ` ‹${owner.name}›`;
 
-  return `Requested changes on ${owner.component}${called}${locationOf(owner)}:`;
+  return `${asked} on ${owner.component}${called}${locationOf(owner)}:${done}`;
 }
 
 function locationOf(owner: TuningOwner): string {
