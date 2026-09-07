@@ -1,5 +1,4 @@
-// @vitest-environment node
-
+import { afterEach, describe, expect, it } from "bun:test";
 import {
   existsSync,
   mkdtempSync,
@@ -10,7 +9,6 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Effect, Exit } from "effect";
-import { afterEach, describe, expect, it } from "vitest";
 import type { StillEvent } from "@/shared/ipc";
 import type { RenderOptions } from "./project";
 import {

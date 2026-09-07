@@ -1,12 +1,12 @@
+import { describe, expect, it, mock } from "bun:test";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
 import { TemplateList } from "@/components/studio/template-list";
 import { PROMPT_TEMPLATES } from "@/lib/studio/templates";
 
 describe("TemplateList", () => {
   it("shows a row per template", () => {
-    render(<TemplateList onPick={vi.fn()} />);
+    render(<TemplateList onPick={mock()} />);
 
     for (const template of PROMPT_TEMPLATES) {
       expect(
@@ -16,7 +16,7 @@ describe("TemplateList", () => {
   });
 
   it("hands over the picked template's prompt, and only that", async () => {
-    const onPick = vi.fn();
+    const onPick = mock();
     const user = userEvent.setup();
     render(<TemplateList onPick={onPick} />);
 

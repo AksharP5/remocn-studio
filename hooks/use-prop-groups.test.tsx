@@ -1,5 +1,5 @@
+import { describe, expect, it } from "bun:test";
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
 import { usePropGroups } from "@/hooks/use-prop-groups";
 import type { StudioSettings } from "@/lib/studio/settings";
 

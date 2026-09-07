@@ -1,5 +1,5 @@
+import { describe, expect, it } from "bun:test";
 import type { ThreadEvent } from "@openai/codex-sdk";
-import { describe, expect, it } from "vitest";
 import { makeTranslator } from "./events";
 
 // The first four frames are a real capture from codex-cli 0.147.0

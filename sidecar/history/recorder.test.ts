@@ -1,27 +1,17 @@
-// @vitest-environment node
-import { DatabaseSync } from "node:sqlite";
+import { describe, expect, it } from "bun:test";
 import { Effect } from "effect";
-import { describe, expect, it } from "vitest";
 import type { AgentEvent, PromptParams, TranscriptEntry } from "@/shared/ipc";
 import { appendUser, fold } from "@/shared/transcript";
-import type { SqlDriver, SqlRow, SqlValue } from "@/sidecar/history/driver";
 import { migrate, prepare } from "@/sidecar/history/migrations";
 import { recording } from "@/sidecar/history/recorder";
+import { driverFor } from "@/sidecar/history/sqlite";
 import { broken, type HistoryStore, make } from "@/sidecar/history/store";
 
 const PROJECT_ID = "project-1";
 const VIDEO_ID = "video-1";
 
 function store(): HistoryStore {
-  const db = new DatabaseSync(":memory:");
-  const driver: SqlDriver = {
-    all: (sql, values = []) =>
-      db.prepare(sql).all(...(values as SqlValue[])) as SqlRow[],
-    close: () => db.close(),
-    exec: (sql) => db.exec(sql),
-    run: (sql, values = []) =>
-      Number(db.prepare(sql).run(...(values as SqlValue[])).changes),
-  };
+  const driver = driverFor(":memory:");
 
   prepare(driver);
   migrate(driver);

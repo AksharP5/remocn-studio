@@ -1,5 +1,5 @@
+import { describe, expect, it } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
 import { ActivityLine } from "@/components/studio/activity-line";
 import type { ActivityEntry } from "@/shared/ipc";
 

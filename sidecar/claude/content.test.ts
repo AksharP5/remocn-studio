@@ -1,7 +1,7 @@
+import { beforeAll, describe, expect, it } from "bun:test";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { beforeAll, describe, expect, it } from "vitest";
 import type { PromptElement, PromptParams } from "@/shared/ipc";
 import { contentOf } from "@/sidecar/claude/content";
 

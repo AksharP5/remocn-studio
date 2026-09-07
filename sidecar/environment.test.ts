@@ -1,10 +1,8 @@
-// @vitest-environment node
-
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Effect } from "effect";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { accountRow } from "./claude/account";
 import {
   checksFor,

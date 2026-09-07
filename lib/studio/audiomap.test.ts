@@ -1,7 +1,5 @@
-// @vitest-environment node
-
+import { describe, expect, it } from "bun:test";
 import { Schema } from "effect";
-import { describe, expect, it } from "vitest";
 import { audiomapFrom } from "@/lib/studio/audiomap";
 import { Audiomap, audiomapBrief } from "@/shared/audiomap";
 

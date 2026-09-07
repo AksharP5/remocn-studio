@@ -1,5 +1,5 @@
+import { describe, expect, it, mock } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import { QueueDock } from "@/components/studio/queue-dock";
 import type { Queue } from "@/hooks/use-queue";
 import type { QueuedMessage } from "@/lib/studio/turns";
@@ -23,7 +23,7 @@ function message(id: string, text: string): QueuedMessage {
 }
 
 function queue(items: QueuedMessage[], canEdit = true): Queue {
-  return { canEdit, items, onEdit: vi.fn(), onRemove: vi.fn() };
+  return { canEdit, items, onEdit: mock(), onRemove: mock() };
 }
 
 function open(control: Queue) {

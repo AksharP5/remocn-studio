@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { wheelDelta, wheelScroll } from "@/lib/studio/scroll";
 
 describe("wheelScroll", () => {

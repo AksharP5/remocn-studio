@@ -1,6 +1,4 @@
-// @vitest-environment node
-
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { etagOf, matches } from "./caching";
 
 const FILE = { mtimeMs: 1_760_000_000_123.4, size: 15_515_928 };

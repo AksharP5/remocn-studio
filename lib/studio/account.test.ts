@@ -1,5 +1,5 @@
+import { describe, expect, it } from "bun:test";
 import { Cause, Duration, Effect, Exit } from "effect";
-import { describe, expect, it } from "vitest";
 import type { SignInPoll, SignInStart } from "@/shared/account";
 import type { EntitlementDocument } from "@/shared/entitlement";
 import {

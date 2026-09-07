@@ -1,7 +1,6 @@
-// @vitest-environment node
+import { describe, expect, it } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
 
 // The sidecar runs on bun, and bun is where the failure is: it raises the
 // child's AbortError as an uncaught exception from inside `abort()`. Vitest
@@ -22,7 +21,7 @@ describe("abortQuietly", () => {
   it("is needed: a plain abort on a spent child raises an uncaught AbortError", () => {
     const run = probe("--plain");
 
-    expect(run.stderr).toContain("AbortError: The operation was aborted.");
+    expect(run.stderr).toContain("AbortError: The operation was aborted");
     expect(JSON.parse(run.stdout)).toEqual({ aborted: true, alive: true });
   });
 

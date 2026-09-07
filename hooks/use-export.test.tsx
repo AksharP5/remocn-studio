@@ -1,6 +1,6 @@
+import { describe, expect, it } from "bun:test";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
 import { type ExportSettings, useExport } from "@/hooks/use-export";
 import type { ExportEvent, Exported } from "@/shared/ipc";
 

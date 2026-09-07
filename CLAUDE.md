@@ -61,7 +61,8 @@ The lockfile is `bun.lock`; use bun.
 - `bun run typecheck` — `tsc --noEmit`. Keep this in the loop: Next 16 no longer
   lints on build, and it is the only gate over `components/ui/**`, where the
   linter is deliberately off.
-- `bun run test` — Vitest, single run. `test:watch` and `test:coverage` also exist.
+- `bun run test` — `bun test`, three worker processes, one fresh global per file.
+  `test:watch` and `test:coverage` also exist. See *Tests*.
 - `bun run build` — Next static export into `out/`. Needs network on a cold cache
   (fonts are self-hosted at build time).
 - `bun run bun:fetch` — download the bun runtime the app ships into the
@@ -119,25 +120,67 @@ why `useAttachments` exposes `onRemove` as an event handler.
 
 ### Tests
 
-Vitest + React Testing Library + jsdom (`vitest.config.mts`). The `@/*` alias
-resolves natively via `resolve.tsconfigPaths` — do not add `vite-tsconfig-paths`,
-Vite 7 warns that it is redundant.
+`bun test` + React Testing Library + happy-dom (`bunfig.toml`, `test/`). Tests
+import from `bun:test` — `mock` for a function, `mock.module` for a module,
+`spyOn`, `jest.useFakeTimers` — and `@/*` resolves through `tsconfig.json`
+natively. It was Vitest + jsdom until 2026-09-07, and the move was measured
+before it was made: the same 2406 tests took 34–61 s of wall clock and 120–160
+CPU-seconds there, against **10.6 s and 28 CPU-seconds** here — three quarters
+of the Vitest run was standing up a jsdom per file and re-importing the module
+graph, not running tests.
 
-**Three workers, isolated.** Vitest's default is every core but one, which on the
-fanless MacBook the app is developed on is seven node processes and a load average
-past thirty for the length of a run; `maxWorkers: 3` keeps it under four and costs
-about 35 s for the whole suite. `isolate: false` would halve that and was measured
-and rejected: `vi.mock` cannot reach a module an earlier file already evaluated in
-a shared graph, so the five suites that mock a module silently ran against the
-real one. **While iterating, run only the files you touched** —
-`bun run test hooks/use-tours.test.tsx` — and the full suite once before a commit.
-Never run `test:watch` beside a `vitest run`.
+**Bun 1.4 is the floor, and it is the runtime the app ships.** `--parallel`
+and `--isolate` arrived in 1.4; under 1.3 every file shared one global and one
+module registry, so a `mock.module` in one suite reached every suite after it
+and settings-page found picker's fixture in its DOM. `packageManager` is one
+version for the tests and for the bun in `Contents/MacOS`, which is why bumping
+it is a release decision and not a test-config one.
 
-**jsdom is not a Tauri webview.** There is no `window.__TAURI_INTERNALS__`, so
-any `invoke()` that reaches the real transport throws. Tests touching IPC must
-install a fake with `mockIPC` from `@tauri-apps/api/mocks`; `vitest.setup.ts`
+**Three workers, one fresh global per file.** `--parallel=3` in the `test`
+script (bun's default is every core, which on the fanless MacBook the app is
+developed on is eight processes at full tilt) and it implies `--isolate`, so a
+module mock cannot leak. `test:watch` passes `--isolate` by hand for the same
+reason. **While iterating, run only the files you touched** —
+`bun run test hooks/use-tours.test.tsx` — and the full suite once before a
+commit. `--timeout=15000` sits above Testing Library's 5 s `asyncUtilTimeout`,
+or a query that will never resolve dies as "timed out" instead of "unable to
+find element".
+
+**happy-dom is registered by the first preload, and the order is the point.**
+`test/register-dom.ts` does nothing but `GlobalRegistrator.register()`;
+`test/setup.ts` imports Testing Library, and ESM hoists its imports above any
+statement in the same file — `@testing-library/dom` binds `screen` to
+`document.body` at import time, so one file doing both registered the DOM
+*after* the library had looked for it, and 283 tests failed with *a global
+document has to be available*. Every file, DOM or not, gets the DOM: bun has
+no per-file environment and the pure suites were measured not to care.
+
+**A failed jest-dom assertion used to cost 2.6 seconds, and `waitFor` pays it
+per poll.** bun's `expect` words a received value by walking the object, and a
+happy-dom node is a graph of symbol-keyed internals; JSC's sampling profiler
+put 2.6 s of one composer test inside `stringify`. `test/setup.ts` wraps every
+jest-dom matcher so `utils.stringify` prints a node as its (truncated)
+`outerHTML`, the way pretty-format's DOM plugin does. The matcher context
+cannot be proxied — `isNot` is a brand-checked getter — so the utils object is
+patched in place, once.
+
+**Two tests skip themselves on happy-dom, by probe.** Its selector parser
+rejects an escaped quote inside an attribute value and it puts HTML inside a
+`foreignObject` in the SVG namespace; `preview/anchor.test.ts` and
+`preview/picker.test.ts` each probe the DOM once and `it.skipIf` the case,
+so they run again the day the implementation catches up. `bun:test`'s typings
+are stricter than Vitest's — `toEqual(expected: T)` against the received type —
+and `test/matchers.d.ts` widens the four structural matchers back to `unknown`
+rather than casting two dozen literals.
+
+**happy-dom is not a Tauri webview.** There is no `window.__TAURI_INTERNALS__`,
+so any `invoke()` that reaches the real transport throws. Tests touching IPC
+must install a fake with `mockIPC` from `@tauri-apps/api/mocks`; `test/setup.ts`
 calls `clearMocks()` after each test so one test's fake cannot leak into the
-next. `app/page.test.tsx` is the worked example.
+next. `app/page.test.tsx` is the worked example. A `mock.module` is not hoisted,
+so a module already imported keeps its binding live rather than being replaced:
+the two suites that swap `ENTITLEMENT_PUBLIC_KEY` import the real module first
+and spread it into the factory.
 
 ## Releases
 
@@ -572,9 +615,10 @@ classifier, the auth probe).
     `sidecar.log`, and a release with crash consent would have Sentry treat it as
     fatal. `abortQuietly` in `sidecar/agent/abort.ts` intercepts that one error on
     the process for the duration of the call and one turn of the loop after it, and
-    puts anything else back on the loop untouched. Its test runs the real shape under
-    `bun`, because vitest runs under node and node delivers the same error a tick
-    later.
+    puts anything else back on the loop untouched. Its test spawns a real `bun` for
+    the probe, so the shape is measured on the runtime that ships; bun 1.4 dropped
+    the full stop from *The operation was aborted*, which is why the assertion
+    matches the prefix.
   - **The CLI is the user's, resolved, never bundled** — `findCodex` walks
     `$REMOCN_STUDIO_CODEX`, `$PATH`, then the usual install dirs; a machine
     without it gets the *not installed* row with the install command, and a
@@ -1108,14 +1152,11 @@ public contract and would break the left pane on any CLI update. Only
   mode a turn ran under cannot drift; and `history.mode`, for a mode picked between
   turns that would otherwise be lost on quit. A draft session has no row yet and
   keeps its mode in the turns map, exactly as it keeps its SDK session id.
-- **`bun:sqlite` cannot be imported by the test suite** — Vitest's workers run
-  under Node, which has no `bun:` loader — so the store is written against a
-  three-method `SqlDriver`. Production binds it to `bun:sqlite` in
-  `sidecar/history/sqlite.ts` (imported only from `index.ts`); the tests bind it
-  to `node:sqlite` and exercise the real SQL. Those suites need
-  `// @vitest-environment node`: the default jsdom environment refuses to bundle
-  Node built-ins, and `vitest.setup.ts` skips its DOM teardown when there is no
-  `window`.
+- **The store is written against a three-method `SqlDriver`**, and
+  `sidecar/history/sqlite.ts` binds it to `bun:sqlite`. The tests take
+  `driverFor(":memory:")` from that same file, so they exercise the real SQL
+  on the real driver — they bound it to `node:sqlite` while the suite ran under
+  Vitest's Node workers, which had no `bun:` loader.
 
 The pane on top of it: projects ordered by their most recent session — that
 *base* ordering is `project.list`'s `ORDER BY` — sessions newest first inside
@@ -1415,7 +1456,7 @@ by cutting the text at each reference and splicing the image in there (#13).
   are what you read when you cannot see which one it is, so showing the thing itself
   replaces them rather than joining them. The name stays as the image's `alt` and the
   card's hover title, which is also all that identifies a card whose file has gone.
-- **Under jsdom there is no asset protocol either**, so a test that renders a non-empty
+- **Under happy-dom there is no asset protocol either**, so a test that renders a non-empty
   attachment list installs the `convertFileSrc` fake next to the command fake — per test,
   because `clearMocks()` drops `window.__TAURI_INTERNALS__` between them.
 
@@ -1760,7 +1801,7 @@ was asked to read and correct sat on disk with no window (REM-311). The pane's t
   `data-active`, the indicator is unused (it slides between pills, and there are no pills), and
   the strip takes a wheel sideways through `useWheelScroll`, because six tabs do not fit a 360px
   pane and there is no scrollbar to grab. Base UI's composite gives the roving tab order; its
-  arrow-key movement cannot be exercised under jsdom, so the tests pin what can be — one Tab
+  arrow-key movement cannot be exercised under happy-dom, so the tests pin what can be — one Tab
   stop, on the open tab — rather than asserting movement they do not actually drive.
 - **The stage row in the Video dock is the way in.** A stage whose output exists on disk becomes
   a button that switches the pane and opens the file; one that has written nothing stays a plain
@@ -2204,7 +2245,7 @@ alongside `[Image #N]` (#18). The message is still sent by hand.
   line that is one word long. Painting its own surface is what stops the climb at a
   highlighted chip inside a sentence, and block-level is what keeps a grid of cards from
   collapsing into the grid. Holding **Alt** turns every rule off and picks the literal
-  topmost node. The rules are pure over the DOM and tested in jsdom.
+  topmost node. The rules are pure over the DOM and tested in happy-dom.
 - **The text test is not element-own, and the widening is the word gap.** `nearText` walks
   every descendant text node with a `TreeWalker`, skipping text hidden by its own element or
   by an ancestor up to the candidate, and widens each text rect *horizontally* by 0.35 × the
@@ -2259,7 +2300,7 @@ alongside `[Image #N]` (#18). The message is still sent by hand.
   `document.elementsFromPoint` what is actually under the point and stops the event only
   when the canvas contains it, which costs picking nothing — the overlays are
   `pointer-events: none` — and hands the transport bar back. A document that cannot
-  hit-test at all falls back to the rectangle, which is what jsdom does.
+  hit-test at all falls back to the rectangle, which is what happy-dom does.
   - **Picking elsewhere abandons what was pending, exactly as Cancel does.** The drafts
     live in the preview keyed by target, so a card dropped without reverting would leave
     the frame showing values the pane no longer lists and the agent will never be told
@@ -3278,7 +3319,7 @@ polls until the person confirms there.
   error line. `useAccount` keeps the fiber in a ref and `Effect.onInterrupt` tells the
   core to forget the code, exactly as a turn's cancel sends the cancel frame. The wait is
   injectable (`sleep` in `AccountOptions`) so the hook's test steps the loop through a
-  gate instead of a timer — a `sleep` of zero starved jsdom's event loop and hung the
+  gate instead of a timer — a `sleep` of zero starved the test DOM's event loop and hung the
   suite for a hundred seconds before the gate existed.
 - **A `401` is this device having been signed out, and the core forgets the token.** The
   account page's *Sign out on this device* deletes the session, so the app's next request
@@ -3362,7 +3403,7 @@ cannot be gated nowhere.
   Ed25519 verify over the payload's own ASCII bytes with the raw public key baked in
   as `ENTITLEMENT_PUBLIC_KEY` — the same bytes `signEntitlement` on the landing signed,
   so there is no canonical JSON to agree on. WebCrypto does it in the webview (WebKit
-  and jsdom both carry Ed25519), and the landing's frozen `contracts/entitlement.example.json`
+  and bun both carry Ed25519), and the landing's frozen `contracts/entitlement.example.json`
   is pinned in `shared/entitlement.test.ts` with the test key that signed it, so the two
   repos cannot drift on what "signed" means. Tests that need a document that verifies
   sign with a throwaway pair from `lib/studio/entitlement.fixture.ts` and swap the public

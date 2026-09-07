@@ -1,6 +1,6 @@
+import { beforeEach, describe, expect, it } from "bun:test";
 import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
 import { useCrashReporting } from "@/hooks/use-crash-reporting";
 import { applyCrashConsent, isCrashReportingStarted } from "@/lib/studio/crash";
 

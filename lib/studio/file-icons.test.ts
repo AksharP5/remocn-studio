@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { fileIconKind } from "@/lib/studio/file-icons";
 
 describe("fileIconKind", () => {

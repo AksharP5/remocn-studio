@@ -1,8 +1,7 @@
-// @vitest-environment node
+import { describe, expect, it } from "bun:test";
 import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
 import { type AcpError, AUTH_REQUIRED, spawnAcp } from "./connection";
 
 // A stand-in agent speaking just enough ACP to exercise both directions of

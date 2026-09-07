@@ -1,9 +1,8 @@
-// @vitest-environment node
+import { beforeAll, describe, expect, it } from "bun:test";
 import { mkdtemp, readdir, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { Effect, Exit } from "effect";
-import { beforeAll, describe, expect, it } from "vitest";
 import { causeMessage } from "@/lib/error-message";
 import { TEMPLATE_DIR_ENV } from "@/shared/ipc";
 import { PROJECT_TEMPLATES } from "@/shared/templates";

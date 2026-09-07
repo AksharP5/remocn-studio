@@ -1,6 +1,6 @@
+import { afterEach, describe, expect, it, jest, mock } from "bun:test";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   type PreviewListener,
   useOnPreview,
@@ -21,7 +21,7 @@ function internals(): Internals {
 }
 
 function listener(): PreviewListener {
-  return vi.fn();
+  return mock();
 }
 
 function mockPreview() {
@@ -129,7 +129,7 @@ async function served(
   return { host, rendered };
 }
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => jest.useRealTimers());
 
 describe("usePreview", () => {
   it("asks the served page for the video it is showing", async () => {
@@ -283,7 +283,7 @@ describe("usePreview", () => {
   it("does not publish a transient empty registry before compositions register", async () => {
     const listen = listener();
     const { rendered } = await served(listen);
-    vi.useFakeTimers();
+    jest.useFakeTimers();
 
     announceEmpty();
 
@@ -301,7 +301,7 @@ describe("usePreview", () => {
       expect.objectContaining({ total: 2, type: "composition" })
     );
 
-    act(() => vi.runAllTimers());
+    act(() => jest.runAllTimers());
     expect(listen).not.toHaveBeenCalledWith(
       expect.objectContaining({ total: 0, type: "composition" })
     );
@@ -310,17 +310,17 @@ describe("usePreview", () => {
   it("publishes an empty registry when the project is genuinely empty", async () => {
     const listen = listener();
     const { rendered } = await served(listen);
-    vi.useFakeTimers();
+    jest.useFakeTimers();
 
     announceEmpty();
-    act(() => vi.advanceTimersByTime(249));
+    act(() => jest.advanceTimersByTime(249));
 
     expect(rendered.result.current.pick).toBeNull();
     expect(listen).not.toHaveBeenCalledWith(
       expect.objectContaining({ total: 0, type: "composition" })
     );
 
-    act(() => vi.advanceTimersByTime(1));
+    act(() => jest.advanceTimersByTime(1));
 
     expect(rendered.result.current.pick).toEqual(
       expect.objectContaining({ compositionId: null, total: 0 })

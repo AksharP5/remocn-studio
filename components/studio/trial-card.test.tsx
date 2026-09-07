@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import {
   fireEvent,
@@ -6,20 +7,20 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import Page from "@/app/page";
 import { ThemeProvider } from "@/components/theme-provider";
-import { signedBy } from "@/lib/studio/entitlement.fixture";
+import { signedBy, testPublicKey } from "@/lib/studio/entitlement.fixture";
 
 const opened: string[] = [];
 
-vi.mock("@/shared/entitlement", async (importOriginal) => {
-  const original = await importOriginal<object>();
-  const { testPublicKey } = await import("@/lib/studio/entitlement.fixture");
-  return { ...original, ENTITLEMENT_PUBLIC_KEY: await testPublicKey() };
-});
+const entitlement = await import("@/shared/entitlement");
+const publicKey = await testPublicKey();
+mock.module("@/shared/entitlement", () => ({
+  ...entitlement,
+  ENTITLEMENT_PUBLIC_KEY: publicKey,
+}));
 
-vi.mock("@tauri-apps/plugin-opener", () => ({
+mock.module("@tauri-apps/plugin-opener", () => ({
   openUrl: (url: string) => {
     opened.push(url);
     return Promise.resolve();

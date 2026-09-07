@@ -1,7 +1,7 @@
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StockPane } from "@/components/studio/stock-pane";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import type { StockItem } from "@/shared/library";
@@ -77,10 +77,10 @@ function install(configured: boolean, items: readonly StockItem[]): Calls {
   return calls;
 }
 
-function pane(onSaved = vi.fn()) {
+function pane(onSaved = mock()) {
   render(
     <SidebarProvider>
-      <StockPane kind="photo" onOpenSettings={vi.fn()} onSaved={onSaved} />
+      <StockPane kind="photo" onOpenSettings={mock()} onSaved={onSaved} />
     </SidebarProvider>
   );
 }
@@ -123,7 +123,7 @@ describe("StockPane", () => {
   });
 
   it("saves a result and tells the library", async () => {
-    const onSaved = vi.fn();
+    const onSaved = mock();
     const calls = install(true, [item()]);
     pane(onSaved);
 

@@ -1,5 +1,5 @@
+import { describe, expect, it, mock } from "bun:test";
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import { useComposer } from "@/hooks/use-composer";
 import type { OpenTurn } from "@/hooks/use-open-turn";
 import { useQueue } from "@/hooks/use-queue";
@@ -34,9 +34,9 @@ function clickOn(value: string) {
   } as unknown as React.MouseEvent<HTMLButtonElement>;
 }
 
-function bound(queue: readonly QueuedMessage[], removeQueued = vi.fn()) {
+function bound(queue: readonly QueuedMessage[], removeQueued = mock()) {
   return renderHook(() => {
-    const composer = useComposer({ onSubmit: vi.fn(), projectId: "project-1" });
+    const composer = useComposer({ onSubmit: mock(), projectId: "project-1" });
     const turn = { queue, removeQueued } as unknown as OpenTurn;
     return { composer, queue: useQueue(turn, composer) };
   });
@@ -44,7 +44,7 @@ function bound(queue: readonly QueuedMessage[], removeQueued = vi.fn()) {
 
 describe("useQueue", () => {
   it("puts a queued message back in an empty composer", () => {
-    const removeQueued = vi.fn();
+    const removeQueued = mock();
     const { result } = bound(
       [message("a", "[Image #1] now in red")],
       removeQueued
@@ -60,7 +60,7 @@ describe("useQueue", () => {
   });
 
   it("leaves a draft alone rather than overwriting it", () => {
-    const removeQueued = vi.fn();
+    const removeQueued = mock();
     const { result } = bound([message("a", "now in red")], removeQueued);
 
     act(() => {
@@ -78,7 +78,7 @@ describe("useQueue", () => {
   });
 
   it("drops a queued message the row asks it to drop", () => {
-    const removeQueued = vi.fn();
+    const removeQueued = mock();
     const { result } = bound([message("a", "now in red")], removeQueued);
 
     act(() => {

@@ -1,5 +1,5 @@
+import { describe, expect, it } from "bun:test";
 import { Effect } from "effect";
-import { describe, expect, it } from "vitest";
 import type { AgentEvent } from "@/shared/ipc";
 import { makeGate } from "../agent/gate";
 import { answerPermission, reviewAcp } from "./permission";

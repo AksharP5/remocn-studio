@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { PRO_FEATURES, type ProFeature } from "@/shared/entitlement";
 import { locateBundle } from "@/sidecar/agent/knowledge";
 import {

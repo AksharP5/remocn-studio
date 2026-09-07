@@ -1,9 +1,8 @@
-// @vitest-environment node
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect, Exit } from "effect";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   LIBRARY_DIR_ENV,
   PEXELS_KEY_ENV,
@@ -276,7 +275,7 @@ function answering(
         headers: { "content-type": "application/json", ...headers },
         status,
       })
-    )) as typeof fetch;
+    )) as unknown as typeof fetch;
 }
 
 describe("searchStock", () => {
@@ -339,7 +338,7 @@ describe("saveStock", () => {
           headers: { "content-length": String(bytes.byteLength) },
           status: 200,
         })
-      )) as typeof fetch;
+      )) as unknown as typeof fetch;
 
     const reports: StockProgress[] = [];
     const saved = await Effect.runPromise(
@@ -374,7 +373,9 @@ describe("saveStock", () => {
     }
 
     const fetcher = (() =>
-      Promise.resolve(new Response(null, { status: 404 }))) as typeof fetch;
+      Promise.resolve(
+        new Response(null, { status: 404 })
+      )) as unknown as typeof fetch;
 
     const exit = await Effect.runPromiseExit(
       saveStock(item, () => undefined, fetcher)

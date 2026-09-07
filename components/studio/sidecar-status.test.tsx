@@ -1,7 +1,7 @@
+import { describe, expect, it } from "bun:test";
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
 import { SidecarStatus as SidecarStatusIndicator } from "@/components/studio/sidecar-status";
 import { SidecarStreamTest } from "@/components/studio/sidecar-stream-test";
 import {

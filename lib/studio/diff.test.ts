@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { diffLines } from "@/lib/studio/diff";
 
 function marked(before: string, after: string): string[] {

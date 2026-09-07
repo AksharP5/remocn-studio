@@ -1,5 +1,5 @@
+import { describe, expect, it, mock } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import { NewProjectWizard } from "@/components/studio/new-project-wizard";
 import type { NewProject } from "@/hooks/use-new-project";
 import { DEFAULT_FORMAT, formatById } from "@/lib/studio/formats";
@@ -9,17 +9,17 @@ const PARENT = "/Users/me/videos";
 function control(shape: Partial<NewProject> = {}): NewProject {
   return {
     canCreate: false,
-    close: vi.fn(),
+    close: mock(),
     format: DEFAULT_FORMAT,
     isOpen: true,
     name: "",
-    onFormatChange: vi.fn(),
-    onNameChange: vi.fn(),
-    onSubmit: vi.fn(),
-    open: vi.fn(),
+    onFormatChange: mock(),
+    onNameChange: mock(),
+    onSubmit: mock(),
+    open: mock(),
     parent: null,
-    pickParent: vi.fn(),
-    submit: vi.fn(),
+    pickParent: mock(),
+    submit: mock(),
     ...shape,
   };
 }

@@ -102,7 +102,7 @@ export function downloadInstaller(
       let received = 0;
 
       const body = Readable.fromWeb(
-        answer.body as Parameters<typeof Readable.fromWeb>[0]
+        answer.body as unknown as Parameters<typeof Readable.fromWeb>[0]
       );
 
       body.on("data", (chunk: Buffer) => {

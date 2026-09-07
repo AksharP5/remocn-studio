@@ -1,5 +1,5 @@
+import { describe, expect, it, mock } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import { ExportButton } from "@/components/studio/export-button";
 import type { Exporting } from "@/hooks/use-export";
 
@@ -22,7 +22,7 @@ function exporting(overrides: Partial<Exporting> = {}): Exporting {
 
 describe("ExportButton", () => {
   it("starts the export when idle", () => {
-    const start = vi.fn();
+    const start = mock();
     render(<ExportButton exporting={exporting({ start })} />);
 
     const button = screen.getByRole("button", { name: "Export" });
@@ -50,7 +50,7 @@ describe("ExportButton", () => {
   });
 
   it("names a stage that has no percentage, and clicking cancels", () => {
-    const cancel = vi.fn();
+    const cancel = mock();
     render(
       <ExportButton
         exporting={exporting({
@@ -70,7 +70,7 @@ describe("ExportButton", () => {
   });
 
   it("wears the stage and its percentage while it renders", () => {
-    const cancel = vi.fn();
+    const cancel = mock();
     render(
       <ExportButton
         exporting={exporting({

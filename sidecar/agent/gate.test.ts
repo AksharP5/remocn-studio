@@ -1,5 +1,5 @@
+import { describe, expect, it } from "bun:test";
 import { Effect, Fiber } from "effect";
-import { describe, expect, it } from "vitest";
 import { makeGate } from "@/sidecar/agent/gate";
 import { signatureOf } from "@/sidecar/claude/permission";
 

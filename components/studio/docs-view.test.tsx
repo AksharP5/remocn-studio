@@ -1,5 +1,5 @@
+import { describe, expect, it, mock } from "bun:test";
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import { DocsView } from "@/components/studio/docs-view";
 import type { Docs } from "@/hooks/use-docs";
 import { documentTabs } from "@/lib/studio/documents";
@@ -20,9 +20,9 @@ function docs(shape: Partial<Docs> = {}): Docs {
     folder: FOLDER,
     isLoading: false,
     mode: "docs",
-    onPickMode: vi.fn(),
-    onPickTab: vi.fn(),
-    onReveal: vi.fn(),
+    onPickMode: mock(),
+    onPickTab: mock(),
+    onReveal: mock(),
     open: null,
     openPath: tabs[0]?.file.path ?? null,
     ...shape,
@@ -118,7 +118,7 @@ describe("DocsView", () => {
   });
 
   it("reports the document a tab was picked with", () => {
-    const onPickTab = vi.fn();
+    const onPickTab = mock();
     const tabs = documentTabs([file("analysis.md"), file("script.md")]);
 
     render(

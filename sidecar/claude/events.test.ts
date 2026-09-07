@@ -1,5 +1,5 @@
+import { describe, expect, it } from "bun:test";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
-import { describe, expect, it } from "vitest";
 import type { SessionMode } from "@/shared/ipc";
 import { eventsOf } from "@/sidecar/claude/events";
 

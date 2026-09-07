@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { assetName, assetOptions, assetUrl } from "@/lib/studio/static-files";
 
 const BASE = "http://127.0.0.1:5173/static-abc123/";

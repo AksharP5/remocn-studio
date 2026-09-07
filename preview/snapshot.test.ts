@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { DRAG_THRESHOLD, isDrag, normalisedRect, videoBox } from "./snapshot";
 
 const CANVAS = { height: 360, left: 100, top: 50, width: 640 };

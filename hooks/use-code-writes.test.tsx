@@ -1,6 +1,6 @@
+import { describe, expect, it, mock } from "bun:test";
 import { act, renderHook } from "@testing-library/react";
 import { Effect } from "effect";
-import { describe, expect, it, vi } from "vitest";
 import { useCodeWrites } from "@/hooks/use-code-writes";
 import type { Selection } from "@/hooks/use-selections";
 import { SidecarError } from "@/lib/studio/sidecar";
@@ -227,7 +227,7 @@ describe("writing values into the code at Send", () => {
   });
 
   it("does nothing at all with no project open", async () => {
-    const write = vi.fn();
+    const write = mock();
     const { result } = renderHook(() =>
       useCodeWrites({ plan: () => "pro", projectId: null, write })
     );

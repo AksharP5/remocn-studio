@@ -1,5 +1,5 @@
+import { describe, expect, it } from "bun:test";
 import { Exit } from "effect";
-import { describe, expect, it } from "vitest";
 import { codecsFor, decodeHostFrame, decodeMethod } from "@/shared/ipc";
 
 const REPORT = {

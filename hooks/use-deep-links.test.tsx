@@ -1,6 +1,6 @@
+import { afterEach, describe, expect, it, mock } from "bun:test";
 import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
 import { useDeepLinks } from "@/hooks/use-deep-links";
 import { DEEP_LINK_EVENT } from "@/shared/ipc";
 
@@ -56,7 +56,7 @@ describe("useDeepLinks", () => {
 
   it("reads the links that were waiting when the page came up", async () => {
     fakeCore([LINK]);
-    const onLink = vi.fn();
+    const onLink = mock();
 
     renderHook(() => useDeepLinks(onLink));
 
@@ -65,7 +65,7 @@ describe("useDeepLinks", () => {
 
   it("reads the queue again when the core says a link arrived", async () => {
     const core = fakeCore([]);
-    const onLink = vi.fn();
+    const onLink = mock();
 
     renderHook(() => useDeepLinks(onLink));
     await waitFor(() => expect(core.takes()).toBe(1));
@@ -78,8 +78,8 @@ describe("useDeepLinks", () => {
 
   it("hands each link to the newest handler", async () => {
     const core = fakeCore([]);
-    const first = vi.fn();
-    const second = vi.fn();
+    const first = mock();
+    const second = mock();
 
     const { rerender } = renderHook(({ onLink }) => useDeepLinks(onLink), {
       initialProps: { onLink: first },
@@ -94,7 +94,7 @@ describe("useDeepLinks", () => {
   });
 
   it("is quiet outside a Tauri webview", async () => {
-    const onLink = vi.fn();
+    const onLink = mock();
 
     renderHook(() => useDeepLinks(onLink));
     await new Promise((resolve) => setTimeout(resolve, 20));

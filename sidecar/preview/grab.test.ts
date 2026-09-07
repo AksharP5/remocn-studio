@@ -1,8 +1,6 @@
-// @vitest-environment node
-
+import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { describe, expect, it } from "vitest";
 import { withoutWebFonts } from "./grab";
 
 const FONT_HOST = "fonts.googleapis.com";

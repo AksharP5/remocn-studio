@@ -1,9 +1,8 @@
-// @vitest-environment node
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { LIBRARY_DIR_ENV } from "@/shared/ipc";
 import type { AssetDraft } from "@/shared/library";
 import {

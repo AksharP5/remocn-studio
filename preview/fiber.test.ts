@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { displayName, type Fiber, fiberOf, nearestInFibers } from "./fiber";
 
 function fiber(overrides: Partial<Fiber>): Fiber {

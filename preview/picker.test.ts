@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "bun:test";
 import {
   climb,
   covers,
@@ -12,6 +12,14 @@ import {
   pickAt,
   svgRootOf,
 } from "./picker";
+
+const HTML_NS = "http://www.w3.org/1999/xhtml";
+
+const foreignObjectHoldsHtml = (() => {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.innerHTML = "<foreignObject><span>x</span></foreignObject>";
+  return svg.querySelector("span")?.namespaceURI === HTML_NS;
+})();
 
 function mount(html: string): HTMLElement {
   document.body.innerHTML = `<div id="stage">${html}</div>`;
@@ -295,14 +303,17 @@ describe("svg, which is a picture and not a wrapper", () => {
     expect(climb(pick("#glyph"), stage).id).toBe("icon");
   });
 
-  it("leaves html inside a foreignObject to the ordinary rules", () => {
-    mount(
-      `<svg viewBox="0 0 10 10"><foreignObject><span id="inner" style="display:inline-block">hi</span></foreignObject></svg>`
-    );
+  it.skipIf(!foreignObjectHoldsHtml)(
+    "leaves html inside a foreignObject to the ordinary rules",
+    () => {
+      mount(
+        `<svg viewBox="0 0 10 10"><foreignObject><span id="inner" style="display:inline-block">hi</span></foreignObject></svg>`
+      );
 
-    expect(isDrawing(pick("#inner"))).toBe(false);
-    expect(svgRootOf(pick("#inner"))).toBeNull();
-  });
+      expect(isDrawing(pick("#inner"))).toBe(false);
+      expect(svgRootOf(pick("#inner"))).toBeNull();
+    }
+  );
 });
 
 describe("covers", () => {

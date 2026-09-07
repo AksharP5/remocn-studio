@@ -1,11 +1,11 @@
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { Duration, Effect } from "effect";
 import type { MouseEvent } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAccount } from "@/hooks/use-account";
 import type { EntitlementCache } from "@/lib/studio/entitlement";
-import { signedBy } from "@/lib/studio/entitlement.fixture";
+import { signedBy, testPublicKey } from "@/lib/studio/entitlement.fixture";
 import type { SignInPoll } from "@/shared/account";
 import type { SignedEntitlement } from "@/shared/entitlement";
 
@@ -13,13 +13,14 @@ const opened: string[] = [];
 
 // The hook verifies every document against the shipped public key, so the
 // tests sign with a pair of their own and swap the public half in.
-vi.mock("@/shared/entitlement", async (importOriginal) => {
-  const original = await importOriginal<object>();
-  const { testPublicKey } = await import("@/lib/studio/entitlement.fixture");
-  return { ...original, ENTITLEMENT_PUBLIC_KEY: await testPublicKey() };
-});
+const entitlement = await import("@/shared/entitlement");
+const publicKey = await testPublicKey();
+mock.module("@/shared/entitlement", () => ({
+  ...entitlement,
+  ENTITLEMENT_PUBLIC_KEY: publicKey,
+}));
 
-vi.mock("@tauri-apps/plugin-opener", () => ({
+mock.module("@tauri-apps/plugin-opener", () => ({
   openUrl: (url: string) => {
     opened.push(url);
     return Promise.resolve();

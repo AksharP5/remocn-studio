@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { FEEDBACK_INTAKE_EMAIL, feedbackMailto } from "./feedback";
 
 const BODY_PARAM = /body=([^&]*)/;

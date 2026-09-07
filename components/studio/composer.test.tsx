@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import {
   createEvent,
@@ -8,7 +9,6 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useCallback } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Composer } from "@/components/studio/composer";
 import { StudioProvider, useStudio } from "@/components/studio/studio-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -273,11 +273,11 @@ function SelectProbe() {
 }
 
 async function renderComposer(
-  _onSubmit = vi.fn(),
+  _onSubmit = mock(),
   {
     isRunning = false,
     mode = "auto",
-    onModeChange = vi.fn(),
+    onModeChange = mock(),
   }: ComposerShape = {}
 ) {
   render(
@@ -294,8 +294,8 @@ async function renderComposer(
           isWaiting={false}
           mode={mode}
           onModeChange={onModeChange}
-          onProviderChange={vi.fn()}
-          onStop={vi.fn()}
+          onProviderChange={mock()}
+          onStop={mock()}
           provider="claude"
         />
       </TooltipProvider>
@@ -325,7 +325,7 @@ describe("Composer", () => {
   });
 
   it("says the message will be queued while a turn is running", async () => {
-    const { textarea } = await renderComposer(vi.fn(), { isRunning: true });
+    const { textarea } = await renderComposer(mock(), { isRunning: true });
 
     expect(screen.getByRole("button", { name: "Stop" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Queue" })).toBeNull();
@@ -351,7 +351,7 @@ describe("Composer", () => {
   });
 
   it("shows the mode the open session is already in", async () => {
-    await renderComposer(vi.fn(), { mode: "acceptEdits" });
+    await renderComposer(mock(), { mode: "acceptEdits" });
 
     expect(
       screen.getByRole("button", { name: "Mode: Accept edits" })

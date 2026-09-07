@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { assetBase, assetName, assetValue, isImageName } from "./assets";
 
 describe("an asset value, both ways", () => {

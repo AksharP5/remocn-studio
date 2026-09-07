@@ -1,6 +1,6 @@
+import { beforeEach, describe, expect, it } from "bun:test";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
 import Page from "@/app/page";
 import { ThemeProvider } from "@/components/theme-provider";
 import type { EnvironmentCheck } from "@/shared/ipc";

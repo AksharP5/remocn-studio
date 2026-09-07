@@ -1,27 +1,17 @@
-// @vitest-environment node
+import { describe, expect, it } from "bun:test";
 import { mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { Effect, Exit } from "effect";
-import { describe, expect, it } from "vitest";
-import type { SqlDriver, SqlRow, SqlValue } from "@/sidecar/history/driver";
+import type { SqlDriver } from "@/sidecar/history/driver";
 import { MIGRATIONS, migrate, prepare } from "@/sidecar/history/migrations";
 import { make, type ProjectStore } from "@/sidecar/history/projects";
+import { driverFor } from "@/sidecar/history/sqlite";
 import { make as makeHistory } from "@/sidecar/history/store";
 import { make as makeVideos } from "@/sidecar/history/videos";
 
 function nodeDriver(): SqlDriver {
-  const db = new DatabaseSync(":memory:");
-
-  return {
-    all: (sql, params = []) =>
-      db.prepare(sql).all(...(params as SqlValue[])) as SqlRow[],
-    close: () => db.close(),
-    exec: (sql) => db.exec(sql),
-    run: (sql, params = []) =>
-      Number(db.prepare(sql).run(...(params as SqlValue[])).changes),
-  };
+  return driverFor(":memory:");
 }
 
 function store(): ProjectStore {

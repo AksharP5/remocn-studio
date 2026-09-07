@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { stockName } from "@/lib/studio/stock";
 import type { StockItem } from "@/shared/library";
 

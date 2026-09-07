@@ -76,9 +76,11 @@ function isDirectory(publicDir: string, name: string, entry: Dirent): boolean {
   }
 }
 
-function entriesIn(dir: string) {
+function entriesIn(dir: string): Dirent[] {
   try {
-    return readdirSync(dir, { withFileTypes: true });
+    return readdirSync(dir, { withFileTypes: true }).sort((one, other) =>
+      one.name.localeCompare(other.name)
+    );
   } catch {
     // A project with no `public/` at all is an empty listing, not a failure:
     // the picker then offers nothing, which is the truth.

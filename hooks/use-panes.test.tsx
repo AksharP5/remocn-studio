@@ -1,6 +1,6 @@
+import { beforeEach, describe, expect, it } from "bun:test";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
 import { usePanes } from "@/hooks/use-panes";
 
 function panes(hasProjects = true) {

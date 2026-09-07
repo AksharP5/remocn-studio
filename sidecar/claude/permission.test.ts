@@ -1,8 +1,8 @@
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, realpath, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PLUGIN_DIR_ENV } from "@/shared/ipc";
 import { review, signatureOf } from "@/sidecar/claude/permission";
 

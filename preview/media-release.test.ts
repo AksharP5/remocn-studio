@@ -1,10 +1,18 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock,
+  spyOn,
+} from "bun:test";
 import { releaseDetachedMedia } from "./media-release";
 
 // jsdom implements neither, and both are the whole point: `load()` on an
 // element with no source is what makes WebKit drop the player.
-const loads = vi.fn();
-const pauses = vi.fn();
+const loads = mock();
+const pauses = mock();
 
 function settle() {
   return new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -23,8 +31,8 @@ describe("releaseDetachedMedia", () => {
   beforeEach(() => {
     loads.mockReset();
     pauses.mockReset();
-    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(loads);
-    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(pauses);
+    spyOn(HTMLMediaElement.prototype, "load").mockImplementation(loads);
+    spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(pauses);
     container = document.createElement("div");
     document.body.append(container);
     stop = releaseDetachedMedia(container);
@@ -33,7 +41,7 @@ describe("releaseDetachedMedia", () => {
   afterEach(() => {
     stop();
     container.remove();
-    vi.restoreAllMocks();
+    mock.restore();
   });
 
   it("clears and reloads a video the scene unmounted", async () => {

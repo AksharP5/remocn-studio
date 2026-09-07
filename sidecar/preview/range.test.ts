@@ -1,6 +1,4 @@
-// @vitest-environment node
-
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { byteRange, UNSATISFIABLE } from "./range";
 
 const SIZE = 1000;

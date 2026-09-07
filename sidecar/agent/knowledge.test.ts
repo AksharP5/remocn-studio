@@ -1,4 +1,4 @@
-// @vitest-environment node
+import { afterEach, describe, expect, it } from "bun:test";
 import {
   lstat,
   mkdir,
@@ -11,7 +11,6 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
-import { afterEach, describe, expect, it } from "vitest";
 import type { AgentEvent } from "@/shared/ipc";
 import { PLUGIN_DIR_ENV } from "@/shared/ipc";
 import {

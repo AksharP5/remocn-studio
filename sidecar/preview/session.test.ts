@@ -1,7 +1,5 @@
-// @vitest-environment node
-
+import { describe, expect, it } from "bun:test";
 import { Effect, Exit } from "effect";
-import { describe, expect, it } from "vitest";
 import { openSession, type WarmInternals } from "./session";
 
 const SERVE_URL = "http://127.0.0.1:51749/__remocn/render/index.html";

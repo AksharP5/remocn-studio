@@ -1,5 +1,4 @@
-// @vitest-environment node
-
+import { afterEach, describe, expect, it } from "bun:test";
 import {
   existsSync,
   mkdtempSync,
@@ -11,7 +10,6 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Effect, Exit, Fiber } from "effect";
-import { afterEach, describe, expect, it } from "vitest";
 import type { ExportEvent } from "@/shared/ipc";
 import {
   CODEC,

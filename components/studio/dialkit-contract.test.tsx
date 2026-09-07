@@ -1,3 +1,4 @@
+import { describe, expect, it, mock } from "bun:test";
 import { readFileSync } from "node:fs";
 import { fireEvent, render, screen } from "@testing-library/react";
 import {
@@ -11,7 +12,6 @@ import {
   TextControl,
   Toggle,
 } from "dialkit";
-import { describe, expect, it, vi } from "vitest";
 
 // dialkit ships no changelog, in npm or in GitHub Releases, so what a version
 // gives us is read out of its `dist` and pinned here. Everything below is
@@ -24,20 +24,20 @@ describe("DialKit advanced controls", () => {
           label="Opacity"
           max={100}
           min={0}
-          onChange={vi.fn()}
+          onChange={mock()}
           step={1}
           unit="%"
           value={42}
         />
-        <Toggle checked label="Visible" onChange={vi.fn()} />
-        <ColorControl label="Fill" onChange={vi.fn()} value="#ff5500" />
+        <Toggle checked label="Visible" onChange={mock()} />
+        <ColorControl label="Fill" onChange={mock()} value="#ff5500" />
         <SelectControl
           label="Layout"
-          onChange={vi.fn()}
+          onChange={mock()}
           options={["stack", "grid"]}
           value="stack"
         />
-        <TextControl label="Title" onChange={vi.fn()} value="Hello" />
+        <TextControl label="Title" onChange={mock()} value="Hello" />
         <EasingVisualization
           easing={{
             duration: 0.6,
@@ -61,7 +61,7 @@ describe("DialKit advanced controls", () => {
   // itself. The pane's own `AccessibleDialSlider` wrapper added all four and
   // is gone; a slider inside a slider is what keeping it would have meant.
   it("is the slider itself, keyboard and all", () => {
-    const onChange = vi.fn();
+    const onChange = mock();
     const { container } = render(
       <Slider
         label="Blur"
@@ -89,7 +89,7 @@ describe("DialKit advanced controls", () => {
 
   // The pane drew its own SVG, its own handles and its own drag hook for this.
   it("edits its own bezier handles once given an onChange", () => {
-    const onChange = vi.fn();
+    const onChange = mock();
     const { container, rerender } = render(
       <EasingVisualization
         easing={{ duration: 1, ease: [0.42, 0, 0.58, 1], type: "easing" }}
@@ -131,7 +131,7 @@ describe("DialKit advanced controls", () => {
     render(
       <ColorControl
         label="Tint"
-        onChange={vi.fn()}
+        onChange={mock()}
         value="oklch(0.72 0.19 45)"
       />
     );
@@ -153,7 +153,7 @@ describe("DialKit advanced controls", () => {
   it("opens its picker from a real button, with no native colour input", () => {
     const { container } = render(
       <div className="dialkit-root">
-        <ColorControl label="Tint" onChange={vi.fn()} value="#8b7bff" />
+        <ColorControl label="Tint" onChange={mock()} value="#8b7bff" />
       </div>
     );
 
@@ -169,7 +169,7 @@ describe("DialKit advanced controls", () => {
   // carries a spinbutton per axis — which is the half of it jsdom can drive,
   // the plane itself being measured with `getBoundingClientRect`.
   it("is two spinbuttons over one plane, with Y the way up a pad has it", () => {
-    const onChange = vi.fn();
+    const onChange = mock();
     const { container } = render(
       <DialPad
         label="Offset"
@@ -197,7 +197,7 @@ describe("DialKit advanced controls", () => {
     const { container } = render(
       <ImageControl
         label="Source"
-        onChange={vi.fn()}
+        onChange={mock()}
         options={[{ label: "bg.png", value: "https://host/static/bg.png" }]}
         value="https://host/static/bg.png"
       />
@@ -245,7 +245,7 @@ describe("DialKit advanced controls", () => {
   // carry VERBATIM_INPUT — and 2.0's TextControl passes nothing through to its
   // textarea. That is why the pane still draws its own for that one field.
   it("forwards no attributes to its textarea", () => {
-    render(<TextControl label="Title" onChange={vi.fn()} value="Hello" />);
+    render(<TextControl label="Title" onChange={mock()} value="Hello" />);
 
     const textarea = screen.getByDisplayValue("Hello");
 

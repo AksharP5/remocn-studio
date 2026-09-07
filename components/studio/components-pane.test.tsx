@@ -1,6 +1,6 @@
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ComponentsPane } from "@/components/studio/components-pane";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import type { Asset } from "@/shared/library";
@@ -42,7 +42,7 @@ function pane(props: {
   bundled?: readonly Asset[];
 }) {
   const removed: string[] = [];
-  const onRemove = vi.fn((event: React.MouseEvent<HTMLButtonElement>) => {
+  const onRemove = mock((event: React.MouseEvent<HTMLButtonElement>) => {
     removed.push(event.currentTarget.value);
   });
 
@@ -53,9 +53,9 @@ function pane(props: {
         bundled={props.bundled ?? []}
         error={null}
         isLoading={false}
-        onPick={vi.fn()}
+        onPick={mock()}
         onRemove={onRemove}
-        onRetry={vi.fn()}
+        onRetry={mock()}
       />
     </SidebarProvider>
   );

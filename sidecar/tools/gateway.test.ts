@@ -1,9 +1,8 @@
-// @vitest-environment node
+import { describe, expect, it } from "bun:test";
 import { randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect, Exit, Scope } from "effect";
-import { describe, expect, it } from "vitest";
 import type { TurnTools } from "./execute";
 import { makeGateway } from "./gateway";
 import { connectGateway } from "./host";

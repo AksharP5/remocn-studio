@@ -1,6 +1,6 @@
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useComposer } from "@/hooks/use-composer";
 import type { PromptElement } from "@/shared/ipc";
 import type { Asset } from "@/shared/library";
@@ -65,7 +65,7 @@ function clickOn(value: string) {
 function composer(projectId: string | null = "project-1") {
   return renderHook(
     (props: { projectId: string | null }) =>
-      useComposer({ onSubmit: vi.fn(), projectId: props.projectId }),
+      useComposer({ onSubmit: mock(), projectId: props.projectId }),
     { initialProps: { projectId } }
   );
 }
@@ -410,7 +410,7 @@ describe("useComposer", () => {
   });
 
   it("fills the composer with a template without sending it", () => {
-    const onSubmit = vi.fn();
+    const onSubmit = mock();
     const { result } = renderHook(() =>
       useComposer({ onSubmit, projectId: "project-1" })
     );

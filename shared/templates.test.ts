@@ -1,5 +1,5 @@
+import { describe, expect, it } from "bun:test";
 import { Exit, Schema } from "effect";
-import { describe, expect, it } from "vitest";
 import {
   PROJECT_TEMPLATES,
   templateProjectName,

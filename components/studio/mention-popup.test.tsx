@@ -1,5 +1,5 @@
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MentionPopup } from "@/components/studio/mention-popup";
 import type { MentionItem, Mentions } from "@/hooks/use-mentions";
 
@@ -10,23 +10,23 @@ const ITEMS: MentionItem[] = Array.from({ length: 12 }, (_unused, index) => ({
   path: `src/scenes/Scene${index}.tsx`,
 }));
 
-const scrolled = vi.fn();
+const scrolled = mock();
 
 function popup(shape: Partial<Mentions> = {}): Mentions {
   return {
     active: 0,
-    close: vi.fn(),
+    close: mock(),
     error: null,
     isLoading: false,
     isOpen: true,
     items: ITEMS,
     keyed: 0,
     note: null,
-    onChoose: vi.fn(),
-    onHold: vi.fn(),
-    onKeyDown: vi.fn(),
-    onPoint: vi.fn(),
-    sync: vi.fn(),
+    onChoose: mock(),
+    onHold: mock(),
+    onKeyDown: mock(),
+    onPoint: mock(),
+    sync: mock(),
     ...shape,
   };
 }

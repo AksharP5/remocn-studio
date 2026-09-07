@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { AGENT_PROVIDERS, PROVIDER_INFO } from "@/shared/providers";
 import { adapterFor } from "./registry";
 
