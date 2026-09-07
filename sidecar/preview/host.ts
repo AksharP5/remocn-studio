@@ -21,6 +21,7 @@ import {
   videoFindings,
   videoPlan,
 } from "./choreography";
+import { assemble, codemodsOf, statusesOf } from "./codemod";
 import {
   type DesignFinding,
   finishDesignResult,
@@ -51,7 +52,9 @@ import {
   type HostReply,
   RENDER_BASE,
   type SourceCommand,
+  type StatusCommand,
   type StillCommand,
+  type WriteCommand,
 } from "./protocol";
 import { libraryIndex, proxies } from "./proxies";
 import { serve } from "./server";
@@ -426,7 +429,79 @@ function obey(booted: Booted, line: string): Effect.Effect<void> {
     return captureSource(booted, command);
   }
 
+  if (command.type === "status") {
+    return readStatuses(booted, command);
+  }
+
+  if (command.type === "write") {
+    return assembleWrite(booted, command);
+  }
+
   return answer(booted, command);
+}
+
+function readStatuses(
+  booted: Booted,
+  command: StatusCommand
+): Effect.Effect<void> {
+  return codemodsOf(booted.root)
+    .pipe(
+      Effect.flatMap((codemods) =>
+        statusesOf(codemods, command.targets, command.video)
+      ),
+      Effect.flatMap((targets) =>
+        write({ id: command.id, targets, type: "status-done" })
+      )
+    )
+    .pipe(
+      Effect.catch((error) =>
+        Effect.andThen(
+          log(`prop statuses failed: ${error.message}`),
+          write({
+            id: command.id,
+            message: error.message,
+            type: "status-failed",
+          })
+        )
+      )
+    );
+}
+
+function assembleWrite(
+  booted: Booted,
+  command: WriteCommand
+): Effect.Effect<void> {
+  return codemodsOf(booted.root)
+    .pipe(
+      Effect.flatMap((codemods) =>
+        assemble(codemods, command.edits, command.partial)
+      ),
+      Effect.tap((built) =>
+        log(
+          `codemod assembled ${built.files.length} file(s) from ${command.edits.length} edit(s)`
+        )
+      ),
+      Effect.flatMap((built) =>
+        write({
+          files: built.files,
+          id: command.id,
+          results: built.results,
+          type: "write-done",
+        })
+      )
+    )
+    .pipe(
+      Effect.catch((error) =>
+        Effect.andThen(
+          log(`codemod failed: ${error.message}`),
+          write({
+            id: command.id,
+            message: error.message,
+            type: "write-failed",
+          })
+        )
+      )
+    );
 }
 
 function captureSource(

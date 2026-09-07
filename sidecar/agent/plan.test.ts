@@ -8,6 +8,7 @@ import {
   pipelineAllowed,
   serversFor,
   skillsAllowed,
+  writesAllowed,
 } from "@/sidecar/agent/plan";
 import {
   conventionsFor,
@@ -20,13 +21,14 @@ import {
   TOOL_SERVERS,
 } from "@/sidecar/tools/specs";
 
-// The sidecar gates three of the five; the other two are buttons, gated in
+// The sidecar gates four of the six; the other two are buttons, gated in
 // `hooks/use-tools.ts` and pinned by its own test. Together they are the
 // whole list, so a feature added to Pro cannot be gated nowhere.
 const SIDECAR_GATED: readonly ProFeature[] = [
   "skills-bundle",
   "pipeline-tools",
   "craft-conventions",
+  "write-to-code",
 ];
 const WEBVIEW_GATED: readonly ProFeature[] = ["inspect", "snapshot"];
 
@@ -56,6 +58,11 @@ describe("the plan gates", () => {
     expect(FREE_SERVERS).not.toContain(PIPELINE_SERVER);
     expect(FREE_SERVERS).toContain(LIBRARY_SERVER);
     expect([...PRO_SERVERS].sort()).toEqual([...TOOL_SERVERS].sort());
+  });
+
+  it("let only a Pro turn write values into the project's code", () => {
+    expect(writesAllowed("free")).toBe(false);
+    expect(writesAllowed("pro")).toBe(true);
   });
 
   it("keep a Pro turn's conventions exactly what they were", () => {

@@ -1,5 +1,15 @@
 import { Schema } from "effect";
-import { ExportEvent, Exported, Still, StillEvent } from "@/shared/ipc";
+import {
+  CodeEdit,
+  CodeTarget,
+  CodeTargetStatus,
+  CodeWritten,
+  ExportEvent,
+  Exported,
+  Still,
+  StillEvent,
+  VideoConfigValues,
+} from "@/shared/ipc";
 import { VideoCheck } from "./choreography";
 import { DesignResult, MotionAssertion } from "./design";
 
@@ -41,6 +51,18 @@ export const HostCommand = Schema.Union([
     output: Schema.NonEmptyString,
     type: Schema.Literal("source"),
     url: Schema.NonEmptyString,
+  }),
+  Schema.Struct({
+    id: Schema.NonEmptyString,
+    targets: Schema.Array(CodeTarget),
+    type: Schema.Literal("status"),
+    video: VideoConfigValues,
+  }),
+  Schema.Struct({
+    edits: Schema.Array(CodeEdit),
+    id: Schema.NonEmptyString,
+    partial: Schema.Boolean,
+    type: Schema.Literal("write"),
   }),
   Schema.Struct({
     id: Schema.NonEmptyString,
@@ -113,6 +135,35 @@ export const HostReply = Schema.Union([
     message: Schema.String,
     type: Schema.Literal("source-failed"),
   }),
+  Schema.Struct({
+    id: Schema.NonEmptyString,
+    targets: Schema.Array(CodeTargetStatus),
+    type: Schema.Literal("status-done"),
+  }),
+  Schema.Struct({
+    id: Schema.NonEmptyString,
+    message: Schema.String,
+    type: Schema.Literal("status-failed"),
+  }),
+  // The host answers with the *text* a write would produce; the sidecar owns
+  // the containment check and the write itself, so the host never touches a
+  // file it did not create.
+  Schema.Struct({
+    files: Schema.Array(
+      Schema.Struct({
+        contents: Schema.String,
+        path: Schema.NonEmptyString,
+      })
+    ),
+    id: Schema.NonEmptyString,
+    results: Schema.Array(CodeWritten),
+    type: Schema.Literal("write-done"),
+  }),
+  Schema.Struct({
+    id: Schema.NonEmptyString,
+    message: Schema.String,
+    type: Schema.Literal("write-failed"),
+  }),
 ]);
 
 export type HostCommand = (typeof HostCommand)["Type"];
@@ -122,6 +173,9 @@ export type ExportCommand = Extract<HostCommand, { type: "export" }>;
 export type ClipCommand = Extract<HostCommand, { type: "clip" }>;
 export type DesignCommand = Extract<HostCommand, { type: "design" }>;
 export type SourceCommand = Extract<HostCommand, { type: "source" }>;
+export type StatusCommand = Extract<HostCommand, { type: "status" }>;
+export type WriteCommand = Extract<HostCommand, { type: "write" }>;
+export type WriteDone = Extract<HostReply, { type: "write-done" }>;
 
 export const decodeHostCommand = Schema.decodeExit(
   Schema.fromJsonString(HostCommand)

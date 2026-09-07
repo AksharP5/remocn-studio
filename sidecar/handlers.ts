@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { Clock, Effect, Stream } from "effect";
 import { errorMessage } from "@/lib/error-message";
@@ -18,7 +18,12 @@ import { templateProjectName } from "@/shared/templates";
 import { makeAccountCache } from "./agent/account";
 import { makeGate } from "./agent/gate";
 import { makeModeSwitch } from "./agent/mode";
-import { pipelineAllowed, serversFor } from "./agent/plan";
+import {
+  pipelineAllowed,
+  serversFor,
+  WRITES_ARE_PRO,
+  writesAllowed,
+} from "./agent/plan";
 import { adapterFor } from "./agent/registry";
 import {
   abandonSourceAssets,
@@ -26,6 +31,7 @@ import {
   requestSourceAsset,
 } from "./agent/source";
 import { pipelineBrief } from "./claude/conventions";
+import { escapee } from "./contained";
 import { applyCrashConsent, isReporting } from "./crash";
 import { readProjectDocument, videoDocuments } from "./documents";
 import { checksFor } from "./environment";
@@ -71,8 +77,10 @@ import {
   exportFrom,
   previewEvents,
   sourceFrom,
+  statusFrom,
   stillFrom,
   warmFrom,
+  writeFrom,
 } from "./preview/supervisor";
 import {
   installDependencies,
@@ -179,6 +187,22 @@ const onDisk = (project: Project) =>
         })
       )
     : Effect.succeed(project);
+
+const OUTSIDE_PROJECT =
+  "this element is written outside the project folder, so the studio will not touch it";
+
+const insideProject = (root: string, files: readonly string[]) =>
+  Effect.flatMap(
+    Effect.promise(() => escapee(root, [], files)),
+    (escaped) =>
+      escaped === null
+        ? Effect.void
+        : Effect.fail(
+            new HandlerError({
+              message: `${escaped} is outside the project folder, so the studio will not touch it.`,
+            })
+          )
+  );
 
 const located = (projectId: string) =>
   Effect.flatMap(ProjectStore, (projects) => projects.find(projectId)).pipe(
@@ -394,6 +418,16 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
       store.setMode(params.sessionId, params.mode)
     ).pipe(Effect.mapError(unstored)),
 
+  // A message that only wrote values into the code starts no turn, and it still
+  // has to be in the transcript: this is `agent.prompt`'s first two steps and
+  // nothing else — open the session, write the user entry, answer with the row.
+  "history.record": ({ log, params }) =>
+    Effect.flatMap(HistoryStore, (store) =>
+      Effect.map(recording(store, params, log), (recorder) => ({
+        session: recorder.session,
+      }))
+    ),
+
   "history.remove": ({ params }) =>
     Effect.flatMap(HistoryStore, (store) =>
       store.remove(params.sessionId)
@@ -516,6 +550,46 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
       )
     ),
 
+  // A target outside the project is dropped rather than failing the batch: a
+  // chain routinely reaches a component the studio has no business writing to,
+  // and the honest answer for that one link is "not from here", not silence
+  // about the rest.
+  "preview.status": ({ params }) =>
+    Effect.gen(function* () {
+      const project = yield* located(params.projectId);
+
+      const inside = yield* Effect.promise(() =>
+        Promise.all(
+          params.targets.map(async (target) => ({
+            ok: (await escapee(project.path, [], [target.file])) === null,
+            target,
+          }))
+        )
+      );
+
+      const asked = inside.filter((one) => one.ok).map((one) => one.target);
+
+      const outside = inside
+        .filter((one) => !one.ok)
+        .map((one) => ({
+          id: one.target.id,
+          nodePath: null,
+          props: {},
+          reason: OUTSIDE_PROJECT,
+        }));
+
+      const answered =
+        asked.length === 0
+          ? []
+          : yield* statusFrom(params.projectId, asked, params.video).pipe(
+              Effect.mapError(
+                (error) => new HandlerError({ message: error.message })
+              )
+            );
+
+      return { targets: [...answered, ...outside] };
+    }),
+
   "preview.still": ({ emit, params }) =>
     stillFrom(
       params.projectId,
@@ -530,6 +604,61 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
       Effect.as({ warmed: true }),
       Effect.catch(() => Effect.succeed({ warmed: false }))
     ),
+
+  // Two containment checks, not one: the first covers the files the host is
+  // about to read, the second the paths it names in its answer. The host only
+  // ever produces text — the write is here, where the project's boundary is
+  // already the permission gate's own.
+  "preview.write": ({ log, params }) =>
+    Effect.gen(function* () {
+      if (!writesAllowed(params.plan)) {
+        return yield* Effect.fail(
+          new HandlerError({ message: WRITES_ARE_PRO })
+        );
+      }
+
+      const project = yield* located(params.projectId);
+
+      yield* insideProject(
+        project.path,
+        params.edits.map((edit) => edit.file)
+      );
+
+      const built = yield* writeFrom(
+        params.projectId,
+        params.edits,
+        params.partial
+      ).pipe(
+        Effect.mapError((error) => new HandlerError({ message: error.message }))
+      );
+
+      yield* insideProject(
+        project.path,
+        built.files.map((file) => file.path)
+      );
+
+      yield* Effect.forEach(
+        built.files,
+        (file) =>
+          Effect.tryPromise({
+            catch: (cause) =>
+              new HandlerError({
+                message: `${file.path} could not be written: ${errorMessage(cause)}`,
+              }),
+            try: () => writeFile(file.path, file.contents, "utf8"),
+          }),
+        { discard: true }
+      );
+
+      yield* log(
+        `wrote ${built.files.length} file(s) from ${params.edits.length} edit(s)`
+      );
+
+      return {
+        files: built.files.map((file) => file.path),
+        results: built.results,
+      };
+    }),
 
   "project.check": ({ params }) =>
     Effect.gen(function* () {

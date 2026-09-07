@@ -79,6 +79,18 @@ function modesFor(model: string): readonly ChipItem[] {
   );
 }
 
+// A message carrying values the studio would write cannot go out while a turn
+// is rewriting the same files. There is no queue for it: the button says why,
+// and the message waits where it was typed.
+function heldBack(
+  reason: string | null,
+  selections: readonly { writes: readonly unknown[] }[]
+): string | null {
+  return reason !== null && selections.some((item) => item.writes.length > 0)
+    ? reason
+    : null;
+}
+
 const COLLAPSE = {
   early: "@max-md/composer:hidden",
   late: "@max-[23rem]/composer:hidden",
@@ -105,6 +117,7 @@ function ComposerBlock({
   onProviderChange,
   onStop,
   provider,
+  writesBlocked = null,
 }: {
   canPickProvider: boolean;
   context: ContextUsage | null;
@@ -117,6 +130,7 @@ function ComposerBlock({
   onProviderChange: (value: string) => void;
   onStop: () => void;
   provider: AgentProvider;
+  writesBlocked?: string | null;
 }) {
   const {
     accounts,
@@ -139,7 +153,8 @@ function ComposerBlock({
   const { write } = composer;
   const onSaveScene = useCallback(() => write(SAVE_SCENE_PROMPT), [write]);
   const isLocked = disabled || isWaiting;
-  const cannotSend = isLocked || sidecar.phase === "down";
+  const held = heldBack(writesBlocked, composer.selections.items);
+  const cannotSend = isLocked || held !== null || sidecar.phase === "down";
   const capabilities = capabilitiesOf(provider);
   const claudeModel = models.claude;
   const running = provider === "claude" ? runningMode(mode, claudeModel) : mode;
@@ -332,7 +347,7 @@ function ComposerBlock({
                         disabled={cannotSend}
                         onClick={composer.submit}
                         size="sm"
-                        title="Queue this message"
+                        title={held ?? "Queue this message"}
                         variant="outline"
                       >
                         <ListPlusIcon />
@@ -349,6 +364,7 @@ function ComposerBlock({
                     disabled={cannotSend || !composer.canSubmit}
                     onClick={composer.submit}
                     size="icon-sm"
+                    title={held ?? undefined}
                     variant="default"
                   >
                     <ArrowUpIcon />

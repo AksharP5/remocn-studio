@@ -195,10 +195,13 @@ function target(overrides: Partial<TuningTarget> = {}): TuningTarget {
   return {
     componentName: "<Interactive.Div>",
     fields: [],
+    identity: null,
     instanceId: '[data-design-id="claim"]',
     instances: 1,
+    keys: [],
     name: null,
     ordinal: 1,
+    origin: null,
     targetId: "div-1",
     where: null,
     ...overrides,

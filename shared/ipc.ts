@@ -18,7 +18,7 @@ import {
 } from "./providers";
 import { TemplateDraft } from "./templates";
 
-export const SIDECAR_PROTOCOL = 28;
+export const SIDECAR_PROTOCOL = 29;
 
 export const SIDECAR_STATUS_EVENT = "sidecar://status";
 export const SIDECAR_NOTIFY_EVENT = "sidecar://notify";
@@ -55,6 +55,7 @@ export const METHOD_NAMES = [
   "files.list",
   "history.blocks",
   "history.mode",
+  "history.record",
   "history.remove",
   "history.sessions",
   "library.bundled",
@@ -76,8 +77,10 @@ export const METHOD_NAMES = [
   "pipeline.start",
   "preview.export",
   "preview.start",
+  "preview.status",
   "preview.still",
   "preview.warm",
+  "preview.write",
   "project.check",
   "project.create",
   "project.files",
@@ -263,6 +266,10 @@ export const PromptElement = Schema.Struct({
   scene: Schema.NullOr(ElementScene),
   stack: Schema.Array(Schema.String),
   tuningChanges: Schema.optionalKey(Schema.Array(TuningChange)),
+  // Whether the studio wrote these changes into the file itself. The agent is
+  // told about them so it does not make them a second time, which is the whole
+  // difference between the two chips one Add can leave in the composer.
+  written: Schema.optionalKey(Schema.Boolean),
 });
 
 const elements = Schema.Array(PromptElement).pipe(
@@ -958,6 +965,120 @@ export const Exported = Schema.Struct({
   path: Schema.NonEmptyString,
 });
 
+// What the project's own `@remotion/studio-codemods` needs to find a JSX call
+// site, and what it answers with. The shapes are Remotion's, mirrored here
+// only as far as the studio reads them.
+export const VideoConfigValues = Schema.Struct({
+  durationInFrames: Schema.Int,
+  fps: Schema.Finite,
+  height: Schema.Int,
+  width: Schema.Int,
+});
+
+// Remotion's own subscription key: the address `setPropStatuses` and
+// `setDragOverrides` are given, and what the codemod hands back for a
+// resolved call site. It travels whole, because the two ends of it are
+// Remotion's runtime and Remotion's codemod, not us.
+export const CodeNodePath = Schema.Struct({
+  absolutePath: Schema.NonEmptyString,
+  effectKeys: Schema.Array(Schema.Array(Schema.String)),
+  nodePath: Schema.Array(Schema.Union([Schema.String, Schema.Finite])),
+  sequenceKeys: Schema.Array(Schema.String),
+  videoConfigValues: Schema.NullOr(VideoConfigValues),
+});
+
+export const CodeStatusKind = Schema.Literals([
+  "computed",
+  "keyframed",
+  "static",
+]);
+
+export const CodePropStatus = Schema.Struct({
+  kind: CodeStatusKind,
+  // Remotion's own status object, carried unread and handed straight back to
+  // its runtime. A keyframed one holds its keyframes, easing and clamping; a
+  // second declaration of that shape here could only drift from the one the
+  // runtime actually reads.
+  status: Schema.Unknown,
+});
+
+export const CodeTarget = Schema.Struct({
+  file: Schema.NonEmptyString,
+  id: Schema.NonEmptyString,
+  identity: Schema.NullOr(Schema.String),
+  keys: Schema.Array(Schema.NonEmptyString),
+  line: Schema.Int,
+});
+
+export const StatusParams = Schema.Struct({
+  projectId: Schema.NonEmptyString,
+  targets: Schema.Array(CodeTarget),
+  video: VideoConfigValues,
+});
+
+export const CodeTargetStatus = Schema.Struct({
+  id: Schema.NonEmptyString,
+  nodePath: Schema.NullOr(CodeNodePath),
+  props: Schema.Record(Schema.String, CodePropStatus),
+  reason: Schema.NullOr(Schema.String),
+});
+
+export const StatusResult = Schema.Struct({
+  targets: Schema.Array(CodeTargetStatus),
+});
+
+// `defaultValue` is always present and explicit: writing a value equal to it
+// takes the attribute back off the call site, and JSON drops an `undefined`
+// key, so "there is no default" travels as `null`.
+export const CodePropUpdate = Schema.Struct({
+  defaultValue: Schema.Unknown,
+  key: Schema.NonEmptyString,
+  value: TuningValue,
+});
+
+export const CodeKeyframeUpdate = Schema.Struct({
+  frame: Schema.Int,
+  key: Schema.NonEmptyString,
+  value: TuningValue,
+});
+
+export const CodeEdit = Schema.Struct({
+  file: Schema.NonEmptyString,
+  id: Schema.NonEmptyString,
+  keyframes: Schema.Array(CodeKeyframeUpdate),
+  nodePath: CodeNodePath,
+  // The target's `InteractivitySchema`, as the page read it off `controls`.
+  schema: Schema.Unknown,
+  updates: Schema.Array(CodePropUpdate),
+});
+
+export const WriteParams = Schema.Struct({
+  edits: Schema.Array(CodeEdit),
+  // Whether the successful edits may land while others failed. The first
+  // attempt is always `false` — nothing is written until everything can be —
+  // and only the person answering the card turns it on.
+  partial: Schema.Boolean,
+  plan: PlanTier,
+  projectId: Schema.NonEmptyString,
+});
+
+export const CodeWritten = Schema.Struct({
+  file: Schema.NonEmptyString,
+  id: Schema.NonEmptyString,
+  line: Schema.NullOr(Schema.Int),
+  message: Schema.NullOr(Schema.String),
+  ok: Schema.Boolean,
+});
+
+export const WriteResult = Schema.Struct({
+  files: Schema.Array(Schema.NonEmptyString),
+  results: Schema.Array(CodeWritten),
+});
+
+export const RecordedMessage = Schema.Struct({
+  session: Schema.NullOr(HistorySession),
+});
+
 export type PreviewParams = (typeof PreviewParams)["Type"];
 export type PreviewEvent = (typeof PreviewEvent)["Type"];
 export type PreviewResult = (typeof PreviewResult)["Type"];
@@ -971,6 +1092,21 @@ export type ExportStage = (typeof ExportStage)["Type"];
 export type ExportEvent = (typeof ExportEvent)["Type"];
 export type ExportProgress = Extract<ExportEvent, { type: "progress" }>;
 export type Exported = (typeof Exported)["Type"];
+export type VideoConfigValues = (typeof VideoConfigValues)["Type"];
+export type CodeNodePath = (typeof CodeNodePath)["Type"];
+export type CodeStatusKind = (typeof CodeStatusKind)["Type"];
+export type CodePropStatus = (typeof CodePropStatus)["Type"];
+export type CodeTarget = (typeof CodeTarget)["Type"];
+export type CodeTargetStatus = (typeof CodeTargetStatus)["Type"];
+export type StatusParams = (typeof StatusParams)["Type"];
+export type StatusResult = (typeof StatusResult)["Type"];
+export type CodePropUpdate = (typeof CodePropUpdate)["Type"];
+export type CodeKeyframeUpdate = (typeof CodeKeyframeUpdate)["Type"];
+export type CodeEdit = (typeof CodeEdit)["Type"];
+export type WriteParams = (typeof WriteParams)["Type"];
+export type CodeWritten = (typeof CodeWritten)["Type"];
+export type WriteResult = (typeof WriteResult)["Type"];
+export type RecordedMessage = (typeof RecordedMessage)["Type"];
 
 export const SIDECAR_METHODS = {
   "agent.accounts": {
@@ -1008,9 +1144,15 @@ export const SIDECAR_METHODS = {
     result: Schema.Array(TranscriptEntry),
     stream: Schema.Never,
   },
+
   "history.mode": {
     params: HistorySessionMode,
     result: HistorySession,
+    stream: Schema.Never,
+  },
+  "history.record": {
+    params: PromptParams,
+    result: RecordedMessage,
     stream: Schema.Never,
   },
   "history.remove": {
@@ -1118,6 +1260,11 @@ export const SIDECAR_METHODS = {
     result: PreviewResult,
     stream: PreviewEvent,
   },
+  "preview.status": {
+    params: StatusParams,
+    result: StatusResult,
+    stream: Schema.Never,
+  },
   "preview.still": {
     params: StillParams,
     result: Still,
@@ -1126,6 +1273,11 @@ export const SIDECAR_METHODS = {
   "preview.warm": {
     params: WarmParams,
     result: Warmed,
+    stream: Schema.Never,
+  },
+  "preview.write": {
+    params: WriteParams,
+    result: WriteResult,
     stream: Schema.Never,
   },
   "project.check": {

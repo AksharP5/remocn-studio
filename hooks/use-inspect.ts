@@ -1,6 +1,6 @@
 "use client";
 
-import { Duration, Effect, Fiber } from "effect";
+import { Duration, Effect, Exit, Fiber } from "effect";
 import type { MouseEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toastManager } from "@/components/ui/toast";
@@ -8,47 +8,52 @@ import type { Composer } from "@/hooks/use-composer";
 import { useNow } from "@/hooks/use-now";
 import { type PreviewControl, useOnPreview } from "@/hooks/use-preview";
 import {
+  type Changed,
+  emptyPlan,
+  frameKey,
+  kindOf,
+  planWrites,
+  statusTargetsOf,
+  TEXT_PATH,
+  type WritePlan,
+} from "@/lib/studio/code-writes";
+import {
   highlightCommand,
   inspectCommand,
   type PreviewInspect,
   type PreviewMessage,
-  type PreviewPlayhead,
   type PreviewRect,
   type PreviewSelection,
   type PreviewTuneResult,
-  type PreviewTuningValues,
   type PreviewWindow,
+  readCodeStatuses,
   replayCommand,
   seekCommand,
   type TuningField,
   type TuningTarget,
   tuneResetCommand,
   tuneSetCommand,
-  tuningReadCommand,
+  tuningStatusesCommand,
 } from "@/lib/studio/preview";
 import {
   byTarget,
   changedFields,
   changedPaths,
-  sameTuningValue,
   titleOf,
 } from "@/lib/studio/tuning";
 import type {
+  CodeTargetStatus,
   PromptElement,
-  TuningChange,
-  TuningOwner,
   TuningValue,
+  VideoConfigValues,
 } from "@/shared/ipc";
 
 const SILENCE = "500 millis";
 const PATIENCE = 1500;
 const UNDO_WINDOW = "10 seconds";
 const REPLAY_DELAY = "250 millis";
-const READ_INTERVAL = "250 millis";
 const TIMED_GROUPS = new Set(["Effects", "Entry", "Exit", "Timing"]);
-const TEXT_PATH = "children";
 const EASING_PATH = /[eE]asing$/;
-const EMPTY: ReadonlySet<string> = new Set<string>();
 
 export interface Marker {
   id: string;
@@ -62,20 +67,26 @@ export interface TextDraft {
 }
 
 export interface PendingComment {
-  animated?: ReadonlySet<string>;
   element: PromptElement;
   fonts?: readonly string[];
+  /** The frame each value was set at, so a keyframed edit lands on the one it
+   * was judged at rather than on whatever is on screen when Send is pressed. */
+  frames: Readonly<Record<string, number>>;
   /** Which of `targets` the pane is showing, innermost by default. */
   open: number;
   /** The values each target arrived with, per target, so a path that two of
    * them declare cannot collide and switching never loses a baseline. */
   originals: Readonly<Record<string, Readonly<Record<string, TuningValue>>>>;
   rect: PreviewRect;
+  /** What the codemod read out of the file, per target, once it has answered.
+   * An empty table is an element the studio can show and cannot write. */
+  statuses: Readonly<Record<string, CodeTargetStatus>>;
   /** The `Interactive`s around the element, innermost first. */
   targets: readonly TuningTarget[];
   text?: TextDraft | null;
   /** `targets[open]`, kept beside them so every reader stays one lookup deep. */
   tuning: TuningTarget | null;
+  video: VideoConfigValues | null;
   window?: PreviewWindow | null;
 }
 
@@ -112,7 +123,10 @@ export interface InspectSettings {
   composer: Composer;
   isArmed: boolean;
   preview: PreviewControl;
-  readInterval?: Duration.Input;
+  /** The project whose code a value would be written into, or none. */
+  projectId?: string | null;
+  /** The status reader, injected so a test can answer without a sidecar. */
+  readStatuses?: typeof readCodeStatuses;
   replayDelay?: Duration.Input;
   toggle: () => void;
   unavailable: string | null;
@@ -136,7 +150,8 @@ export function useInspect({
   composer,
   isArmed,
   preview,
-  readInterval = READ_INTERVAL,
+  projectId = null,
+  readStatuses = readCodeStatuses,
   replayDelay = REPLAY_DELAY,
   toggle,
   unavailable,
@@ -158,13 +173,14 @@ export function useInspect({
   );
   const flushHandle = useRef<number | null>(null);
   const replayFiber = useRef<Fiber.Fiber<void, never> | null>(null);
-  const readFiber = useRef<Fiber.Fiber<void, never> | null>(null);
-  const readAt = useRef(0);
+  const statusFiber = useRef<Fiber.Fiber<void, never> | null>(null);
   const playing = useRef(false);
+  const project = useRef(projectId);
+  project.current = projectId;
   cardRef.current = card;
 
   const { select, selections } = composer;
-  const { send } = preview;
+  const { frameOf, send } = preview;
 
   playing.current = preview.playing;
 
@@ -256,6 +272,67 @@ export function useInspect({
 
   abandonRef.current = abandon;
 
+  // One round trip per pick, and everything the studio knows about the code
+  // comes out of it: which values it can write, which are animated, and the
+  // node path an edit is addressed to. It is not a poll — the file only
+  // changes when the agent writes to it, and that arrives as `rebuilt`.
+  const askStatuses = useCallback(
+    (open: PendingComment) => {
+      const target = project.current;
+      const asking = statusTargetsOf(open.targets);
+      const { video } = open;
+
+      if (target === null || video === null || asking.length === 0) {
+        return;
+      }
+
+      if (statusFiber.current !== null) {
+        Effect.runFork(Fiber.interrupt(statusFiber.current));
+      }
+
+      const key = cardKey(open);
+
+      statusFiber.current = Effect.runFork(
+        Effect.andThen(
+          Effect.exit(
+            readStatuses({ projectId: target, targets: asking, video })
+          ),
+          (exit) =>
+            Effect.sync(() => {
+              statusFiber.current = null;
+
+              const live = cardRef.current;
+              if (
+                Exit.isFailure(exit) ||
+                live === null ||
+                cardKey(live) !== key
+              ) {
+                return;
+              }
+
+              const statuses = Object.fromEntries(
+                exit.value.targets.map((answer) => [answer.id, answer])
+              );
+              const next = { ...live, statuses };
+              cardRef.current = next;
+              setCard(next);
+
+              send(
+                tuningStatusesCommand(
+                  exit.value.targets.map((answer) => ({
+                    nodePath: answer.nodePath,
+                    props: answer.props,
+                    targetId: answer.id,
+                  }))
+                )
+              );
+            })
+        )
+      );
+    },
+    [readStatuses, send]
+  );
+
   const onSelection = useCallback(
     (message: PreviewSelection) => {
       const open = cardRef.current;
@@ -277,9 +354,13 @@ export function useInspect({
       // pane no longer lists and the agent will never be told about.
       abandon(open);
       setTuningRefusal(null);
-      setCard(cardOf(message));
+
+      const opened = cardOf(message);
+      cardRef.current = opened;
+      setCard(opened);
+      askStatuses(opened);
     },
-    [abandon]
+    [abandon, askStatuses]
   );
 
   const replay = useCallback(() => {
@@ -311,76 +392,6 @@ export function useInspect({
       )
     );
   }, [replay, replayDelay]);
-
-  const readValues = useCallback(() => {
-    const open = cardRef.current;
-    const targetIds =
-      open === null ? [] : open.targets.map((target) => target.targetId);
-
-    if (targetIds.length === 0) {
-      return;
-    }
-
-    readAt.current = Date.now();
-    send(tuningReadCommand(targetIds));
-  }, [send]);
-
-  const scheduleRead = useCallback(() => {
-    if (readFiber.current !== null) {
-      Effect.runFork(Fiber.interrupt(readFiber.current));
-      readFiber.current = null;
-    }
-
-    const waited = Date.now() - readAt.current;
-    const interval = Duration.toMillis(readInterval);
-
-    if (waited >= interval) {
-      readValues();
-      return;
-    }
-
-    readFiber.current = Effect.runFork(
-      Effect.sleep(Duration.millis(interval - waited)).pipe(
-        Effect.andThen(
-          Effect.sync(() => {
-            readFiber.current = null;
-            readValues();
-          })
-        )
-      )
-    );
-  }, [readInterval, readValues]);
-
-  const onPlayhead = useCallback(
-    (message: PreviewPlayhead) => {
-      const open = cardRef.current;
-
-      if (open === null || message.frame === open.element.frame) {
-        return;
-      }
-
-      scheduleRead();
-    },
-    [scheduleRead]
-  );
-
-  const onTuningValues = useCallback((message: PreviewTuningValues) => {
-    const open = cardRef.current;
-
-    if (open === null) {
-      return;
-    }
-
-    const animated = withAnimated(open, message.values);
-
-    if (sameKeys(open.animated, animated)) {
-      return;
-    }
-
-    const next = { ...open, animated };
-    cardRef.current = next;
-    setCard(next);
-  }, []);
 
   const onRebuilt = useCallback(() => {
     const live = cardRef.current;
@@ -444,21 +455,11 @@ export function useInspect({
         return;
       }
 
-      if (message.type === "playhead") {
-        onPlayhead(message);
-        return;
-      }
-
-      if (message.type === "tuning.values") {
-        onTuningValues(message);
-        return;
-      }
-
       if (message.type === "tune.result") {
         onTuneResult(message);
       }
     },
-    [onPlayhead, onRebuilt, onSelection, onTuneResult, onTuningValues]
+    [onRebuilt, onSelection, onTuneResult]
   );
 
   useOnPreview(preview, onMessage);
@@ -488,6 +489,10 @@ export function useInspect({
   // Read through the ref, not through state: an edit writes the card there
   // immediately, so Add made in the same tick as the last drag still carries
   // it.
+  // Add leaves up to two chips: one for what the studio will write into the
+  // file at Send, one for what only the agent can do. Both carry the same
+  // chain, so clicking either reopens the pane where the values were set; the
+  // sentence rides with the agent's, so a code-only Add leaves no words behind.
   const submitComment = useCallback(
     (comment: string) => {
       const open = cardRef.current;
@@ -496,25 +501,52 @@ export function useInspect({
         return;
       }
 
-      const changes = changesOf(open);
-      const id = select(
-        changes.length === 0
-          ? open.element
-          : { ...open.element, tuningChanges: changes },
-        open.rect,
-        comment,
+      const plan = writePlanOf(open);
+      const held =
         open.tuning === null
           ? null
           : {
               fonts: open.fonts ?? [],
               open: open.open,
               originals: open.originals,
+              statuses: open.statuses,
               targets: open.targets,
               text: open.text?.draft ?? null,
+              video: open.video,
               window: open.window ?? null,
-            }
-      );
-      setDrawn((current) => [...current, id]);
+            };
+      const drawnIds: string[] = [];
+
+      if (
+        plan.agent.length > 0 ||
+        plan.code.length === 0 ||
+        comment.trim().length > 0
+      ) {
+        drawnIds.push(
+          select(
+            plan.agent.length === 0
+              ? open.element
+              : { ...open.element, tuningChanges: plan.agent },
+            open.rect,
+            comment,
+            held
+          )
+        );
+      }
+
+      if (plan.code.length > 0) {
+        drawnIds.push(
+          select(
+            { ...open.element, tuningChanges: plan.code, written: true },
+            open.rect,
+            "",
+            held,
+            plan.edits
+          )
+        );
+      }
+
+      setDrawn((current) => [...current, ...drawnIds]);
 
       // The pane stays open on what was just added, and the values stay live
       // in the frame — they are what the message asks for. What has to move is
@@ -559,7 +591,7 @@ export function useInspect({
         cancelAnimationFrame(flushHandle.current);
       }
 
-      for (const held of [replayFiber.current, readFiber.current]) {
+      for (const held of [replayFiber.current, statusFiber.current]) {
         if (held !== null) {
           Effect.runFork(Fiber.interrupt(held));
         }
@@ -637,11 +669,13 @@ export function useInspect({
         flushHandle.current = requestAnimationFrame(flushTuning);
       }
 
-      const next = withValue(current, path, value);
+      const next = withValue(current, path, value, {
+        [frameKey(current.tuning.targetId, path)]: frameOf(),
+      });
       cardRef.current = next;
       setCard(next);
     },
-    [flushTuning]
+    [flushTuning, frameOf]
   );
 
   // Switching is a read: the whole chain arrived with the selection, so no
@@ -672,17 +706,21 @@ export function useInspect({
         return;
       }
 
-      const { fonts, open, originals, targets, text, window } = item.tuning;
+      const { fonts, open, originals, statuses, targets, text, video, window } =
+        item.tuning;
 
       setCard({
         element: item.element,
         fonts,
+        frames: {},
         open,
         originals,
         rect: item.rect,
+        statuses,
         targets,
         text: text === null ? null : { draft: text, from: text },
         tuning: targets[open] ?? targets.at(0) ?? null,
+        video,
         window,
       });
     },
@@ -823,15 +861,17 @@ function originalsOf(
 
 function cardOf(message: PreviewSelection): PendingComment {
   return {
-    animated: EMPTY,
     element: message.element,
     fonts: message.fonts,
+    frames: {},
     open: 0,
     originals: originalsOf(message.tuning),
     rect: message.rect,
+    statuses: {},
     targets: message.tuning,
     text: textOf(message),
     tuning: message.tuning.at(0) ?? null,
+    video: message.video,
     window: message.window,
   };
 }
@@ -858,77 +898,27 @@ export function isTextChanged(card: PendingComment): boolean {
   return text !== null && text.draft !== text.from;
 }
 
-function textChangeOf(card: PendingComment): TuningChange | null {
-  const text = card.text ?? null;
-
-  if (text === null || text.draft === text.from) {
-    return null;
-  }
-
-  const owner = card.targets.at(0);
-  const change: TuningChange = {
-    from: text.from,
-    path: TEXT_PATH,
-    to: text.draft,
-  };
-
-  return owner === undefined ? change : { ...change, owner: ownerOf(owner) };
-}
-
 function rebasedText(card: PendingComment): TextDraft | null {
   const text = card.text ?? null;
 
   return text === null ? null : { draft: text.draft, from: text.draft };
 }
 
-export function animatedKey(targetId: string, path: string): string {
-  return `${targetId} ${path}`;
-}
-
+/**
+ * Whether the code animates this key.
+ *
+ * It used to be a guess: the pane sampled the runtime value every 250 ms and
+ * called a key animated when the reading moved off its baseline. The codemod
+ * says so outright — a key whose value is an `interpolate()` at the call site
+ * comes back `keyframed` — and with that status the runtime keeps animating
+ * through an edit, so the badge no longer apologises for anything. It marks a
+ * row whose value is a landing value rather than a constant.
+ */
 export function isFieldAnimated(
   card: PendingComment,
   field: { path: string; targetId: string }
 ): boolean {
-  return card.animated?.has(animatedKey(field.targetId, field.path)) ?? false;
-}
-
-function withAnimated(
-  card: PendingComment,
-  values: readonly {
-    readonly path: string;
-    readonly targetId: string;
-    readonly value: TuningValue;
-  }[]
-): ReadonlySet<string> {
-  const animated = new Set<string>(card.animated ?? EMPTY);
-
-  for (const reading of values) {
-    const target = card.targets.find(
-      (each) => each.targetId === reading.targetId
-    );
-    const field = target?.fields.find((each) => each.path === reading.path);
-
-    if (target === undefined || field === undefined) {
-      continue;
-    }
-
-    const original = card.originals[target.targetId]?.[field.path];
-
-    if (original !== undefined && !sameTuningValue(reading.value, original)) {
-      animated.add(animatedKey(target.targetId, field.path));
-    }
-  }
-
-  return animated;
-}
-
-function sameKeys(
-  was: ReadonlySet<string> | undefined,
-  now: ReadonlySet<string>
-): boolean {
-  const before = was ?? EMPTY;
-
-  return before.size === now.size && [...now].every((key) => before.has(key));
+  return kindOf(card.statuses, field.targetId, field.path) === "keyframed";
 }
 
 function movesTime(
@@ -956,11 +946,14 @@ function movesTime(
 function withValue(
   card: PendingComment,
   path: string,
-  value: TuningValue
+  value: TuningValue,
+  frames: Readonly<Record<string, number>>
 ): PendingComment {
-  return mapOpen(card, (field) =>
+  const moved = mapOpen(card, (field) =>
     field.path === path ? { ...field, value } : field
   );
+
+  return { ...moved, frames: { ...moved.frames, ...frames } };
 }
 
 function withOriginalValues(
@@ -1012,30 +1005,39 @@ function mapOpen(
   return { ...card, targets, tuning: targets[card.open] ?? null };
 }
 
-function changesOf(card: PendingComment): TuningChange[] {
-  const tuned = changedFields(card).map(({ field, from, target }) => {
-    const change: TuningChange = {
+/** Every value the pane is holding, split into what goes where. */
+function writePlanOf(card: PendingComment): WritePlan {
+  const changed: Changed[] = changedFields(card).map(
+    ({ field, from, target }) => ({
       from,
-      owner: ownerOf(target),
       path: field.path,
+      target,
       to: field.value,
-    };
+      type: field.type,
+    })
+  );
 
-    return isFieldAnimated(card, field) ? { ...change, sampled: true } : change;
-  });
+  const owner = card.targets.at(0);
+  const text = card.text ?? null;
 
-  const text = textChangeOf(card);
+  if (owner !== undefined && text !== null && text.draft !== text.from) {
+    changed.push({
+      from: text.from,
+      path: TEXT_PATH,
+      target: owner,
+      to: text.draft,
+      type: "text-content",
+    });
+  }
 
-  return text === null ? tuned : [...tuned, text];
-}
-
-function ownerOf(target: TuningTarget): TuningOwner {
-  return {
-    component: target.componentName,
-    file: target.where?.file ?? null,
-    line: target.where?.line ?? null,
-    name: target.name,
-  };
+  return changed.length === 0
+    ? emptyPlan()
+    : planWrites({
+        changed,
+        fonts: card.fonts ?? [],
+        frames: card.frames,
+        statuses: card.statuses,
+      });
 }
 
 function cardKey(card: PendingComment): string {

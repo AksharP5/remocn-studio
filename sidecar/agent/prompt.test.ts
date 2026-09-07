@@ -31,6 +31,37 @@ describe("elementsOf", () => {
     );
   });
 
+  // The two chips one Add leaves reach the agent as two blocks about the same
+  // element. Only one of them is a request; the other is a fact it must not
+  // act on, or the same edit would land twice.
+  it("says outright which changes the studio has already written", () => {
+    const block = elementsOf([
+      {
+        ...ELEMENT,
+        tuningChanges: [
+          {
+            from: 16,
+            owner: {
+              component: "Title",
+              file: "src/videos/intro/Title.tsx",
+              line: 24,
+              name: "Headline",
+            },
+            path: "style.fontSize",
+            to: 48,
+          },
+        ],
+        written: true,
+      },
+    ]);
+
+    expect(block).toContain(
+      "Already written by the studio on Title ‹Headline› (src/videos/intro/Title.tsx:24): These are in the file already — leave them exactly as they are."
+    );
+    expect(block).toContain("- style.fontSize: 16 → 48");
+    expect(block).not.toContain("Requested changes");
+  });
+
   it("heads each group with the component that owns those changes", () => {
     const block = elementsOf([
       {

@@ -15,7 +15,7 @@ import {
 import { InteractivityRuntime } from "./interactivity";
 import { releaseDetachedMedia } from "./media-release";
 import { armSnapshot, type Frame } from "./snapshot";
-import { clearTuning, tune, tuningValues } from "./tuning-runtime";
+import { applyStatuses, clearTuning, tune } from "./tuning-runtime";
 
 const MAIN_ID = "Main";
 
@@ -77,6 +77,7 @@ function Stage() {
 
   usePreviewCommands(player, {
     composition: picked?.id ?? null,
+    durationInFrames: picked?.metadata?.durationInFrames ?? 0,
     fps: picked?.metadata?.fps ?? 30,
     height: picked?.metadata?.height ?? 0,
     width: picked?.metadata?.width ?? 0,
@@ -138,6 +139,7 @@ function InteractivePlayer({
 
 interface Playing {
   composition: string | null;
+  durationInFrames: number;
   fps: number;
   height: number;
   width: number;
@@ -204,6 +206,12 @@ function usePreviewCommands(
     composition: () => playing.current.composition ?? "",
     fps: () => playing.current.fps,
     frame: () => player.current?.getCurrentFrame() ?? 0,
+    video: () => ({
+      durationInFrames: playing.current.durationInFrames,
+      fps: playing.current.fps,
+      height: playing.current.height,
+      width: playing.current.width,
+    }),
   });
 
   const frame = useRef<Frame>({
@@ -268,8 +276,8 @@ function playback(
     return true;
   }
 
-  if (command.type === "tuning.read") {
-    post({ type: "tuning.values", values: tuningValues(command.targetIds) });
+  if (command.type === "tuning.statuses") {
+    applyStatuses(command.targets);
     return true;
   }
 

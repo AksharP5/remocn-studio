@@ -78,10 +78,21 @@ export interface Scene {
   name: string;
 }
 
+export interface VideoConfig {
+  durationInFrames: number;
+  fps: number;
+  height: number;
+  width: number;
+}
+
 export interface Stage {
   composition: () => string;
   fps: () => number;
   frame: () => number;
+  // What the codemod resolves `fps`, `width`, `height` and `durationInFrames`
+  // to when a prop is written as an expression over them. Only the page knows
+  // it, so it rides with the selection rather than being asked for later.
+  video: () => VideoConfig;
 }
 
 interface Session {
@@ -580,6 +591,7 @@ async function report(
     text: directText(links.at(0)?.node ?? element),
     tuning: located(targetsOf(element), wheres),
     type: "selection",
+    video: stage.video(),
     window: windowOf(element),
   });
 }

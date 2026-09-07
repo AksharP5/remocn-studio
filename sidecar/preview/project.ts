@@ -62,6 +62,28 @@ export function importFrom<A>(
   );
 }
 
+/**
+ * A package resolved through another package's own folder, for a dependency an
+ * installer may or may not have hoisted to the project root.
+ */
+export function resolveNested<A>(
+  root: string,
+  through: string,
+  specifier: string
+): Effect.Effect<A, PreviewError> {
+  return Effect.flatMap(
+    resolveFrom(root, `${through}/package.json`),
+    (manifest) =>
+      Effect.flatMap(
+        Effect.try({
+          catch: () => missing(root, specifier),
+          try: () => createRequire(manifest).resolve(specifier),
+        }),
+        (resolved) => importFile<A>(resolved)
+      )
+  );
+}
+
 export function importFile<A>(file: string): Effect.Effect<A, PreviewError> {
   return Effect.tryPromise({
     catch: (cause) => new PreviewError({ message: errorMessage(cause) }),

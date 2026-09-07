@@ -1,15 +1,50 @@
 import { act, renderHook } from "@testing-library/react";
+import { Effect } from "effect";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { toastManager } from "@/components/ui/toast";
 import type { Composer } from "@/hooks/use-composer";
-import { useInspect } from "@/hooks/use-inspect";
+import {
+  isFieldAnimated,
+  type PendingComment,
+  useInspect,
+} from "@/hooks/use-inspect";
 import type { PreviewControl } from "@/hooks/use-preview";
 import type {
   PreviewCommand,
   PreviewMessage,
+  readCodeStatuses,
   TuningTarget,
 } from "@/lib/studio/preview";
-import type { PromptElement } from "@/shared/ipc";
+import type { PromptElement, StatusResult } from "@/shared/ipc";
+
+const NO_STATUS: StatusResult = { targets: [] };
+
+function statusesOf(
+  props: Record<string, "computed" | "keyframed" | "static">,
+  nodePath: StatusResult["targets"][number]["nodePath"] = {
+    absolutePath: "/Users/me/projects/my-video/src/videos/intro/Title.tsx",
+    effectKeys: [],
+    nodePath: ["program", "body", 0],
+    sequenceKeys: ["size", "color"],
+    videoConfigValues: null,
+  }
+): StatusResult {
+  return {
+    targets: [
+      {
+        id: "title-1",
+        nodePath,
+        props: Object.fromEntries(
+          Object.entries(props).map(([key, kind]) => [
+            key,
+            { kind, status: { status: kind } },
+          ])
+        ),
+        reason: null,
+      },
+    ],
+  };
+}
 
 const ELEMENT: PromptElement = {
   column: 7,
@@ -62,10 +97,17 @@ const TUNING: TuningTarget = {
       value: "#000000",
     },
   ],
+  identity: "remotion.Div",
   instanceId: '[data-design-id="title"]',
   instances: 1,
+  keys: ["size", "color"],
   name: "Headline",
   ordinal: 1,
+  origin: {
+    column: 5,
+    file: "/Users/me/projects/my-video/src/videos/intro/Title.tsx",
+    line: 24,
+  },
   targetId: "title-1",
   where: {
     column: 5,
@@ -83,6 +125,7 @@ const SELECTION = {
   text: null,
   tuning: [TUNING],
   type: "selection",
+  video: { durationInFrames: 300, fps: 30, height: 1080, width: 1920 },
   window: { from: 30, until: 60 },
 } as PreviewMessage;
 
@@ -100,7 +143,6 @@ const TIMED_SELECTION = {
 } as PreviewMessage;
 
 const REPLAY_DELAY = "20 millis";
-const READ_INTERVAL = "20 millis";
 const PAST_DELAY = 80;
 
 const UNDO_WINDOW = "40 millis";
@@ -125,6 +167,8 @@ function harness(
     isArmed?: boolean;
     items?: readonly unknown[];
     playing?: boolean;
+    projectId?: string | null;
+    readStatuses?: typeof readCodeStatuses;
     select?: (element: unknown) => string;
   } = {}
 ) {
@@ -144,6 +188,7 @@ function harness(
   const preview = {
     composition: null,
     frame: 0,
+    frameOf: () => 0,
     hint: null,
     isServing: true,
     pick: null,
@@ -173,7 +218,8 @@ function harness(
         composer,
         isArmed: props.isArmed,
         preview,
-        readInterval: READ_INTERVAL,
+        projectId: options.projectId ?? null,
+        readStatuses: options.readStatuses ?? (() => Effect.succeed(NO_STATUS)),
         replayDelay: REPLAY_DELAY,
         toggle: () => undefined,
         unavailable: null,
@@ -195,7 +241,8 @@ function harness(
         frame?.(0);
       });
     },
-    reads: () => sent.filter((command) => command.type === "tuning.read"),
+    published: () =>
+      sent.filter((command) => command.type === "tuning.statuses"),
     replays: () => sent.filter((command) => command.type === "replay"),
     resets: () => sent.filter((command) => command.type === "tune.reset"),
     sets: () => sent.filter((command) => command.type === "tune.set"),
@@ -1168,95 +1215,153 @@ describe("time in the pane", () => {
     expect(replays()).toHaveLength(0);
   });
 
-  it("asks the runtime what it holds once the frame has moved", () => {
-    const { deliver, reads } = harness();
+  it("publishes the statuses it read into the page, once per pick", async () => {
+    const { deliver, published } = harness({
+      projectId: "project-1",
+      readStatuses: () =>
+        Effect.succeed(statusesOf({ color: "computed", size: "static" })),
+    });
+
+    deliver(SELECTION);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const [command] = published();
+    expect(command).toMatchObject({
+      targets: [expect.objectContaining({ targetId: "title-1" })],
+      type: "tuning.statuses",
+    });
+  });
+
+  it("asks for nothing when there is no project to read the code of", () => {
+    const { deliver, published } = harness();
+
     deliver(SELECTION);
 
-    deliver({
-      frame: 500,
-      playing: false,
-      source: "remocn-preview",
-      type: "playhead",
-    } as PreviewMessage);
+    expect(published()).toHaveLength(0);
+  });
 
-    expect(reads()).toEqual([
-      {
-        source: "remocn-studio",
-        targetIds: ["title-1"],
-        type: "tuning.read",
-      },
+  it("marks a keyframed field animated and a static one not", async () => {
+    const { deliver, result } = harness({
+      projectId: "project-1",
+      readStatuses: () =>
+        Effect.succeed(statusesOf({ color: "static", size: "keyframed" })),
+    });
+
+    deliver(SELECTION);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(
+      isFieldAnimated(result.current.card as PendingComment, {
+        path: "size",
+        targetId: "title-1",
+      })
+    ).toBe(true);
+    expect(
+      isFieldAnimated(result.current.card as PendingComment, {
+        path: "color",
+        targetId: "title-1",
+      })
+    ).toBe(false);
+  });
+
+  it("splits Add into a chip for the code and a chip for the agent", async () => {
+    const select = vi.fn(() => "selection-1");
+    const { deliver, flush, result } = harness({
+      projectId: "project-1",
+      readStatuses: () =>
+        Effect.succeed(statusesOf({ color: "computed", size: "static" })),
+      select,
+    });
+
+    deliver(SELECTION);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    act(() => {
+      result.current.changeTuning("size", 64);
+      result.current.changeTuning("color", "#ffffff");
+    });
+    flush();
+
+    act(() => {
+      result.current.submitComment("");
+    });
+
+    expect(select).toHaveBeenCalledTimes(2);
+
+    const [asked] = select.mock.calls[0] as unknown as [
+      { tuningChanges: { path: string }[]; written?: boolean },
+    ];
+    const [wrote, , , , writes] = select.mock.calls[1] as unknown as [
+      { tuningChanges: { path: string }[]; written?: boolean },
+      unknown,
+      unknown,
+      unknown,
+      { updates: { key: string }[] }[],
+    ];
+
+    expect(asked.written).toBeUndefined();
+    expect(asked.tuningChanges).toEqual([
+      expect.objectContaining({ path: "color" }),
+    ]);
+    expect(wrote.written).toBe(true);
+    expect(wrote.tuningChanges).toEqual([
+      expect.objectContaining({ path: "size" }),
+    ]);
+    expect(writes).toEqual([
+      expect.objectContaining({
+        updates: [expect.objectContaining({ key: "size", value: 64 })],
+      }),
     ]);
   });
 
-  it("asks nothing while the frame is still the one that was picked", () => {
-    const { deliver, reads } = harness();
+  it("leaves one chip, and no edits, when nothing can be written", () => {
+    const select = vi.fn(() => "selection-1");
+    const { deliver, flush, result } = harness({ select });
+
     deliver(SELECTION);
-
-    deliver({
-      frame: ELEMENT.frame,
-      playing: false,
-      source: "remocn-preview",
-      type: "playhead",
-    } as PreviewMessage);
-
-    expect(reads()).toHaveLength(0);
-  });
-
-  it("marks a field the runtime moves on its own and leaves a still one alone", () => {
-    const { deliver, result } = harness();
-    deliver(SELECTION);
-
-    deliver({
-      source: "remocn-preview",
-      type: "tuning.values",
-      values: [
-        { path: "size", targetId: "title-1", value: 24 },
-        { path: "color", targetId: "title-1", value: "#000000" },
-      ],
-    } as PreviewMessage);
-
-    expect([...(result.current.card?.animated ?? [])]).toEqual([
-      "title-1 size",
-    ]);
-  });
-
-  it("keeps the mark on a field that is edited after it was seen moving", () => {
-    const { deliver, flush, result } = harness();
-    deliver(SELECTION);
-
-    deliver({
-      source: "remocn-preview",
-      type: "tuning.values",
-      values: [{ path: "size", targetId: "title-1", value: 24 }],
-    } as PreviewMessage);
 
     act(() => {
       result.current.changeTuning("size", 64);
     });
     flush();
 
-    deliver({
-      source: "remocn-preview",
-      type: "tuning.values",
-      values: [{ path: "size", targetId: "title-1", value: 30 }],
-    } as PreviewMessage);
+    act(() => {
+      result.current.submitComment("slower");
+    });
 
-    expect([...(result.current.card?.animated ?? [])]).toEqual([
-      "title-1 size",
+    expect(select).toHaveBeenCalledTimes(1);
+
+    const [element, , , , writes] = select.mock.calls[0] as unknown as [
+      { tuningChanges: { path: string }[]; written?: boolean },
+      unknown,
+      unknown,
+      unknown,
+      unknown[] | undefined,
+    ];
+
+    expect(element.written).toBeUndefined();
+    expect(element.tuningChanges).toEqual([
+      expect.objectContaining({ path: "size" }),
     ]);
-    expect(result.current.tuningRefusal).toBeNull();
+    expect(writes ?? []).toEqual([]);
   });
 
-  it("tells the agent which from values were sampled from a frame", () => {
+  it("tells the agent a keyframed value it could not write was sampled", () => {
     const select = vi.fn(() => "selection-1");
-    const { deliver, flush, result } = harness({ select });
-    deliver(SELECTION);
+    const { deliver, flush, result } = harness({
+      projectId: "project-1",
+      readStatuses: () =>
+        Effect.succeed(statusesOf({ size: "keyframed" }, null)),
+      select,
+    });
 
-    deliver({
-      source: "remocn-preview",
-      type: "tuning.values",
-      values: [{ path: "size", targetId: "title-1", value: 24 }],
-    } as PreviewMessage);
+    deliver(SELECTION);
 
     act(() => {
       result.current.changeTuning("size", 64);
@@ -1272,7 +1377,7 @@ describe("time in the pane", () => {
     ];
 
     expect(element.tuningChanges).toEqual([
-      expect.objectContaining({ path: "size", sampled: true }),
+      expect.objectContaining({ path: "size" }),
     ]);
   });
 });

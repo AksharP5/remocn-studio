@@ -1,4 +1,4 @@
-import type { TuningValue } from "./bridge";
+import type { StatusKind, TargetStatuses, TuningValue } from "./bridge";
 import { allInFibers, hostOf, nearestInFibers } from "./fiber";
 
 type FieldType =
@@ -66,51 +66,127 @@ export interface TargetWhere {
 export interface TuningTarget {
   readonly componentName: string;
   readonly fields: readonly TuningField[];
+  /** Remotion's own identity for the component, for the codemod to match on. */
+  readonly identity: string | null;
   readonly instanceId: string;
   readonly instances: number;
+  /** Every key of the flattened schema, which is what a status is asked for. */
+  readonly keys: readonly string[];
   readonly name: string | null;
   readonly ordinal: number;
+  /** The JSX call site, from Remotion's own stack. Where a value is written. */
+  readonly origin: TargetWhere | null;
+  /** The component's `InteractivitySchema`, carried whole for the codemod. */
+  readonly schema: unknown;
   readonly targetId: string;
   readonly where: TargetWhere | null;
+}
+
+export interface DraftValue {
+  readonly frame: number;
+  readonly value: TuningValue;
+}
+
+/**
+ * One live override, as the runtime wants it: a keyframed key carries the
+ * status its `interpolate()` was read into, so moving a landing value moves a
+ * keyframe rather than replacing the animation with a constant.
+ */
+export interface OverrideStep {
+  readonly frame: number;
+  readonly keyframed: unknown | null;
+  readonly path: string;
+  readonly value: TuningValue;
 }
 
 export interface PropStatuses {
   readonly canUpdate: true;
   readonly effects: readonly never[];
-  readonly props: Readonly<
-    Record<string, { readonly codeValue: TuningValue; readonly status: string }>
-  >;
+  readonly props: Readonly<Record<string, unknown>>;
 }
 
-export interface OverridePlan {
-  readonly overrides: readonly {
-    readonly path: string;
-    readonly value: TuningValue;
-  }[];
+export interface PublishPlan {
+  readonly overrides: readonly OverrideStep[];
   readonly statuses: PropStatuses;
 }
 
-export function overridePlan(
-  draft: Readonly<Record<string, TuningValue>>
-): OverridePlan {
-  const entries = Object.entries(draft);
+const EMPTY_STATUSES: PropStatuses = {
+  canUpdate: true,
+  effects: [],
+  props: {},
+};
 
+export function emptyPlan(): PublishPlan {
+  return { overrides: [], statuses: EMPTY_STATUSES };
+}
+
+function staticStatus(value: TuningValue) {
   return {
-    overrides: entries.map(([path, value]) => ({ path, value })),
-    statuses: {
-      canUpdate: true,
-      effects: [],
-      props: Object.fromEntries(
-        entries.map(([path, value]) => [
-          path,
-          { codeValue: value, status: "static" },
-        ])
-      ),
-    },
+    codeValue: value,
+    keyframeDisplayOffsetAdjustment: null,
+    status: "static",
   };
 }
 
+/**
+ * What the runtime is told about one element: every status the codemod read,
+ * plus one override per value the pane is holding.
+ *
+ * Two keys are handed a synthetic `static` status instead of the real one. A
+ * key the code *computes* has no status the runtime would merge an override
+ * into — `computeEffectiveSchemaValuesDotNotation` takes the incoming prop and
+ * drops the override on the floor — so a value the person is composing a
+ * request about would not show on the frame at all. And when the codemod could
+ * not read the file at all (a Remotion older than 4.0.513, a source location
+ * nothing resolved), every drafted key falls back the same way: the pane keeps
+ * working everywhere, and only writing is lost.
+ */
+export function publishPlan(
+  draft: Readonly<Record<string, DraftValue>>,
+  statuses: TargetStatuses | null
+): PublishPlan {
+  const drafted = Object.entries(draft);
+
+  if (drafted.length === 0 && statuses === null) {
+    return emptyPlan();
+  }
+
+  const props: Record<string, unknown> = {};
+
+  for (const [path, status] of Object.entries(
+    statuses === null ? {} : statuses.props
+  )) {
+    props[path] = status.status;
+  }
+
+  const overrides = drafted.map(([path, held]) => {
+    const known = statuses?.props[path] ?? null;
+
+    if (known === null || known.kind === "computed") {
+      props[path] = staticStatus(held.value);
+      return { frame: held.frame, keyframed: null, path, value: held.value };
+    }
+
+    return {
+      frame: held.frame,
+      keyframed: known.kind === "keyframed" ? known.status : null,
+      path,
+      value: held.value,
+    };
+  });
+
+  return { overrides, statuses: { canUpdate: true, effects: [], props } };
+}
+
+export function kindOf(
+  statuses: TargetStatuses | null,
+  path: string
+): StatusKind | null {
+  return statuses?.props[path]?.kind ?? null;
+}
+
 export interface InteractiveControls {
+  readonly componentIdentity?: string | null;
   readonly componentName: string;
   readonly currentRuntimeValueDotNotation: Readonly<Record<string, unknown>>;
   readonly overrideId: string;
@@ -360,23 +436,28 @@ const IN_CODE = "value in code";
 
 export function describeTuning({
   componentName,
+  identity = null,
   instanceId = "",
   instances = 1,
   ordinal = 1,
+  origin = null,
   schema,
   targetId,
   values,
 }: {
   readonly componentName: string;
+  readonly identity?: string | null;
   readonly instanceId?: string;
   readonly instances?: number;
   readonly ordinal?: number;
+  readonly origin?: TargetWhere | null;
   readonly schema: InteractivitySchema;
   readonly targetId: string;
   readonly values: Readonly<Record<string, unknown>>;
 }): TuningTarget | null {
+  const active = flattenActiveSchema(schema, values);
   const fields = textFirst(
-    Object.entries(flattenActiveSchema(schema, values))
+    Object.entries(active)
       .map(([path, field]) => descriptorOf(path, field, values[path], targetId))
       .filter((field): field is TuningField => field !== null)
   );
@@ -386,10 +467,14 @@ export function describeTuning({
     : {
         componentName,
         fields,
+        identity,
         instanceId,
         instances,
+        keys: Object.keys(active),
         name: nameIn(values),
         ordinal,
+        origin,
+        schema,
         targetId,
         where: null,
       };

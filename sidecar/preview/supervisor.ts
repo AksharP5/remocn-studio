@@ -6,6 +6,9 @@ import path from "node:path";
 import { createInterface } from "node:readline";
 import { Effect, Exit, Schema, type Scope, Stream } from "effect";
 import {
+  type CodeEdit,
+  type CodeTarget,
+  type CodeTargetStatus,
   DATA_DIR_ENV,
   type ExportEvent,
   type Exported,
@@ -13,12 +16,18 @@ import {
   PreviewEvent,
   type Still,
   type StillEvent,
+  type VideoConfigValues,
 } from "@/shared/ipc";
 import type { VideoCheck } from "./choreography";
 import type { DesignResult, MotionAssertion } from "./design";
 import { PREVIEW_OUT_ENV, PREVIEW_PARENT_ENV } from "./host";
 import { PreviewError } from "./project";
-import { decodeHostReply, type HostCommand, type HostReply } from "./protocol";
+import {
+  decodeHostReply,
+  type HostCommand,
+  type HostReply,
+  type WriteDone,
+} from "./protocol";
 
 export const PREVIEW_HOST_FLAG = "--preview-host";
 
@@ -53,6 +62,16 @@ type Pending =
       fail: (message: string) => void;
       kind: "source";
       succeed: (path: string) => void;
+    }
+  | {
+      fail: (message: string) => void;
+      kind: "status";
+      succeed: (targets: readonly CodeTargetStatus[]) => void;
+    }
+  | {
+      fail: (message: string) => void;
+      kind: "write";
+      succeed: (built: WriteDone) => void;
     };
 
 type ExportPending = Extract<Pending, { kind: "export" }>;
@@ -163,6 +182,38 @@ export function sourceFrom(
       fail: (message) => settle(Effect.fail(failed(message))),
       kind: "source",
       succeed: (captured) => settle(Effect.succeed(captured)),
+    })
+  );
+}
+
+export function statusFrom(
+  projectId: string,
+  targets: readonly CodeTarget[],
+  video: VideoConfigValues
+): Effect.Effect<readonly CodeTargetStatus[], PreviewError> {
+  return ask<readonly CodeTargetStatus[]>(
+    projectId,
+    (id) => ({ id, targets: [...targets], type: "status", video }),
+    (settle) => ({
+      fail: (message) => settle(Effect.fail(failed(message))),
+      kind: "status",
+      succeed: (answered) => settle(Effect.succeed(answered)),
+    })
+  );
+}
+
+export function writeFrom(
+  projectId: string,
+  edits: readonly CodeEdit[],
+  partial: boolean
+): Effect.Effect<WriteDone, PreviewError> {
+  return ask<WriteDone>(
+    projectId,
+    (id) => ({ edits: [...edits], id, partial, type: "write" }),
+    (settle) => ({
+      fail: (message) => settle(Effect.fail(failed(message))),
+      kind: "write",
+      succeed: (built) => settle(Effect.succeed(built)),
     })
   );
 }
@@ -326,9 +377,25 @@ function deliver(reply: HostReply, pending: Map<string, Pending>): void {
     reply.type === "export-failed" ||
     reply.type === "clip-failed" ||
     reply.type === "design-failed" ||
-    reply.type === "source-failed"
+    reply.type === "source-failed" ||
+    reply.type === "status-failed" ||
+    reply.type === "write-failed"
   ) {
     waiting.fail(reply.message);
+    return;
+  }
+
+  if (waiting.kind === "status") {
+    if (reply.type === "status-done") {
+      waiting.succeed(reply.targets);
+    }
+    return;
+  }
+
+  if (waiting.kind === "write") {
+    if (reply.type === "write-done") {
+      waiting.succeed(reply);
+    }
     return;
   }
 
