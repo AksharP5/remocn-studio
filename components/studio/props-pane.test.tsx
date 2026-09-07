@@ -226,16 +226,23 @@ describe("PropsPanel", () => {
       { onChange }
     );
 
+    // dialkit's slider draws its own label and names itself after it, so the
+    // pair reads "X" and "Y" at half a 340px pane and takes the field's name
+    // from the group around them.
+    const axes = screen.getByRole("group", { name: "Offset" });
+
     expect(
-      screen
-        .getByRole("slider", { name: "Offset X" })
-        .getAttribute("aria-valuenow")
+      screen.getByRole("slider", { name: "X" }).getAttribute("aria-valuenow")
     ).toBe("-12");
     expect(
-      screen
-        .getByRole("slider", { name: "Offset Y" })
-        .getAttribute("aria-valuenow")
+      screen.getByRole("slider", { name: "Y" }).getAttribute("aria-valuenow")
     ).toBe("8");
+    expect(axes.querySelectorAll("[role='slider']").length).toBe(2);
+
+    fireEvent.keyDown(screen.getByRole("slider", { name: "Y" }), {
+      key: "ArrowUp",
+    });
+    expect(onChange).toHaveBeenCalledWith("style.translate", "-12px 9px");
   });
 
   it("shows opacity as a percentage and stores it as a fraction", () => {
@@ -283,7 +290,8 @@ describe("PropsPanel", () => {
       { onChange }
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "On" }));
+    // 2.0 draws a Toggle as a segmented radiogroup; 1.4.3 drew plain buttons.
+    fireEvent.click(screen.getByRole("radio", { name: "On" }));
     expect(onChange).toHaveBeenCalledWith("hidden", true);
 
     fireEvent.click(screen.getByRole("button", { name: "Emphasis None" }));
@@ -371,10 +379,16 @@ describe("PropsPanel", () => {
       { onChange }
     );
 
-    expect(container.querySelector(".dialkit-easing-viz path")).not.toBeNull();
-    // An enum holds one of its own names, so the curve is a reading and must
-    // not draw handles that cannot be dragged.
-    expect(container.querySelector("[data-handle]")).toBeNull();
+    expect(container.querySelector(".dialkit-easing-curve")).not.toBeNull();
+    // An enum holds one of its own names, so the curve is a reading: dialkit
+    // is handed no `onChange` and disables both of its handles.
+    expect(
+      [
+        ...container.querySelectorAll<HTMLButtonElement>(
+          ".dialkit-easing-handle"
+        ),
+      ].map((handle) => handle.disabled)
+    ).toEqual([true, true]);
 
     fireEvent.click(screen.getByRole("button", { name: "Curve Ease-Out" }));
     fireEvent.click(screen.getByRole("button", { name: "Linear" }));
@@ -414,7 +428,16 @@ describe("PropsPanel", () => {
       { onChange }
     );
 
-    expect(container.querySelector("[data-handle='1']")).not.toBeNull();
+    const handles = [
+      ...container.querySelectorAll<HTMLButtonElement>(
+        ".dialkit-easing-handle"
+      ),
+    ];
+
+    expect(handles.map((handle) => handle.disabled)).toEqual([false, false]);
+
+    fireEvent.keyDown(handles[0] as HTMLButtonElement, { key: "ArrowRight" });
+    expect(onChange).toHaveBeenCalledWith("easing", [0.43, 0, 0.58, 1]);
 
     fireEvent.click(
       screen.getByRole("button", { name: "Preset Ease In & Out" })
@@ -429,7 +452,7 @@ describe("PropsPanel", () => {
     expect(onChange).toHaveBeenCalledWith("easing", [0.5, 0, 0.58, 1]);
   });
 
-  it("shows a colour as its hex beside a swatch", () => {
+  it("shows a colour as its own text beside a swatch", () => {
     draw([
       field({
         label: "Tint",
@@ -439,22 +462,30 @@ describe("PropsPanel", () => {
       }),
     ]);
 
-    expect(screen.getByText("#8B7BFF")).toBeDefined();
-    expect(screen.getByTitle("Pick color")).toBeDefined();
+    expect(
+      (screen.getByLabelText("Tint color value") as HTMLInputElement).value
+    ).toBe("#8b7bff");
+    expect(
+      screen.getByRole("button", { name: "Pick tint color" })
+    ).toBeDefined();
   });
 
-  // The picker is the native input, and it has to be the thing the pointer
-  // lands on: WebKit opens no picker for a scripted click on a hidden one,
-  // which is what dialkit's swatch does on its own.
-  it("carries a real colour input holding the current value", () => {
-    const { container } = draw([
-      field({ label: "Tint", path: "tint", type: "color", value: "#8b7bff" }),
+  // `colorValue()` used to turn anything that was not a hex into #000000,
+  // because 1.4.3 read hex alone. Nothing coerces the value now, so a
+  // `zColor()` default written as rgb() reaches the row as itself.
+  it("keeps a colour that was not written as a hex", () => {
+    draw([
+      field({
+        label: "Tint",
+        path: "tint",
+        type: "color",
+        value: "rgb(139, 123, 255)",
+      }),
     ]);
-    const picker = container.querySelector<HTMLInputElement>(
-      'input[type="color"].dialkit-color-picker-native'
-    );
 
-    expect(picker?.value).toBe("#8b7bff");
+    expect(
+      (screen.getByLabelText("Tint color value") as HTMLInputElement).value
+    ).toBe("rgb(139, 123, 255)");
   });
 
   it("says why the preview refused a change instead of reverting in silence", () => {
@@ -667,7 +698,7 @@ describe("the easing block's structure", () => {
     expect(block?.querySelector(".dialkit-composite-label")?.textContent).toBe(
       "Drift easing"
     );
-    expect(block?.querySelector("[data-curve]")).not.toBeNull();
+    expect(block?.querySelector(".dialkit-easing-viz")).not.toBeNull();
   });
 
   it("keeps its four handles in the block, not in a column of their own", () => {

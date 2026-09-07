@@ -3,18 +3,14 @@ import {
   BEZIER_PRESETS,
   bezierOfValue,
   cssBezier,
-  curvePath,
-  curvePoint,
   easingKindOf,
   easingNameToBezier,
   matchPresetLabel,
+  PREVIEW_SECONDS,
   presetByLabel,
-  viewPoint,
-  withHandle,
+  windowSeconds,
 } from "@/lib/studio/easing";
 import type { TuningField } from "@/lib/studio/preview";
-
-const CUBIC_SEGMENT = /^M [\d.]+ [\d.]+ C /;
 
 function field(overrides: Partial<TuningField>): TuningField {
   return {
@@ -128,47 +124,30 @@ describe("presets", () => {
   });
 });
 
-describe("withHandle", () => {
-  it("moves one handle and rounds to hundredths", () => {
-    expect(withHandle([0, 0, 1, 1], 1, 0.333_33, 0.5)).toEqual([
-      0.33, 0.5, 1, 1,
-    ]);
-    expect(withHandle([0, 0, 1, 1], 2, 0.9, 0.9)).toEqual([0, 0, 0.9, 0.9]);
-  });
-
-  it("clamps x into the unit range and y into the overshoot range", () => {
-    expect(withHandle([0, 0, 1, 1], 1, -1, 9)).toEqual([0, 1.5, 1, 1]);
-    expect(withHandle([0, 0, 1, 1], 2, 2, -9)).toEqual([0, 0, 1, -0.5]);
-  });
-});
-
-describe("curve geometry", () => {
-  it("round-trips a point through the view mapping", () => {
-    const view = viewPoint(0.42, 0.75);
-    const back = curvePoint(view.x / 100, view.y / 100);
-
-    expect(back.x).toBeCloseTo(0.42);
-    expect(back.y).toBeCloseTo(0.75);
-  });
-
-  it("draws value zero below value one", () => {
-    expect(viewPoint(0, 0).y).toBeGreaterThan(viewPoint(0, 1).y);
-  });
-
-  it("clamps a drag outside the card", () => {
-    expect(curvePoint(-1, -1)).toEqual({ x: 0, y: 1.5 });
-    expect(curvePoint(2, 2)).toEqual({ x: 1, y: -0.5 });
-  });
-
-  it("writes the curve as one cubic segment", () => {
-    expect(curvePath([0, 0, 1, 1])).toMatch(CUBIC_SEGMENT);
-  });
-});
-
 describe("cssBezier", () => {
   it("spells the value the way CSS takes it", () => {
     expect(cssBezier([0.42, 0, 0.58, 1])).toBe(
       "cubic-bezier(0.42, 0, 0.58, 1)"
     );
+  });
+});
+
+// The preview dot is ours, and it runs the element's own window: dialkit's
+// `EasingConfig` takes a duration and — measured in 2.0 — draws nothing from
+// it, so this number is the only thing that makes the dot honest.
+describe("windowSeconds", () => {
+  it("reads the element's window in seconds", () => {
+    expect(windowSeconds({ from: 30, until: 120 }, 30)).toBe(3);
+  });
+
+  it("falls back where there is no window to read", () => {
+    expect(windowSeconds(null, 30)).toBe(PREVIEW_SECONDS);
+    expect(windowSeconds(undefined, 30)).toBe(PREVIEW_SECONDS);
+    expect(windowSeconds({ from: 40, until: 40 }, 30)).toBe(PREVIEW_SECONDS);
+    expect(windowSeconds({ from: 0, until: 60 }, 0)).toBe(PREVIEW_SECONDS);
+  });
+
+  it("keeps a very short window watchable rather than a strobe", () => {
+    expect(windowSeconds({ from: 0, until: 1 }, 60)).toBe(0.15);
   });
 });

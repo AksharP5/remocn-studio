@@ -1400,13 +1400,12 @@ by cutting the text at each reference and splicing the image in there (#13).
     style that changes width — weight, tracking, size, family, padding — desyncs the two,
     and the error *accumulates*: `font-medium` on the span put the caret a character off
     after four references. Colour is the only property that costs nothing here.
-- **The colour picker opens on a real click, not a scripted one.** dialkit hides its
-  `<input type="color">` at zero size with `pointer-events: none` and asks the swatch to
-  `.click()` it — which WebKit ignores, so the swatch did nothing at all here. The input
-  is put back over the swatch in `app/globals.css`: invisible, but the thing the pointer
-  actually lands on, and the swatch behind it wears the focus ring since the input cannot.
-  That is the arrangement the pane's own colour control used before dialkit, and it is why
-  that one worked.
+- **The colour picker opens on a real click, not a scripted one.** dialkit 1.4.3 hid its
+  `<input type="color">` at zero size with `pointer-events: none` and asked the swatch to
+  `.click()` it — which WebKit ignores, so the swatch did nothing at all here, and
+  `app/globals.css` put the input back over the swatch: invisible, but the thing the
+  pointer actually landed on. 2.0 replaced that input with a popover opened from a real
+  `<button>`, so the rule went with it — the three classes it named no longer exist.
 - **Previews come from the asset protocol**, enabled in `tauri.conf.json` with the
   `protocol-asset` cargo feature; no ACL permission is involved, since Tauri 2 gates it by
   configuration alone. The scope is `**` on purpose: an attachment can be picked from
@@ -2433,19 +2432,29 @@ result on screen and hands the agent a `{path, from, to}` diff to write into the
   far along is this" is a question a number alone cannot answer at a glance — the separate
   track beside the field was the first version, and it read as two controls for one value.
 - **Easing is an interpolation editor, not a dropdown.** A field whose path ends in
-  `easing`/`ease` gets a curve card: the bezier drawn in a 100×100 view with headroom for
-  overshoot (`lib/studio/easing.ts` holds the geometry, the name→bezier lookup — CSS names
-  plus the Penner families in any casing — and the preset table), a preview dot whose
-  `animation-timing-function` *is* the value being edited, and a preset picker. What is
-  editable follows what the component can hold: a **four-number array** drags its handles
-  (`useBezierDrag`, x clamped to [0,1] as `cubic-bezier()` requires, y allowed overshoot)
-  and edits the four numbers as scrubbers; an **enum** of names can hold one of its own
-  options and nothing else, so its curve is a reading and the picker is what changes it —
-  and handles are drawn *only* where they can be dragged, or the card would show a grab
-  target that does not move. That is why the conventions require the array and forbid the
-  enum: the shape of the prop is what decides whether the curve is an instrument or a
-  picture. A spring is deliberately not a tab here — it is ordinary damping/stiffness
-  props, which already render as numbers.
+  `easing`/`ease` gets a curve block: dialkit's `EasingVisualization`, a preset picker, a
+  preview dot whose `animation-timing-function` *is* the value being edited, and the four
+  numbers as scrubbers. `lib/studio/easing.ts` is what is left of ours — the name→bezier
+  lookup (CSS names plus the Penner families in any casing), the preset table, and the
+  dot's duration. What is editable follows what the component can hold: a **four-number
+  array** is handed to dialkit with an `onChange`, so its two handles drag; an **enum** of
+  names can hold one of its own options and nothing else, so it is handed none and dialkit
+  draws the same handles disabled — the card must never show a grab target that does not
+  move. That is why the conventions require the array and forbid the enum: the shape of the
+  prop is what decides whether the curve is an instrument or a picture. A spring is
+  deliberately not a tab here — it is ordinary damping/stiffness props, which already
+  render as numbers.
+  - **The four numbers and the two handles share dialkit's limits, not ours.** x is clamped
+    to [0,1] as `cubic-bezier()` requires and y to [-1, 2] — read out of `clampY` in
+    `easing-geometry` — so a handle dragged to an overshoot the scrubbers could not hold
+    is impossible by construction.
+  - **The preview dot is still ours, and it runs the element's own window.**
+    `EasingConfig` takes a `duration` and, measured in 2.0, `EasingVisualization` draws
+    nothing from it: there is no dot in dialkit's curve. `windowSeconds(window, fps)` is
+    passed to both, so the number the dot animates over is the number dialkit is told, and
+    a curve is judged at the speed it will really play rather than at a fixed 1.8s. With no
+    window to read — the element has no timed sequence — it falls back to that 1.8s, and a
+    window shorter than 0.15s is held there so the dot is an animation and not a strobe.
 - **Telling the agent was not enough, because a bundled skill tells it the opposite.**
   `remotion-interactivity`'s own words are *"the output range, easing, extrapolation and
   `output` property should use hardcoded values"* — right for Remotion Studio, which
@@ -2561,18 +2570,42 @@ result on screen and hands the agent a `{path, from, to}` diff to write into the
 - **`hiddenFromList` is honoured.** Remotion marks `from`, `durationInFrames`, `trimBefore`
   and `freeze` as belonging to a timeline rather than a property list; the panel is not a
   timeline, so it obeys, and those stay a sentence in the chat.
-- **Colour is a swatch with an oversized native picker behind it plus an editable hex**, and
-  a switch is the one control with no field behind it: it is already a surface, and a box
-  inside a box is what that would be. Bare `<input type="number">` rows were the first
-  version of all this and they read as a form rather than an instrument.
+- **Colour is a text field beside a swatch that opens dialkit's own picker**, and a switch
+  is the one control with no field behind it: it is already a surface, and a box inside a
+  box is what that would be. Bare `<input type="number">` rows were the first version of
+  all this and they read as a form rather than an instrument. Nothing coerces the value on
+  the way in: 2.0 parses hex, rgb, hsl, oklch and Display P3, and writes back in the format
+  it was given, so a `zColor()` default spelled `rgba(…)` survives a round trip instead of
+  arriving as black.
 - **Focus is an `outline`, never a `ring`.** `control-surface` *is* a `box-shadow`, and a
   Tailwind ring utility sets `box-shadow` in the utilities layer — it would replace the
   surface and take the elevation with it. The inputs inside a field carry `outline-none`, so
   the field itself shows `focus-within` instead; dropping that would have been the one real
   accessibility regression in this pass.
-- **Base UI keeps a slider's real control visually hidden**, so it carries no accessible name
-  of its own and a role query cannot reach it: the thumb is named through `getAriaLabel`, and
-  the test finds it by `input[type="range"]`.
+- **dialkit ships no changelog, so a bump is read out of its `dist`.** Neither npm nor
+  GitHub Releases carries one; 1.4.3 → 2.0.0 was worked out by diffing `dist/index.d.ts`
+  and `dist/styles.css`, and what it took back is three things the pane had been doing for
+  itself — the slider's role and keyboard (`AccessibleDialSlider`, which in 2.0 would have
+  been a slider inside a slider and a second tab stop), the colour hack in
+  `app/globals.css`, and `colorValue()`'s coercion of anything that was not a hex to
+  `#000000`. `components/studio/dialkit-contract.test.tsx` is where those readings live:
+  a version that took one of them back again fails there rather than in the pane.
+  Two more findings from the same pass, neither in the type diff:
+  - **A `Toggle` is a segmented radiogroup now**, where 1.4.3 drew two plain buttons — so
+    it is `getByRole("radio")` in the tests, and it carries the row's own label through
+    `aria-labelledby`.
+  - **`TextControl` forwards nothing to its `<textarea>`**, so the `text-content` field —
+    the one whose words are written back into the person's TSX — keeps our own `Textarea`
+    and its `VERBATIM_INPUT`. Everything 2.0 adds beyond this (`DialPad`, `ImageControl`,
+    `SpringVisualization`, a controlled `Folder`) is deliberately not adopted here.
+- **The slider is dialkit's own, role and keyboard included** — `role="slider"`, the tab
+  stop, `aria-value*` and arrows/Shift/Home/End/Enter all live on `.dialkit-slider` since
+  2.0. It draws its label inside its own track and names itself after it, which is the one
+  thing it will not let us set separately: where the visible label has to stay short — the
+  X/Y pair sharing 340px, a numbered array item — the field's name is carried by a
+  `role="group"` around them instead. A `<fieldset>`, which is what biome's
+  `useSemanticElements` asks for, is min-content wide by default, which is exactly what a
+  two-column grid in that pane cannot afford.
 
 - **Remotion's own interactivity runtime does the rendering, not a fiber-props mutation.**
   `preview/interactivity.tsx` provides three of the contexts the Studio would: a

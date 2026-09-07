@@ -35,6 +35,7 @@ function draw(
 ) {
   return render(
     <TuningRow
+      duration={1}
       field={shown}
       fonts={options.fonts}
       onChange={(options.onChange ?? vi.fn()) as never}
