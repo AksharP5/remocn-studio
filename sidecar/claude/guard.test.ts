@@ -1,5 +1,5 @@
+import { describe, expect, it } from "bun:test";
 import { Effect } from "effect";
-import { describe, expect, it } from "vitest";
 import type { AgentEvent, SessionMode } from "@/shared/ipc";
 import { makeGate } from "@/sidecar/agent/gate";
 import { gateHooks, permissionGuard } from "@/sidecar/claude/guard";

@@ -1,9 +1,8 @@
-// @vitest-environment node
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { existsSync, lstatSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { DATA_DIR_ENV } from "@/shared/ipc";
 import {
   BUNDLE_NAME,

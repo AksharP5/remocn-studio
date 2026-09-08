@@ -1,6 +1,5 @@
-// @vitest-environment node
+import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
 import { noBundle } from "@/sidecar/agent/knowledge";
 import { pluginsFor } from "@/sidecar/claude/knowledge";
 

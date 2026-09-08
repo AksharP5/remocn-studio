@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import type { TuningField } from "@/lib/studio/preview";
 import { paneRows, springsIn } from "@/lib/studio/spring";
 

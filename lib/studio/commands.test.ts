@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { commandLead } from "@/lib/studio/commands";
 
 const CWD = "/Users/me/projects/my-video";

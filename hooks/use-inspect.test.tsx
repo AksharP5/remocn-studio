@@ -1,6 +1,6 @@
+import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import { act, renderHook } from "@testing-library/react";
 import { Effect } from "effect";
-import { afterEach, describe, expect, it, vi } from "vitest";
 import { toastManager } from "@/components/ui/toast";
 import type { Composer } from "@/hooks/use-composer";
 import {
@@ -16,6 +16,7 @@ import type {
   TuningTarget,
 } from "@/lib/studio/preview";
 import type { PromptElement, StatusResult } from "@/shared/ipc";
+import { stubGlobal, unstubAllGlobals } from "@/test/stub-global";
 
 const NO_STATUS: StatusResult = { targets: [] };
 
@@ -175,15 +176,15 @@ function harness(
   } = {}
 ) {
   const sent: PreviewCommand[] = [];
-  const toasted = vi.spyOn(toastManager, "add");
+  const toasted = spyOn(toastManager, "add");
   let listener: ((message: PreviewMessage) => void) | null = null;
   let raf: FrameRequestCallback | null = null;
 
-  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+  stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
     raf = callback;
     return 1;
   });
-  vi.stubGlobal("cancelAnimationFrame", () => {
+  stubGlobal("cancelAnimationFrame", () => {
     raf = null;
   });
 
@@ -210,8 +211,8 @@ function harness(
   } as unknown as PreviewControl;
 
   const composer = {
-    select: options.select ?? vi.fn(() => "selection-1"),
-    selections: { items: options.items ?? [], markStale: vi.fn() },
+    select: options.select ?? mock(() => "selection-1"),
+    selections: { items: options.items ?? [], markStale: mock() },
   } as unknown as Composer;
 
   const rendered = renderHook(
@@ -254,8 +255,8 @@ function harness(
 }
 
 afterEach(() => {
-  vi.unstubAllGlobals();
-  vi.restoreAllMocks();
+  unstubAllGlobals();
+  mock.restore();
 });
 
 describe("useInspect tuning", () => {
@@ -1271,7 +1272,7 @@ describe("time in the pane", () => {
   });
 
   it("splits Add into a chip for the code and a chip for the agent", async () => {
-    const select = vi.fn(() => "selection-1");
+    const select = mock(() => "selection-1");
     const { deliver, flush, result } = harness({
       projectId: "project-1",
       readStatuses: () =>
@@ -1323,7 +1324,7 @@ describe("time in the pane", () => {
   });
 
   it("leaves one chip, and no edits, when nothing can be written", () => {
-    const select = vi.fn(() => "selection-1");
+    const select = mock(() => "selection-1");
     const { deliver, flush, result } = harness({ select });
 
     deliver(SELECTION);
@@ -1355,7 +1356,7 @@ describe("time in the pane", () => {
   });
 
   it("tells the agent a keyframed value it could not write was sampled", () => {
-    const select = vi.fn(() => "selection-1");
+    const select = mock(() => "selection-1");
     const { deliver, flush, result } = harness({
       projectId: "project-1",
       readStatuses: () =>
@@ -1437,7 +1438,7 @@ describe("the words a Remotion too old to declare them still carries", () => {
   });
 
   it("asks the agent for them by the path the runtime would use", () => {
-    const select = vi.fn(() => "selection-1");
+    const select = mock(() => "selection-1");
     const { deliver, result } = harness({ select });
     deliver(WORDS);
 
@@ -1461,7 +1462,7 @@ describe("the words a Remotion too old to declare them still carries", () => {
   });
 
   it("says nothing about words nobody touched", () => {
-    const select = vi.fn(() => "selection-1");
+    const select = mock(() => "selection-1");
     const { deliver, result } = harness({ select });
     deliver(WORDS);
 

@@ -1,6 +1,4 @@
-// @vitest-environment node
-
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { previewPage, renderPage } from "./html";
 
 const ROOT = "/Users/me/projects/my-video";

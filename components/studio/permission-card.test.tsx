@@ -1,5 +1,5 @@
+import { describe, expect, it, mock } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import { PermissionCard } from "@/components/studio/permission-card";
 import type { PendingPermission } from "@/lib/studio/turns";
 
@@ -24,10 +24,7 @@ function permission(shape: Partial<PendingPermission> = {}): PendingPermission {
   };
 }
 
-function renderCard(
-  shape: Partial<PendingPermission> = {},
-  onAnswer = vi.fn()
-) {
+function renderCard(shape: Partial<PendingPermission> = {}, onAnswer = mock()) {
   render(
     <PermissionCard
       cwd={CWD}

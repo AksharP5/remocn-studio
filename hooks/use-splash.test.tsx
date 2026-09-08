@@ -1,14 +1,14 @@
+import { describe, expect, it, mock } from "bun:test";
 import { renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import { useSplash } from "@/hooks/use-splash";
 
-const clock = vi.hoisted(() => ({ now: 0 }));
+const clock = { now: 0 };
 
-vi.mock("@/hooks/use-media-query", () => ({
+mock.module("@/hooks/use-media-query", () => ({
   useMediaQuery: () => false,
 }));
 
-vi.mock("@/hooks/use-now", () => ({
+mock.module("@/hooks/use-now", () => ({
   useNow: () => clock.now,
 }));
 

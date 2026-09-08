@@ -1,5 +1,5 @@
+import { describe, expect, it } from "bun:test";
 import { render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
 import { ActivityIcon } from "@/components/studio/activity-icon";
 import type { ActivityState } from "@/shared/ipc";
 import type { ToolVerb } from "@/shared/providers";

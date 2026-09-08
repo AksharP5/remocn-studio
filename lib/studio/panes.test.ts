@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { panelIdsOf, showsPreview } from "@/lib/studio/panes";
 
 describe("showsPreview", () => {

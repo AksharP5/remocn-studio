@@ -1,5 +1,5 @@
+import { describe, expect, it, mock } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import { InspectOverlay } from "@/components/studio/inspect-overlay";
 import type { PendingComment } from "@/hooks/use-inspect";
 import type { PromptElement } from "@/shared/ipc";
@@ -57,8 +57,8 @@ function draw(card: PendingComment | null, handlers = {}) {
       card={card}
       cwd="/Users/me/projects/my-video"
       markers={[]}
-      onCancel={vi.fn()}
-      onSubmit={vi.fn()}
+      onCancel={mock()}
+      onSubmit={mock()}
       {...handlers}
     />
   );
@@ -85,7 +85,7 @@ describe("InspectOverlay", () => {
   });
 
   it("submits the comment with Add", () => {
-    const onSubmit = vi.fn();
+    const onSubmit = mock();
     draw(PLAIN, { onSubmit });
 
     fireEvent.change(
@@ -103,8 +103,8 @@ describe("InspectOverlay", () => {
         card={null}
         cwd={null}
         markers={[{ id: "a", index: 0, rect: RECT }]}
-        onCancel={vi.fn()}
-        onSubmit={vi.fn()}
+        onCancel={mock()}
+        onSubmit={mock()}
       />
     );
 

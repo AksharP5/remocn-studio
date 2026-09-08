@@ -1,6 +1,6 @@
+import { afterEach, describe, expect, it } from "bun:test";
 import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
 import { useSessions } from "@/hooks/use-sessions";
 import type { HistorySession } from "@/shared/ipc";
 

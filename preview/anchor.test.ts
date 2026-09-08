@@ -1,5 +1,14 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "bun:test";
 import { anchorOf, resolveAnchor } from "./anchor";
+
+const escapedQuotesParse = (() => {
+  try {
+    document.querySelector('[data-design-id="\\""]');
+    return true;
+  } catch {
+    return false;
+  }
+})();
 
 function canvas(html: string): HTMLElement {
   const container = document.createElement("div");
@@ -48,15 +57,18 @@ describe("anchorOf", () => {
     expect(anchorOf(container, container)).toBe(".__remotion-player");
   });
 
-  it("escapes an id that would not parse as a selector", () => {
-    const container = canvas(
-      '<div data-design-id="claim 2&quot;"><span>x</span></div>'
-    );
-    const span = container.querySelector("span") as Element;
-    const anchor = anchorOf(span, container);
+  it.skipIf(!escapedQuotesParse)(
+    "escapes an id that would not parse as a selector",
+    () => {
+      const container = canvas(
+        '<div data-design-id="claim 2&quot;"><span>x</span></div>'
+      );
+      const span = container.querySelector("span") as Element;
+      const anchor = anchorOf(span, container);
 
-    expect(resolveAnchor(anchor, container)).toBe(span);
-  });
+      expect(resolveAnchor(anchor, container)).toBe(span);
+    }
+  );
 });
 
 describe("a round trip through the DOM", () => {

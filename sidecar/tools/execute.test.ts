@@ -1,5 +1,4 @@
-// @vitest-environment node
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import type { Asset } from "@/shared/library";
 import type { PipelineStage } from "@/shared/pipeline";
 import { type DesignCalls, executeTool, type TurnTools } from "./execute";

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { BUNDLE_FLAGS } from "./bundling";
 
 describe("BUNDLE_FLAGS", () => {

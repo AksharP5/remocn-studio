@@ -1,9 +1,8 @@
-// @vitest-environment node
+import { beforeEach, describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect, Exit } from "effect";
-import { beforeEach, describe, expect, it } from "vitest";
 import {
   MAX_DOCUMENT_BYTES,
   readProjectDocument,

@@ -1,10 +1,8 @@
-// @vitest-environment node
-
+import { afterEach, describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Effect, Exit } from "effect";
-import { afterEach, describe, expect, it } from "vitest";
 import {
   agreedVersionIn,
   configFile,

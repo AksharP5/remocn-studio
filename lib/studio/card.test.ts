@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { boxOf, cardPlacement } from "./card";
 
 const STAGE = { height: 540, width: 960 };

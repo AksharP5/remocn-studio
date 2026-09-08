@@ -1,18 +1,19 @@
+import { afterEach, describe, expect, it, mock } from "bun:test";
 import { act, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Composer } from "@/hooks/use-composer";
 import type { PreviewControl } from "@/hooks/use-preview";
 import { PRO_ONLY, type ToolSettings, useTools } from "@/hooks/use-tools";
 import { PRO_FEATURES } from "@/shared/entitlement";
+import { stubGlobal, unstubAllGlobals } from "@/test/stub-global";
 
 const PROJECT = "project-1";
 
 function harness(
   options: { isDocs?: boolean; isLocked?: boolean; lockedReason?: string } = {}
 ) {
-  const onArm = vi.fn();
-  vi.stubGlobal("requestAnimationFrame", () => 1);
-  vi.stubGlobal("cancelAnimationFrame", () => undefined);
+  const onArm = mock();
+  stubGlobal("requestAnimationFrame", () => 1);
+  stubGlobal("cancelAnimationFrame", () => undefined);
 
   const preview = {
     composition: null,
@@ -29,8 +30,8 @@ function harness(
   } as unknown as PreviewControl;
 
   const composer = {
-    select: vi.fn(() => "selection-1"),
-    selections: { items: [], markStale: vi.fn() },
+    select: mock(() => "selection-1"),
+    selections: { items: [], markStale: mock() },
   } as unknown as Composer;
 
   const settings = (isDocs: boolean): ToolSettings => ({
@@ -59,8 +60,8 @@ function harness(
 }
 
 afterEach(() => {
-  vi.unstubAllGlobals();
-  vi.restoreAllMocks();
+  unstubAllGlobals();
+  mock.restore();
 });
 
 describe("useTools in Docs", () => {

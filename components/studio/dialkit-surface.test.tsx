@@ -1,10 +1,10 @@
+import { describe, expect, it, mock } from "bun:test";
 import { render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import { DialKitSurface } from "@/components/studio/dialkit-surface";
 
-const theme = vi.hoisted(() => ({ resolved: "light" }));
+const theme = { resolved: "light" };
 
-vi.mock("next-themes", () => ({
+mock.module("next-themes", () => ({
   useTheme: () => ({ resolvedTheme: theme.resolved }),
 }));
 

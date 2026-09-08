@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import {
   DEFAULT_FORMAT,
   formatById,
@@ -15,7 +15,7 @@ describe("VIDEO_FORMATS", () => {
     expect(ids.size).toBe(VIDEO_FORMATS.length);
   });
 
-  it.each(VIDEO_FORMATS)(
+  it.each([...VIDEO_FORMATS])(
     "sizes $id as the $label its label promises",
     (format) => {
       const parts = RATIO.exec(format.label);

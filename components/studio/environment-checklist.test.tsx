@@ -1,5 +1,5 @@
+import { describe, expect, it, mock } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import { EnvironmentChecklist } from "@/components/studio/environment-checklist";
 import type { Environment } from "@/hooks/use-environment";
 import type { EnvironmentCheck } from "@/shared/ipc";
@@ -26,24 +26,24 @@ function environment(
     checks: troubles,
     download: null,
     error: null,
-    install: vi.fn(),
-    installNode: vi.fn(),
+    install: mock(),
+    installNode: mock(),
     isBlocking: false,
     isChecking: false,
     isInstalling: false,
     isInstallingNode: false,
     isUpgrading: false,
     output: null,
-    recheck: vi.fn(),
+    recheck: mock(),
     troubles,
-    upgrade: vi.fn(),
+    upgrade: mock(),
     ...overrides,
   };
 }
 
 describe("the Upgrade Remotion row", () => {
   it("offers the upgrade, and runs nothing until it is pressed", () => {
-    const upgrade = vi.fn();
+    const upgrade = mock();
 
     render(
       <EnvironmentChecklist

@@ -1,7 +1,7 @@
+import { describe, expect, it, mock } from "bun:test";
 import { createInterface } from "node:readline";
 import { PassThrough } from "node:stream";
 import { Effect } from "effect";
-import { describe, expect, it, vi } from "vitest";
 import { SIDECAR_PROTOCOL, type SidecarFrame } from "@/shared/ipc";
 import { make, SidecarChannel } from "@/sidecar/channel";
 import { handlers } from "@/sidecar/handlers";
@@ -248,7 +248,7 @@ describe("runHost", () => {
   });
 
   it("interrupts what is still running when the host closes stdin", async () => {
-    const interrupted = vi.fn();
+    const interrupted = mock();
     const host = harness({
       "sidecar.emit": () =>
         Effect.never.pipe(

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import {
   ASSET_IS_A_CALL,
   COMPUTED_IN_CODE,

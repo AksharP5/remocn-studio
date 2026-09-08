@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import type { EnvironmentCheck } from "@/shared/ipc";
 import { PROVIDER_SETUP } from "@/shared/providers";
 import {

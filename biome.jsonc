@@ -78,6 +78,15 @@
       "linter": {
         "rules": { "style": { "useFilenamingConvention": "off" } }
       }
+    },
+    {
+      // jest-dom publishes its matchers as one module of named exports meant
+      // to be handed to `expect.extend` whole; listing the twenty-odd names
+      // would only drift from the package.
+      "includes": ["test/setup.ts"],
+      "linter": {
+        "rules": { "performance": { "noNamespaceImport": "off" } }
+      }
     }
   ]
 }

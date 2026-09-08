@@ -1,5 +1,5 @@
+import { describe, expect, it } from "bun:test";
 import { Effect } from "effect";
-import { describe, expect, it } from "vitest";
 import { review } from "@/sidecar/claude/permission";
 import { pipelineBrief, STUDIO_CONVENTIONS } from "../claude/conventions";
 import {

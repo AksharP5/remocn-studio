@@ -1,6 +1,5 @@
-// @vitest-environment node
+import { describe, expect, it } from "bun:test";
 import { Exit } from "effect";
-import { describe, expect, it } from "vitest";
 import { decodeHostCommand, decodeHostReply } from "./protocol";
 
 describe("preview design protocol", () => {

@@ -1,5 +1,5 @@
+import { describe, expect, it } from "bun:test";
 import { Effect, Exit } from "effect";
-import { describe, expect, it } from "vitest";
 import { signedBy, testPublicKey } from "@/lib/studio/entitlement.fixture";
 import {
   decodeEntitlement,

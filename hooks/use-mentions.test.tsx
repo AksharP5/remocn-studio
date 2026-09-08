@@ -1,6 +1,6 @@
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useComposer } from "@/hooks/use-composer";
 
 const FILES = [
@@ -72,7 +72,7 @@ function pressing(key: string, text: string) {
     currentTarget: { selectionEnd: 0, selectionStart: 0, value: text },
     key,
     metaKey: false,
-    preventDefault: vi.fn(),
+    preventDefault: mock(),
     shiftKey: false,
   } as unknown as React.KeyboardEvent<HTMLTextAreaElement>;
 }
@@ -83,7 +83,7 @@ function clicking(index: number) {
   } as unknown as React.MouseEvent<HTMLButtonElement>;
 }
 
-function composer(onSubmit = vi.fn()) {
+function composer(onSubmit = mock()) {
   return renderHook(() => useComposer({ onSubmit, projectId: "project-1" }));
 }
 
@@ -144,7 +144,7 @@ describe("mentions in the composer", () => {
 
   it("sends the message rather than a file when nothing matches", async () => {
     install();
-    const onSubmit = vi.fn();
+    const onSubmit = mock();
     const { result } = renderHook(() =>
       useComposer({ onSubmit, projectId: "project-1" })
     );

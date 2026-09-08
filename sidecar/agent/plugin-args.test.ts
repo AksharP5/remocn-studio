@@ -1,6 +1,5 @@
-// @vitest-environment node
+import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
 import type { PromptParams } from "@/shared/ipc";
 import { type KnowledgeBundle, noBundle } from "@/sidecar/agent/knowledge";
 import { copilotArgs } from "@/sidecar/copilot/adapter";

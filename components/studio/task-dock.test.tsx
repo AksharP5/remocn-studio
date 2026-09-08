@@ -1,5 +1,5 @@
+import { describe, expect, it, mock } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import { TaskDock } from "@/components/studio/task-dock";
 import type { StudioSettings } from "@/lib/studio/settings";
 import type { TaskRow } from "@/lib/studio/tasks";
@@ -172,7 +172,7 @@ describe("TaskDock with a pipeline", () => {
     const opened: string[] = [];
     // React nulls `currentTarget` once the handler returns, so the value the
     // row carries has to be read while the event is still live.
-    const onOpenDocument = vi.fn(
+    const onOpenDocument = mock(
       (event: React.MouseEvent<HTMLButtonElement>) => {
         opened.push(event.currentTarget.value);
       }

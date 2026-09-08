@@ -1,5 +1,5 @@
+import { describe, expect, it, mock } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import { PropsPanel } from "@/components/studio/props-pane";
 import type { PendingComment, TuningRefusal } from "@/hooks/use-inspect";
 import type { TuningField, TuningTarget } from "@/lib/studio/preview";
@@ -111,14 +111,14 @@ function draw(
       cwd="/Users/me/projects/my-video"
       frame={handlers.frame ?? 42}
       groups={handlers.groups}
-      onCancel={handlers.onCancel ?? vi.fn()}
-      onChange={(handlers.onChange ?? vi.fn()) as never}
-      onChangeText={handlers.onChangeText ?? vi.fn()}
+      onCancel={handlers.onCancel ?? mock()}
+      onChange={(handlers.onChange ?? mock()) as never}
+      onChangeText={handlers.onChangeText ?? mock()}
       onOpenTarget={handlers.onOpenTarget}
-      onReplay={handlers.onReplay ?? vi.fn()}
-      onReset={handlers.onReset ?? vi.fn()}
-      onSeek={handlers.onSeek ?? vi.fn()}
-      onSubmit={handlers.onSubmit ?? vi.fn()}
+      onReplay={handlers.onReplay ?? mock()}
+      onReset={handlers.onReset ?? mock()}
+      onSeek={handlers.onSeek ?? mock()}
+      onSubmit={handlers.onSubmit ?? mock()}
       refusal={handlers.refusal ?? null}
       target={shown.tuning ?? target}
     />
@@ -211,7 +211,7 @@ describe("PropsPanel", () => {
   });
 
   it("keeps a DialKit slider adjustable from the keyboard", () => {
-    const onChange = vi.fn();
+    const onChange = mock();
     draw([field({ label: "Blur", max: 40, min: 0, path: "blur", value: 12 })], {
       onChange,
     });
@@ -224,7 +224,7 @@ describe("PropsPanel", () => {
   });
 
   it("puts a two-value transform on one pad, Y the way up a pad has it", () => {
-    const onChange = vi.fn();
+    const onChange = mock();
     const { container } = draw(
       [
         field({
@@ -254,7 +254,7 @@ describe("PropsPanel", () => {
   });
 
   it("shows opacity as a percentage and stores it as a fraction", () => {
-    const onChange = vi.fn();
+    const onChange = mock();
     draw(
       [
         field({
@@ -278,7 +278,7 @@ describe("PropsPanel", () => {
   });
 
   it("reports a switch and an enum through onChange", () => {
-    const onChange = vi.fn();
+    const onChange = mock();
     draw(
       [
         field({
@@ -308,7 +308,7 @@ describe("PropsPanel", () => {
   });
 
   it("offers per-row reset and Reset all only once a value moved", () => {
-    const onReset = vi.fn();
+    const onReset = mock();
     const moved = [field({ label: "Size", path: "size", value: 7 })];
 
     draw(moved, { onReset, originals: { size: 0 } });
@@ -335,7 +335,7 @@ describe("PropsPanel", () => {
   });
 
   it("holds array rows to their length constraints", () => {
-    const onChange = vi.fn();
+    const onChange = mock();
     const { container } = draw(
       [
         field({
@@ -372,7 +372,7 @@ describe("PropsPanel", () => {
   });
 
   it("gives an easing enum a curve and a preset picker", () => {
-    const onChange = vi.fn();
+    const onChange = mock();
     const { container } = draw(
       [
         field({
@@ -422,7 +422,7 @@ describe("PropsPanel", () => {
   });
 
   it("edits a bezier easing through presets and its numbers", () => {
-    const onChange = vi.fn();
+    const onChange = mock();
     const { container } = draw(
       [
         field({
@@ -575,8 +575,8 @@ describe("PropsPanel", () => {
   });
 
   it("cancels and submits from the footer", () => {
-    const onCancel = vi.fn();
-    const onSubmit = vi.fn();
+    const onCancel = mock();
+    const onSubmit = mock();
     draw([field({ label: "Size", path: "size" })], { onCancel, onSubmit });
 
     fireEvent.change(
@@ -608,7 +608,7 @@ describe("the Interactive chain", () => {
     targetId: "rig-1",
   });
 
-  function chained(open: number, onOpenTarget = vi.fn()) {
+  function chained(open: number, onOpenTarget = mock()) {
     const card: PendingComment = {
       element: ELEMENT,
       frames: {},
@@ -658,7 +658,7 @@ describe("the Interactive chain", () => {
       video: null,
     };
 
-    draw(inner.fields, { card, onOpenTarget: vi.fn() });
+    draw(inner.fields, { card, onOpenTarget: mock() });
 
     expect(screen.getByRole("button", { name: "Pushed line" })).toBeDefined();
   });
@@ -750,7 +750,7 @@ describe("the time strip", () => {
   });
 
   it("moves the frame from the range", () => {
-    const onSeek = vi.fn();
+    const onSeek = mock();
     draw([field({ label: "Size", path: "size" })], { frame: 40, onSeek });
 
     fireEvent.change(screen.getByLabelText("Frame"), {
@@ -761,7 +761,7 @@ describe("the time strip", () => {
   });
 
   it("plays the window on Replay", () => {
-    const onReplay = vi.fn();
+    const onReplay = mock();
     draw([field({ label: "Size", path: "size" })], { onReplay });
 
     fireEvent.click(screen.getByRole("button", { name: "Replay" }));
@@ -893,7 +893,7 @@ describe("the text a Remotion too old to declare it still shows", () => {
   });
 
   it("reports what was typed", () => {
-    const onChangeText = vi.fn();
+    const onChangeText = mock();
     const { card, fields } = withText({ draft: "Ship it", from: "Ship it" });
     draw(fields, { card, onChangeText });
 
@@ -975,7 +975,7 @@ describe("folding a section", () => {
   ];
 
   it("opens every section when nothing has been folded", () => {
-    draw(rows, { groups: { collapsed: [], toggle: vi.fn() } });
+    draw(rows, { groups: { collapsed: [], toggle: mock() } });
 
     expect(
       screen
@@ -986,7 +986,7 @@ describe("folding a section", () => {
   });
 
   it("hides the rows of a folded section and says how many there are", () => {
-    draw(rows, { groups: { collapsed: ["Transform"], toggle: vi.fn() } });
+    draw(rows, { groups: { collapsed: ["Transform"], toggle: mock() } });
 
     const heading = screen.getByRole("button", { name: TRANSFORM });
 
@@ -999,7 +999,7 @@ describe("folding a section", () => {
   });
 
   it("names the section it folds", () => {
-    const toggle = vi.fn();
+    const toggle = mock();
     draw(rows, { groups: { collapsed: [], toggle } });
 
     fireEvent.click(screen.getByRole("button", { name: "Layer" }));

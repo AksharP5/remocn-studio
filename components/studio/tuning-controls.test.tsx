@@ -1,5 +1,5 @@
+import { describe, expect, it, mock } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import {
   type AssetOptions,
   TuningRow,
@@ -45,8 +45,8 @@ function draw(
       duration={1}
       field={shown}
       fonts={options.fonts}
-      onChange={(options.onChange ?? vi.fn()) as never}
-      onReset={vi.fn()}
+      onChange={(options.onChange ?? mock()) as never}
+      onReset={mock()}
       original={options.original ?? shown.value}
       refusal={null}
     />
@@ -55,7 +55,7 @@ function draw(
 
 describe("the text control", () => {
   it("sends what was typed to the path the field owns", () => {
-    const onChange = vi.fn();
+    const onChange = mock();
     draw(
       field({
         label: "Text",
@@ -96,7 +96,7 @@ describe("the text control", () => {
   });
 
   it("sends the family that was typed over the suggestions", () => {
-    const onChange = vi.fn();
+    const onChange = mock();
     draw(
       field({
         label: "Font family",
@@ -153,7 +153,7 @@ describe("a value the pane may show and may not edit", () => {
 
 describe("a pair of numbers", () => {
   it("is one pad, and its Y reads the other way up from the CSS", () => {
-    const onChange = vi.fn();
+    const onChange = mock();
     const { container } = draw(
       field({
         label: "Offset",

@@ -1,5 +1,5 @@
+import { describe, expect, it, mock } from "bun:test";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import { SessionItem } from "@/components/studio/session-item";
 import type { SessionRow } from "@/lib/studio/groups";
 import type { HistorySession } from "@/shared/ipc";
@@ -42,8 +42,8 @@ function renderItem(shape: Partial<SessionRow> & { isActive?: boolean } = {}) {
     <SessionItem
       isActive={isActive ?? false}
       now={NOW}
-      onRemove={vi.fn()}
-      onSelect={vi.fn()}
+      onRemove={mock()}
+      onSelect={mock()}
       row={{ ...IDLE_ROW, ...row }}
     />
   );

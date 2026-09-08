@@ -1,4 +1,4 @@
-// @vitest-environment node
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import {
   mkdirSync,
   mkdtempSync,
@@ -9,7 +9,6 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Audiomap } from "@/shared/audiomap";
 import { LIBRARY_DIR_ENV, REMOCN_DIR_ENV } from "@/shared/ipc";
 import { type AssetDraft, promptAssetOf } from "@/shared/library";

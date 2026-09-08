@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { accountRow, missingRow, NOT_AUTHENTICATED } from "./account";
 import { EFFORTS, SANDBOXES } from "./adapter";
 import { failureFromText } from "./failure";

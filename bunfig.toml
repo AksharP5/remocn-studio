@@ -1,0 +1,21 @@
+[test]
+preload = ["./test/register-dom.ts", "./test/setup.ts"]
+pathIgnorePatterns = [
+  "repos/**",
+  "templates/**",
+  "agent/**",
+  "remocn/**",
+  "src-tauri/**",
+  "sidecar-dist/**",
+  "out/**",
+  ".next/**",
+]
+coverageSkipTestFiles = true
+coverageReporter = ["text", "lcov"]
+coveragePathIgnorePatterns = [
+  "components/ui/**",
+  "hooks/use-mobile.ts",
+  "test/**",
+  "scripts/**",
+  "preview/**",
+]

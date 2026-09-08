@@ -1,6 +1,6 @@
+import { afterEach, describe, expect, it } from "bun:test";
 import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
 import { useWorkspace } from "@/hooks/use-workspace";
 import type { StudioSettings } from "@/lib/studio/settings";
 import type { HistorySession, Project, Video } from "@/shared/ipc";

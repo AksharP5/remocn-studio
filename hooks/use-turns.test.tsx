@@ -1,6 +1,6 @@
+import { afterEach, describe, expect, it, mock } from "bun:test";
 import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
 import { type StartTurn, useTurns } from "@/hooks/use-turns";
 import type {
   HistorySession,
@@ -155,7 +155,7 @@ afterEach(() => {
 describe("useTurns", () => {
   it("puts a stored session's blocks on screen when it is opened", async () => {
     harness();
-    const { result } = renderHook(() => useTurns(vi.fn()));
+    const { result } = renderHook(() => useTurns(mock()));
 
     act(() => {
       result.current.loadTurn(STORED);
@@ -170,7 +170,7 @@ describe("useTurns", () => {
 
   it("brings a stored session's pipeline back with its blocks", async () => {
     harness();
-    const { result } = renderHook(() => useTurns(vi.fn()));
+    const { result } = renderHook(() => useTurns(mock()));
 
     act(() => {
       result.current.loadTurn(STORED);
@@ -183,7 +183,7 @@ describe("useTurns", () => {
 
   it("loads a session's blocks once, however often it is opened", async () => {
     const ipc = harness({ holdBlocks: true });
-    const { result } = renderHook(() => useTurns(vi.fn()));
+    const { result } = renderHook(() => useTurns(mock()));
 
     act(() => {
       result.current.loadTurn(STORED);
@@ -198,7 +198,7 @@ describe("useTurns", () => {
 
   it("keeps a turn started mid-load below the blocks it was loading", async () => {
     const ipc = harness({ holdBlocks: true });
-    const { result } = renderHook(() => useTurns(vi.fn()));
+    const { result } = renderHook(() => useTurns(mock()));
 
     act(() => {
       result.current.loadTurn(STORED);
@@ -219,7 +219,7 @@ describe("useTurns", () => {
 
   it("keeps a turn running while another session is on screen", async () => {
     const ipc = harness();
-    const { result } = renderHook(() => useTurns(vi.fn()));
+    const { result } = renderHook(() => useTurns(mock()));
 
     act(() => {
       result.current.markOpen("a");
@@ -244,7 +244,7 @@ describe("useTurns", () => {
 
   it("marks a turn that finished while its session was away", async () => {
     const ipc = harness();
-    const { result } = renderHook(() => useTurns(vi.fn()));
+    const { result } = renderHook(() => useTurns(mock()));
 
     act(() => {
       result.current.markOpen("a");
@@ -275,7 +275,7 @@ describe("useTurns", () => {
 
   it("leaves no unread mark on a turn you watched finish", async () => {
     const ipc = harness();
-    const { result } = renderHook(() => useTurns(vi.fn()));
+    const { result } = renderHook(() => useTurns(mock()));
 
     act(() => {
       result.current.markOpen("a");
@@ -296,7 +296,7 @@ describe("useTurns", () => {
 
   it("cancels the request behind the session it is told to stop", async () => {
     const ipc = harness();
-    const { result } = renderHook(() => useTurns(vi.fn()));
+    const { result } = renderHook(() => useTurns(mock()));
 
     act(() => {
       result.current.sendTurn(turn("a"));
@@ -316,7 +316,7 @@ describe("useTurns", () => {
 
   it("brings a stored session back in the mode it was left in", async () => {
     harness();
-    const { result } = renderHook(() => useTurns(vi.fn()));
+    const { result } = renderHook(() => useTurns(mock()));
 
     act(() => {
       result.current.loadTurn(STORED);
@@ -329,7 +329,7 @@ describe("useTurns", () => {
 
   it("runs the turn in the mode its session is set to", async () => {
     const ipc = harness();
-    const { result } = renderHook(() => useTurns(vi.fn()));
+    const { result } = renderHook(() => useTurns(mock()));
 
     act(() => {
       result.current.setTurnMode("a", "plan");
@@ -344,7 +344,7 @@ describe("useTurns", () => {
 
   it("queues a second message instead of dropping it", async () => {
     harness();
-    const { result } = renderHook(() => useTurns(vi.fn()));
+    const { result } = renderHook(() => useTurns(mock()));
 
     act(() => {
       result.current.sendTurn(turn("a"));
@@ -364,7 +364,7 @@ describe("useTurns", () => {
 
   it("refuses a message with nothing in it", () => {
     harness();
-    const { result } = renderHook(() => useTurns(vi.fn()));
+    const { result } = renderHook(() => useTurns(mock()));
 
     act(() => {
       expect(result.current.sendTurn(turn("a", "   "))).toBe(false);
@@ -375,7 +375,7 @@ describe("useTurns", () => {
 
   it("sends the head of the queue when the turn settles", async () => {
     const ipc = harness();
-    const { result } = renderHook(() => useTurns(vi.fn()));
+    const { result } = renderHook(() => useTurns(mock()));
 
     act(() => {
       result.current.markOpen("a");
@@ -406,7 +406,7 @@ describe("useTurns", () => {
 
   it("runs the queued message in the mode the session ended in", async () => {
     const ipc = harness();
-    const { result } = renderHook(() => useTurns(vi.fn()));
+    const { result } = renderHook(() => useTurns(mock()));
 
     act(() => {
       result.current.sendTurn(turn("a"));
@@ -426,7 +426,7 @@ describe("useTurns", () => {
 
   it("keeps the queue where it is when the turn is stopped by hand", async () => {
     const ipc = harness();
-    const { result } = renderHook(() => useTurns(vi.fn()));
+    const { result } = renderHook(() => useTurns(mock()));
 
     act(() => {
       result.current.sendTurn(turn("a"));
@@ -450,7 +450,7 @@ describe("useTurns", () => {
 
   it("keeps the queue where it is when the turn failed", async () => {
     const ipc = harness();
-    const { result } = renderHook(() => useTurns(vi.fn()));
+    const { result } = renderHook(() => useTurns(mock()));
 
     act(() => {
       result.current.sendTurn(turn("a"));
@@ -473,7 +473,7 @@ describe("useTurns", () => {
 
   it("forgets a queued message it is told to drop", async () => {
     harness();
-    const { result } = renderHook(() => useTurns(vi.fn()));
+    const { result } = renderHook(() => useTurns(mock()));
 
     act(() => {
       result.current.sendTurn(turn("a"));
@@ -496,7 +496,7 @@ describe("useTurns", () => {
 
   it("sends the plan the account holds when the turn starts", async () => {
     const ipc = harness();
-    const { result } = renderHook(() => useTurns(vi.fn(), () => "pro"));
+    const { result } = renderHook(() => useTurns(mock(), () => "pro"));
 
     act(() => {
       result.current.sendTurn(turn("a"));
@@ -507,7 +507,7 @@ describe("useTurns", () => {
 
   it("runs as Free when nothing says otherwise", async () => {
     const ipc = harness();
-    const { result } = renderHook(() => useTurns(vi.fn()));
+    const { result } = renderHook(() => useTurns(mock()));
 
     act(() => {
       result.current.sendTurn(turn("a"));
@@ -521,7 +521,7 @@ describe("useTurns", () => {
   it("reads the plan again when a queued message goes out", async () => {
     const ipc = harness();
     let plan: "free" | "pro" = "pro";
-    const { result } = renderHook(() => useTurns(vi.fn(), () => plan));
+    const { result } = renderHook(() => useTurns(mock(), () => plan));
 
     act(() => {
       result.current.sendTurn(turn("a"));

@@ -1,11 +1,10 @@
-// @vitest-environment node
-import { DatabaseSync } from "node:sqlite";
+import { describe, expect, it } from "bun:test";
 import { Effect, Exit } from "effect";
-import { describe, expect, it } from "vitest";
 import type { SessionMode, TranscriptEntry } from "@/shared/ipc";
-import type { SqlDriver, SqlRow, SqlValue } from "@/sidecar/history/driver";
+import type { SqlDriver } from "@/sidecar/history/driver";
 import { MIGRATIONS, migrate, prepare } from "@/sidecar/history/migrations";
 import { make as makeProjects } from "@/sidecar/history/projects";
+import { driverFor } from "@/sidecar/history/sqlite";
 import { broken, make } from "@/sidecar/history/store";
 import { make as makeVideos } from "@/sidecar/history/videos";
 
@@ -13,16 +12,7 @@ const FOLDER = "/videos/promo";
 const MODE = "auto" as const;
 
 function nodeDriver(): SqlDriver {
-  const db = new DatabaseSync(":memory:");
-
-  return {
-    all: (sql, params = []) =>
-      db.prepare(sql).all(...(params as SqlValue[])) as SqlRow[],
-    close: () => db.close(),
-    exec: (sql) => db.exec(sql),
-    run: (sql, params = []) =>
-      Number(db.prepare(sql).run(...(params as SqlValue[])).changes),
-  };
+  return driverFor(":memory:");
 }
 
 const run = <A, E>(effect: Effect.Effect<A, E>) => Effect.runPromise(effect);

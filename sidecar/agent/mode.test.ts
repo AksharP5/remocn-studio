@@ -1,5 +1,5 @@
+import { describe, expect, it } from "bun:test";
 import { Effect } from "effect";
-import { describe, expect, it } from "vitest";
 import type { SessionMode } from "@/shared/ipc";
 import { makeModeSwitch } from "@/sidecar/agent/mode";
 

@@ -1,5 +1,5 @@
+import { describe, expect, it } from "bun:test";
 import { Duration, Effect, Exit } from "effect";
-import { describe, expect, it } from "vitest";
 import { AccountError } from "@/lib/studio/account";
 import {
   type EntitlementCache,

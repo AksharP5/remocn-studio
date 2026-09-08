@@ -1,5 +1,5 @@
+import { describe, expect, it } from "bun:test";
 import { Effect } from "effect";
-import { describe, expect, it } from "vitest";
 import type { EnvironmentCheck } from "@/shared/ipc";
 import { makeAccountCache } from "./account";
 

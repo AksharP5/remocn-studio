@@ -1,6 +1,6 @@
+import { describe, expect, it, spyOn } from "bun:test";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { Effect, Exit } from "effect";
-import { describe, expect, it, vi } from "vitest";
 import { causeMessage } from "@/lib/error-message";
 import { cancelSidecarRequest, requestSidecar } from "@/lib/studio/sidecar";
 import type { AgentEvent, EmitChunk } from "@/shared/ipc";
@@ -83,9 +83,9 @@ describe("requestSidecar", () => {
       });
     });
 
-    const reported = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const reported = spyOn(console, "error").mockImplementation(
+      () => undefined
+    );
 
     const chunks: EmitChunk[] = [];
     const answer = Effect.runPromise(

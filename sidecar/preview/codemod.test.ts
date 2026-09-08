@@ -1,6 +1,5 @@
-// @vitest-environment node
+import { describe, expect, it } from "bun:test";
 import { Effect } from "effect";
-import { describe, expect, it } from "vitest";
 import type { CodeEdit, CodeNodePath, CodeTarget } from "@/shared/ipc";
 import { assemble, type Codemods, statusesOf } from "@/sidecar/preview/codemod";
 

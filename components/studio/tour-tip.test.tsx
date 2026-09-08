@@ -1,5 +1,5 @@
+import { afterEach, describe, expect, it, mock } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
 import { TourCard } from "@/components/studio/tour-tip";
 import type { Tours } from "@/hooks/use-tours";
 import { TOUR_TIPS, type TourId } from "@/lib/studio/tours";
@@ -14,10 +14,10 @@ function tipOf(id: TourId) {
 
 function tours(shape: Partial<Tours> = {}): Tours {
   return {
-    close: vi.fn(),
-    dismiss: vi.fn(),
+    close: mock(),
+    dismiss: mock(),
     hasSeenAny: false,
-    replay: vi.fn(),
+    replay: mock(),
     reveal: null,
     tip: tipOf("composer"),
     ...shape,
@@ -65,7 +65,7 @@ describe("TourCard", () => {
 
   it("answers the tip on Got it", () => {
     anchor("composer");
-    const dismiss = vi.fn();
+    const dismiss = mock();
     render(<TourCard tours={tours({ dismiss })} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Got it" }));
@@ -75,7 +75,7 @@ describe("TourCard", () => {
 
   it("offers Show me only for a tip that has something to show", () => {
     anchor("assets");
-    const reveal = vi.fn();
+    const reveal = mock();
     const { rerender } = render(
       <TourCard tours={tours({ reveal, tip: tipOf("assets") })} />
     );

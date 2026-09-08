@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { findExecutable } from "../agent/cli";
 import { CLAUDE_ENV, CLAUDE_LOOKUP, findClaude } from "./cli";
 

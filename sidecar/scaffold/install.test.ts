@@ -1,11 +1,10 @@
-// @vitest-environment node
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { EventEmitter } from "node:events";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { PassThrough } from "node:stream";
 import { Effect, Exit, Fiber } from "effect";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { causeMessage } from "@/lib/error-message";
 import type { PackageManager } from "@/sidecar/package-manager";
 import {

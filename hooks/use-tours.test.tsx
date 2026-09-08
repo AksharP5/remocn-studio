@@ -1,5 +1,5 @@
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useTours } from "@/hooks/use-tours";
 import type { StudioSettings } from "@/lib/studio/settings";
 import type { TourStage } from "@/lib/studio/tours";
@@ -12,7 +12,7 @@ const written: string[][] = [];
 // The settings store is Tauri's, and there is none under jsdom. The fake is
 // also the assertion: what a "Got it" wrote down is what comes back next
 // launch.
-vi.mock("@tauri-apps/plugin-store", () => ({
+mock.module("@tauri-apps/plugin-store", () => ({
   load: () =>
     Promise.resolve({
       delete: () => Promise.resolve(),
@@ -65,7 +65,7 @@ function pause(ms: number) {
 }
 
 function mount(stage: TourStage, settings: StudioSettings | null = SETTINGS) {
-  const onReveal = vi.fn();
+  const onReveal = mock();
   const view = renderHook(
     (props: { settings: StudioSettings | null; stage: TourStage }) =>
       useTours({ dwell: DWELL, onReveal, ...props }),

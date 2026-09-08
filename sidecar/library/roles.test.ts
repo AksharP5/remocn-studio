@@ -1,7 +1,6 @@
-// @vitest-environment node
+import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
 import { isMotionRole } from "@/shared/motion";
 import { BUNDLED_ROLES, bundledRoleOf } from "./roles";
 

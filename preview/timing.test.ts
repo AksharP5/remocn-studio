@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import type { Fiber } from "./fiber";
 import { windowOf } from "./timing";
 

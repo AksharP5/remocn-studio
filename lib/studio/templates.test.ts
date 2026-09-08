@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { firstPlaceholder, PROMPT_TEMPLATES } from "@/lib/studio/templates";
 import { countsOf, segmentsOf } from "@/shared/references";
 

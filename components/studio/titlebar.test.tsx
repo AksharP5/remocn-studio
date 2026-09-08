@@ -1,8 +1,8 @@
+import { describe, expect, it, mock } from "bun:test";
 import { render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import { Titlebar } from "@/components/studio/titlebar";
 
-vi.mock("@/components/studio/shader-field", () => ({
+mock.module("@/components/studio/shader-field", () => ({
   ShaderField: () => <div data-testid="shader" />,
 }));
 

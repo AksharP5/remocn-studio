@@ -1,7 +1,6 @@
-// @vitest-environment node
+import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
 import { SIDECAR_PROTOCOL } from "@/shared/ipc";
 
 const RUST = fileURLToPath(new URL("../src-tauri/src/ipc.rs", import.meta.url));

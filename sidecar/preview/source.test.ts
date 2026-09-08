@@ -1,9 +1,8 @@
-// @vitest-environment node
+import { describe, expect, it } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
-import { describe, expect, it } from "vitest";
 import type { WarmInternals } from "./session";
 import { captureSourcePage } from "./source";
 

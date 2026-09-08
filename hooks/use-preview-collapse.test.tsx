@@ -1,20 +1,20 @@
+import { describe, expect, it, mock } from "bun:test";
 import { act, renderHook } from "@testing-library/react";
 import type { PanelImperativeHandle } from "react-resizable-panels";
-import { describe, expect, it, vi } from "vitest";
 import { usePreviewCollapse } from "@/hooks/use-preview-collapse";
 
 function panel(isCollapsed: boolean): PanelImperativeHandle {
   return {
-    collapse: vi.fn(),
-    expand: vi.fn(),
+    collapse: mock(),
+    expand: mock(),
     getSize: () => ({ asPercentage: 0, inPixels: 0 }),
     isCollapsed: () => isCollapsed,
-    resize: vi.fn(),
+    resize: mock(),
   };
 }
 
 function mounted(isShown: boolean, collapsed: boolean) {
-  const onCollapsed = vi.fn();
+  const onCollapsed = mock();
   const view = renderHook(() => usePreviewCollapse(isShown, onCollapsed));
   view.result.current.panelRef.current = panel(collapsed);
   return { onCollapsed, view };
@@ -52,7 +52,7 @@ describe("usePreviewCollapse", () => {
   });
 
   it("survives a resize reported before the panel has a handle", () => {
-    const onCollapsed = vi.fn();
+    const onCollapsed = mock();
     const view = renderHook(() => usePreviewCollapse(true, onCollapsed));
 
     expect(() => act(() => view.result.current.onResize())).not.toThrow();

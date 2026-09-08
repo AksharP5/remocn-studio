@@ -1,5 +1,5 @@
+import { describe, expect, it, mock } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import { ModelMenu } from "@/components/studio/model-menu";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { ProviderAccounts } from "@/hooks/use-provider-accounts";
@@ -31,8 +31,8 @@ function renderMenu(shape: {
   canPickProvider?: boolean;
   provider?: "claude" | "codex" | "grok";
 }) {
-  const onPick = vi.fn();
-  const onSignIn = vi.fn();
+  const onPick = mock();
+  const onSignIn = mock();
 
   render(
     <TooltipProvider>
