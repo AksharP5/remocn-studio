@@ -1,5 +1,12 @@
 import { Effect, type Exit, Schema, type SchemaError } from "effect";
 import { Audiomap } from "./audiomap";
+import {
+  BrandFile,
+  BrandFont,
+  ProjectBrandApplication,
+  ProjectBrandSnapshot,
+} from "./brand";
+import { DesignImport } from "./design-import";
 import { PlanTier } from "./entitlement";
 import {
   Asset,
@@ -10,6 +17,7 @@ import {
   StockPage,
 } from "./library";
 import { PipelineStage, PipelineStageId, PipelineStatus } from "./pipeline";
+import { ProjectConfig, ProjectSettingsDraft } from "./project-config";
 import {
   AgentProvider,
   DEFAULT_AGENT_PROVIDER,
@@ -83,6 +91,13 @@ export const METHOD_NAMES = [
   "preview.write",
   "project.check",
   "project.create",
+  "project.move",
+  "project.moveCancel",
+  "project.settingsGet",
+  "project.settingsSave",
+  "project.brandFile",
+  "project.designImport",
+  "project.googleFont",
   "project.files",
   "project.fromTemplate",
   "project.install",
@@ -96,6 +111,8 @@ export const METHOD_NAMES = [
   "project.upgrade",
   "sidecar.emit",
   "sidecar.info",
+  "video.brandStatus",
+  "video.brandConfirm",
   "video.create",
   "video.documents",
   "video.list",
@@ -306,6 +323,7 @@ const plan = PlanTier.pipe(
 export const PromptParams = Schema.Struct({
   assets,
   attachments: Schema.Array(PromptAttachment),
+  brandRevision: Schema.optionalKey(Schema.Int),
   effort: Schema.NullOr(EffortLevel),
   elements,
   historyId: Schema.NonEmptyString,
@@ -1280,6 +1298,11 @@ export const SIDECAR_METHODS = {
     result: WriteResult,
     stream: Schema.Never,
   },
+  "project.brandFile": {
+    params: Schema.Struct({ path: Schema.String, projectId: Schema.String }),
+    result: BrandFile,
+    stream: Schema.Never,
+  },
   "project.check": {
     params: EnvironmentParams,
     result: EnvironmentReport,
@@ -1288,6 +1311,11 @@ export const SIDECAR_METHODS = {
   "project.create": {
     params: ProjectDraft,
     result: Project,
+    stream: Schema.Never,
+  },
+  "project.designImport": {
+    params: Schema.Struct({ path: Schema.String, projectId: Schema.String }),
+    result: DesignImport,
     stream: Schema.Never,
   },
   "project.files": {
@@ -1300,6 +1328,16 @@ export const SIDECAR_METHODS = {
     result: TemplateProject,
     stream: Schema.Never,
   },
+  "project.googleFont": {
+    params: Schema.Struct({
+      family: Schema.String,
+      italic: Schema.optionalKey(Schema.Boolean),
+      projectId: Schema.String,
+      weights: Schema.String,
+    }),
+    result: BrandFont,
+    stream: Schema.Never,
+  },
   "project.install": {
     params: ProjectRef,
     result: Installed,
@@ -1308,6 +1346,16 @@ export const SIDECAR_METHODS = {
   "project.list": {
     params: Schema.Null,
     result: Schema.Array(Project),
+    stream: Schema.Never,
+  },
+  "project.move": {
+    params: Schema.Struct({ parent: Schema.String, projectId: Schema.String }),
+    result: Project,
+    stream: Schema.Struct({ phase: Schema.String }),
+  },
+  "project.moveCancel": {
+    params: ProjectRef,
+    result: Schema.Null,
     stream: Schema.Never,
   },
   "project.open": {
@@ -1340,6 +1388,16 @@ export const SIDECAR_METHODS = {
     result: Project,
     stream: ScaffoldEvent,
   },
+  "project.settingsGet": {
+    params: ProjectRef,
+    result: ProjectConfig,
+    stream: Schema.Never,
+  },
+  "project.settingsSave": {
+    params: ProjectSettingsDraft,
+    result: ProjectConfig,
+    stream: Schema.Never,
+  },
   "project.upgrade": {
     params: UpgradeParams,
     result: Upgraded,
@@ -1349,6 +1407,20 @@ export const SIDECAR_METHODS = {
   "sidecar.info": {
     params: Schema.Null,
     result: SidecarInfo,
+    stream: Schema.Never,
+  },
+  "video.brandConfirm": {
+    params: Schema.Struct({
+      projectId: Schema.String,
+      revision: Schema.Int,
+      videoId: Schema.String,
+    }),
+    result: ProjectBrandSnapshot,
+    stream: Schema.Never,
+  },
+  "video.brandStatus": {
+    params: VideoRef,
+    result: Schema.NullOr(ProjectBrandApplication),
     stream: Schema.Never,
   },
   "video.create": {

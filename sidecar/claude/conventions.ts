@@ -159,7 +159,13 @@ discipline and skip what its version cannot express.`;
 
 // The moodboard and the seven-stage pipeline: both run through the
 // `remocn-pipeline` server, which a Free turn is not served.
-const PRODUCTION = `A moodboard — asked for, or called for by the brand stage — starts at
+const PRODUCTION = `A supplied video brand snapshot is authoritative after explicit user instructions.
+Do not ask again for known identity fields, change a video snapshot during unrelated
+edits, or let a moodboard override its colors/type. Local public/brand assets with
+provenance are original identity assets; do not duplicate or redraw them. Complete
+identity needs no mandatory stock search or new font pairing.
+
+A moodboard — asked for, or called for by the brand stage — starts at
 \`mcp__remocn-library__get_moodboard\` and is built through
 \`mcp__remocn-library__search_stock\` and \`mcp__remocn-library__save_moodboard\`,
 whose descriptions carry the process.

@@ -92,6 +92,7 @@ export const MIGRATIONS: readonly (readonly Migration[])[] = [
             CASE WHEN status = 'pending' THEN 'pending' ELSE 'done' END
      FROM pipeline_stage WHERE stage = 'review'`,
   ],
+  ["ALTER TABLE project ADD COLUMN config_revision INTEGER NOT NULL DEFAULT 0"],
 ];
 
 export function prepare(driver: SqlDriver): void {

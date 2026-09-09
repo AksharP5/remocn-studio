@@ -14,6 +14,7 @@ import type { ApplyMode } from "./mode";
 
 export interface TurnBriefs {
   readonly assets: string | null;
+  readonly brand?: string | null;
   readonly media: string | null;
   readonly pipeline: string | null;
 }

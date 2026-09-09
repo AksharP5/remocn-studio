@@ -84,9 +84,15 @@ const failed = (message: string) => new PreviewError({ message });
 interface Host {
   pending: Map<string, Pending>;
   send: (command: HostCommand) => boolean;
+  stop?: () => Effect.Effect<void>;
 }
 
 const hosts = new Map<string, Host>();
+
+export function stopProjectPreview(projectId: string) {
+  const host = hosts.get(projectId);
+  return host?.stop?.() ?? Effect.void;
+}
 
 export interface StillRequest {
   composition: string;
@@ -117,6 +123,7 @@ export function previewEvents(
     Effect.gen(function* () {
       const process_ = yield* child(folder, log);
       const host = hostOf(process_);
+      host.stop = () => stop(process_);
 
       yield* enrol(projectId, host);
 

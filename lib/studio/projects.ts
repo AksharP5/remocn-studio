@@ -231,3 +231,116 @@ export function reconcileVideos(
     });
   });
 }
+
+export function getProjectSettings(projectId: string) {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+    return yield* requestSidecar({
+      id,
+      method: "project.settingsGet",
+      params: { projectId },
+    });
+  });
+}
+export function saveProjectSettings(
+  params: import("@/shared/project-config").ProjectSettingsDraft
+) {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+    return yield* requestSidecar({
+      id,
+      method: "project.settingsSave",
+      params,
+    });
+  });
+}
+export function addBrandFile(projectId: string, path: string) {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+    return yield* requestSidecar({
+      id,
+      method: "project.brandFile",
+      params: { path, projectId },
+    });
+  });
+}
+
+export function moveProject(
+  projectId: string,
+  parent: string,
+  onStream: (event: { readonly phase: string }) => void
+) {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+    return yield* requestSidecar({
+      id,
+      method: "project.move",
+      onStream,
+      params: { parent, projectId },
+    });
+  });
+}
+
+export function confirmVideoBrand(
+  projectId: string,
+  videoId: string,
+  revision: number
+) {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+    return yield* requestSidecar({
+      id,
+      method: "video.brandConfirm",
+      params: { projectId, revision, videoId },
+    });
+  });
+}
+
+export function importGoogleFont(
+  projectId: string,
+  family: string,
+  weights: string,
+  italic = false
+) {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+    return yield* requestSidecar({
+      id,
+      method: "project.googleFont",
+      params: { family, italic, projectId, weights },
+    });
+  });
+}
+
+export function getVideoBrandStatus(videoId: string) {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+    return yield* requestSidecar({
+      id,
+      method: "video.brandStatus",
+      params: { videoId },
+    });
+  });
+}
+
+export function cancelProjectMove(projectId: string) {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+    return yield* requestSidecar({
+      id,
+      method: "project.moveCancel",
+      params: { projectId },
+    });
+  });
+}
+
+export function importProjectDesign(projectId: string, path: string) {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+    return yield* requestSidecar({
+      id,
+      method: "project.designImport",
+      params: { path, projectId },
+    });
+  });
+}

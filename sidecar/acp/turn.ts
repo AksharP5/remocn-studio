@@ -225,8 +225,20 @@ export function acpTurn(
           : `${conventions}\n\n${services.briefs.pipeline}`;
 
       const blocks = config.images
-        ? await blocksOf(params, services.briefs.assets, services.briefs.media)
-        : textOnly(params, services.briefs.assets, services.briefs.media);
+        ? await blocksOf(
+            params,
+            [services.briefs.assets, services.briefs.brand]
+              .filter(Boolean)
+              .join("\n\n") || null,
+            services.briefs.media
+          )
+        : textOnly(
+            params,
+            [services.briefs.assets, services.briefs.brand]
+              .filter(Boolean)
+              .join("\n\n") || null,
+            services.briefs.media
+          );
 
       const answered = await agent.request<{ stopReason?: string }>(
         "session/prompt",

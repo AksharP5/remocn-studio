@@ -13,6 +13,11 @@ import {
   type SidecarStream,
 } from "@/shared/ipc";
 import { type SidecarChannel as Channel, SidecarChannel } from "./channel";
+import {
+  checkProjectAvailable,
+  projectActivity,
+  serializeBrandTurn,
+} from "./projects/activity";
 
 export class HandlerError extends Data.TaggedError("HandlerError")<{
   message: string;
@@ -125,11 +130,30 @@ function serve<R>(
   return Effect.gen(function* () {
     const decoded = yield* codecsFor(method).params(params);
 
-    return yield* erased[method]({
+    let operation = erased[method]({
       emit: (chunk) => channel.send({ data: chunk, id, type: "stream" }),
       log: channel.log,
       params: decoded as never,
     });
+    const projectId = (decoded as { projectId?: string } | null)?.projectId;
+    if (
+      projectId &&
+      method === "agent.prompt" &&
+      (decoded as { brandRevision?: number }).brandRevision !== undefined
+    ) {
+      operation = serializeBrandTurn(projectId, operation);
+    }
+    if (projectId && method === "preview.start") {
+      return yield* checkProjectAvailable(projectId).pipe(
+        Effect.andThen(operation)
+      );
+    }
+    return yield* projectId &&
+    method !== "preview.start" &&
+    method !== "project.check" &&
+    method !== "project.moveCancel"
+      ? projectActivity(projectId, method === "project.move", operation)
+      : operation;
   }).pipe(
     Effect.onExit((exit) =>
       channel.send(

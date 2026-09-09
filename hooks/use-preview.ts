@@ -55,7 +55,8 @@ type Running = Fiber.Fiber<unknown, unknown>;
 export function usePreview(
   projectId: string | null,
   compositionId: string | null,
-  sidecarPhase: SidecarPhase | "unknown"
+  sidecarPhase: SidecarPhase | "unknown",
+  projectPath?: string
 ): PreviewControl {
   const [preview, setPreview] = useState<Preview>(IDLE);
   const [pick, setPick] = useState<PreviewComposition | null>(null);
@@ -263,6 +264,18 @@ export function usePreview(
       launch(projectId);
     }
   }, [launch, projectId, stop]);
+
+  const previousLocation = useRef({ projectId, projectPath });
+  useEffect(() => {
+    const previous = previousLocation.current;
+    previousLocation.current = { projectId, projectPath };
+    if (
+      previous.projectId === projectId &&
+      previous.projectPath !== projectPath
+    ) {
+      restart();
+    }
+  }, [projectId, projectPath, restart]);
 
   const hint = useMemo(() => hintOf(pick), [pick]);
 

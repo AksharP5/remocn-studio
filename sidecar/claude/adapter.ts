@@ -43,7 +43,10 @@ export const claudeAdapter: AgentAdapter = {
 
       yield* Stream.runForEach(
         messages(params, {
-          assets: services.briefs.assets,
+          assets:
+            [services.briefs.assets, services.briefs.brand]
+              .filter(Boolean)
+              .join("\n\n") || null,
           brief: services.briefs.pipeline,
           canUseTool: permissionGuard({
             cwd: services.cwd,

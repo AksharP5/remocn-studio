@@ -27,6 +27,7 @@ export interface AppMenuModel {
   readonly onNewProject: () => void;
   readonly onNewVideo: () => void;
   readonly onOpenFolder: () => void;
+  readonly onProjectSettings?: () => void;
   readonly onRemoveProject: () => void;
   readonly onRenameProject: () => void;
   readonly onRevealProject: () => void;
@@ -140,6 +141,11 @@ function projectMenu(model: AppMenuModel) {
 
   return submenuOf("Project", [
     MenuItem.new({
+      action: model.onProjectSettings,
+      enabled: open !== null,
+      text: "Project Settings…",
+    }),
+    MenuItem.new({
       action: model.onRenameProject,
       enabled: open !== null,
       text: "Rename…",
@@ -147,7 +153,7 @@ function projectMenu(model: AppMenuModel) {
     MenuItem.new({
       action: model.onLocateProject,
       enabled: open !== null,
-      text: open?.isMissing ? "Locate…" : "Move…",
+      text: "Locate Folder…",
     }),
     MenuItem.new({
       action: model.onRevealProject,

@@ -1,9 +1,11 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { Clock, Effect, Stream } from "effect";
 import { errorMessage } from "@/lib/error-message";
 import { crashLine } from "@/shared/crash";
 import {
+  DATA_DIR_ENV,
   type Project,
   type PromptFrame,
   type PromptParams,
@@ -79,9 +81,32 @@ import {
   sourceFrom,
   statusFrom,
   stillFrom,
+  stopProjectPreview,
   warmFrom,
   writeFrom,
 } from "./preview/supervisor";
+import {
+  applicationBrief,
+  confirmBrandApplication,
+  finishBrandApplication,
+  prepareBrandApplication,
+  readBrandApplication,
+} from "./projects/apply";
+import {
+  brandBrief,
+  importBrandFile,
+  snapshotOf,
+  writeSnapshot,
+} from "./projects/brand";
+import { configEffect, getConfig, saveConfig } from "./projects/config";
+import { importDesignMarkdown } from "./projects/design-import";
+import { brandStarter } from "./projects/font-runtime";
+import { googleFont } from "./projects/fonts";
+import {
+  cancelProjectMove,
+  moveProjectFiles,
+  prepareMove,
+} from "./projects/move";
 import {
   installDependencies,
   installScaffold,
@@ -126,7 +151,7 @@ const gateway = makeGateway((line) => process.stderr.write(`${line}\n`));
 
 const account = Effect.runSync(makeAccountCache());
 
-const unstored = (error: HistoryError) =>
+const unstored = (error: { message: string }) =>
   new HandlerError({ message: error.message });
 
 const unscaffolded = (error: ScaffoldError) =>
@@ -237,14 +262,72 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
 
       const store = yield* HistoryStore;
       const videos = yield* VideoStore;
-      const video = yield* videos.find(params.videoId).pipe(
-        Effect.map((row) => row.compositionId),
-        Effect.catch((error) =>
-          log(`video: ${error.message}`).pipe(Effect.as(null))
-        )
+      const videoRow = yield* Effect.mapError(
+        videos.find(params.videoId),
+        unstored
       );
+      if (videoRow.projectId !== project.id) {
+        return yield* Effect.fail(
+          new HandlerError({
+            message: "This video does not belong to the selected project.",
+          })
+        );
+      }
+      const video = videoRow.compositionId;
+      const config = yield* configEffect(() => getConfig(project)).pipe(
+        Effect.mapError(unstored)
+      );
+      if (
+        params.brandRevision !== undefined &&
+        params.brandRevision !== config.revision
+      ) {
+        return yield* Effect.fail(
+          new HandlerError({
+            message:
+              "Project brand changed. Reload settings before applying it.",
+          })
+        );
+      }
+      const application =
+        params.brandRevision === undefined
+          ? null
+          : yield* configEffect(() =>
+              prepareBrandApplication(
+                project.path,
+                video,
+                config,
+                params.historyId
+              )
+            ).pipe(Effect.mapError(unstored));
+      const brand =
+        application === null
+          ? yield* configEffect(() =>
+              brandBrief(project.path, project.id, video)
+            ).pipe(Effect.mapError(unstored))
+          : applicationBrief(application);
 
       const recorder = yield* recording(store, params, log);
+      const resumeId = recorder.session?.sdkSessionId ?? null;
+      let turnParams = params;
+      if (
+        params.sessionId !== null &&
+        recorder.session !== null &&
+        resumeId === null
+      ) {
+        const previous = yield* store
+          .blocks(params.historyId)
+          .pipe(Effect.mapError(unstored));
+        turnParams = {
+          ...params,
+          prompt: `${params.prompt}\n\nPrevious Studio conversation (historical user data; paths may refer to the former location):\n${JSON.stringify(previous).slice(-24_000)}`,
+          sessionId: null,
+        };
+        yield* emit({
+          message:
+            "Starting a new provider session in the current project folder. Studio history is preserved.",
+          type: "notice",
+        });
+      }
       if (recorder.session !== null) {
         yield* emit({ session: recorder.session, type: "history" });
       }
@@ -305,7 +388,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
           )
         );
 
-      return yield* Effect.scoped(
+      const result = yield* Effect.scoped(
         gateway
           .serving(turnId, {
             cwd: project.path,
@@ -372,9 +455,10 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
           })
           .pipe(
             Effect.andThen(
-              adapter.turn(params, {
+              adapter.turn(turnParams, {
                 briefs: {
                   assets: assetBrief(placed, addCommandFor(project.path)),
+                  brand,
                   media: mediaBrief(placedMedia),
                   pipeline: pipelineAllowed(params.plan)
                     ? pipelineBrief(stages, video)
@@ -398,7 +482,27 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
               })
             )
           )
-      ).pipe(Effect.ensuring(abandonSourceAssets(turnId)));
+      ).pipe(
+        Effect.ensuring(abandonSourceAssets(turnId)),
+        Effect.onInterrupt(() =>
+          application === null
+            ? Effect.void
+            : configEffect(() =>
+                finishBrandApplication(project.path, video, application, false)
+              ).pipe(Effect.ignore)
+        )
+      );
+      if (application !== null) {
+        yield* configEffect(() =>
+          finishBrandApplication(
+            project.path,
+            video,
+            application,
+            result.failure === null
+          )
+        ).pipe(Effect.mapError(unstored));
+      }
+      return result;
     }),
 
   "agent.source": ({ params }) =>
@@ -670,6 +774,13 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
         results: built.results,
       };
     }),
+  "project.brandFile": ({ params }) =>
+    Effect.gen(function* () {
+      const project = yield* located(params.projectId);
+      return yield* configEffect(() =>
+        importBrandFile(project.path, params.path)
+      ).pipe(Effect.mapError(unstored));
+    }),
 
   "project.check": ({ params }) =>
     Effect.gen(function* () {
@@ -686,7 +797,6 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
         ),
       };
     }),
-
   "project.create": ({ params }) =>
     Effect.gen(function* () {
       const projects = yield* ProjectStore;
@@ -697,7 +807,23 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
         try: () => mkdir(path, { recursive: true }),
       });
 
-      return yield* Effect.mapError(projects.open(path), unstored);
+      const project = yield* Effect.mapError(projects.open(path), unstored);
+      yield* configEffect(() =>
+        saveConfig(project, {
+          brand: null,
+          expectedRevision: 0,
+          name: project.name,
+          projectId: project.id,
+        })
+      ).pipe(Effect.mapError(unstored));
+      return project;
+    }),
+  "project.designImport": ({ params }) =>
+    Effect.gen(function* () {
+      const project = yield* located(params.projectId);
+      return yield* configEffect(() =>
+        importDesignMarkdown(project.path, params.path)
+      ).pipe(Effect.mapError(unstored));
     }),
 
   "project.files": ({ params }) =>
@@ -726,6 +852,14 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
       });
 
       const project = yield* Effect.mapError(projects.open(path), unstored);
+      const config = yield* configEffect(() =>
+        saveConfig(project, {
+          brand: null,
+          expectedRevision: 0,
+          name: project.name,
+          projectId: project.id,
+        })
+      ).pipe(Effect.mapError(unstored));
 
       yield* Effect.mapError(expandTemplate(path), unscaffolded);
       yield* Effect.mapError(ensureRegistry(path), unscaffolded);
@@ -739,7 +873,17 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
         unstored
       );
 
+      yield* configEffect(() =>
+        writeSnapshot(project.path, slug, snapshotOf(config))
+      ).pipe(Effect.mapError(unstored));
       return { project, video };
+    }),
+  "project.googleFont": ({ params }) =>
+    Effect.gen(function* () {
+      const project = yield* located(params.projectId);
+      return yield* configEffect(() =>
+        googleFont(project.path, params.family, params.weights, params.italic)
+      ).pipe(Effect.mapError(unstored));
     }),
 
   "project.install": ({ emit, log, params }) =>
@@ -763,6 +907,53 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
     Effect.flatMap(ProjectStore, (projects) => projects.list).pipe(
       Effect.mapError(unstored)
     ),
+  "project.move": ({ params, emit }) =>
+    Effect.uninterruptible(
+      Effect.gen(function* () {
+        const project = yield* located(params.projectId);
+        yield* configEffect(() =>
+          prepareMove(project.path, params.parent)
+        ).pipe(Effect.mapError(unstored));
+        const config = yield* configEffect(() => getConfig(project)).pipe(
+          Effect.mapError(unstored)
+        );
+        yield* configEffect(() =>
+          saveConfig(project, {
+            brand: config.brand,
+            expectedRevision: config.revision,
+            name: config.name,
+            projectId: project.id,
+          })
+        ).pipe(Effect.mapError(unstored));
+        const projects = yield* ProjectStore;
+        yield* stopProjectPreview(project.id);
+        yield* configEffect(() =>
+          moveProjectFiles(
+            project.id,
+            project.path,
+            params.parent,
+            join(
+              process.env[DATA_DIR_ENV] ?? join(tmpdir(), "remocn-studio"),
+              "moves"
+            ),
+            (destination) =>
+              Effect.runPromise(
+                projects.relocate(project.id, destination)
+              ).then(() => undefined),
+            (phase) => {
+              Effect.runSync(emit({ phase }));
+            }
+          )
+        ).pipe(Effect.mapError(unstored));
+        return yield* projects.find(project.id).pipe(Effect.mapError(unstored));
+      })
+    ),
+
+  "project.moveCancel": ({ params }) =>
+    Effect.sync(() => {
+      cancelProjectMove(params.projectId);
+      return null;
+    }),
 
   "project.open": ({ params }) =>
     Effect.flatMap(ProjectStore, (projects) => projects.open(params.path)).pipe(
@@ -818,6 +1009,23 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
 
       return project;
     }),
+  "project.settingsGet": ({ params }) =>
+    Effect.gen(function* () {
+      const project = yield* located(params.projectId);
+      return yield* configEffect(() => getConfig(project)).pipe(
+        Effect.mapError(unstored)
+      );
+    }),
+  "project.settingsSave": ({ params }) =>
+    Effect.gen(function* () {
+      const project = yield* located(params.projectId);
+      const config = yield* configEffect(() =>
+        saveConfig(project, params)
+      ).pipe(Effect.mapError(unstored));
+      const projects = yield* ProjectStore;
+      yield* projects.find(project.id).pipe(Effect.mapError(unstored));
+      return config;
+    }),
 
   "project.upgrade": ({ emit, log, params }) =>
     Effect.gen(function* () {
@@ -870,11 +1078,45 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
       protocol: SIDECAR_PROTOCOL,
       uptimeMs: Math.round(process.uptime() * 1000),
     })),
+  "video.brandConfirm": ({ params }) =>
+    Effect.gen(function* () {
+      const videos = yield* VideoStore;
+      const video = yield* videos
+        .find(params.videoId)
+        .pipe(Effect.mapError(unstored));
+      if (video.projectId !== params.projectId) {
+        return yield* Effect.fail(
+          new HandlerError({
+            message: "This video belongs to another project.",
+          })
+        );
+      }
+      const project = yield* located(params.projectId);
+      return yield* configEffect(() =>
+        confirmBrandApplication(
+          project.path,
+          video.compositionId,
+          project.id,
+          params.revision
+        )
+      ).pipe(Effect.mapError(unstored));
+    }),
 
   // The slug is minted here and never moves again; the name is the row's
   // and renames freely. Both halves of the video — the folder the scan
   // picks up and the row the pane draws — are written by this one call,
   // for the first video of a project and for every one after it.
+  "video.brandStatus": ({ params }) =>
+    Effect.gen(function* () {
+      const videos = yield* VideoStore;
+      const video = yield* videos
+        .find(params.videoId)
+        .pipe(Effect.mapError(unstored));
+      const project = yield* located(video.projectId);
+      return yield* configEffect(() =>
+        readBrandApplication(project.path, video.compositionId)
+      ).pipe(Effect.mapError(unstored));
+    }),
   "video.create": ({ params }) =>
     Effect.gen(function* () {
       const project = yield* located(params.projectId);
@@ -903,6 +1145,16 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
         }),
         unscaffolded
       );
+
+      const config = yield* configEffect(() => getConfig(project)).pipe(
+        Effect.mapError(unstored)
+      );
+      yield* configEffect(() =>
+        writeSnapshot(project.path, slug, snapshotOf(config))
+      ).pipe(Effect.mapError(unstored));
+      yield* configEffect(() =>
+        brandStarter(project.path, slug, snapshotOf(config))
+      ).pipe(Effect.mapError(unstored));
 
       return yield* Effect.mapError(
         videos.create({

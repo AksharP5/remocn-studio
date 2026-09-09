@@ -145,7 +145,7 @@ function StudioStateProvider({
   const accounts = useProviderAccounts();
   const effort = useClaudeEffort(settings);
   const preferences = usePreferences(settings);
-  const settingsView = useSettingsView();
+  const settingsView = useSettingsView(workspace.activeProject?.id ?? null);
   const updates = useUpdates();
 
   // The build reading is the updater's, and it is deliberately shared: the two
@@ -220,6 +220,11 @@ function StudioStateProvider({
       onNewProject: newProject.open,
       onNewVideo: newVideo.open,
       onOpenFolder: openFolder,
+      onProjectSettings: () => {
+        if (activeProject) {
+          settingsView.openProject(activeProject.id);
+        }
+      },
       onRemoveProject: projectMenu.openRemove,
       onRenameProject: projectMenu.openRename,
       onRevealProject: projectMenu.reveal,
@@ -247,6 +252,7 @@ function StudioStateProvider({
       openFolder,
       projectMenu.locate,
       projectMenu.openRemove,
+      settingsView.openProject,
       projectMenu.openRename,
       projectMenu.reveal,
       projects,
@@ -268,7 +274,8 @@ function StudioStateProvider({
   const preview = usePreview(
     previewProjectId,
     workspace.openedVideo?.compositionId ?? null,
-    sidecarPhase
+    sidecarPhase,
+    workspace.projects.find((project) => project.id === previewProjectId)?.path
   );
 
   useReconciledVideos(preview, previewProjectId, workspace.reconcile);
@@ -322,6 +329,9 @@ function StudioStateProvider({
     openedProjectId: openedId,
     preview,
     previewProjectId,
+    projectPath: workspace.projects.find(
+      (project) => project.id === previewProjectId
+    )?.path,
     // The pane reads the code of the project the *chat* is in, which is the
     // same one the preview is showing whenever the tools are available at all.
     writeProjectId: openedId,
@@ -342,6 +352,7 @@ function StudioStateProvider({
 
   const drops = useFileDrops({
     drop: composer.drop,
+    enabled: !settingsView.isOpen,
     isComposerOpen:
       openedId !== null &&
       !openedMissing &&
