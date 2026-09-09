@@ -57,6 +57,7 @@ export interface ExportSettings {
   isServing: boolean;
   openedProjectId: string | null;
   projectId: string | null;
+  projectPath?: string;
 }
 
 const IDLE: ExportState = { phase: "idle" };
@@ -66,8 +67,39 @@ export function useExport({
   isServing,
   openedProjectId,
   projectId,
+  projectPath,
 }: ExportSettings): Exporting {
   const [state, setState] = useState<ExportState>(IDLE);
+  const previousLocation = useRef({ projectId, projectPath });
+  useEffect(() => {
+    const previous = previousLocation.current;
+    previousLocation.current = { projectId, projectPath };
+    const oldPath = previous.projectPath;
+    if (
+      previous.projectId !== projectId ||
+      !oldPath ||
+      !projectPath ||
+      oldPath === projectPath
+    ) {
+      return;
+    }
+    setState((current) => {
+      if (
+        current.phase !== "done" ||
+        current.projectId !== projectId ||
+        !current.exported.path.startsWith(`${oldPath}/`)
+      ) {
+        return current;
+      }
+      return {
+        ...current,
+        exported: {
+          ...current.exported,
+          path: `${projectPath}${current.exported.path.slice(oldPath.length)}`,
+        },
+      };
+    });
+  }, [projectId, projectPath]);
   const inflight = useRef<Fiber.Fiber<Exported, SidecarError> | null>(null);
 
   const cancel = useCallback(() => {

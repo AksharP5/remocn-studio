@@ -108,7 +108,9 @@ export const codexAdapter: AgentAdapter = {
 
       const input = inputOf(
         params,
-        services.briefs.assets,
+        [services.briefs.assets, services.briefs.brand]
+          .filter(Boolean)
+          .join("\n\n") || null,
         services.briefs.media
       );
 

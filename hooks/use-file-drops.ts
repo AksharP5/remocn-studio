@@ -30,6 +30,7 @@ export interface FileDrops {
 
 export interface FileDropSettings {
   drop: (paths: readonly string[]) => void;
+  enabled?: boolean;
   isComposerOpen: boolean;
   paneView: PaneView;
   save: (item: PromptMedia) => Promise<Asset | null>;
@@ -43,6 +44,7 @@ export interface FileDropSettings {
 // view — the refusal is a toast, because the pane it used to be an inline line
 // on may not be on screen at all.
 export function useFileDrops({
+  enabled = true,
   drop,
   isComposerOpen,
   paneView,
@@ -52,29 +54,38 @@ export function useFileDrops({
   const [over, setOver] = useState<ZoneName | null>(null);
   const composerRef = useRef<HTMLDivElement>(null);
   const libraryRef = useRef<HTMLDivElement>(null);
-  const held = useRef({ drop, isComposerOpen, paneView, save, showPane });
-  held.current = { drop, isComposerOpen, paneView, save, showPane };
+  const held = useRef({
+    drop,
+    enabled,
+    isComposerOpen,
+    paneView,
+    save,
+    showPane,
+  });
+  held.current = { drop, enabled, isComposerOpen, paneView, save, showPane };
   const cameFrom = useRef<PaneView | null>(null);
   const dragged = useRef(false);
   const holdsMedia = useRef(false);
 
   const zoneUnder = useCallback(
     (point: DropPoint | null) =>
-      zoneAt<ZoneName>(
-        [
-          {
-            box: held.current.isComposerOpen
-              ? (composerRef.current?.getBoundingClientRect() ?? null)
-              : null,
-            name: "composer",
-          },
-          {
-            box: libraryRef.current?.getBoundingClientRect() ?? null,
-            name: "library",
-          },
-        ],
-        point
-      ),
+      held.current.enabled
+        ? zoneAt<ZoneName>(
+            [
+              {
+                box: held.current.isComposerOpen
+                  ? (composerRef.current?.getBoundingClientRect() ?? null)
+                  : null,
+                name: "composer",
+              },
+              {
+                box: libraryRef.current?.getBoundingClientRect() ?? null,
+                name: "library",
+              },
+            ],
+            point
+          )
+        : null,
     []
   );
 

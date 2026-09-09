@@ -55,8 +55,10 @@ import {
 } from "@/shared/providers";
 import { AccountSection } from "./account-section";
 import { CHECK_ICONS } from "./environment-checklist";
+import { ProjectSettingsSection } from "./project-settings-section";
 import { ProviderIcon } from "./provider-icon";
 import { ProviderSteps } from "./provider-steps";
+import { SettingsPanel as Group } from "./settings-group";
 import { useStudio } from "./studio-provider";
 import { MoodField } from "./titlebar";
 import { updateSummary } from "./update-status";
@@ -69,6 +71,12 @@ const SECTIONS: readonly {
   id: SectionId;
   label: string;
 }[] = [
+  {
+    description: "Name, location and brand for this project",
+    icon: SlidersHorizontalIcon,
+    id: "project",
+    label: "Project",
+  },
   {
     description: "Your Remocn account, plan and devices",
     icon: CircleUserRoundIcon,
@@ -156,8 +164,8 @@ export function SettingsPage() {
           data-tauri-drag-region
         />
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-10 pt-2 pb-12">
-            <header className="flex flex-col gap-1">
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 pt-2 pb-12 sm:px-10">
+            <header className="flex flex-col gap-1 px-4">
               <h2 className="font-heading font-medium text-xl tracking-tight">
                 {active.label}
               </h2>
@@ -166,7 +174,17 @@ export function SettingsPage() {
               </p>
             </header>
 
-            <div className="flex flex-col gap-8">
+            <div className="flex flex-col gap-10">
+              {settingsView.blocked ? (
+                <p className="text-destructive text-sm" role="alert">
+                  Save or cancel your project changes before leaving.
+                </p>
+              ) : null}
+              {section === "project" ? (
+                <ProjectSettingsSection
+                  key={settingsView.projectId ?? "none"}
+                />
+              ) : null}
               {section === "account" ? <AccountSection /> : null}
               {section === "appearance" ? <AppearanceSection /> : null}
               {section === "behavior" ? <BehaviorSection /> : null}
@@ -290,39 +308,6 @@ const THEME_TILES: readonly {
   },
 ];
 
-// Every section is a column of groups, and every group is the same shape:
-// a heading, one sentence under it, and the body — so a person who has read
-// one has read them all. Groups are set apart by space alone, twice the gap
-// the rows inside them keep, and a group's action sits on its heading line.
-function Group({
-  action,
-  children,
-  description,
-  title,
-}: {
-  action?: React.ReactNode;
-  children: React.ReactNode;
-  description?: React.ReactNode;
-  title: string;
-}) {
-  return (
-    <section aria-label={title} className="flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-6">
-        <div className="flex min-w-0 flex-col gap-1">
-          <h3 className="text-sm">{title}</h3>
-          {description === undefined ? null : (
-            <p className="text-muted-foreground text-xs leading-snug">
-              {description}
-            </p>
-          )}
-        </div>
-        {action === undefined ? null : <div className="shrink-0">{action}</div>}
-      </div>
-      {children}
-    </section>
-  );
-}
-
 // A setting: its name and a sentence on the leading side, the control on the
 // trailing side, top-aligned so a description that wraps never moves the
 // switch. `htmlFor` makes the name the control's label.
@@ -338,20 +323,20 @@ function Row({
   title: string;
 }) {
   return (
-    <div className="flex items-start justify-between gap-6">
-      <div className="flex min-w-0 flex-col gap-1">
+    <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-6 gap-y-3 py-4 first:pt-0 last:pb-0">
+      <div className="flex min-w-0 flex-1 basis-48 flex-col gap-1">
         {htmlFor === undefined ? (
           <span className="text-sm">{title}</span>
         ) : (
-          <Label className="text-sm" htmlFor={htmlFor}>
+          <Label className="font-normal text-sm" htmlFor={htmlFor}>
             {title}
           </Label>
         )}
-        <p className="text-muted-foreground text-xs leading-snug">
+        <p className="text-muted-foreground text-xs leading-relaxed">
           {description}
         </p>
       </div>
-      <div className="mt-0.5 shrink-0">{children}</div>
+      <div className="shrink-0">{children}</div>
     </div>
   );
 }
@@ -398,7 +383,7 @@ function ThemeGroup() {
           >
             <span
               className={cn(
-                "flex h-16 flex-col justify-between rounded-md p-2 ring-1 ring-foreground/10 ring-inset transition-shadow group-focus-visible:ring-2 group-focus-visible:ring-ring",
+                "flex h-24 flex-col justify-between rounded-md p-2 ring-1 ring-foreground/10 ring-inset transition-shadow group-focus-visible:ring-2 group-focus-visible:ring-ring",
                 tile.swatch,
                 choice === tile.id && "ring-2 ring-primary"
               )}
@@ -439,7 +424,7 @@ function TitlebarGroup() {
     >
       <div
         aria-hidden="true"
-        className="relative h-16 overflow-hidden rounded-md bg-sidebar ring-1 ring-foreground/10 ring-inset"
+        className="relative h-24 overflow-hidden rounded-md bg-sidebar ring-1 ring-foreground/10 ring-inset"
       >
         {preferences.titlebarShader ? (
           <MoodField
@@ -450,7 +435,7 @@ function TitlebarGroup() {
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col divide-y divide-border/60">
         <Row
           description="Off leaves the band plain, in the sidebar’s own colour"
           htmlFor="settings-titlebar-shader"
@@ -489,7 +474,7 @@ function BehaviorSection() {
         description="What the studio offers on its own, without being asked"
         title="Suggestions"
       >
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col divide-y divide-border/60">
           <Row
             description="When a turn ends, offer to save the pictures and clips it carried into the asset library"
             htmlFor="settings-asset-offers"
@@ -590,9 +575,9 @@ function FeedbackSection() {
       description="Feedback is an email you write and send yourself; nothing leaves the app on its own"
       title="Email"
     >
-      <div className="flex flex-col gap-3 rounded-xl bg-card p-4 shadow-xs ring-1 ring-border">
-        <div className="flex items-start justify-between gap-6">
-          <p className="max-w-[48ch] text-muted-foreground text-xs leading-snug">
+      <div className="grid min-w-0 gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <p className="min-w-0 flex-1 basis-48 text-muted-foreground text-xs leading-relaxed">
             Opens your mail client with the facts below already filled in. A
             screenshot says more than a paragraph, so attach one by hand before
             sending.
@@ -670,8 +655,8 @@ function UpdatesSection() {
         description="Releases are checked on launch and once a day; installing replaces the app and restarts it"
         title="This build"
       >
-        <div className="flex flex-col gap-3 rounded-xl bg-card p-4 shadow-xs ring-1 ring-border">
-          <div className="flex items-start justify-between gap-6">
+        <div className="grid min-w-0 gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex min-w-0 flex-col gap-1">
               <span className="flex items-baseline gap-2">
                 <span className="font-heading font-semibold text-2xl tabular-nums tracking-tight">
@@ -725,7 +710,7 @@ function UpdatesSection() {
           }
           title={`${release.version} is ready`}
         >
-          <div className="flex flex-col gap-3 rounded-xl bg-card p-4 shadow-xs ring-1 ring-primary/40">
+          <div className="grid min-w-0 gap-4">
             {release.body ? (
               <div className="max-h-64 overflow-y-auto rounded-md bg-muted/40 p-3">
                 <p className="whitespace-pre-wrap text-muted-foreground text-xs leading-relaxed">
@@ -788,7 +773,7 @@ function AccountsSection() {
       description="Each provider is asked with its own probe; a session can only start on one that is signed in"
       title="Providers"
     >
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col divide-y divide-border/60">
         {AGENT_PROVIDERS.map((provider) => (
           <AccountRow
             isChecking={accounts.isChecking}
@@ -820,7 +805,7 @@ const STATE_VARIANTS = {
   "error" | "outline" | "success" | "warning"
 >;
 
-// One card per provider, one row inside it: the mark, then the name with the
+// Providers share one surface: the mark, then the name with the
 // probe's sentence right under it, then the verdict as a chip that says it in
 // a word and a colour. The setup steps, when there are any, unfold under the
 // sentence in the same column, so a provider with work to do grows downward
@@ -842,8 +827,9 @@ function AccountRow({
   return (
     <div
       className={cn(
-        "flex items-start gap-3 rounded-xl bg-card p-3 shadow-xs ring-1 ring-border",
-        isFocused && "ring-primary/40"
+        "flex min-w-0 items-start gap-3 py-4 first:pt-0 last:pb-0",
+        isFocused &&
+          "rounded-md bg-background/60 outline outline-border outline-offset-4"
       )}
       data-provider={provider}
       ref={anchor}

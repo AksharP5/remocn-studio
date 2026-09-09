@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import type { AccountDevice, AccountMe } from "@/shared/account";
 import { CheckoutStatus } from "./checkout-status";
 import { PricingCards } from "./pricing-cards";
+import { SettingsPanel } from "./settings-group";
 import { SignInControls } from "./sign-in-controls";
 import { useStudio } from "./studio-provider";
 
@@ -44,7 +45,7 @@ export function AccountSection() {
 
   if (account.phase.kind !== "signedIn") {
     return (
-      <div className="flex flex-col gap-3">
+      <SettingsPanel title="Sign in">
         <p className="text-muted-foreground text-xs leading-snug">
           Free needs no account. Sign in to start a 7-day Pro trial &mdash;
           Inspect, Snapshot, the skills bundle and the production pipeline
@@ -52,35 +53,37 @@ export function AccountSection() {
         </p>
         <SignInControls account={account} now={now} />
         <AccountError message={account.error} />
-      </div>
+      </SettingsPanel>
     );
   }
 
   const { me } = account.phase;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-start justify-between gap-6">
-        <div className="flex min-w-0 flex-col gap-1">
-          <span className="truncate text-sm">
-            {me?.user.name || me?.user.email || "Signed in"}
-          </span>
-          {me === null ? null : (
-            <span className="truncate text-muted-foreground text-xs">
-              {me.user.email}
+    <div className="flex flex-col gap-10">
+      <SettingsPanel title="Profile">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex min-w-0 flex-col gap-1">
+            <span className="truncate text-sm">
+              {me?.user.name || me?.user.email || "Signed in"}
             </span>
-          )}
+            {me === null ? null : (
+              <span className="truncate text-muted-foreground text-xs">
+                {me.user.email}
+              </span>
+            )}
+          </div>
+          <Button
+            disabled={account.isBusy}
+            onClick={account.signOut}
+            size="sm"
+            variant="outline"
+          >
+            <LogOutIcon data-icon="inline-start" />
+            Sign out
+          </Button>
         </div>
-        <Button
-          disabled={account.isBusy}
-          onClick={account.signOut}
-          size="sm"
-          variant="outline"
-        >
-          <LogOutIcon data-icon="inline-start" />
-          Sign out
-        </Button>
-      </div>
+      </SettingsPanel>
 
       <PlanSection account={account} now={now} />
 
@@ -102,10 +105,10 @@ function PlanSection({ account, now }: { account: Account; now: number }) {
   const wording = plan === null ? null : planWording(plan, now);
 
   return (
-    <section aria-label="Plan" className="flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-6">
-        <div className="flex min-w-0 flex-col gap-1">
-          <span className="flex items-center gap-2">
+    <SettingsPanel title="Current plan">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex min-w-0 flex-1 basis-48 flex-col gap-1">
+          <span className="flex flex-wrap items-center gap-2">
             <span className="font-heading font-medium text-base">
               {wording === null ? "Plan" : wording.name}
             </span>
@@ -137,7 +140,7 @@ function PlanSection({ account, now }: { account: Account; now: number }) {
       </div>
       {plan?.kind === "trial" ? <TrialProgress now={now} plan={plan} /> : null}
       {plan?.kind === "pro" ? <CheckoutStatus account={account} /> : null}
-    </section>
+    </SettingsPanel>
   );
 }
 
@@ -200,8 +203,8 @@ function Plans({ account }: { account: Account }) {
 
   return (
     <section aria-label="Plans" className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <span className="text-sm">Plans</span>
+      <div className="flex flex-col gap-1 px-4">
+        <h3 className="font-medium text-sm">Plans</h3>
         <p className="text-muted-foreground text-xs leading-snug">
           {onTrial
             ? "When the trial ends the app stays free; only the directing half switches off. Keep it by picking a period."
@@ -227,20 +230,12 @@ function Devices({
   now: number;
 }) {
   return (
-    <section aria-label="Devices" className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-6">
-        <div className="flex min-w-0 flex-col gap-1">
-          <span className="text-sm">Devices</span>
-          <p className="text-muted-foreground text-xs leading-snug">
-            {me === null
-              ? "Which copies of the studio are signed in"
-              : `${me.devices.length} of ${DEVICE_LIMIT} signed in`}
-          </p>
-        </div>
+    <SettingsPanel
+      action={
         <Button
           disabled={account.isBusy}
           onClick={account.refresh}
-          size="xs"
+          size="sm"
           variant="ghost"
         >
           {account.isBusy ? (
@@ -250,10 +245,16 @@ function Devices({
           )}
           Refresh
         </Button>
-      </div>
-
+      }
+      description={
+        me === null
+          ? "Which copies of the studio are signed in"
+          : `${me.devices.length} of ${DEVICE_LIMIT} signed in`
+      }
+      title="Devices"
+    >
       {me === null ? null : (
-        <ul className="flex flex-col divide-y divide-border rounded-md border">
+        <ul className="flex flex-col divide-y divide-border/60">
           {me.devices.map((device) => (
             <DeviceRow
               account={account}
@@ -265,7 +266,7 @@ function Devices({
           ))}
         </ul>
       )}
-    </section>
+    </SettingsPanel>
   );
 }
 
@@ -281,7 +282,7 @@ function DeviceRow({
   now: number;
 }) {
   return (
-    <li className="flex items-center gap-3 px-3 py-2.5">
+    <li className="flex min-w-0 items-center gap-3 py-4 first:pt-0 last:pb-0">
       <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-foreground">
         <LaptopMinimalIcon className="size-4" />
       </span>

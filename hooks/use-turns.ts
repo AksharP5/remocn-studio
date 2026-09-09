@@ -40,6 +40,7 @@ import { appendUser, fold } from "@/shared/transcript";
 export interface StartTurn {
   assets: readonly PromptAsset[];
   attachments: readonly PromptAttachment[];
+  brandRevision?: number;
   effort: EffortLevel | null;
   elements: readonly PromptElement[];
   historyId: string;
@@ -95,6 +96,9 @@ function isBlank(input: StartTurn): boolean {
 
 function queuedOf(input: StartTurn, id: string): QueuedMessage {
   return {
+    ...(input.brandRevision === undefined
+      ? {}
+      : { brandRevision: input.brandRevision }),
     assets: input.assets,
     attachments: input.attachments,
     effort: input.effort,
@@ -115,6 +119,9 @@ function startOf(
   mode: SessionMode
 ): StartTurn {
   return {
+    ...(message.brandRevision === undefined
+      ? {}
+      : { brandRevision: message.brandRevision }),
     assets: message.assets,
     attachments: message.attachments,
     effort: message.effort,
@@ -271,6 +278,9 @@ export function useTurns(
       update(historyId, (current) => ({
         ...current,
         entries: appendUser(current.entries, {
+          ...(input.brandRevision === undefined
+            ? {}
+            : { brandRevision: input.brandRevision }),
           assets: input.assets,
           attachments: input.attachments,
           elements: input.elements,
@@ -285,6 +295,9 @@ export function useTurns(
 
       const request = promptAgent(
         {
+          ...(input.brandRevision === undefined
+            ? {}
+            : { brandRevision: input.brandRevision }),
           assets: input.assets,
           attachments: input.attachments,
           effort: input.effort,
@@ -464,6 +477,9 @@ export function useTurns(
       update(historyId, (current) => ({
         ...current,
         entries: appendUser(current.entries, {
+          ...(input.brandRevision === undefined
+            ? {}
+            : { brandRevision: input.brandRevision }),
           assets: input.assets,
           attachments: input.attachments,
           elements: input.elements,
@@ -478,6 +494,9 @@ export function useTurns(
 
       const exit = await Effect.runPromiseExit(
         recordMessage({
+          ...(input.brandRevision === undefined
+            ? {}
+            : { brandRevision: input.brandRevision }),
           assets: input.assets,
           attachments: input.attachments,
           effort: input.effort,

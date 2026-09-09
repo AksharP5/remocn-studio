@@ -36,6 +36,7 @@ export interface PendingSourceAsset {
 export interface QueuedMessage {
   assets: readonly PromptAsset[];
   attachments: readonly PromptAttachment[];
+  brandRevision?: number;
   effort: EffortLevel | null;
   elements: readonly PromptElement[];
   id: string;

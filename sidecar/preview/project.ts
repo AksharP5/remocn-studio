@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -145,6 +145,16 @@ export function agreedVersionIn(
 }
 
 export function remotionRootOf(folder: string): string {
+  const nested = nestedRemotionRoots(folder);
+  if (nested.length === 1) {
+    return nested[0];
+  }
+  if (nested.length > 1) {
+    throw new PreviewError({
+      message:
+        "Multiple Remotion projects found. Open the specific Remotion project folder.",
+    });
+  }
   let dir = folder;
 
   for (;;) {
@@ -411,4 +421,27 @@ function fromCandidates(root: string): string | null {
     path.join(root, candidate)
   ).find((file) => existsSync(file));
   return found ?? null;
+}
+
+// A unique nested config identifies an imported/monorepo Remotion app. Never
+// follow symlinks or scan dependency trees; ambiguous roots require selection.
+function nestedRemotionRoots(folder: string, depth = 0): string[] {
+  if (CONFIG_FILES.some((name) => existsSync(path.join(folder, name)))) {
+    return [folder];
+  }
+  if (depth >= 3 || !existsSync(folder)) {
+    return [];
+  }
+  return readdirSync(folder, { withFileTypes: true })
+    .filter(
+      (entry) =>
+        entry.isDirectory() &&
+        entry.name !== "node_modules" &&
+        !entry.name.startsWith(".") &&
+        entry.name !== "public" &&
+        entry.name !== "out"
+    )
+    .flatMap((entry) =>
+      nestedRemotionRoots(path.join(folder, entry.name), depth + 1)
+    );
 }

@@ -378,8 +378,12 @@ describe("pipeline", () => {
     await run(history.setStage(reviewed.id, "review", "active"));
 
     driver.run("DELETE FROM pipeline_stage WHERE stage = 'choreography'");
-    driver.exec(`PRAGMA user_version = ${MIGRATIONS.length - 1}`);
-    migrate(driver);
+    // Exercise the immutable choreography migration, independent of later
+    // schema additions that have already run in this fixture.
+    const [choreographyMigration] = MIGRATIONS[6];
+    if (typeof choreographyMigration === "string") {
+      driver.exec(choreographyMigration);
+    }
 
     const stageOf = async (sessionId: string) =>
       (await run(history.pipeline(sessionId))).find(

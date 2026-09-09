@@ -29,6 +29,7 @@ export interface ToolSettings {
   openedProjectId: string | null;
   preview: PreviewControl;
   previewProjectId: string | null;
+  projectPath?: string;
   writeProjectId?: string | null;
 }
 
@@ -44,6 +45,7 @@ export function useTools({
   openedProjectId,
   preview,
   previewProjectId,
+  projectPath,
   writeProjectId = null,
 }: ToolSettings): Tools {
   const [tool, setTool] = useState<Tool>(null);
@@ -144,6 +146,7 @@ export function useTools({
     isServing: preview.isServing,
     openedProjectId,
     projectId: previewProjectId,
+    projectPath,
   });
 
   return useMemo(
@@ -168,6 +171,7 @@ function unavailableOf(state: {
   isWaiting: boolean;
   openedProjectId: string | null;
   previewProjectId: string | null;
+  projectPath?: string;
 }): string | null {
   if (state.isLocked) {
     return state.lockedReason;
