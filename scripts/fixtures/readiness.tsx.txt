@@ -1,0 +1,18 @@
+import React from 'react';
+import { AbsoluteFill, Audio, Composition, Sequence, staticFile, registerRoot, useCurrentFrame } from 'remotion';
+const Scene = ({fixed=false,voice=true,music=true,badResource=false,badFrame=false,black=false,occluded=false,transparent=false,long=false}) => {
+  const frame=useCurrentFrame();
+  if(badFrame && frame>=60) throw new Error("Intentional fixture render failure in second scene");
+  if(black && frame>=59 && frame<=61) return <AbsoluteFill style={{backgroundColor:"black"}}/>;
+  return <AbsoluteFill style={{backgroundColor:transparent?'transparent':frame < 30 ? '#101010':'#202020'}}>
+    <div data-design-id="title" style={{position:'absolute',left:fixed?80:620,top:80,color:fixed?'white':'#333',fontSize:32,width:fixed?450:150,whiteSpace:'nowrap',overflow:fixed?'visible':'hidden'}}>Readable title</div>
+    {frame < (fixed?100:8) ? <div data-design-id="reading" style={{position:'absolute',left:80,top:180,color:'white',fontSize:24}}>A sentence that needs some time to read</div>:null}
+    <div data-design-id="letters" style={{position:'absolute',left:80,top:240,color:'white',fontSize:24}}>{'Gradual text'.split('').map((letter,i)=><span key={i} style={{opacity:frame>=i*2?1:0}}>{letter}</span>)}</div>
+    {occluded?<div style={{position:"absolute",left:70,top:70,width:500,height:230,backgroundColor:"white",zIndex:20}}/>:null}
+    {badResource?<img src={staticFile('missing.png')} style={{width:100,height:100}}/>:null}
+    {voice?<Sequence durationInFrames={fixed?120:60}><Audio src={staticFile('voice.wav')} trimBefore={fixed?0:15} playbackRate={fixed?1:1.25} volume={f => fixed ? .3*Math.max(0,Math.min(1,f/10,(119-f)/10)) : 1}/></Sequence>:null}
+    {music?<Audio src={staticFile('music.wav')} volume={f => fixed ? .015*Math.max(0,Math.min(1,f/10,(119-f)/10)) : 1}/>:null}
+  </AbsoluteFill>;
+};
+const Root = () => <><Composition id="Main" component={Scene} durationInFrames={120} fps={30} width={640} height={360} defaultProps={{fixed:false,voice:true,music:true,badResource:false,long:false}}/><Composition id="Long" component={Scene} durationInFrames={1800} fps={30} width={640} height={360} defaultProps={{fixed:true,voice:true,music:true,badResource:false,long:true}}/></>;
+registerRoot(Root);

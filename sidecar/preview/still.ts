@@ -41,6 +41,7 @@ export interface Renderer {
     timeoutInMilliseconds: number;
   }) => Promise<unknown>;
   selectComposition: (options: {
+    inputProps?: Record<string, unknown>;
     chromeMode?: string;
     chromiumOptions: Record<string, unknown>;
     id: string;

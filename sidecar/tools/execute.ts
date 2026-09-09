@@ -18,6 +18,8 @@ import type {
   DesignResult,
   MotionAssertion,
 } from "../preview/design";
+import { makeFinding } from "../preview/readiness-analysis";
+import type { ReadinessOptions } from "../preview/readiness-contract";
 import {
   DESIGN_CHECK,
   DESIGN_SERVER,
@@ -68,12 +70,23 @@ export interface PipelineCalls {
   readonly start: () => Promise<readonly PipelineStage[]>;
 }
 
+export interface ToolExecution {
+  progress?: (stage: string, completed: number, total: number) => void;
+  signal?: AbortSignal;
+}
+
 export interface DesignCalls {
-  readonly check: (input: {
-    readonly frames: readonly number[];
-    readonly motion: readonly MotionAssertion[];
-    readonly video: VideoCheck | null;
-  }) => Promise<DesignResult>;
+  readonly check: (
+    input: {
+      readonly reportId?: string;
+      readonly mode?: "full" | "sampled" | "report";
+      readonly options?: ReadinessOptions;
+      readonly frames: readonly number[];
+      readonly motion: readonly MotionAssertion[];
+      readonly video: VideoCheck | null;
+    },
+    execution?: ToolExecution
+  ) => Promise<DesignResult>;
   // The video's own source, so the check can answer what a rendered frame
   // never can: whether the person will be able to edit this motion.
   readonly sources: () => Promise<
@@ -99,7 +112,8 @@ export function executeTool(
   server: ToolServer,
   tool: string,
   params: unknown,
-  tools: TurnTools
+  tools: TurnTools,
+  execution?: ToolExecution
 ): Promise<ToolAnswer> {
   return answer(() => {
     const spec = TOOL_SPECS[server].find((row) => row.name === tool);
@@ -108,7 +122,13 @@ export function executeTool(
     }
 
     const args = z.object(spec.shape).parse(params ?? {});
-    return run(server, tool, args, tools);
+    return run(server, tool, args, {
+      ...tools,
+      design: {
+        ...tools.design,
+        check: (input) => tools.design.check(input, execution),
+      },
+    });
   });
 }
 
@@ -164,23 +184,70 @@ async function designCheck(
   args: Record<string, unknown>,
   design: DesignCalls
 ): Promise<string> {
+  if (
+    args.mode !== "full" &&
+    args.mode !== "report" &&
+    !Array.isArray(args.frames)
+  ) {
+    throw new Error(
+      "Sampled design_check requires 2–9 key frames; use mode=full for automatic coverage."
+    );
+  }
   const declared = args.video as
     | { camera?: string | null; scenes: VideoCheck["scenes"] }
     | undefined;
   const [result, sources] = await Promise.all([
     design.check({
-      frames: args.frames as number[],
+      ...(typeof args.reportId === "string" ? { reportId: args.reportId } : {}),
+      ...(args.mode === undefined
+        ? {}
+        : { mode: args.mode as "full" | "sampled" | "report" }),
+      ...(args.options === undefined
+        ? {}
+        : { options: args.options as ReadinessOptions }),
+      frames: (args.frames as number[] | undefined) ?? [],
       motion: (args.motion as MotionAssertion[] | undefined) ?? [],
       video:
         declared === undefined
           ? null
           : { camera: declared.camera ?? null, scenes: declared.scenes },
     }),
-    design.sources().catch(() => []),
+    design
+      .sources()
+      .then((files) => ({ error: null as string | null, files }))
+      .catch((error) => ({ error: String(error), files: [] })),
   ]);
 
-  const found = tunabilityDesignFindings(tunabilityFindings(sources));
+  const found = tunabilityDesignFindings(tunabilityFindings(sources.files));
 
+  if (result.readiness) {
+    const readiness = {
+      ...result.readiness,
+      checks: [
+        ...result.readiness.checks,
+        {
+          reason:
+            sources.error ??
+            "Source editability checks are separate from exported viewer defects.",
+          rule: "tunability",
+          status: sources.error ? ("failed" as const) : ("completed" as const),
+        },
+      ],
+      findings: [
+        ...result.readiness.findings,
+        ...found.map((row) =>
+          makeFinding({
+            ...row,
+            audience: "tunability",
+            category: "tunability",
+            from: 0,
+            to: result.readiness?.coverage.durationInFrames ?? 1,
+          })
+        ),
+      ],
+    };
+    return JSON.stringify({ ...result, readiness }, null, 2);
+  }
   const merged: DesignResult = {
     ...result,
     findings: [...result.findings, ...found],

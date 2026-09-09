@@ -151,3 +151,54 @@ describe("makeGateway", () => {
     await release();
   });
 });
+
+describe("readiness tool lifecycle", () => {
+  it("forwards progress and cancels the actual design operation", async () => {
+    const path = socketPath();
+    const base = tools();
+    let cancelled = false;
+    const { release } = await serving(
+      {
+        ...base,
+        design: {
+          ...base.design,
+          check: (_input, execution) =>
+            new Promise((_resolve, reject) => {
+              execution?.signal?.addEventListener(
+                "abort",
+                () => {
+                  cancelled = true;
+                  reject(new Error("cancelled"));
+                },
+                { once: true }
+              );
+              execution?.progress?.("frames", 2, 10);
+            }),
+        },
+      },
+      path
+    );
+    const link = await connectGateway(path, TURN, "remocn-design");
+    const controller = new AbortController();
+    const progress: string[] = [];
+    try {
+      const answer = await link.ask(
+        "design_check",
+        { mode: "full" },
+        {
+          progress: (stage) => {
+            progress.push(stage);
+            controller.abort();
+          },
+          signal: controller.signal,
+        }
+      );
+      expect(progress).toEqual(["frames"]);
+      expect(cancelled).toBe(true);
+      expect(answer.isError).toBe(true);
+    } finally {
+      link.end();
+      await release();
+    }
+  });
+});

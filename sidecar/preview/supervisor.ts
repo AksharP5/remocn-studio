@@ -28,6 +28,7 @@ import {
   type HostReply,
   type WriteDone,
 } from "./protocol";
+import type { ReadinessOptions } from "./readiness-contract";
 
 export const PREVIEW_HOST_FLAG = "--preview-host";
 
@@ -56,6 +57,7 @@ type Pending =
   | {
       fail: (message: string) => void;
       kind: "design";
+      progress?: (stage: string, completed: number, total: number) => void;
       succeed: (result: DesignResult) => void;
     }
   | {
@@ -94,7 +96,10 @@ export interface StillRequest {
 export interface DesignRequest {
   composition: string;
   frames: readonly number[];
+  mode?: "full" | "sampled" | "report";
   motion: readonly MotionAssertion[];
+  options?: ReadinessOptions;
+  reportId?: string;
   video: VideoCheck | null;
 }
 
@@ -148,7 +153,8 @@ export function stillFrom(
 
 export function designFrom(
   projectId: string,
-  request: DesignRequest
+  request: DesignRequest,
+  onProgress?: (stage: string, completed: number, total: number) => void
 ): Effect.Effect<DesignResult, PreviewError> {
   return ask<DesignResult>(
     projectId,
@@ -166,6 +172,7 @@ export function designFrom(
     (settle) => ({
       fail: (message) => settle(Effect.fail(failed(message))),
       kind: "design",
+      progress: onProgress,
       succeed: (result) => settle(Effect.succeed(result)),
     })
   );
@@ -365,6 +372,7 @@ function route(
   return Exit.isSuccess(event) ? event.value : null;
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: discriminated reply routing keeps each pending operation protocol-specific.
 function deliver(reply: HostReply, pending: Map<string, Pending>): void {
   const waiting = pending.get(reply.id);
 
@@ -407,6 +415,9 @@ function deliver(reply: HostReply, pending: Map<string, Pending>): void {
   }
 
   if (waiting.kind === "design") {
+    if (reply.type === "design-progress") {
+      waiting.progress?.(reply.stage, reply.completed, reply.total);
+    }
     if (reply.type === "design-done") {
       waiting.succeed(reply.result);
     }

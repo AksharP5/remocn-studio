@@ -1,7 +1,20 @@
 import { Schema } from "effect";
+import { ReadinessReport } from "./readiness-contract";
 
 export const DesignFindingCode = Schema.Literals([
   "contrast_aa_failure",
+  "resource_failed",
+  "render_failed",
+  "platform_safe_zone",
+  "text_reading_time",
+  "transition_black_gap",
+  "audio_clipping",
+  "audio_headroom",
+  "audio_expected_missing",
+  "audio_silence_gap",
+  "audio_speech_boundary",
+  "audio_tail_boundary",
+  "audio_speech_masking",
   "motion_not_visible",
   "motion_out_of_frame",
   "motion_static",
@@ -159,6 +172,7 @@ export const DesignResult = Schema.Struct({
   findings: Schema.Array(DesignFinding),
   frames: Schema.Array(Schema.Int),
   height: Schema.Int,
+  readiness: Schema.optionalKey(ReadinessReport),
   snapshots: Schema.Array(DesignSnapshot),
   summary: DesignSummary,
   width: Schema.Int,
@@ -202,6 +216,7 @@ export interface MotionSample {
 }
 
 export interface FrameDesignAudit {
+  readonly details?: import("./readiness-browser").ReadinessFrame;
   readonly findings: readonly BrowserDesignFinding[];
   readonly fingerprint: string;
   readonly motion: readonly MotionProbe[];
@@ -914,18 +929,27 @@ export function prepareDesignAudit(frame: number): PreparedDesignAudit {
     x: round(rect.x),
     y: round(rect.y),
   });
+  const colorCanvas = document.createElement("canvas");
+  colorCanvas.width = 1;
+  colorCanvas.height = 1;
+  const colorContext = colorCanvas.getContext("2d", {
+    willReadFrequently: true,
+  });
   const color = (
     value: string
   ): readonly [number, number, number, number] | null => {
-    const values = value.match(/[\d.]+/g)?.map(Number) ?? [];
-    if (values.length < 3 || values.some((entry) => !Number.isFinite(entry))) {
+    if (!(colorContext && CSS.supports("color", value))) {
       return null;
     }
+    colorContext.clearRect(0, 0, 1, 1);
+    colorContext.fillStyle = value;
+    colorContext.fillRect(0, 0, 1, 1);
+    const pixels = colorContext.getImageData(0, 0, 1, 1).data;
     return [
-      Math.min(255, Math.max(0, values[0] ?? 0)),
-      Math.min(255, Math.max(0, values[1] ?? 0)),
-      Math.min(255, Math.max(0, values[2] ?? 0)),
-      Math.min(1, Math.max(0, values[3] ?? 1)),
+      pixels[0] ?? 0,
+      pixels[1] ?? 0,
+      pixels[2] ?? 0,
+      (pixels[3] ?? 0) / 255,
     ];
   };
   const ownText = (element: Element) =>
@@ -1231,7 +1255,12 @@ export function prepareDesignAudit(frame: number): PreparedDesignAudit {
       strokeWidth > 0 ? color(styles.webkitTextStrokeColor || "") : null;
     candidates.push({
       bbox: box(rect),
-      fg: foreground,
+      fg: [
+        foreground[0],
+        foreground[1],
+        foreground[2],
+        foreground[3] * opacity(element),
+      ],
       fontSize: Number.parseFloat(styles.fontSize || "0"),
       fontWeight: Number(styles.fontWeight) || 400,
       selector: selected,
@@ -1399,7 +1428,28 @@ export async function finishDesignContrast(
   const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
   const findings: BrowserDesignFinding[] = [];
 
+  const measurements: {
+    selector: string;
+    ratio: number | null;
+    threshold: number;
+    reason: string;
+  }[] = [];
+  (
+    window as Window & { __remocnContrast?: typeof measurements }
+  ).__remocnContrast = measurements;
   for (const candidate of candidates) {
+    const threshold =
+      candidate.fontSize >= 24 ||
+      (candidate.fontSize >= 19 && candidate.fontWeight >= 700)
+        ? 3
+        : 4.5;
+    const measurement = {
+      ratio: null as number | null,
+      reason: "Text has no measurable opaque background.",
+      selector: candidate.selector,
+      threshold,
+    };
+    measurements.push(measurement);
     const x0 = Math.max(0, Math.round(candidate.bbox.x) + 1);
     const x1 = Math.min(
       canvas.width - 1,
@@ -1459,6 +1509,9 @@ export async function finishDesignContrast(
       (candidate.fontSize >= 19 && candidate.fontWeight >= 700)
         ? 3
         : 4.5;
+    measurement.ratio = measured;
+    measurement.reason =
+      "Rendered background sampled; WCAG ratio is guidance, not video accessibility certification.";
     if (measured >= required) {
       continue;
     }

@@ -694,9 +694,13 @@ classifier, the auth probe).
   read as "signed out". The model choice itself is per provider
   (`claudeModel`/`codexModel` in `settings.json`), and the turn sends the
   model of the session's provider — Codex's list is short and
-  account-measured (`Default`, the one entry that cannot drift, then the two
-  gpt-5.6 slugs a ChatGPT login actually accepted; every other slug in the
-  CLI source answered 400).
+  account-measured (`Default`, the one entry that cannot drift, then GPT-6
+  Astra and the two gpt-5.6 slugs a ChatGPT login actually accepted; every
+  other slug in the CLI source answered 400). Astra is gated by the *CLI
+  version* rather than the plan: `gpt-6-astra` first appears in codex-cli
+  0.153.4, and on 0.148.0 the same login answers 400 *"requires a newer
+  version of Codex"* — a refusal that reaches the transcript as the router's
+  own sentence, since the studio never bundles or updates the person's CLI.
 - Still Claude-shaped, deliberately, until the next phases: the model picker
   and a handful of user-facing strings that say "Claude". Knowledge delivery is
   no longer among them — see *One bundle, four runtimes*.
