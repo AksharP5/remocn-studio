@@ -57,6 +57,7 @@ import {
   type WriteCommand,
 } from "./protocol";
 import { libraryIndex, proxies } from "./proxies";
+import { checkReadiness, readReadinessReport } from "./readiness";
 import { serve } from "./server";
 import { openSession, type Session, type WarmInternals } from "./session";
 import { captureSourcePage } from "./source";
@@ -422,6 +423,24 @@ function obey(booted: Booted, line: string): Effect.Effect<void> {
   }
 
   if (command.type === "design") {
+    if (command.mode === "full" || command.mode === "report") {
+      return Effect.flatMap(FiberMap.size(booted.running), (busy) =>
+        busy > 0
+          ? write({
+              id: command.id,
+              message:
+                "Another render or readiness check is running. Cancel it or wait for completion.",
+              type: "design-failed",
+            })
+          : Effect.asVoid(
+              FiberMap.run(
+                booted.running,
+                command.id,
+                inspectFullDesign(booted, command)
+              )
+            )
+      );
+    }
     return inspectDesign(booted, command);
   }
 
@@ -541,6 +560,55 @@ function captureSource(
           type: "source-failed",
         })
       )
+    )
+  );
+}
+
+function inspectFullDesign(
+  booted: Booted,
+  command: DesignCommand
+): Effect.Effect<void> {
+  return Effect.gen(function* () {
+    const tools = yield* toolsFor(booted.root);
+    if (command.mode === "report") {
+      const result = yield* Effect.tryPromise({
+        catch: (cause) => new PreviewError({ message: String(cause) }),
+        try: () =>
+          readReadinessReport(
+            {
+              composition: command.composition,
+              dir: booted.dir,
+              renderOptions: tools.options,
+              root: booted.root,
+            },
+            command.reportId ?? "",
+            command.options
+          ),
+      });
+      yield* write({ id: command.id, result, type: "design-done" });
+      return;
+    }
+    const result = yield* checkReadiness({
+      composition: command.composition,
+      dir: booted.dir,
+      internals: tools.internals,
+      motion: command.motion,
+      options: command.options ?? {},
+      progress: (stage, completed, total) => {
+        process.stdout.write(
+          `${JSON.stringify({ completed, id: command.id, stage, total, type: "design-progress" })}\n`
+        );
+      },
+      renderer: tools.renderer,
+      renderOptions: tools.options,
+      root: booted.root,
+      serveUrl: booted.serveUrl,
+      video: command.video,
+    });
+    yield* write({ id: command.id, result, type: "design-done" });
+  }).pipe(
+    Effect.catch((error) =>
+      write({ id: command.id, message: error.message, type: "design-failed" })
     )
   );
 }

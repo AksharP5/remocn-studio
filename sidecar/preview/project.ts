@@ -280,6 +280,10 @@ function asString(value: unknown): string | null {
 
 const WARM_MODULES = {
   evaluate: ["puppeteer-evaluate", "puppeteerEvaluateWithCatch"],
+  handleJavascriptException: [
+    "error-handling/handle-javascript-exception",
+    "handleJavascriptException",
+  ],
   // The offthread-video proxy the warm page's `proxyPort` points at. Without
   // it there is no port to give, and a page told `0` cannot play a video at
   // all — so a Remotion that has moved this export falls back to the slower

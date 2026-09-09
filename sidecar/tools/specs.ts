@@ -7,7 +7,6 @@ import {
   type PipelineStageId,
   type PipelineStatus,
 } from "@/shared/pipeline";
-import { MAX_VIDEO_SCENES } from "../preview/choreography";
 
 export const LIBRARY_SERVER = "remocn-library";
 export const PIPELINE_SERVER = "remocn-pipeline";
@@ -56,7 +55,7 @@ export const TOOL_SPECS: Record<ToolServer, readonly ToolSpec[]> = {
   [DESIGN_SERVER]: [
     {
       description:
-        "Mechanically review 2–9 key frames of this chat's video before calling a scene finished. It renders temporary snapshots and reports measurable WCAG contrast, clipped/occluded/out-of-frame text, and a timeline that did not visibly advance. Pass the movements video/motion.md promises as motion assertions so the check verifies the declared motion instead of guessing; a selector that matches nothing or several elements is its own finding, never a silent pass. In the choreography stage add `video` with the whole scene map: that runs a second, cheap pass over the composition end to end and answers what no single frame can — whether the scene durations carry a rhythm, whether anything lives across each cut, how long the frame stood completely still, and whether the camera ever moved. Fix every finding or explain why it is intentional; inspect the returned snapshot paths for design judgement the checks cannot make.",
+        "Use mode=full before export to check all seven readiness groups with automatic scene sampling, real audio mixdown, evidence and explicit incomplete coverage. Legacy mode: mechanically review 2–9 key frames of this chat's video before calling a scene finished. It renders temporary snapshots and reports measurable WCAG contrast, clipped/occluded/out-of-frame text, and a timeline that did not visibly advance. Pass the movements video/motion.md promises as motion assertions so the check verifies the declared motion instead of guessing; a selector that matches nothing or several elements is its own finding, never a silent pass. In the choreography stage add `video` with the whole scene map: that runs a second, cheap pass over the composition end to end and answers what no single frame can — whether the scene durations carry a rhythm, whether anything lives across each cut, how long the frame stood completely still, and whether the camera ever moved. Fix every finding or explain why it is intentional; inspect the returned snapshot paths for design judgement the checks cannot make.",
       name: DESIGN_CHECK,
       shape: {
         frames: z
@@ -67,7 +66,14 @@ export const TOOL_SPECS: Record<ToolServer, readonly ToolSpec[]> = {
             message: "frames must be distinct",
           })
           .describe(
-            "Two to nine distinct key frames from this chat's video, normally the settled hero moments and one motion-separated pair."
+            "Two to nine distinct key frames for legacy sampled mode. Omit in full mode."
+          )
+          .optional(),
+        mode: z
+          .enum(["sampled", "full", "report"])
+          .optional()
+          .describe(
+            "Use full before export: automatically plans composition-wide visual and actual audio mix checks with explicit coverage. Omit for legacy key-frame review."
           ),
         motion: z
           .array(
@@ -109,6 +115,95 @@ export const TOOL_SPECS: Record<ToolServer, readonly ToolSpec[]> = {
           .describe(
             "Explicit expectations from video/motion.md: changes_between says the element or its content visibly changed between two frames, visible_at says it is visible by a frame, keeps_moving limits a selected element's longest unchanged hold inside one bounded scene interval, and stays_in_frame says it never leaves the canvas on the checked frames."
           ),
+        options: z
+          .object({
+            audio: z
+              .object({
+                expected: z.boolean().optional(),
+                expectedIntervals: z
+                  .array(
+                    z.object({
+                      from: z.number().int().min(0),
+                      to: z.number().int().min(1),
+                    })
+                  )
+                  .optional(),
+                maskingDb: z.number().min(0).max(30).optional(),
+                peakDb: z.number().min(-20).max(0).optional(),
+                silenceDb: z.number().min(-120).max(-10).optional(),
+                silenceIntervals: z
+                  .array(
+                    z.object({
+                      from: z.number().int().min(0),
+                      to: z.number().int().min(1),
+                    })
+                  )
+                  .optional(),
+                speechIntervals: z
+                  .array(
+                    z.object({
+                      from: z.number().int().min(0),
+                      to: z.number().int().min(1),
+                    })
+                  )
+                  .optional(),
+                stems: z
+                  .array(
+                    z.object({
+                      inputProps: z.record(z.string(), z.unknown()),
+                      role: z.enum(["speech", "music", "sfx"]),
+                    })
+                  )
+                  .max(8)
+                  .optional()
+                  .describe(
+                    "Props that isolate each role in the same composition. Each stem is actually rendered; timeline must remain unchanged."
+                  ),
+              })
+              .optional(),
+            charactersPerSecond: z.number().min(1).max(100).optional(),
+            exceptions: z
+              .array(
+                z.object({
+                  code: z.string().min(1),
+                  from: z.number().int().min(0),
+                  reason: z.string().min(1),
+                  revision: z.string().min(1),
+                  selector: z.string().nullable(),
+                  targetId: z.string().optional(),
+                  to: z.number().int().min(1),
+                })
+              )
+              .max(100)
+              .optional()
+              .describe(
+                "Narrow intentional exceptions bound to the prior report revision, rule, element and frame interval."
+              ),
+            exportSettings: z.record(z.string(), z.unknown()).optional(),
+            inputProps: z.record(z.string(), z.unknown()).optional(),
+            insets: z
+              .object({
+                bottom: z.number().min(0),
+                left: z.number().min(0),
+                right: z.number().min(0),
+                top: z.number().min(0),
+              })
+              .optional()
+              .describe(
+                "Explicit safe area insets in composition pixels; required for custom and override any platform defaults."
+              ),
+            language: z.string().optional(),
+            maxDurationMs: z.number().int().min(1000).max(3_600_000).optional(),
+            maxFrames: z.number().int().min(4).max(5000).optional(),
+            platform: z
+              .enum(["tiktok", "reels", "shorts", "custom"])
+              .optional(),
+            readableOpacity: z.number().min(0.1).max(1).optional(),
+            readingLeadSeconds: z.number().min(0).max(10).optional(),
+            sampleEveryFrames: z.number().int().min(1).max(3600).optional(),
+            wordsPerMinute: z.number().min(30).max(1000).optional(),
+          })
+          .optional(),
         video: z
           .object({
             camera: z
@@ -126,8 +221,8 @@ export const TOOL_SPECS: Record<ToolServer, readonly ToolSpec[]> = {
                   to: z.number().int().min(1),
                 })
               )
-              .min(2)
-              .max(MAX_VIDEO_SCENES)
+              .min(1)
+              .max(500)
               .describe(
                 "Every scene in the order it plays, in frame numbers: from inclusive, to exclusive. A transition shows up as an overlap — one scene's to past the next scene's from — and the check reads the pair outside that overlap, so a crossfade cannot pass for continuity."
               ),

@@ -96,17 +96,24 @@ function rangeOf(
 
 export function videoPlan(
   video: VideoCheck,
-  durationInFrames: number
+  durationInFrames: number,
+  sampledFrames?: readonly number[]
 ): VideoPlan {
   const last = Math.max(0, durationInFrames - 1);
   const { end, start } = rangeOf(video, last);
   const step = videoStep(end - start + 1);
 
-  const timeline: number[] = [];
-  for (let frame = start; frame < end; frame += step) {
-    timeline.push(frame);
+  const timeline: number[] = sampledFrames
+    ? [...sampledFrames]
+        .filter((frame) => frame >= start && frame <= end)
+        .sort((a, b) => a - b)
+    : [];
+  if (!sampledFrames) {
+    for (let frame = start; frame < end; frame += step) {
+      timeline.push(frame);
+    }
+    timeline.push(end);
   }
-  timeline.push(end);
 
   const interiors = video.scenes.map((scene) =>
     clamp(
@@ -356,11 +363,14 @@ function boundaryFindings(
     ];
   }
 
-  const dead = plan.boundaries.filter((boundary) => {
+  const measuredBoundaries = plan.boundaries.filter(
+    (boundary) => samples.has(boundary.left) && samples.has(boundary.right)
+  );
+  const dead = measuredBoundaries.filter((boundary) => {
     const left = samples.get(boundary.left);
     const right = samples.get(boundary.right);
     if (left === undefined || right === undefined) {
-      return true;
+      return false;
     }
     const living = new Set(
       left.ids.filter((entry) => entry.visible).map((entry) => entry.designId)

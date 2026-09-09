@@ -50,9 +50,13 @@ export function runningModeLabel(mode: RunningMode): string {
 // and Luna. Sol is the third sibling in the source — refused on the probed
 // plan, plausibly open on higher tiers, and a refusal fails the turn with
 // the router's own sentence. "Default" (no model at all) is the one entry
-// that can never drift, so it leads.
+// that can never drift, so it leads. Astra is gated by the CLI, not the
+// plan: measured on the same login, codex-cli 0.148.0 answers 400 *"The
+// 'gpt-6-astra' model requires a newer version of Codex"* and 0.153.4 —
+// the first release carrying the slug — runs it.
 export const CODEX_MODELS: readonly ModelChoice[] = [
   { label: "Default", value: "" },
+  { label: "GPT-6 Astra", value: "gpt-6-astra" },
   { label: "GPT-5.6 Terra", value: "gpt-5.6-terra" },
   { label: "GPT-5.6 Luna", value: "gpt-5.6-luna" },
   { label: "GPT-5.6 Sol", value: "gpt-5.6-sol" },

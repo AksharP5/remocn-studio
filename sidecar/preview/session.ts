@@ -11,6 +11,7 @@ import {
   restoreDesignAudit,
 } from "./design";
 import { type Measured, PreviewError, type RenderOptions } from "./project";
+import { probeReadiness, type ReadinessFrame } from "./readiness-browser";
 
 const FORWARDED = [
   "durationInFrames",
@@ -26,6 +27,7 @@ const FORWARDED = [
 ] as const;
 
 interface Page {
+  on?: (event: "error", listener: (error: unknown) => void) => unknown;
   setViewport: (viewport: {
     deviceScaleFactor: number;
     height: number;
@@ -52,6 +54,11 @@ export interface OffthreadServer {
 
 export interface WarmInternals {
   evaluate: (options: Record<string, unknown>) => Promise<unknown>;
+  handleJavascriptException?: (options: {
+    page: Page;
+    frame: number | null;
+    onError: (error: unknown) => void;
+  }) => () => void;
   openBrowser: (
     browser: "chrome",
     options: Record<string, unknown>
@@ -67,7 +74,8 @@ export interface Session {
   readonly audit: (
     frame: number,
     output: string,
-    selectors?: readonly string[]
+    selectors?: readonly string[],
+    readableOpacity?: number
   ) => Effect.Effect<FrameDesignAudit, PreviewError>;
   readonly capture: (
     frame: number,
@@ -87,6 +95,7 @@ export interface Session {
 
 export interface SessionInput {
   composition: string;
+  inputProps?: Record<string, unknown>;
   internals: WarmInternals;
   measured: Measured;
   options: RenderOptions;
@@ -105,7 +114,7 @@ export function openSession(
 ): Effect.Effect<Session, PreviewError> {
   return Effect.tryPromise({
     catch: failed,
-    try: async () => {
+    try: async (signal) => {
       // Started before the browser, because its port has to be in the page's
       // environment from the first navigation. The arguments mirror the ones
       // `renderStill` passes through `makeOrReuseServer`; our serve URL is an
@@ -124,7 +133,7 @@ export function openSession(
       });
 
       try {
-        return await warm(input, server);
+        return await warm(input, server, signal);
       } catch (cause) {
         // The proxy holds an http server and a temporary asset directory, so a
         // session that never opened must not leave one behind.
@@ -133,13 +142,17 @@ export function openSession(
       }
     },
   }).pipe(
-    Effect.map(({ browser, measured, page, server }) =>
-      sessionOf(input, browser, measured, page, server)
+    Effect.map(({ browser, measured, page, server, assertHealthy }) =>
+      sessionOf(input, browser, measured, page, server, assertHealthy)
     )
   );
 }
 
-async function warm(input: SessionInput, server: OffthreadServer) {
+async function warm(
+  input: SessionInput,
+  server: OffthreadServer,
+  signal: AbortSignal
+) {
   const { internals, options } = input;
   const { chromeMode, chromiumOptions } = options;
 
@@ -150,60 +163,92 @@ async function warm(input: SessionInput, server: OffthreadServer) {
     logLevel: "error",
   });
 
-  const page = await browser.newPage({
-    // The page symbolicates its own logs and errors through this, and a null
-    // one throws `this.sourceMapGetter is not a function` on every line the
-    // bundle prints — 916 of them in this machine's log, which is how an
-    // ERR_UNSAFE_PORT came to be buried. There was nothing to pass before,
-    // because there was no server.
-    context: server.sourceMap,
-    indent: false,
-    logLevel: "error",
-    onBrowserLog: null,
-    onLog: () => undefined,
-    pageIndex: 0,
-  });
+  const abort = () => {
+    browser.close({ silent: true }).catch(() => undefined);
+  };
+  signal.addEventListener("abort", abort, { once: true });
+  try {
+    signal.throwIfAborted();
+    const page = await browser.newPage({
+      // The page symbolicates its own logs and errors through this, and a null
+      // one throws `this.sourceMapGetter is not a function` on every line the
+      // bundle prints — 916 of them in this machine's log, which is how an
+      // ERR_UNSAFE_PORT came to be buried. There was nothing to pass before,
+      // because there was no server.
+      context: server.sourceMap,
+      indent: false,
+      logLevel: "error",
+      onBrowserLog: null,
+      onLog: () => undefined,
+      pageIndex: 0,
+    });
 
-  await page.setViewport({
-    deviceScaleFactor: 1,
-    height: input.measured.height,
-    width: input.measured.width,
-  });
+    let pageError: unknown = null;
+    page.on?.("error", (error) => {
+      pageError = error;
+    });
+    input.internals.handleJavascriptException?.({
+      frame: null,
+      onError: (error) => {
+        pageError = error;
+      },
+      page,
+    });
+    const assertHealthy = () => {
+      if (pageError !== null) {
+        throw pageError;
+      }
+    };
+    await page.setViewport({
+      deviceScaleFactor: 1,
+      height: input.measured.height,
+      width: input.measured.width,
+    });
 
-  await internals.setPropsAndEnv({
-    audioEnabled: false,
-    darkMode: chromiumOptions.darkMode === true,
-    envVariables: {},
-    indent: false,
-    initialFrame: 0,
-    initialMemoryAvailable: null,
-    isMainTab: true,
-    logLevel: "error",
-    mediaCacheSizeInBytes: null,
-    onServeUrlVisited: () => undefined,
-    page,
-    proxyPort: server.offthreadPort,
-    retriesRemaining: 2,
-    sampleRate: 48_000,
-    serializedInputPropsWithCustomSchema: internals.serialize({}),
-    serveUrl: input.serveUrl,
-    timeoutInMilliseconds: input.timeoutMs,
-    videoEnabled: true,
-  });
+    await internals.setPropsAndEnv({
+      audioEnabled: false,
+      darkMode: chromiumOptions.darkMode === true,
+      envVariables: {},
+      indent: false,
+      initialFrame: 0,
+      initialMemoryAvailable: null,
+      isMainTab: true,
+      logLevel: "error",
+      mediaCacheSizeInBytes: null,
+      onServeUrlVisited: () => undefined,
+      page,
+      proxyPort: server.offthreadPort,
+      retriesRemaining: 2,
+      sampleRate: 48_000,
+      serializedInputPropsWithCustomSchema: internals.serialize(
+        input.inputProps ?? {}
+      ),
+      serveUrl: input.serveUrl,
+      timeoutInMilliseconds: input.timeoutMs,
+      videoEnabled: true,
+    });
 
-  await internals.evaluate({
-    args: [
-      input.composition,
-      internals.serialize(input.measured.props ?? {}),
-      ...FORWARDED.map((key) => input.measured[key] ?? null),
-    ],
-    frame: null,
-    page,
-    pageFunction: bundleMode,
-    timeoutInMilliseconds: input.timeoutMs,
-  });
+    await internals.evaluate({
+      args: [
+        input.composition,
+        internals.serialize(input.measured.props ?? {}),
+        ...FORWARDED.map((key) => input.measured[key] ?? null),
+      ],
+      frame: null,
+      page,
+      pageFunction: bundleMode,
+      timeoutInMilliseconds: input.timeoutMs,
+    });
 
-  return { browser, measured: input.measured, page, server };
+    signal.throwIfAborted();
+    assertHealthy();
+    return { assertHealthy, browser, measured: input.measured, page, server };
+  } catch (cause) {
+    await browser.close({ silent: true }).catch(() => undefined);
+    throw cause;
+  } finally {
+    signal.removeEventListener("abort", abort);
+  }
 }
 
 function sessionOf(
@@ -211,10 +256,12 @@ function sessionOf(
   browser: Browser,
   measured: Measured,
   page: Page,
-  server: OffthreadServer
+  server: OffthreadServer,
+  assertHealthy: () => void
 ): Session {
-  const seek = (frame: number) =>
-    input.internals.seekToFrame({
+  const seek = async (frame: number) => {
+    assertHealthy();
+    await input.internals.seekToFrame({
       attempt: 0,
       composition: input.composition,
       frame,
@@ -223,9 +270,12 @@ function sessionOf(
       page,
       timeoutInMilliseconds: input.timeoutMs,
     });
+    assertHealthy();
+  };
 
-  const take = (output: string | null, wantsBuffer: boolean) =>
-    input.internals.takeFrame({
+  const take = async (output: string | null, wantsBuffer: boolean) => {
+    assertHealthy();
+    const result = await input.internals.takeFrame({
       freePage: page,
       height: measured.height,
       imageFormat: "png",
@@ -236,6 +286,9 @@ function sessionOf(
       wantsBuffer,
       width: measured.width,
     });
+    assertHealthy();
+    return result;
+  };
 
   const evaluate = async <A>(
     pageFunction: (...args: never[]) => unknown,
@@ -252,7 +305,12 @@ function sessionOf(
   };
 
   return {
-    audit: (frame: number, output: string, selectors = []) =>
+    audit: (
+      frame: number,
+      output: string,
+      selectors = [],
+      readableOpacity?: number
+    ) =>
       Effect.tryPromise({
         catch: failed,
         try: async () => {
@@ -280,7 +338,18 @@ function sessionOf(
               audit.candidates,
             ]);
             await take(output, false);
+            const details =
+              readableOpacity === undefined
+                ? undefined
+                : await evaluate<ReadinessFrame>(
+                    probeReadiness as (...args: never[]) => unknown,
+                    [
+                      bytesOf(await take(null, true)).toString("base64"),
+                      readableOpacity,
+                    ]
+                  );
             return {
+              ...(details ? { details } : {}),
               findings: [...audit.findings, ...contrast],
               fingerprint: audit.fingerprint,
               motion,

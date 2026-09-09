@@ -310,7 +310,10 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
           .serving(turnId, {
             cwd: project.path,
             design: {
-              check: ({ frames, motion, video: sceneMap }) =>
+              check: (
+                { frames, motion, mode, options, reportId, video: sceneMap },
+                execution
+              ) =>
                 video === null
                   ? Promise.reject(
                       new Error(
@@ -318,12 +321,20 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
                       )
                     )
                   : Effect.runPromise(
-                      designFrom(params.projectId, {
-                        composition: video,
-                        frames,
-                        motion,
-                        video: sceneMap,
-                      })
+                      designFrom(
+                        params.projectId,
+                        {
+                          composition: video,
+                          ...(reportId === undefined ? {} : { reportId }),
+                          ...(mode === undefined ? {} : { mode }),
+                          ...(options === undefined ? {} : { options }),
+                          frames,
+                          motion,
+                          video: sceneMap,
+                        },
+                        execution?.progress
+                      ),
+                      { signal: execution?.signal }
                     ),
               sources: () => videoSources(project.path, video),
             },

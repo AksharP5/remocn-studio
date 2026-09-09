@@ -39,7 +39,10 @@ export interface RenderMediaOptions {
   chromiumOptions: Record<string, unknown>;
   codec: string;
   composition: Measured;
+  concurrency?: number;
+  enforceAudioTrack?: boolean;
   frameRange?: [number, number];
+  inputProps?: Record<string, unknown>;
   logLevel: string;
   onProgress: (progress: RenderMediaProgress) => void;
   onStart: (data: { frameCount: number }) => void;

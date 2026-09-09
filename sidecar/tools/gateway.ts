@@ -56,6 +56,13 @@ export function makeGateway(
 
   const serve = (socket: Socket) => {
     const lines = createInterface({ input: socket });
+    const executions = new Map<string, AbortController>();
+    socket.on("close", () => {
+      for (const controller of executions.values()) {
+        controller.abort();
+      }
+      executions.clear();
+    });
 
     const reply = (frame: ToolReply) => {
       socket.write(`${JSON.stringify(frame)}\n`);
@@ -73,6 +80,10 @@ export function makeGateway(
       }
 
       const { id, params, server, tool, turn } = call.value;
+      if (call.value.cancel) {
+        executions.get(id)?.abort();
+        return;
+      }
       const refused = (text: string) =>
         reply({ id, isError: true, text, type: "reply" });
 
@@ -88,8 +99,21 @@ export function makeGateway(
         return;
       }
 
-      executeTool(server, tool, params, tools)
+      const controller = new AbortController();
+      executions.set(id, controller);
+      executeTool(server, tool, params, tools, {
+        progress: (stage, completed, total) =>
+          reply({
+            id,
+            isError: false,
+            progress: { completed, total },
+            text: stage,
+            type: "progress",
+          }),
+        signal: controller.signal,
+      })
         .then((answer) => {
+          executions.delete(id);
           log(`tools: ${server}.${tool} ${answer.isError ? "failed" : "ok"}`);
           reply({
             id,

@@ -3,7 +3,7 @@ import { createInterface } from "node:readline";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { Effect, Exit } from "effect";
-import type { ToolAnswer } from "./execute";
+import type { ToolAnswer, ToolExecution } from "./execute";
 import {
   decodeToolReply,
   TOOLS_HOST_FLAG,
@@ -13,7 +13,11 @@ import {
 } from "./protocol";
 import { isToolServer, TOOL_SPECS, type ToolServer } from "./specs";
 
-export type Ask = (tool: string, params: unknown) => Promise<ToolAnswer>;
+export type Ask = (
+  tool: string,
+  params: unknown,
+  execution?: ToolExecution
+) => Promise<ToolAnswer>;
 
 export interface GatewayLink {
   readonly ask: Ask;
@@ -38,12 +42,19 @@ export function connectGateway(
   server: string
 ): Promise<GatewayLink> {
   const closed = Promise.withResolvers<void>();
-  const pending = new Map<string, (reply: ToolAnswer) => void>();
+  const pending = new Map<
+    string,
+    {
+      answer: (reply: ToolAnswer) => void;
+      progress?: ToolExecution["progress"];
+      cleanup: () => void;
+    }
+  >();
 
   const socket = connect(socketPath);
 
   const link: GatewayLink = {
-    ask: (tool, params) =>
+    ask: (tool, params, execution) =>
       new Promise<ToolAnswer>((answer) => {
         const call: ToolCall = {
           id: crypto.randomUUID(),
@@ -53,8 +64,19 @@ export function connectGateway(
           turn,
           type: "call",
         };
-        pending.set(call.id, answer);
+        const cancel = () =>
+          socket.write(`${JSON.stringify({ ...call, cancel: true })}\n`);
+        pending.set(call.id, {
+          answer,
+          cleanup: () =>
+            execution?.signal?.removeEventListener("abort", cancel),
+          progress: execution?.progress,
+        });
         socket.write(`${JSON.stringify(call)}\n`);
+        execution?.signal?.addEventListener("abort", cancel, { once: true });
+        if (execution?.signal?.aborted) {
+          cancel();
+        }
       }),
     closed: closed.promise,
     end: () => socket.end(),
@@ -66,7 +88,19 @@ export function connectGateway(
     if (Exit.isFailure(reply)) {
       return;
     }
-    pending.get(reply.value.id)?.({
+    const waiting = pending.get(reply.value.id);
+    if (reply.value.type === "progress") {
+      if (reply.value.progress) {
+        waiting?.progress?.(
+          reply.value.text,
+          reply.value.progress.completed,
+          reply.value.progress.total
+        );
+      }
+      return;
+    }
+    waiting?.cleanup();
+    waiting?.answer({
       isError: reply.value.isError,
       text: reply.value.text,
     });
@@ -74,8 +108,9 @@ export function connectGateway(
   });
 
   socket.on("close", () => {
-    for (const answer of pending.values()) {
-      answer({
+    for (const waiting of pending.values()) {
+      waiting.cleanup();
+      waiting.answer({
         isError: true,
         text: "The studio went away before this call was answered.",
       });
@@ -98,8 +133,30 @@ export function toolServer(server: ToolServer, ask: Ask): McpServer {
   const built = new McpServer({ name: server, version: "1.0.0" });
 
   for (const spec of TOOL_SPECS[server]) {
-    built.tool(spec.name, spec.description, spec.shape, async (args) => {
-      const answer = await ask(spec.name, args);
+    built.tool(spec.name, spec.description, spec.shape, async (args, extra) => {
+      const token = extra._meta?.progressToken;
+      let lastProgress = 0;
+      const answer = await ask(spec.name, args, {
+        progress: (stage, completed, total) => {
+          const fraction = total > 0 ? Math.min(1, completed / total) : 0;
+          const progress = readinessProgress(stage, fraction);
+          lastProgress = Math.max(lastProgress, progress);
+          if (token !== undefined) {
+            extra
+              .sendNotification({
+                method: "notifications/progress",
+                params: {
+                  message: stage,
+                  progress: lastProgress,
+                  progressToken: token,
+                  total: 100,
+                },
+              })
+              .catch(() => undefined);
+          }
+        },
+        signal: extra.signal,
+      });
       return {
         content: [{ text: answer.text, type: "text" as const }],
         ...(answer.isError ? { isError: true } : {}),
@@ -135,4 +192,17 @@ async function main(): Promise<void> {
 
   await Promise.race([link.closed, stopped.promise]);
   link.end();
+}
+
+function readinessProgress(stage: string, fraction: number): number {
+  if (stage === "done") {
+    return 100;
+  }
+  if (stage === "audio") {
+    return 60 + 35 * fraction;
+  }
+  if (stage === "frames") {
+    return 5 + 50 * fraction;
+  }
+  return 1;
 }

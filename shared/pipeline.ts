@@ -152,7 +152,7 @@ export const STAGE_TEMPLATES: readonly StageTemplate[] = [
     discover:
       "Check {docs}/review.md for notes already taken, and compare the built video against {docs}/script.md scene by scene.",
     doneWhen:
-      "Every note in {docs}/review.md is closed or explicitly deferred by the person, and design_check has run on two or three key frames with every mechanical finding fixed or explicitly explained.",
+      "Every note in {docs}/review.md is closed or explicitly deferred by the person, and design_check has run with mode=full over the whole scene map, including the actual audio mix. Review its coverage, failed/skipped checks and stale flag; fix measured viewer defects or record narrow intentional exceptions. Recheck after changes, including all scenes affected by shared components. Style recommendations never block human export.",
     goal: "Review the result against the script, collect notes, and close them.",
     id: "review",
     outputs: ["{docs}/review.md"],

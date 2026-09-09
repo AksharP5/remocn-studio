@@ -8,6 +8,7 @@ export const TOOLS_TURN_ENV = "REMOCN_STUDIO_TOOLS_TURN";
 // than in shared/: the webview never sees them. Newline-delimited JSON, the
 // same shape discipline the sidecar's own stdio uses.
 export const ToolCall = Schema.Struct({
+  cancel: Schema.optionalKey(Schema.Boolean),
   id: Schema.NonEmptyString,
   params: Schema.Unknown,
   server: Schema.NonEmptyString,
@@ -19,8 +20,11 @@ export const ToolCall = Schema.Struct({
 export const ToolReply = Schema.Struct({
   id: Schema.NonEmptyString,
   isError: Schema.Boolean,
+  progress: Schema.optionalKey(
+    Schema.Struct({ completed: Schema.Int, total: Schema.Int })
+  ),
   text: Schema.String,
-  type: Schema.Literal("reply"),
+  type: Schema.Literals(["reply", "progress"]),
 });
 
 export type ToolCall = (typeof ToolCall)["Type"];

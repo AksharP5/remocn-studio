@@ -12,6 +12,7 @@ import {
 } from "@/shared/ipc";
 import { VideoCheck } from "./choreography";
 import { DesignResult, MotionAssertion } from "./design";
+import { ReadinessOptions } from "./readiness-contract";
 
 export const RENDER_BASE = "/__remocn/render";
 
@@ -42,7 +43,10 @@ export const HostCommand = Schema.Union([
     composition: Schema.NonEmptyString,
     frames: Schema.Array(Schema.Int),
     id: Schema.NonEmptyString,
+    mode: Schema.optionalKey(Schema.Literals(["full", "sampled", "report"])),
     motion: Schema.Array(MotionAssertion),
+    options: Schema.optionalKey(ReadinessOptions),
+    reportId: Schema.optionalKey(Schema.NonEmptyString),
     type: Schema.Literal("design"),
     video: Schema.NullOr(VideoCheck),
   }),
@@ -71,6 +75,13 @@ export const HostCommand = Schema.Union([
 ]);
 
 export const HostReply = Schema.Union([
+  Schema.Struct({
+    completed: Schema.Int,
+    id: Schema.NonEmptyString,
+    stage: Schema.String,
+    total: Schema.Int,
+    type: Schema.Literal("design-progress"),
+  }),
   Schema.Struct({
     event: StillEvent,
     id: Schema.NonEmptyString,
