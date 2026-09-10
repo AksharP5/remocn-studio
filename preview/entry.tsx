@@ -1,6 +1,13 @@
 import "@remotion/studio/renderEntry";
 import { Player, type PlayerRef } from "@remotion/player";
-import { useCallback, useContext, useEffect, useMemo, useRef } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createRoot } from "react-dom/client";
 import { Internals } from "remotion";
 import { onCommand, type PreviewCommand, post } from "./bridge";
@@ -65,45 +72,214 @@ function Stage() {
   const { compositions } = useContext(Internals.CompositionManager);
   const picked = pick(compositions, askedId(), preferredId());
   const player = useRef<PlayerRef>(null);
+  const resolved = useResolvedMetadata(picked?.composition ?? null);
 
   useEffect(() => {
     post(
       describe(
         picked,
+        resolved,
         compositions.map((composition) => composition.id)
       )
     );
-  }, [compositions, picked]);
+  }, [compositions, picked, resolved]);
 
-  usePreviewCommands(player, {
-    composition: picked?.id ?? null,
-    durationInFrames: picked?.metadata?.durationInFrames ?? 0,
-    fps: picked?.metadata?.fps ?? 30,
-    height: picked?.metadata?.height ?? 0,
-    width: picked?.metadata?.width ?? 0,
-  });
+  usePreviewCommands(player, playingOf(picked?.id ?? null, resolved.metadata));
 
-  const mounted =
-    picked === null || picked.metadata === null ? null : picked.id;
+  const mounted = resolved.metadata === null ? null : (picked?.id ?? null);
 
   usePlayhead(player, mounted);
 
-  if (picked === null || picked.metadata === null) {
+  if (picked === null || resolved.metadata === null) {
     return null;
   }
 
-  return <InteractivePlayer metadata={picked.metadata} player={player} />;
+  return <InteractivePlayer metadata={resolved.metadata} player={player} />;
+}
+
+function playingOf(
+  composition: string | null,
+  metadata: ResolvedMetadata | null
+): Playing {
+  if (metadata === null) {
+    return { composition, durationInFrames: 0, fps: 30, height: 0, width: 0 };
+  }
+
+  return {
+    composition,
+    durationInFrames: metadata.durationInFrames,
+    fps: metadata.fps,
+    height: metadata.height,
+    width: metadata.width,
+  };
+}
+
+export interface ResolvedMetadata {
+  component: React.FC;
+  defaultProps: Record<string, unknown>;
+  durationInFrames: number;
+  fps: number;
+  height: number;
+  props: Record<string, unknown>;
+  width: number;
+}
+
+interface Resolution {
+  message: string | null;
+  metadata: ResolvedMetadata | null;
+  state: "failed" | "loading" | "ready";
+}
+
+const LOADING: Resolution = { message: null, metadata: null, state: "loading" };
+
+function useResolvedMetadata(composition: AnyComposition | null): Resolution {
+  const [resolution, setResolution] = useState<Resolution>(LOADING);
+
+  useEffect(() => {
+    if (composition === undefined || composition === null) {
+      setResolution(LOADING);
+      return;
+    }
+
+    const still = staticOf(composition);
+
+    if (typeof composition.calculateMetadata !== "function") {
+      setResolution(
+        still === null
+          ? {
+              message: `${composition.id} declares no size, and it has no calculateMetadata to give one`,
+              metadata: null,
+              state: "failed",
+            }
+          : { message: null, metadata: still, state: "ready" }
+      );
+      return;
+    }
+
+    const controller = new AbortController();
+    let live = true;
+
+    setResolution(LOADING);
+
+    askForMetadata(composition, controller.signal)
+      .then((video) => {
+        if (!live) {
+          return;
+        }
+        setResolution({
+          message: null,
+          metadata: {
+            component: composition.component as unknown as React.FC,
+            defaultProps: video.defaultProps ?? {},
+            durationInFrames: video.durationInFrames,
+            fps: video.fps,
+            height: video.height,
+            props: video.props ?? {},
+            width: video.width,
+          },
+          state: "ready",
+        });
+      })
+      .catch((cause: unknown) => {
+        if (!live) {
+          return;
+        }
+        setResolution({
+          message: messageOf(cause),
+          metadata: null,
+          state: "failed",
+        });
+      });
+
+    return () => {
+      live = false;
+      controller.abort();
+    };
+  }, [composition]);
+
+  return resolution;
+}
+
+interface VideoConfigLike {
+  defaultProps?: Record<string, unknown>;
+  durationInFrames: number;
+  fps: number;
+  height: number;
+  props?: Record<string, unknown>;
+  width: number;
+}
+
+async function askForMetadata(
+  composition: AnyComposition,
+  signal: AbortSignal
+): Promise<VideoConfigLike> {
+  const resolve = (
+    Internals as unknown as {
+      resolveVideoConfig?: (input: Record<string, unknown>) => unknown;
+    }
+  ).resolveVideoConfig;
+
+  if (typeof resolve !== "function") {
+    const still = staticOf(composition);
+
+    if (still === null) {
+      throw new Error(
+        "this Remotion cannot resolve calculateMetadata outside its own Studio"
+      );
+    }
+
+    return still;
+  }
+
+  return (await resolve({
+    calculateMetadata: composition.calculateMetadata ?? null,
+    compositionDurationInFrames: composition.durationInFrames ?? null,
+    compositionFps: composition.fps ?? null,
+    compositionHeight: composition.height ?? null,
+    compositionId: composition.id,
+    compositionWidth: composition.width ?? null,
+    defaultProps: composition.defaultProps ?? {},
+    inputProps: {},
+    signal,
+  })) as VideoConfigLike;
+}
+
+function messageOf(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause);
+}
+
+function staticOf(composition: AnyComposition): ResolvedMetadata | null {
+  const { durationInFrames, fps, height, width } = composition;
+
+  if (
+    durationInFrames === undefined ||
+    fps === undefined ||
+    height === undefined ||
+    width === undefined
+  ) {
+    return null;
+  }
+
+  return {
+    component: composition.component as unknown as React.FC,
+    defaultProps: composition.defaultProps ?? {},
+    durationInFrames,
+    fps,
+    height,
+    props: composition.defaultProps ?? {},
+    width,
+  };
 }
 
 function InteractivePlayer({
   metadata,
   player,
 }: {
-  readonly metadata: NonNullable<ReturnType<typeof measured>>;
+  readonly metadata: ResolvedMetadata;
   readonly player: React.RefObject<PlayerRef | null>;
 }) {
-  const { component, defaultProps, durationInFrames, fps, height, width } =
-    metadata;
+  const { component, durationInFrames, fps, height, width } = metadata;
+  const inputProps = metadata.props;
   const frame = useCallback(
     () => player.current?.getCurrentFrame() ?? 0,
     [player]
@@ -129,7 +305,7 @@ function InteractivePlayer({
       controls
       durationInFrames={durationInFrames}
       fps={fps}
-      inputProps={defaultProps}
+      inputProps={inputProps}
       loop
       ref={player}
       style={{ height: "100%", width: "100%" }}
@@ -371,6 +547,7 @@ function preferredId(): string | null {
 // renders, and they cost nothing to send with the pick.
 function describe(
   picked: ReturnType<typeof pick>,
+  resolved: Resolution,
   compositions: readonly string[]
 ) {
   const total = compositions.length;
@@ -379,12 +556,16 @@ function describe(
     return {
       compositionId: null,
       compositions,
+      metadata: null,
       reason: "none",
       total,
+      trouble: null,
       type: "composition",
       unmeasured: false,
     };
   }
+
+  const { metadata } = resolved;
 
   return {
     // A missing video keeps its id in the message: the pane has to be able to
@@ -392,14 +573,28 @@ function describe(
     // composition that exists but computes its metadata.
     compositionId: picked.id,
     compositions,
+    // The numbers the Player is really mounted with, calculateMetadata
+    // resolved. The export measures the same composition in its own browser,
+    // so this is what the dialog can promise a size from.
+    metadata:
+      metadata === null
+        ? null
+        : {
+            durationInFrames: metadata.durationInFrames,
+            fps: metadata.fps,
+            height: metadata.height,
+            width: metadata.width,
+          },
     reason: picked.reason,
     total,
+    trouble: resolved.state === "failed" ? resolved.message : null,
     type: "composition",
-    unmeasured: picked.reason !== "missing" && picked.metadata === null,
+    unmeasured: picked.reason !== "missing" && metadata === null,
   };
 }
 
 interface AnyComposition {
+  calculateMetadata?: ((input: unknown) => unknown) | null;
   component: React.FC;
   defaultProps?: Record<string, unknown>;
   durationInFrames: number | undefined;
@@ -425,8 +620,8 @@ function pick(
     // pane asked for a video by name, and a silent substitution reads as the
     // wrong video rendering rather than as a video nothing registers.
     return byId === undefined
-      ? { id: asked, metadata: null, reason: "missing" }
-      : { id: byId.id, metadata: measured(byId), reason: "asked" };
+      ? { composition: null, id: asked, reason: "missing" }
+      : { composition: byId, id: byId.id, reason: "asked" };
   }
 
   const byFolder =
@@ -435,38 +630,16 @@ function pick(
       : compositions.find((composition) => composition.id === preferred);
 
   if (byFolder !== undefined) {
-    return { id: byFolder.id, metadata: measured(byFolder), reason: "folder" };
+    return { composition: byFolder, id: byFolder.id, reason: "folder" };
   }
 
   const main = compositions.find((composition) => composition.id === MAIN_ID);
 
   if (main !== undefined) {
-    return { id: main.id, metadata: measured(main), reason: "main" };
+    return { composition: main, id: main.id, reason: "main" };
   }
 
   const [first] = compositions;
 
-  return { id: first.id, metadata: measured(first), reason: "first" };
-}
-
-function measured(composition: AnyComposition) {
-  const { durationInFrames, fps, height, width } = composition;
-
-  if (
-    durationInFrames === undefined ||
-    fps === undefined ||
-    height === undefined ||
-    width === undefined
-  ) {
-    return null;
-  }
-
-  return {
-    component: composition.component,
-    defaultProps: composition.defaultProps ?? {},
-    durationInFrames,
-    fps,
-    height,
-    width,
-  };
+  return { composition: first, id: first.id, reason: "first" };
 }

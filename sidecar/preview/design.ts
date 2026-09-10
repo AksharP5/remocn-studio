@@ -2,6 +2,13 @@ import { Schema } from "effect";
 import { ReadinessReport } from "./readiness-contract";
 
 export const DesignFindingCode = Schema.Literals([
+  "motion_contract_invalid",
+  "motion_contract_truncated",
+  "motion_contract_parent",
+  "motion_contract_reading",
+  "motion_contract_ambiguous",
+  "motion_contract_target",
+  "motion_contract_collision",
   "contrast_aa_failure",
   "resource_failed",
   "render_failed",
@@ -186,6 +193,7 @@ export interface BrowserDesignFinding {
   readonly expected: string;
   readonly fix: string;
   readonly frame: number;
+  readonly intentionalReveal?: boolean;
   readonly message: string;
   readonly observed: string;
   readonly selector: string;
@@ -340,13 +348,13 @@ export function finishDesignResult(input: {
       bbox: null,
       code: "timeline_static",
       expected:
-        "At least one visible DOM or media change across the sampled frames.",
-      fix: "Inspect the snapshots and confirm that the composition seeks its animation from the Remotion frame. Explain the hold if it is intentional.",
+        "The intended action or reading hold; matching sampled frames alone do not establish a defect.",
+      fix: "Inspect the snapshots against the intended behavior. Keep a readable hold; if a promised action is missing, verify its frame clock and use a motion assertion over that interval.",
       frames,
       message: "The sampled timeline did not visibly advance.",
       observed: "Every sampled frame had the same visual fingerprint.",
       selector: null,
-      severity: "warning",
+      severity: "info",
       text: null,
     });
   }
@@ -1009,12 +1017,16 @@ export function prepareDesignAudit(frame: number): PreparedDesignAudit {
       return null;
     }
 
-    range.setStart(nodes[0] as Node, 0);
-    const last = nodes.at(-1) as Node;
-    range.setEnd(last, last.textContent?.length ?? 0);
-    const rects = [...range.getClientRects()].filter(
-      (rect) => rect.width > 0 && rect.height > 0
+    // A wrapped line's trailing whitespace can extend beyond its clipping box
+    // without clipping any glyph. Measure the non-whitespace runs themselves.
+    const runs = nodes.flatMap((node) =>
+      [...(node.textContent ?? "").matchAll(/\S+/gu)].flatMap((match) => {
+        range.setStart(node, match.index);
+        range.setEnd(node, match.index + match[0].length);
+        return [...range.getClientRects()];
+      })
     );
+    const rects = runs.filter((rect) => rect.width > 0 && rect.height > 0);
     if (rects.length === 0) {
       return null;
     }
@@ -1227,6 +1239,20 @@ export function prepareDesignAudit(frame: number): PreparedDesignAudit {
             "The complete text range inside every clipping box.",
             "Increase the box, allow wrapping, reduce the type size, or remove accidental clipping."
           );
+          const owner = element.closest("[data-motion-cue]");
+          const phase = owner?.getAttribute("data-motion-phase");
+          if (
+            ancestor.getAttribute("data-motion-mask") === "reveal" &&
+            (phase === "enter" || phase === "exit")
+          ) {
+            const last = findings.at(-1);
+            if (last) {
+              findings[findings.length - 1] = {
+                ...last,
+                intentionalReveal: true,
+              };
+            }
+          }
           break;
         }
       }

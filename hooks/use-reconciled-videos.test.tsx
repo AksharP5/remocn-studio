@@ -8,9 +8,11 @@ function message(compositions: readonly string[]): PreviewMessage {
   return {
     compositionId: compositions.at(0) ?? null,
     compositions,
+    metadata: null,
     reason: compositions.length === 0 ? "none" : "first",
     source: "remocn-preview",
     total: compositions.length,
+    trouble: null,
     type: "composition",
     unmeasured: false,
   };

@@ -21,7 +21,6 @@ export const MAX_VIDEO_SCENES = 24;
 export const MIN_VIDEO_STEP = 3;
 export const MAX_VIDEO_STEP = 15;
 export const BOUNDARY_GAP = 3;
-export const FROZEN_WARN_FRAMES = 90;
 export const FROZEN_INFO_FRAMES = 45;
 export const RHYTHM_MIN_SPREAD = 0.15;
 export const RHYTHM_MIN_SCENES = 3;
@@ -165,8 +164,8 @@ export function videoCheckError(
   if (durationInFrames < 2) {
     return "the whole-video check needs a composition of at least two frames";
   }
-  if (video.scenes.length < 2) {
-    return "the whole-video check needs at least two scenes; a single scene has no rhythm and no boundaries";
+  if (video.scenes.length === 0) {
+    return "the whole-video check needs at least one scene; a continuous shot can be one scene";
   }
   if (video.scenes.length > MAX_VIDEO_SCENES) {
     return `the whole-video check takes at most ${MAX_VIDEO_SCENES} scenes, and this map has ${video.scenes.length}`;
@@ -243,13 +242,14 @@ function rhythmFinding(
 
   return finding({
     code: "video_uniform_rhythm",
-    expected: `A spread above ${RHYTHM_MIN_SPREAD} across ${durations.length} scenes (motion-design rules/timing.md, duration-variance).`,
-    fix: "Give the video accents and rests by meaning rather than by the clock: shorten the beats that land and lengthen the ones that need reading, until the longest scene runs at least 1.5× the shortest.",
+    expected:
+      "Timing that supports the selected direction and reading windows; equal durations are valid.",
+    fix: "Compare the rendered event sequence with the brief and primary reference. Change durations only where an action or result needs more or less time.",
     frames: plan.interiors,
     message:
-      "The scene durations are nearly uniform, which is what makes a video read as a slideshow.",
+      "The declared scene durations are nearly uniform; this does not measure the beats within each shot.",
     observed: `${durations.length} scenes of ${durations.join(", ")} frames — spread ${round2(spread)}, longest/shortest ${round2(ratio)}×.`,
-    severity: "warning",
+    severity: "info",
   });
 }
 
@@ -271,10 +271,11 @@ function accentFinding(
 
   return finding({
     code: "video_no_accent",
-    expected: `At least one scene under ${ACCENT_SECONDS}s (${Math.round(ceiling)} frames) among ${durations.length} scenes.`,
-    fix: "Spend one short accent scene per four or five: a single image, a single number, a single word, cut before it settles.",
+    expected:
+      "Accents appropriate to the selected direction; a short cut is optional.",
+    fix: "If the brief needs an accent, inspect whether an event within a shot already supplies it. Keep longer shots when they support comprehension.",
     frames: plan.interiors,
-    message: "No scene is short enough to read as an accent.",
+    message: `No declared scene is shorter than ${ACCENT_SECONDS}s; accents may occur within shots.`,
     observed: `The shortest of ${durations.length} scenes runs ${shortest} frames (${round2(shortest / fps)}s).`,
     severity: "info",
   });
@@ -332,12 +333,13 @@ function frozenFinding(
 
   return finding({
     code: "video_frozen_run",
-    expected: `No run of identical sampled frames longer than ${FROZEN_INFO_FRAMES} frames outside the final hold (motion-design rules/alive.md, dead-frame-run).`,
-    fix: "Give that stretch a living layer: an ambient drift on the background, a breathe on the hero, a slow parallax on the decoration — or cut it shorter.",
+    expected:
+      "The intended action or reading hold; unchanged samples alone do not establish a defect.",
+    fix: "Inspect this interval against the promised behavior. Keep a readable hold; if a required action is missing, fix its timing or frame-driven implementation.",
     frames: [held.from, held.to],
     message: `Nothing in the frame changed for ${span} frames.`,
     observed: `Every sampled frame from ${held.from} to ${held.to} carried the same fingerprint.`,
-    severity: span >= FROZEN_WARN_FRAMES ? "warning" : "info",
+    severity: "info",
   });
 }
 
@@ -346,6 +348,9 @@ function boundaryFindings(
   plan: VideoPlan,
   samples: ReadonlyMap<number, VideoSample>
 ): DesignFinding[] {
+  if (plan.boundaries.length === 0) {
+    return [];
+  }
   const tagged = [...samples.values()].some((sample) => sample.ids.length > 0);
   if (!tagged) {
     return [
@@ -395,12 +400,13 @@ function boundaryFindings(
   return [
     finding({
       code: "video_boundary_dead",
-      expected: `At most half of the ${plan.boundaries.length} scene changes with nothing alive across them (motion-design rules/continuity.md, boundary-dead).`,
-      fix: "Carry something across each dead boundary: let the outgoing element finish leaving while the next arrives, keep one background field mounted above the Series, or run the camera through the cut.",
+      expected:
+        "Understandable shot relationships; cuts to a new subject need no shared element.",
+      fix: "Inspect these cuts against the intended relationship. For a promised shared-object handoff, verify geometry and ownership. A persistent background or matching id alone does not prove visual continuity.",
       frames: dead.flatMap(({ left, right }) => [left, right]),
-      message: `${dead.length} of ${plan.boundaries.length} scene changes are "everything out, then everything in", which is the definition of a slideshow.`,
-      observed: `No element was visible on both sides of: ${named}${dead.length > 6 ? `, and ${dead.length - 6} more` : ""}.`,
-      severity: "warning",
+      message: `${dead.length} of ${plan.boundaries.length} declared boundaries have no shared visible design id in the sampled frames.`,
+      observed: `No matching visible design id on both sampled sides of: ${named}${dead.length > 6 ? `, and ${dead.length - 6} more` : ""}.`,
+      severity: "info",
     }),
   ];
 }
@@ -411,18 +417,7 @@ function cameraFindings(
   samples: ReadonlyMap<number, VideoSample>
 ): DesignFinding[] {
   if (video.camera === null) {
-    return [
-      finding({
-        code: "video_static_camera",
-        expected:
-          "A declared camera for a video of more than one scene, or a locked-off frame you can name as a choice.",
-        fix: "Wrap scenes with more than one visual plane in a camera whose transform is keyed to something happening in them, give it a data-design-id, and declare it here — or say in one line why this video is locked off.",
-        frames: plan.interiors,
-        message: "No camera was declared for this video.",
-        observed: `The scene map named ${video.scenes.length} scenes and no camera.`,
-        severity: "info",
-      }),
-    ];
+    return [];
   }
 
   const seen = plan.timeline.flatMap((frame) => {
@@ -456,8 +451,8 @@ function cameraFindings(
     finding({
       code: "video_static_camera",
       expected:
-        "The declared camera moving in at least one scene (motion-design rules/camera.md, static-scene-container).",
-      fix: "Give one scene a motivated move — follow an entering element, concentrate on the focal subject, reveal the next block — and let it settle before the cut.",
+        "Framing that supports the intended subject; a locked camera is valid.",
+      fix: "Compare the framing with the intended shot. Keep the locked view when it shows the subject; investigate timing or the selector only if a camera move was promised.",
       frames: [...plan.timeline],
       message: "The declared camera never moves.",
       observed: `${video.camera} held the same transform and box across all ${plan.timeline.length} sampled frames.`,

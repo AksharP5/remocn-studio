@@ -22,6 +22,7 @@
       "!!agent/skills",
       // Vendored remocn registry components; same story via `remocn:check`.
       "!!remocn",
+      "!!test/fixtures",
       // A copy of the landing's welcome composition, synced by hand until it
       // is published to the registry. Formatting it would turn every sync into
       // a merge.

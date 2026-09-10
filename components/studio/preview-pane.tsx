@@ -128,7 +128,12 @@ function PreviewActions({ isDocs, tools }: { isDocs: boolean; tools: Tools }) {
   const { preview, restart } = tools.preview;
 
   if (isDocs) {
-    return <ExportButton exporting={exporting} />;
+    return (
+      <ExportButton
+        composition={tools.preview.composition}
+        exporting={exporting}
+      />
+    );
   }
 
   return (
@@ -173,7 +178,10 @@ function PreviewActions({ isDocs, tools }: { isDocs: boolean; tools: Tools }) {
         )}
         Snapshot
       </Button>
-      <ExportButton exporting={exporting} />
+      <ExportButton
+        composition={tools.preview.composition}
+        exporting={exporting}
+      />
     </>
   );
 }
@@ -200,6 +208,7 @@ function StatusSlot({
     snapshot.status === null &&
     exporting.result === null &&
     exporting.trouble === null &&
+    exporting.notices.length === 0 &&
     hint === null;
 
   return (
@@ -242,6 +251,16 @@ function StatusSlot({
           </Button>
         </div>
       )}
+
+      {exporting.notices.map((notice) => (
+        <p
+          className="shrink-0 text-center text-muted-foreground text-xs [overflow-wrap:anywhere]"
+          key={notice}
+          role="status"
+        >
+          {notice}
+        </p>
+      ))}
 
       {exporting.trouble === null ? null : (
         <pre

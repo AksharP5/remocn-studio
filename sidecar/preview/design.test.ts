@@ -148,7 +148,7 @@ describe("finishDesignResult", () => {
     expect(result.findings[0]?.severity).toBe("info");
   });
 
-  it("warns only when every sampled fingerprint is identical", () => {
+  it("reports unchanged samples as information without assuming a missing action", () => {
     const frozen = finishDesignResult({
       assertions: [],
       audits: [
@@ -181,7 +181,7 @@ describe("finishDesignResult", () => {
     expect(frozen.findings[0]).toMatchObject({
       code: "timeline_static",
       frames: [30, 90],
-      severity: "warning",
+      severity: "info",
     });
     expect(moving.findings).toEqual([]);
   });

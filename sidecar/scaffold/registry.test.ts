@@ -126,6 +126,21 @@ describe("ensureRegistry", () => {
     expect(await readFile(join(root, "src", "Root.tsx"), "utf8")).toBe(before);
   });
 
+  it("installs motion foundations in an existing project and preserves authored copies", async () => {
+    const root = await project();
+    const timing = join(root, "src/lib/studio-motion-v1/timing.ts");
+    await run(ensureRegistry(root));
+    expect(await readFile(timing, "utf8")).toBe(
+      await readFile(
+        join(TEMPLATE, "src/lib/studio-motion-v1/timing.ts"),
+        "utf8"
+      )
+    );
+    await writeFile(timing, "// authored motion\n");
+    await run(ensureRegistry(root));
+    expect(await readFile(timing, "utf8")).toBe("// authored motion\n");
+  });
+
   it("is safe to run twice", async () => {
     const root = await project();
 
@@ -135,6 +150,23 @@ describe("ensureRegistry", () => {
 
     expect(again.wrapped).toBe(false);
     expect(await readFile(join(root, "src", "index.ts"), "utf8")).toBe(once);
+  });
+
+  it("installs v2 alongside an authored v1 and preserves authored v2 on reopen", async () => {
+    const root = await project();
+    await run(ensureRegistry(root));
+    const v1 = join(root, "src/lib/studio-motion-v1/timing.ts");
+    const v2 = join(root, "src/lib/studio-motion-v2/timing.ts");
+    const shipped = await readFile(
+      join(TEMPLATE, "src/lib/studio-motion-v2/timing.ts"),
+      "utf8"
+    );
+    expect(await readFile(v2, "utf8")).toBe(shipped);
+    await writeFile(v1, "// authored v1\n");
+    await writeFile(v2, "// authored v2\n");
+    await run(ensureRegistry(root));
+    expect(await readFile(v1, "utf8")).toBe("// authored v1\n");
+    expect(await readFile(v2, "utf8")).toBe("// authored v2\n");
   });
 
   it("leaves a registry the project already has alone", async () => {

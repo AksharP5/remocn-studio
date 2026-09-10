@@ -2,15 +2,28 @@ import { randomBytes } from "node:crypto";
 import { mkdir, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { Effect } from "effect";
+import {
+  type CompositionSize,
+  type ExportSettings,
+  FORMAT_SPECS,
+  outputSize,
+  qualityFor,
+  scaleFor,
+} from "@/shared/export";
 import type { ExportEvent, Exported, ExportProgress } from "@/shared/ipc";
+import {
+  compatibleWith,
+  type Dropped,
+  optionsFor,
+  type ResolvedConfig,
+} from "./config";
+import { type RenderContext, UNKNOWN_CONTEXT } from "./failure";
 import { type Measured, PreviewError, type RenderOptions } from "./project";
 import {
   type CompositionCache,
   DELAY_RENDER_TIMEOUT_MS,
   type Renderer,
-  readyBrowser,
-  renderError,
-  slug,
+  renderErrorFor,
   warmComposition,
 } from "./still";
 
@@ -58,14 +71,70 @@ export interface Exporter {
   renderMedia: (options: RenderMediaOptions) => Promise<unknown>;
 }
 
+export interface RenderPlan {
+  readonly codec: string;
+  readonly crf: number | null;
+  readonly extra: Record<string, unknown>;
+  readonly outputPath: string;
+  readonly proResProfile: string | null;
+  readonly scale: number;
+}
+
 export interface ExportInput {
-  cache: CompositionCache;
   composition: string;
+  context?: RenderContext;
+  measured: Measured;
   onEvent: (event: ExportEvent) => void;
   options: RenderOptions;
+  plan: RenderPlan;
   renderer: Exporter & Renderer;
-  root: string;
   serveUrl: string;
+}
+
+// Everything the plan decides itself, so a value the project configured for
+// the same thing cannot arrive beside it. `crf` and `proResProfile` leave only
+// when the person picked a quality: on "Project default" the project's own is
+// exactly what should go.
+const SET_BY_PLAN = ["scale", "codec"];
+
+export function planFor(input: {
+  config: ResolvedConfig;
+  outputPath: string;
+  settings: ExportSettings;
+  size: CompositionSize;
+}): { dropped: readonly Dropped[]; plan: RenderPlan } {
+  const { codec } = FORMAT_SPECS[input.settings.format];
+  const picked = qualityFor(input.settings.format, input.settings.quality);
+  const scale = scaleFor(input.settings.resolution, input.size);
+
+  const fromProject = compatibleWith(codec, optionsFor(input.config, "media"));
+
+  const ours = new Set(SET_BY_PLAN);
+
+  if (picked.crf !== null) {
+    ours.add("crf");
+    ours.add("videoBitrate");
+  }
+
+  if (picked.proResProfile !== null) {
+    ours.add("proResProfile");
+  }
+
+  const extra = Object.fromEntries(
+    Object.entries(fromProject.options).filter(([name]) => !ours.has(name))
+  );
+
+  return {
+    dropped: fromProject.dropped,
+    plan: {
+      codec,
+      crf: picked.crf,
+      extra,
+      outputPath: input.outputPath,
+      proResProfile: picked.proResProfile,
+      scale,
+    },
+  };
 }
 
 export function exporterOf(
@@ -91,62 +160,81 @@ export function exporterOf(
 export function exportMedia(
   input: ExportInput
 ): Effect.Effect<Exported, PreviewError> {
+  const context = input.context ?? UNKNOWN_CONTEXT;
+  const failed = renderErrorFor(context);
+
   return Effect.gen(function* () {
-    yield* readyBrowser({
-      onEvent: input.onEvent,
-      options: input.options,
-      renderer: input.renderer,
-    });
+    yield* Effect.sync(() =>
+      input.onEvent({ stage: "rendering", type: "stage" })
+    );
 
-    const measured = yield* warmComposition({
-      cache: input.cache,
-      composition: input.composition,
-      options: input.options,
-      renderer: input.renderer,
-      serveUrl: input.serveUrl,
-    });
-
-    const stem = slug(input.composition);
-    const folder = path.join(input.root, OUT_DIR);
-    const output = path.join(folder, `${stem}${EXTENSION}`);
+    const { measured } = input;
+    const output = input.plan.outputPath;
+    const folder = path.dirname(output);
+    const stem = path.basename(output, path.extname(output));
     const partial = path.join(
       folder,
-      `.${stem}-${randomBytes(4).toString("hex")}${EXTENSION}`
+      `.${stem}-${randomBytes(4).toString("hex")}${path.extname(output)}`
     );
 
     yield* Effect.acquireRelease(
       Effect.tryPromise({
-        catch: renderError,
+        catch: failed,
         try: () => mkdir(folder, { recursive: true }),
       }),
       () => Effect.ignore(Effect.promise(() => rm(partial, { force: true })))
     );
 
-    yield* render(input, measured, partial);
+    yield* render(input, measured, partial, context);
+
+    yield* Effect.sync(() =>
+      input.onEvent({ stage: "finalizing", type: "stage" })
+    );
 
     yield* Effect.tryPromise({
-      catch: renderError,
+      catch: failed,
       try: () => rename(partial, output),
     });
 
     const bytes = yield* Effect.tryPromise({
-      catch: renderError,
+      catch: failed,
       try: async () => (await stat(output)).size,
     });
 
-    return { bytes, path: output };
+    const size = outputSize({
+      format: formatOf(input.plan.codec),
+      scale: input.plan.scale,
+      size: { height: measured.height, width: measured.width },
+    });
+
+    return {
+      bytes,
+      height: size.height,
+      path: output,
+      width: size.width,
+    };
   }).pipe(Effect.scoped);
+}
+
+function formatOf(codec: string) {
+  const found = Object.entries(FORMAT_SPECS).find(
+    ([, spec]) => spec.codec === codec
+  );
+
+  return (found?.[0] ?? "mp4") as keyof typeof FORMAT_SPECS;
 }
 
 function render(
   input: ExportInput,
   measured: Measured,
   output: string,
+  context: RenderContext,
   extra: Partial<RenderMediaOptions> = {}
 ): Effect.Effect<void, PreviewError> {
   const { chromeMode, chromiumOptions } = input.options;
   const timeoutInMilliseconds =
     input.options.timeoutInMilliseconds ?? DELAY_RENDER_TIMEOUT_MS;
+  const failed = renderErrorFor(context);
 
   return Effect.callback<void, PreviewError>((resume) => {
     let total = frameCountOf(measured);
@@ -154,10 +242,18 @@ function render(
 
     const settled = input.renderer
       .renderMedia({
+        ...input.plan.extra,
         ...(chromeMode === null ? {} : { chromeMode }),
+        ...(input.options.browserExecutable
+          ? { browserExecutable: input.options.browserExecutable }
+          : {}),
+        ...(input.plan.crf === null ? {} : { crf: input.plan.crf }),
+        ...(input.plan.proResProfile === null
+          ? {}
+          : { proResProfile: input.plan.proResProfile }),
         cancelSignal,
         chromiumOptions,
-        codec: CODEC,
+        codec: input.plan.codec,
         composition: measured,
         logLevel: LOG_LEVEL,
         onProgress: (progress) => input.onEvent(progressOf(progress, total)),
@@ -166,13 +262,14 @@ function render(
         },
         outputLocation: output,
         overwrite: true,
+        scale: input.plan.scale,
         serveUrl: input.serveUrl,
         timeoutInMilliseconds,
         ...extra,
       })
       .then(
         () => resume(Effect.void),
-        (cause: unknown) => resume(Effect.fail(renderError(cause)))
+        (cause: unknown) => resume(Effect.fail(failed(cause)))
       );
 
     return Effect.promise(() => {
@@ -189,6 +286,7 @@ const CLIPS_DIR = "clips";
 export interface ClipInput {
   cache: CompositionCache;
   composition: string;
+  context?: RenderContext;
   dir: string;
   frame: number;
   options: RenderOptions;
@@ -202,16 +300,14 @@ export interface ClipInput {
 export function clipMedia(
   input: ClipInput
 ): Effect.Effect<string, PreviewError> {
-  return Effect.gen(function* () {
-    yield* readyBrowser({
-      onEvent: () => undefined,
-      options: input.options,
-      renderer: input.renderer,
-    });
+  const context = input.context ?? UNKNOWN_CONTEXT;
+  const failed = renderErrorFor(context);
 
+  return Effect.gen(function* () {
     const measured = yield* warmComposition({
       cache: input.cache,
       composition: input.composition,
+      context,
       options: input.options,
       renderer: input.renderer,
       serveUrl: input.serveUrl,
@@ -220,7 +316,7 @@ export function clipMedia(
     const folder = path.join(input.dir, CLIPS_DIR);
 
     yield* Effect.tryPromise({
-      catch: renderError,
+      catch: failed,
       try: async () => {
         await rm(folder, { force: true, recursive: true });
         await mkdir(folder, { recursive: true });
@@ -243,17 +339,26 @@ export function clipMedia(
 
     yield* render(
       {
-        cache: input.cache,
         composition: input.composition,
+        context,
+        measured,
         onEvent: () => undefined,
         options: input.options,
+        plan: {
+          codec: CODEC,
+          crf: null,
+          extra: {},
+          outputPath: output,
+          proResProfile: null,
+          scale,
+        },
         renderer: input.renderer,
-        root: input.dir,
         serveUrl: input.serveUrl,
       },
       measured,
       output,
-      { frameRange: [start, Math.max(start, end)], scale }
+      context,
+      { frameRange: [start, Math.max(start, end)] }
     );
 
     return output;

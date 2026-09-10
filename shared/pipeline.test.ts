@@ -62,7 +62,7 @@ describe("the stage templates", () => {
     expect(brand.discover).not.toContain(VIDEO_TOKEN);
   });
 
-  it("substitutes a checklist, which only one stage has", () => {
+  it("substitutes the choreography checklist", () => {
     const choreography = resolveStage(stageTemplate("choreography"), "intro");
 
     for (const item of choreography.checklist ?? []) {

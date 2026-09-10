@@ -4,7 +4,12 @@ import { Effect } from "effect";
 import { errorMessage } from "@/lib/error-message";
 import { TEMPLATE_DIR_ENV } from "@/shared/ipc";
 import { ENTRY_CANDIDATES, remotionRootOf } from "../preview/project";
-import { REGISTRY_TEMPLATE, ScaffoldError, VIDEOS_DIR } from "./template";
+import {
+  copyInto,
+  REGISTRY_TEMPLATE,
+  ScaffoldError,
+  VIDEOS_DIR,
+} from "./template";
 
 export const REGISTRY_FILE = "registry.tsx";
 export const REGISTRY_EXPORT = "withVideos";
@@ -49,6 +54,19 @@ export function ensureRegistry(
 }
 
 async function install(source: string, root: string): Promise<Registered> {
+  // Versioned, owned resources also reach projects opened before this release.
+  // copyInto preserves authored copies, so opening a project cannot change its film.
+  await Promise.all(
+    ["studio-motion-v1", "studio-motion-v2"].map((version) => {
+      const motion = join("src", "lib", version);
+      return copyInto(
+        join(source, motion),
+        join(root, motion),
+        () => null,
+        () => false
+      );
+    })
+  );
   const videos = join(root, "src", VIDEOS_DIR);
   const registry = join(videos, REGISTRY_FILE);
 

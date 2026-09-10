@@ -2,18 +2,42 @@ import { describe, expect, it, mock } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ExportButton } from "@/components/studio/export-button";
 import type { Exporting } from "@/hooks/use-export";
+import { DEFAULT_EXPORT_SETTINGS, reviewExport } from "@/shared/export";
 
 function exporting(overrides: Partial<Exporting> = {}): Exporting {
   return {
     brief: null,
     cancel: () => undefined,
     canExport: true,
+    choose: () => undefined,
+    chooseFolder: () => undefined,
+    chooseFormat: () => undefined,
+    choosePreset: () => undefined,
+    chooseQuality: () => undefined,
+    chooseResolution: () => undefined,
+    close: () => undefined,
+    duration: "00:10",
+    fileName: "Main.mp4",
+    folder: "out",
+    isOpen: false,
     isRunning: false,
+    notices: [],
+    open: () => undefined,
+    pending: 0,
     percent: null,
+    rename: () => undefined,
+    render: () => undefined,
     result: null,
     reveal: () => Promise.resolve(),
+    review: reviewExport(DEFAULT_EXPORT_SETTINGS, {
+      height: 1080,
+      width: 1920,
+    }),
+    settings: DEFAULT_EXPORT_SETTINGS,
+    size: { height: 1080, width: 1920 },
     start: () => undefined,
     status: null,
+    target: "/Users/me/scenes/out/Main.mp4",
     trouble: null,
     unavailable: null,
     ...overrides,
@@ -21,17 +45,19 @@ function exporting(overrides: Partial<Exporting> = {}): Exporting {
 }
 
 describe("ExportButton", () => {
-  it("starts the export when idle", () => {
-    const start = mock();
-    render(<ExportButton exporting={exporting({ start })} />);
+  it("opens the dialog rather than rendering on the spot", () => {
+    const open = mock();
+    const render_ = mock();
+    render(<ExportButton exporting={exporting({ open, render: render_ })} />);
 
     const button = screen.getByRole("button", { name: "Export" });
     expect(button).toHaveAttribute(
       "title",
-      "Render this composition into out/"
+      "Pick a format and a place to save, then render"
     );
     fireEvent.click(button);
-    expect(start).toHaveBeenCalledTimes(1);
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(render_).toHaveBeenCalledTimes(0);
   });
 
   it("says why it is unavailable rather than disappearing", () => {

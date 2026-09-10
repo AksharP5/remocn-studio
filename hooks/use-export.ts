@@ -3,15 +3,39 @@
 import { Effect, type Exit, Fiber } from "effect";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRevealInFinder } from "@/hooks/use-reveal-in-finder";
+import type { Selection } from "@/hooks/use-selections";
 import { causeMessage } from "@/lib/error-message";
 import {
   type ExportBrief,
   exportBrief,
   exportPercent,
   exportStatus,
+  folderLabel,
+  pendingEdits,
   renderExport,
+  targetPath,
 } from "@/lib/studio/export";
+import type { PreviewMetadata } from "@/lib/studio/preview";
+import { readExportSettings, saveExportSettings } from "@/lib/studio/settings";
+import { pickFolder } from "@/lib/studio/shell";
 import type { SidecarError } from "@/lib/studio/sidecar";
+import { clipTime } from "@/lib/studio/time";
+import {
+  type CompositionSize,
+  changeSettings,
+  DEFAULT_EXPORT_SETTINGS,
+  EXPORT_FORMATS,
+  EXPORT_PRESETS,
+  EXPORT_QUALITIES,
+  EXPORT_RESOLUTIONS,
+  type ExportReview,
+  type ExportSettings,
+  FORMAT_SPECS,
+  presetSettings,
+  reviewExport,
+  stemOf,
+  typedName,
+} from "@/shared/export";
 import type { ExportEvent, Exported } from "@/shared/ipc";
 
 // The result belongs to a video, not to a project: with several videos in one
@@ -21,6 +45,7 @@ export type ExportState =
   | {
       composition: string;
       event: ExportEvent | null;
+      notices: readonly string[];
       phase: "running";
       projectId: string;
     }
@@ -42,34 +67,66 @@ export interface Exporting {
   brief: ExportBrief | null;
   cancel: () => void;
   canExport: boolean;
+  choose: (patch: Partial<Omit<ExportSettings, "preset">>) => void;
+  chooseFolder: () => void;
+  chooseFormat: (value: unknown) => void;
+  choosePreset: (value: unknown) => void;
+  chooseQuality: (value: unknown) => void;
+  chooseResolution: (value: unknown) => void;
+  close: () => void;
+  duration: string | null;
+  fileName: string;
+  folder: string;
+  isOpen: boolean;
   isRunning: boolean;
+  notices: readonly string[];
+  open: () => void;
+  pending: number;
   percent: number | null;
+  rename: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  render: () => void;
   result: Exported | null;
   reveal: () => Promise<void>;
+  review: ExportReview;
+  settings: ExportSettings;
+  size: CompositionSize;
   start: () => void;
   status: string | null;
+  target: string;
   trouble: string | null;
   unavailable: string | null;
 }
 
-export interface ExportSettings {
+export interface ExportOptions {
   composition: string | null;
   isServing: boolean;
+  metadata?: PreviewMetadata | null;
   openedProjectId: string | null;
+  pick?: typeof pickFolder;
   projectId: string | null;
   projectPath?: string;
+  selections?: readonly Selection[];
 }
 
 const IDLE: ExportState = { phase: "idle" };
 
+const NO_SIZE: CompositionSize = { height: 0, width: 0 };
+
 export function useExport({
   composition,
   isServing,
+  metadata = null,
   openedProjectId,
+  pick = pickFolder,
   projectId,
   projectPath,
-}: ExportSettings): Exporting {
+  selections = [],
+}: ExportOptions): Exporting {
   const [state, setState] = useState<ExportState>(IDLE);
+  const [isOpen, setIsOpen] = useState(false);
+  const [settings, setSettings] = useState<ExportSettings>(
+    DEFAULT_EXPORT_SETTINGS
+  );
   const previousLocation = useRef({ projectId, projectPath });
   useEffect(() => {
     const previous = previousLocation.current;
@@ -114,45 +171,215 @@ export function useExport({
   const result = mine?.phase === "done" ? mine.exported : null;
   const { error, reveal } = useRevealInFinder(result?.path ?? null);
 
+  const size = useMemo(
+    () =>
+      metadata === null
+        ? NO_SIZE
+        : { height: metadata.height, width: metadata.width },
+    [metadata]
+  );
+
+  const pending = useMemo(() => pendingEdits(selections), [selections]);
+
   const unavailable = unavailableOf({
     busyElsewhere: state.phase === "running" && mine === null,
     composition,
     isServing,
     openedProjectId,
+    pending,
     projectId,
   });
 
-  const start = useCallback(() => {
+  const review = useMemo(() => reviewExport(settings, size), [settings, size]);
+
+  // The stem the person typed, if they typed one. Leaving it null is what lets
+  // the name follow the preset and the format: pick YouTube and the file
+  // becomes `Intro-youtube.mp4` without anyone editing anything.
+  const [stem, setStem] = useState<string | null>(null);
+  const [folder, setFolder] = useState<string | null>(null);
+
+  const fileName = `${stem ?? stemOf({ composition: composition ?? "video", preset: settings.preset })}.${FORMAT_SPECS[settings.format].extension}`;
+
+  const target = useMemo(
+    () => targetPath({ fileName, folder, root: projectPath ?? null }),
+    [fileName, folder, projectPath]
+  );
+
+  const shown = useMemo(
+    () => folderLabel(folder, projectPath ?? null),
+    [folder, projectPath]
+  );
+
+  // What no control on the dialog says, so the summary is a reading of the
+  // result rather than a restatement of the pills above it.
+  const duration = useMemo(
+    () =>
+      metadata === null || metadata.fps <= 0
+        ? null
+        : clipTime(metadata.durationInFrames / metadata.fps),
+    [metadata]
+  );
+
+  const open = useCallback(() => {
+    if (unavailable !== null || projectId === null) {
+      return;
+    }
+
+    const remembered = readExportSettings(projectId);
+
+    setSettings(
+      remembered === null ? DEFAULT_EXPORT_SETTINGS : remembered.settings
+    );
+    setFolder(remembered?.folder ?? null);
+    setStem(null);
+    setIsOpen(true);
+  }, [projectId, unavailable]);
+
+  const rename = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    setStem(typedName(event.currentTarget.value));
+  }, []);
+
+  const chooseFolder = useCallback(() => {
+    Effect.runFork(
+      pick("Choose where to save the video").pipe(
+        Effect.catch(() => Effect.succeed(null)),
+        Effect.tap((picked) =>
+          Effect.sync(() => {
+            if (picked !== null) {
+              setFolder(picked);
+            }
+          })
+        )
+      )
+    );
+  }, [pick]);
+
+  const close = useCallback(() => setIsOpen(false), []);
+
+  const choose = useCallback(
+    (patch: Partial<Omit<ExportSettings, "preset">>) =>
+      setSettings((current) => changeSettings(current, patch)),
+    []
+  );
+
+  const choosePreset = useCallback((value: unknown) => {
+    if (!oneOf(EXPORT_PRESETS, value)) {
+      return;
+    }
+
+    setSettings((current) =>
+      value === "custom" ? { ...current, preset: value } : presetSettings(value)
+    );
+  }, []);
+
+  const chooseFormat = useCallback(
+    (value: unknown) => {
+      if (oneOf(EXPORT_FORMATS, value)) {
+        choose({ format: value });
+      }
+    },
+    [choose]
+  );
+
+  const chooseQuality = useCallback(
+    (value: unknown) => {
+      if (oneOf(EXPORT_QUALITIES, value)) {
+        choose({ quality: value });
+      }
+    },
+    [choose]
+  );
+
+  const chooseResolution = useCallback(
+    (value: unknown) => {
+      if (oneOf(EXPORT_RESOLUTIONS, value)) {
+        choose({ resolution: value });
+      }
+    },
+    [choose]
+  );
+
+  const launch = useCallback(
+    (outputPath: string | null, chosen: ExportSettings) => {
+      if (projectId === null || composition === null) {
+        return;
+      }
+
+      setState({
+        composition,
+        event: null,
+        notices: [],
+        phase: "running",
+        projectId,
+      });
+
+      const shipping = renderExport(
+        {
+          composition,
+          format: chosen.format,
+          outputPath,
+          preset: chosen.preset,
+          projectId,
+          quality: chosen.quality,
+          resolution: chosen.resolution,
+        },
+        (event) =>
+          setState((current) =>
+            current.phase === "running" &&
+            current.projectId === projectId &&
+            current.composition === composition
+              ? folded(current, event)
+              : current
+          )
+      ).pipe(
+        Effect.onExit((exit) =>
+          Effect.sync(() => {
+            inflight.current = null;
+            setState(settled(exit, projectId, composition));
+          })
+        )
+      );
+
+      inflight.current = Effect.runFork(shipping);
+    },
+    [composition, projectId]
+  );
+
+  const render = useCallback(() => {
     if (
       unavailable !== null ||
       inflight.current !== null ||
       projectId === null ||
-      composition === null
+      composition === null ||
+      review.problems.length > 0
     ) {
       return;
     }
 
-    setState({ composition, event: null, phase: "running", projectId });
+    setIsOpen(false);
 
-    const shipping = renderExport({ composition, projectId }, (event) =>
-      setState((current) =>
-        current.phase === "running" &&
-        current.projectId === projectId &&
-        current.composition === composition
-          ? { composition, event, phase: "running", projectId }
-          : current
-      )
-    ).pipe(
-      Effect.onExit((exit) =>
-        Effect.sync(() => {
-          inflight.current = null;
-          setState(settled(exit, projectId, composition));
-        })
-      )
-    );
+    Effect.runFork(saveExportSettings(projectId, { folder, settings }));
 
-    inflight.current = Effect.runFork(shipping);
-  }, [composition, projectId, unavailable]);
+    launch(target, settings);
+  }, [
+    composition,
+    folder,
+    launch,
+    projectId,
+    review.problems.length,
+    settings,
+    target,
+    unavailable,
+  ]);
+
+  const start = useCallback(() => {
+    if (isOpen) {
+      render();
+      return;
+    }
+
+    open();
+  }, [isOpen, open, render]);
 
   useEffect(() => cancel, [cancel]);
 
@@ -161,17 +388,82 @@ export function useExport({
       brief: mine?.phase === "running" ? exportBrief(mine.event) : null,
       cancel,
       canExport: unavailable === null,
+      choose,
+      chooseFolder,
+      chooseFormat,
+      choosePreset,
+      chooseQuality,
+      chooseResolution,
+      close,
+      duration,
+      fileName,
+      folder: shown,
+      isOpen,
       isRunning: mine?.phase === "running",
+      notices: mine?.phase === "running" ? mine.notices : [],
+      open,
+      pending,
       percent: mine?.phase === "running" ? exportPercent(mine.event) : null,
+      rename,
+      render,
       result,
       reveal,
+      review,
+      settings,
+      size,
       start,
       status: mine?.phase === "running" ? exportStatus(mine.event) : null,
+      target,
       trouble: (mine?.phase === "failed" ? mine.message : null) ?? error,
       unavailable,
     }),
-    [cancel, error, mine, result, reveal, start, unavailable]
+    [
+      cancel,
+      choose,
+      chooseFolder,
+      chooseFormat,
+      choosePreset,
+      chooseQuality,
+      chooseResolution,
+      close,
+      duration,
+      error,
+      fileName,
+      isOpen,
+      mine,
+      open,
+      pending,
+      rename,
+      render,
+      result,
+      reveal,
+      review,
+      settings,
+      shown,
+      size,
+      start,
+      target,
+      unavailable,
+    ]
   );
+}
+
+function oneOf<T extends string>(
+  allowed: readonly T[],
+  value: unknown
+): value is T {
+  return (
+    typeof value === "string" && (allowed as readonly string[]).includes(value)
+  );
+}
+
+function folded(
+  current: Extract<ExportState, { phase: "running" }>,
+  event: ExportEvent
+): ExportState {
+  return event.type === "notice"
+    ? { ...current, notices: [...current.notices, event.message] }
+    : { ...current, event };
 }
 
 function ownedBy(
@@ -202,11 +494,18 @@ function settled(
     : { composition, message, phase: "failed", projectId };
 }
 
+export function pendingEditsReason(count: number): string {
+  const named = count === 1 ? "an element change" : `${count} element changes`;
+
+  return `The composer is holding ${named} that are not in the code yet. Send the message, or take the chip off, and the export will match what you are looking at.`;
+}
+
 function unavailableOf(state: {
   busyElsewhere: boolean;
   composition: string | null;
   isServing: boolean;
   openedProjectId: string | null;
+  pending: number;
   projectId: string | null;
 }): string | null {
   if (state.projectId === null) {
@@ -229,6 +528,9 @@ function unavailableOf(state: {
   }
   if (state.composition === null) {
     return "There is no composition to export.";
+  }
+  if (state.pending > 0) {
+    return pendingEditsReason(state.pending);
   }
   return null;
 }

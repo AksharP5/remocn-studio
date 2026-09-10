@@ -1,0 +1,74 @@
+{
+  "runId": "2026-09-10T09-36-07-011Z",
+  "sources": [
+    {
+      "path": "scripts/motion-proof.ts",
+      "sha256": "3a13eb7050f665dc6c93bae945665e108bca493c55d021625667b524c91b1df2"
+    },
+    {
+      "path": "templates/motion-proof/README.md",
+      "sha256": "91c0ed6fbe15fb469ed20d30b398e5b6eccd57234d5fb9821bbb2642e7baeaee"
+    },
+    {
+      "path": "templates/motion-proof/cases.ts",
+      "sha256": "de402c27a5491da28128f8d5384cd203d019ed402736ce7933b0d40972a26a4f"
+    },
+    {
+      "path": "templates/motion-proof/entry.tsx",
+      "sha256": "36e9386062edddffb96b758eb29f08b2942fd549a4bcd54f25d703628a60fc75"
+    },
+    {
+      "path": "templates/motion-proof/public/Manrope.ttf",
+      "sha256": "d0639be45d0af36e798172419d7bd173c4bd4f29e2b76cbb69db1d11bf8b0a40"
+    },
+    {
+      "path": "templates/motion-proof/public/photo-portrait.jpg",
+      "sha256": "a01236d4d6dad3172aa1095ee518013cb21deeb04bc2628f8e36f4432252b9b5"
+    },
+    {
+      "path": "templates/motion-proof/public/photo.jpg",
+      "sha256": "72b4f486fa4e24ba997a3c2d6f75fe94de9df0371e7edd86740e5c824e6587d8"
+    },
+    {
+      "path": "templates/motion-proof/render.ts",
+      "sha256": "ea3498475cbd3add3d8b1d37cd2e7a60335d5a24ee414253a1d6a33690ac1364"
+    },
+    {
+      "path": "templates/remotion/package.json",
+      "sha256": "5139132eeb5a8380803c218bbf7cc88d04eb3b719d297d9c4fc9a3c7286fe788"
+    },
+    {
+      "path": "templates/remotion/src/lib/studio-motion-v1/README.md",
+      "sha256": "31e6ccfe39f0612c54c945edce264ea88d06e276a6bcb7eb015367463202053f"
+    },
+    {
+      "path": "templates/remotion/src/lib/studio-motion-v1/controls.ts",
+      "sha256": "a4b9f97108ffc094e0b2970420e788d948b4d02c1cafc757ed7591156743565a"
+    },
+    {
+      "path": "templates/remotion/src/lib/studio-motion-v1/index.ts",
+      "sha256": "0fb9cceb16c012df237bdff0cacf242e2bbb3c3444a749cacc3ca9fffd4fd8e0"
+    },
+    {
+      "path": "templates/remotion/src/lib/studio-motion-v1/motion.ts",
+      "sha256": "637f23322c44e97453e1144614988ab6a5d9b90428ca02e1493aed367c728c9c"
+    },
+    {
+      "path": "templates/remotion/src/lib/studio-motion-v1/plans.ts",
+      "sha256": "5e4ee562e7efd96f4079457cfe97428740739bf5b67c6a2ff65aa3c98a4a28f2"
+    },
+    {
+      "path": "templates/remotion/src/lib/studio-motion-v1/recipes.tsx",
+      "sha256": "7cba5f815ba079a38f59be4036cf2e36384d459e43c13ecc1f4345a97bc161a2"
+    },
+    {
+      "path": "templates/remotion/src/lib/studio-motion-v1/text.tsx",
+      "sha256": "dcacf8af39dd6142597a9d1c0339dd47aa65387d8a7cb90e26273da245277bb1"
+    },
+    {
+      "path": "templates/remotion/src/lib/studio-motion-v1/timing.ts",
+      "sha256": "74f756128f6d28bd97486cdde81ad2e392272656eedf2cf6ca5fb954d6938be5"
+    }
+  ],
+  "workspace": "/var/folders/6l/4d1rvckj03j932hd1089f77h0000gn/T/remocn-motion-proof-aul8JF"
+}

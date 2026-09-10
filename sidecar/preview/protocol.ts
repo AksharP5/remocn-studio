@@ -6,6 +6,10 @@ import {
   CodeWritten,
   ExportEvent,
   Exported,
+  ExportFormat,
+  ExportPreset,
+  ExportQuality,
+  ExportResolution,
   Still,
   StillEvent,
   VideoConfigValues,
@@ -30,7 +34,12 @@ export const HostCommand = Schema.Union([
   }),
   Schema.Struct({
     composition: Schema.NonEmptyString,
+    format: ExportFormat,
     id: Schema.NonEmptyString,
+    outputPath: Schema.NullOr(Schema.NonEmptyString),
+    preset: ExportPreset,
+    quality: ExportQuality,
+    resolution: ExportResolution,
     type: Schema.Literal("export"),
   }),
   Schema.Struct({

@@ -89,20 +89,12 @@ describe("conventionsFor", () => {
     expect(text).not.toContain(`${BUNDLE_NAME}:${INTERACTIVITY_SKILL}`);
   });
 
-  it("says the lessons outrank a general Remotion habit", () => {
-    expect(conventionsFor(true)).toContain("it wins");
-  });
-
   it("orders the interactivity skill by the name the bundle ships it under", () => {
     expect(conventionsFor(true)).toContain(MARKUP);
   });
 
   it("orders the motion-design skill by the name the bundle ships it under", () => {
     expect(conventionsFor(true)).toContain(MOTION);
-  });
-
-  it("says the lessons outrank the motion-design defaults", () => {
-    expect(conventionsFor(true)).toContain("the lessons win");
   });
 
   it("never orders a skill that is not loaded", () => {
@@ -134,20 +126,6 @@ describe("conventionsFor", () => {
 
     expect(named).toContain("`src/videos/opening-title/`");
     expect(conventionsFor(false)).not.toContain("Your video for this");
-  });
-
-  it("keeps the motion-design baseline even without bundled skills", () => {
-    for (const text of [conventionsFor(true), conventionsFor(false)]) {
-      const compact = text.replaceAll("\n", " ");
-
-      expect(compact).toContain("Unless the project's brand");
-      expect(compact).toContain("gradient text");
-      expect(compact).toContain("headings at least 64px");
-      expect(compact).toContain("body at least 28px");
-      expect(compact).toContain("background, midground and foreground");
-      expect(compact).toContain("two to five decorative elements");
-      expect(compact).toContain("shared slow motion");
-    }
   });
 
   it("requires a parameter schema with or without the plugin", () => {
@@ -240,12 +218,11 @@ describe("the movement taxonomy", () => {
     }
   });
 
-  it("says which props a role expects and that an exit mirrors its entry", () => {
+  it("says which props a movement role expects", () => {
     expect(STUDIO_CONVENTIONS).toContain("durationInFrames, delay, stagger");
     expect(STUDIO_CONVENTIONS).toContain("beat_cut");
     expect(STUDIO_CONVENTIONS).toContain("phrase_flow");
     expect(STUDIO_CONVENTIONS).toContain("intensity, repeat, delay");
-    expect(STUDIO_CONVENTIONS).toContain("exit mirrors the entry");
   });
 
   it("sends an invented behaviour to the library with its role", () => {
@@ -333,18 +310,6 @@ describe("the choreography stage", () => {
     }
   });
 
-  it("names the five things a slide-shaped video is missing", () => {
-    for (const word of [
-      "Rhythm.",
-      "Continuity.",
-      "Life after entry.",
-      "Order of arrival.",
-      "Camera.",
-    ]) {
-      expect(brief).toContain(word);
-    }
-  });
-
   it("sends the agent to measure the whole video rather than read the code", () => {
     expect(brief).toContain("mcp__remocn-design__design_check");
     expect(brief).toContain("scene map");
@@ -353,18 +318,9 @@ describe("the choreography stage", () => {
   it("puts the checklist only on the stage that has one", () => {
     for (const stage of PIPELINE_STAGE_IDS) {
       const text = pipelineBrief([{ stage, status: "active" }]) ?? "";
-      const hasChecklist = text.includes(
-        "Work this checklist over the WHOLE video"
-      );
+      const hasChecklist = text.includes("Work this stage's checklist");
 
-      expect(hasChecklist).toBe(stage === "choreography");
+      expect(hasChecklist).toBe(stageTemplate(stage).checklist !== undefined);
     }
-  });
-
-  it("draws the camera rule where every turn reads it, not only the stage", () => {
-    expect(STUDIO_CONVENTIONS).toContain("runs inside a camera");
-    expect(STUDIO_CONVENTIONS).toContain(
-      "locked-off frame is a deliberate choice"
-    );
   });
 });

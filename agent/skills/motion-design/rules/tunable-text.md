@@ -238,9 +238,9 @@ export const Headline = Interactive.withSchema<
 
 Four things in that file are the whole lesson:
 
-- **The travel is on X.** `translate: "…px 0px"`, never a Y offset and never
-  `transform: translateY(…)` — `video-lessons` §2: text on Y snaps its glyph
-  baselines. Panels and images may travel on Y; words may not.
+- **This example travels on X.** Choose the axis for the intended gesture. If a
+  required text move produces jitter, reproduce it in the actual export and read
+  the text-rendering observations in `video-lessons`; there is no universal X-only rule.
 - **Opacity and the travel do not share a range.** The fade runs `[0, 8]`, the
   travel runs over `entryFrames`.
 - **`exitEasing` lives inside the `fade` variant.** A curve exists only where it

@@ -53,10 +53,12 @@ function only(
 }
 
 describe("videoCheckError", () => {
-  it("refuses a map with a single scene, which has no rhythm and no boundary", () => {
-    expect(videoCheckError(check([scene("one", 0, 90)]), 90)).toContain(
-      "at least two scenes"
-    );
+  it("accepts one continuous shot", () => {
+    expect(videoCheckError(check([scene("one", 0, 90)]), 90)).toBeNull();
+  });
+
+  it("refuses a map with no declared scene", () => {
+    expect(videoCheckError(check([]), 90)).toContain("at least one scene");
   });
 
   it("refuses a scene that ends past the composition", () => {
@@ -103,6 +105,46 @@ describe("videoCheckError", () => {
 });
 
 describe("videoPlan", () => {
+  it("samples a continuous title shot without requiring tags, cuts or a camera", () => {
+    const video = check([scene("title", 0, 180)]);
+    const plan = videoPlan(video, 180);
+    const findings = videoFindings({
+      fps: FPS,
+      plan,
+      samples: plan.frames.map((frame) =>
+        sample(frame, { fingerprint: "readable-title" })
+      ),
+      video,
+    });
+
+    expect(plan.timeline.at(0)).toBe(0);
+    expect(plan.timeline.at(-1)).toBe(179);
+    expect(plan.boundaries).toEqual([]);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({
+      code: "video_frozen_run",
+      severity: "info",
+    });
+  });
+
+  it("still reports a missing declared camera in a single shot", () => {
+    const video = check([scene("reveal", 0, 90)], "#camera");
+    const plan = videoPlan(video, 90);
+    const findings = videoFindings({
+      fps: FPS,
+      plan,
+      samples: plan.frames.map((frame) => sample(frame)),
+      video,
+    });
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({
+      code: "video_static_camera",
+      selector: "#camera",
+      severity: "warning",
+    });
+  });
+
   it("sweeps the timeline at the step and always ends on the last frame", () => {
     const plan = videoPlan(
       check([scene("a", 0, 60), scene("b", 60, 120)]),
@@ -200,7 +242,7 @@ describe("rhythm", () => {
     );
 
     expect(found).toHaveLength(1);
-    expect(found[0]?.severity).toBe("warning");
+    expect(found[0]?.severity).toBe("info");
   });
 
   it("says nothing when the durations already carry accents and rests", () => {
@@ -250,14 +292,14 @@ describe("frozen runs", () => {
   const sweep = (count: number) =>
     Array.from({ length: count }, (_, index) => index * 15);
 
-  it("warns about a stretch where nothing changed for three seconds", () => {
+  it("reports a three-second hold without treating it as a defect", () => {
     const timeline = sweep(9);
     const prints = ["a", "a", "a", "a", "a", "a", "a", "b", "c"];
 
     const found = findingsFor(timeline, prints);
 
     expect(found).toHaveLength(1);
-    expect(found[0]?.severity).toBe("warning");
+    expect(found[0]?.severity).toBe("info");
     expect(found[0]?.frames).toEqual([0, 90]);
   });
 
@@ -284,7 +326,7 @@ describe("frozen runs", () => {
     ).toHaveLength(0);
   });
 
-  it("does not forgive a video that never moves at all", () => {
+  it("reports an entirely still video as an observation", () => {
     const found = findingsFor(
       sweep(9),
       Array.from({ length: 9 }, () => "a")
@@ -325,7 +367,7 @@ describe("continuity", () => {
     );
 
     expect(found).toHaveLength(1);
-    expect(found[0]?.severity).toBe("warning");
+    expect(found[0]?.severity).toBe("info");
     expect(found[0]?.message).toContain("2 of 2");
   });
 
@@ -399,11 +441,8 @@ describe("camera", () => {
     );
   }
 
-  it("says a video declared no camera rather than assuming it was a decision", () => {
-    const found = findingsFor(null, () => null);
-
-    expect(found).toHaveLength(1);
-    expect(found[0]?.severity).toBe("info");
+  it("accepts a locked view with no declared camera", () => {
+    expect(findingsFor(null, () => null)).toHaveLength(0);
   });
 
   it("refuses to pass a camera selector that matched nothing", () => {

@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "agency",
+      "width": 1920,
+      "height": 1080,
+      "requiresAssets": true,
+      "prompt": "Create a 30-second introductory film for Wandry using the supplied brand materials and real case images in public/evaluation. Preserve its identity and show what the agency does through its work. The offer is brand design and web development. Audience: potential clients. English, usable without sound. Select and order the material yourself; make motion, reading and transitions feel finished. Do not invent client results or metrics."
+    },
+    {
+      "id": "type",
+      "width": 1080,
+      "height": 1920,
+      "requiresAssets": false,
+      "prompt": "Create a 12-second portrait typography film announcing a small creative gathering. Copy: 'Make room for an idea.' 'Bring a different perspective.' 'Let's make something together.' Use restrained black, warm white and one accent. No logo, statistics or extra labels are needed. Choose the movement and rhythm."
+    },
+    {
+      "id": "image-story",
+      "width": 1920,
+      "height": 1080,
+      "requiresAssets": false,
+      "prompt": "Create an 18-second landscape film about observing familiar places differently, using the photographs in public/evaluation. Audience: people interested in photography. Use short English copy and give the photographs room to carry the idea. Choose the framing, order and transitions. No invented location names or factual claims."
+    },
+    {
+      "id": "metric",
+      "width": 1920,
+      "height": 1080,
+      "requiresAssets": false,
+      "prompt": "Create a 10-second motion graphic for a project update. The supplied fact is 82 of 100 tasks completed. Show the number and what remains, then end with 'The next step is getting closer.' Choose a clear graphic treatment with readable timing. Do not invent a comparison, deadline or business result."
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { sourceRevision } from "./readiness";
@@ -184,6 +184,52 @@ describe("full readiness", () => {
     expect(rows[1]?.severity).toBe("info");
     expect(rows[0]?.id).not.toBe(rows[1]?.id);
   });
+  it("keeps intentional mask reveals separate from persistent held clipping", () => {
+    const rows = [0, 5, 10, 15, 20].map((frame) =>
+      sample(frame, "A short sentence", true)
+    );
+    const intentional = rows.map((row) => ({
+      ...row,
+      audit: {
+        ...row.audit,
+        findings: row.audit.findings.map((finding) => ({
+          ...finding,
+          intentionalReveal: true,
+        })),
+      },
+    }));
+    const inspect = (samples: AuditSample[]) =>
+      analyzeFrames(samples, 30, 640, 360, null, {}, 5).filter(
+        (finding) => finding.code === "text_clipped"
+      );
+    expect(
+      inspect(intentional).every(
+        (finding) =>
+          finding.category === "motion_reveal" && finding.severity === "info"
+      )
+    ).toBe(true);
+    expect(inspect(rows).some((finding) => finding.severity === "error")).toBe(
+      true
+    );
+    const followingHold = rows.map((row) => ({
+      ...row,
+      audit: {
+        ...row.audit,
+        findings: row.audit.findings.map((finding) => ({
+          ...finding,
+          frame: finding.frame + 25,
+        })),
+      },
+      frame: row.frame + 25,
+    }));
+    const mixed = inspect([...intentional, ...followingHold]);
+    expect(
+      mixed.find((finding) => finding.category === "text_bounds")?.severity
+    ).toBe("error");
+    expect(
+      mixed.find((finding) => finding.category === "motion_reveal")?.severity
+    ).toBe("info");
+  });
   it("requires explicit safe-zone selection and scales applied bounds", () => {
     expect(
       analyzeFrames([sample(0)], 30, 640, 360, null, {}, 5).some(
@@ -328,8 +374,27 @@ describe("full readiness", () => {
 });
 
 describe("saved readiness reports", () => {
+  it("keeps production notes out of the render identity while hashing actual video assets", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "readiness-notes-"));
+    try {
+      const video = path.join(root, "src/videos/example");
+      await mkdir(video, { recursive: true });
+      await writeFile(path.join(video, "index.tsx"), "original");
+      const before = await sourceRevision(root, {});
+      await mkdir(path.join(video, "docs"));
+      await writeFile(
+        path.join(video, "docs/review.md"),
+        "Reviewed this export"
+      );
+      expect(await sourceRevision(root, {})).toBe(before);
+      await mkdir(path.join(video, "assets"));
+      await writeFile(path.join(video, "assets/image.png"), "changed pixels");
+      expect(await sourceRevision(root, {})).not.toBe(before);
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
   it("reloads with stable settings ordering and invalidates old exceptions after an edit", async () => {
-    const { mkdir } = await import("node:fs/promises");
     const { readReadinessReport } = await import("./readiness");
     const root = await mkdtemp(path.join(tmpdir(), "readiness-report-"));
     const id = "00000000-0000-4000-8000-000000000001";

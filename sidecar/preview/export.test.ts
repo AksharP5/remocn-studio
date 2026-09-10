@@ -11,20 +11,20 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { Effect, Exit, Fiber } from "effect";
 import type { ExportEvent } from "@/shared/ipc";
+import { EMPTY_CONFIG } from "./config";
 import {
   CODEC,
   type Exporter,
   exporterOf,
   exportMedia,
   OUT_DIR,
+  planFor,
   type RenderMediaOptions,
+  type RenderPlan,
 } from "./export";
+import type { RenderContext } from "./failure";
 import type { RenderOptions } from "./project";
-import {
-  type CompositionCache,
-  makeCompositionCache,
-  type Renderer,
-} from "./still";
+import type { Renderer } from "./still";
 
 const SERVE_URL = "http://127.0.0.1:51749/__remocn/render/index.html";
 
@@ -114,22 +114,34 @@ function fake(
   return state;
 }
 
+const MEASURED = { durationInFrames: 300, height: 1080, width: 1920 };
+
 function ship(
   renderer: Exporter & Renderer,
   target: string,
   options: {
-    cache?: CompositionCache;
+    context?: RenderContext;
     onEvent?: (event: ExportEvent) => void;
+    plan?: Partial<RenderPlan>;
     project?: RenderOptions;
   } = {}
 ) {
   return exportMedia({
-    cache: options.cache ?? makeCompositionCache(),
     composition: "Main",
+    ...(options.context === undefined ? {} : { context: options.context }),
+    measured: MEASURED,
     onEvent: options.onEvent ?? (() => undefined),
     options: options.project ?? NOTHING_CONFIGURED,
+    plan: {
+      codec: CODEC,
+      crf: null,
+      extra: {},
+      outputPath: path.join(target, OUT_DIR, "Main.mp4"),
+      proResProfile: null,
+      scale: 1,
+      ...options.plan,
+    },
     renderer,
-    root: target,
     serveUrl: SERVE_URL,
   });
 }
@@ -215,23 +227,20 @@ describe("exportMedia", () => {
     expect(existsSync(path.join(target, OUT_DIR, "Main.mp4"))).toBe(false);
   });
 
-  it("says the browser is downloading before anything renders", async () => {
+  it("says which stage of the job it is in, and provisions no browser of its own", async () => {
     const seen: ExportEvent[] = [];
     const state = fake({
-      download: (report) => {
-        report(0.5);
-        report(1);
-      },
+      download: (report) => report(0.5),
     });
 
     await Effect.runPromise(
       ship(state.renderer, root(), { onEvent: (event) => seen.push(event) })
     );
 
-    expect(seen.slice(0, 2)).toEqual([
-      { percent: 50, type: "browser" },
-      { percent: 100, type: "browser" },
-    ]);
+    expect(
+      seen.filter((event) => event.type === "stage").map((event) => event.stage)
+    ).toEqual(["rendering", "finalizing"]);
+    expect(seen.some((event) => event.type === "browser")).toBe(false);
   });
 
   it("folds Remotion's progress into frame counts and a percent", async () => {
@@ -259,7 +268,7 @@ describe("exportMedia", () => {
       ship(state.renderer, root(), { onEvent: (event) => seen.push(event) })
     );
 
-    expect(seen).toEqual([
+    expect(seen.filter((event) => event.type === "progress")).toEqual([
       {
         encoded: 40,
         percent: 26,
@@ -282,7 +291,6 @@ describe("exportMedia", () => {
   it("knows the frame count from the composition before the render starts", async () => {
     const seen: ExportEvent[] = [];
     const state = fake({
-      duration: 90,
       onRender: (options) => {
         options.onProgress({
           encodedFrames: 0,
@@ -298,13 +306,13 @@ describe("exportMedia", () => {
       ship(state.renderer, root(), { onEvent: (event) => seen.push(event) })
     );
 
-    expect(seen).toEqual([
+    expect(seen.filter((event) => event.type === "progress")).toEqual([
       {
         encoded: 0,
         percent: 0,
         rendered: 3,
         stage: "encoding",
-        total: 90,
+        total: 300,
         type: "progress",
       },
     ]);
@@ -328,19 +336,50 @@ describe("exportMedia", () => {
     expect(state.rendered[0].timeoutInMilliseconds).toBe(90_000);
   });
 
-  it("reuses a composition the preview already measured", async () => {
-    const cache = makeCompositionCache();
+  it("renders from the measurement the job pinned, never its own", async () => {
     const target = root();
     const state = fake();
 
-    await Effect.runPromise(ship(state.renderer, target, { cache }));
-    await Effect.runPromise(ship(state.renderer, target, { cache }));
+    await Effect.runPromise(ship(state.renderer, target));
 
-    expect(state.selected).toEqual(["Main"]);
-    expect(state.rendered).toHaveLength(2);
+    expect(state.selected).toEqual([]);
+    expect(state.rendered[0].composition).toEqual(MEASURED);
   });
 
-  it("says why a WebGL scene never finished compiling", async () => {
+  it("names the file and the size the plan asked for", async () => {
+    const target = root();
+    const state = fake();
+    const output = path.join(target, "elsewhere", "Intro-youtube.webm");
+
+    const exported = await Effect.runPromise(
+      ship(state.renderer, target, {
+        plan: { codec: "vp9", outputPath: output, scale: 0.5 },
+      })
+    );
+
+    expect(exported.path).toBe(output);
+    expect(exported.width).toBe(960);
+    expect(exported.height).toBe(540);
+    expect(state.rendered[0].scale).toBe(0.5);
+  });
+
+  it("carries the project's own render settings through", async () => {
+    const state = fake();
+
+    await Effect.runPromise(
+      ship(state.renderer, root(), {
+        plan: { crf: 12, extra: { audioCodec: "aac", everyNthFrame: 1 } },
+      })
+    );
+
+    expect(state.rendered[0]).toMatchObject({
+      audioCodec: "aac",
+      crf: 12,
+      everyNthFrame: 1,
+    });
+  });
+
+  it("no longer blames WebGL for every delayRender that never cleared", async () => {
     const state = fake({
       onRender: () =>
         Promise.reject(
@@ -350,9 +389,118 @@ describe("exportMedia", () => {
         ),
     });
 
-    const exit = await Effect.runPromiseExit(ship(state.renderer, root()));
+    const exit = await Effect.runPromiseExit(
+      ship(state.renderer, root(), {
+        context: { gl: "angle", glSource: "studio", support: "webgl2" },
+      })
+    );
+
+    expect(String(exit)).not.toContain("setChromiumOpenGlRenderer");
+    expect(String(exit)).toContain("font");
+  });
+
+  it("says it when the browser really could not make a context", async () => {
+    const state = fake({
+      onRender: () =>
+        Promise.reject(
+          new Error(
+            'A delayRender() "neon-aurora: compiling" was called but not cleared after 28000ms.'
+          )
+        ),
+    });
+
+    const exit = await Effect.runPromiseExit(
+      ship(state.renderer, root(), {
+        context: { gl: null, glSource: "default", support: "none" },
+      })
+    );
 
     expect(String(exit)).toContain("setChromiumOpenGlRenderer");
+  });
+});
+
+describe("planFor", () => {
+  const config = {
+    ...EMPTY_CONFIG,
+    accepts: {
+      composition: [],
+      media: ["crf", "proResProfile", "audioCodec", "scale"],
+      still: [],
+    },
+    options: {
+      audioCodec: { source: "config", value: "aac" },
+      crf: { source: "config", value: 30 },
+      proResProfile: { source: "config", value: "hq" },
+      scale: { source: "config", value: 0.5 },
+    },
+  };
+
+  it("lets the project's own CRF through when the person asked for its default", () => {
+    const { plan } = planFor({
+      config,
+      outputPath: "/tmp/Main.mp4",
+      settings: {
+        format: "mp4",
+        preset: "custom",
+        quality: "project",
+        resolution: "source",
+      },
+      size: { height: 1080, width: 1920 },
+    });
+
+    expect(plan.crf).toBeNull();
+    expect(plan.extra.crf).toBe(30);
+  });
+
+  it("takes the project's CRF off once a quality is picked", () => {
+    const { plan } = planFor({
+      config,
+      outputPath: "/tmp/Main.mp4",
+      settings: {
+        format: "mp4",
+        preset: "custom",
+        quality: "high",
+        resolution: "source",
+      },
+      size: { height: 1080, width: 1920 },
+    });
+
+    expect(plan.crf).toBe(12);
+    expect(plan.extra.crf).toBeUndefined();
+  });
+
+  it("never sends a ProRes profile to an H.264 export", () => {
+    const { dropped, plan } = planFor({
+      config,
+      outputPath: "/tmp/Main.mp4",
+      settings: {
+        format: "mp4",
+        preset: "custom",
+        quality: "project",
+        resolution: "source",
+      },
+      size: { height: 1080, width: 1920 },
+    });
+
+    expect(plan.extra.proResProfile).toBeUndefined();
+    expect(dropped.map((one) => one.name)).toContain("proResProfile");
+  });
+
+  it("takes the scale from the resolution rather than from the config", () => {
+    const { plan } = planFor({
+      config,
+      outputPath: "/tmp/Main.mp4",
+      settings: {
+        format: "mp4",
+        preset: "custom",
+        quality: "project",
+        resolution: "720",
+      },
+      size: { height: 1080, width: 1920 },
+    });
+
+    expect(plan.scale).toBeCloseTo(720 / 1080, 10);
+    expect(plan.extra.scale).toBeUndefined();
   });
 });
 

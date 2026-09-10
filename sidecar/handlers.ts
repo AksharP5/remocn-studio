@@ -648,8 +648,17 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
     ),
 
   "preview.export": ({ emit, params }) =>
-    exportFrom(params.projectId, params.composition, (event) =>
-      Effect.runSync(emit(event))
+    exportFrom(
+      params.projectId,
+      {
+        composition: params.composition,
+        format: params.format,
+        outputPath: params.outputPath,
+        preset: params.preset,
+        quality: params.quality,
+        resolution: params.resolution,
+      },
+      (event) => Effect.runSync(emit(event))
     ).pipe(
       Effect.mapError((error) => new HandlerError({ message: error.message }))
     ),

@@ -20,6 +20,7 @@ import type {
 } from "../preview/design";
 import { makeFinding } from "../preview/readiness-analysis";
 import type { ReadinessOptions } from "../preview/readiness-contract";
+import { reviewCompletionProblem } from "./review";
 import {
   DESIGN_CHECK,
   DESIGN_SERVER,
@@ -162,12 +163,38 @@ function run(
   if (server === DESIGN_SERVER && tool === DESIGN_CHECK) {
     return designCheck(args, tools.design);
   }
+  if (args.stage === "review" && args.status === "done") {
+    return finishReview(args, tools);
+  }
   return staged(
     tools.pipeline.setStage(
       args.stage as PipelineStageId,
       args.status as PipelineStatus
     )
   );
+}
+
+async function finishReview(
+  args: Record<string, unknown>,
+  tools: TurnTools
+): Promise<string> {
+  if (typeof args.reviewReportId !== "string") {
+    throw new Error(
+      "Pass reviewReportId from a full design_check when marking review done. Studio revalidates the report; a Markdown summary cannot complete the check."
+    );
+  }
+  const result = await tools.design.check({
+    frames: [],
+    mode: "report",
+    motion: [],
+    reportId: args.reviewReportId,
+    video: null,
+  });
+  const problem = reviewCompletionProblem(result.readiness);
+  if (problem) {
+    throw new Error(problem);
+  }
+  return staged(tools.pipeline.setStage("review", "done"));
 }
 
 async function requestSource(

@@ -12,9 +12,11 @@ import { PREVIEW_MESSAGE_SOURCE, type PreviewComposition } from "./preview";
 const pick = (over: Partial<PreviewComposition> = {}): PreviewComposition => ({
   compositionId: "Main",
   compositions: ["Main"],
+  metadata: null,
   reason: "main",
   source: PREVIEW_MESSAGE_SOURCE,
   total: 3,
+  trouble: null,
   type: "composition",
   unmeasured: false,
   ...over,
