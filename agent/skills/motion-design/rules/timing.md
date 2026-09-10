@@ -6,15 +6,39 @@ the selected reference, travel distance, content and intended energy.
 
 ## Build an event timeline
 
-For a product action, identify target visible, cursor arrival, activation, response,
-camera arrival and result readable. Derive dependent events from common anchors.
-A reading window starts after masking, movement or occlusion stops preventing
-comprehension, not merely when the scene mounts. Account for transition overlap
-in the total duration.
+Identify the event that makes the next action possible: a phrase vacates a reading
+position, the graph reaches its value, the footage reveals its subject, or all
+required images become inspectable. For UI this can be target visible → activation
+→ response → result readable. Separate authored choices (pace, gap, travel duration)
+from derived times (group completion, result ready, next start). Use the same clock
+and units for dependent events; one continuous shot may contain several beats.
 
-For other genres, identify equivalent changes: the phrase resolves, the graph
-reaches its value, the footage reveals the subject. One continuous shot may contain
-several such beats. Beat timings need not imply cuts.
+Read the actual component schedule, including its children, before assigning a
+completion time. These relationships describe common dependencies:
+
+```text
+groupExitEnd = max(memberExitEnds)
+uniformStaggerExitEnd = exitStart + (itemCount - 1) * exitStagger + exitDuration
+overviewReady = max(cameraSettled, ...requiredImageEndTimes, ...requiredLabelEndTimes)
+nextStart = predecessorReady + chosenGap
+```
+
+For example, nine words fading from frame 176, two frames apart, for eight frames
+each finish at frame 200. A following phrase using the vacated position cannot
+treat frame 188 as that completion. If a replacement deliberately overlaps, derive
+both sides from one handoff and specify the masking or ownership that keeps the
+important text legible.
+
+Define readiness for the viewer's task. A whole-grid inspection waits for its
+required images and labels as well as the camera. A caption can be read while an
+unrelated background moves. A reading window starts when masking, movement and
+occlusion stop preventing that task; it does not start merely when the scene or
+wrapper mounts. Budget entry, action, reading and transition overlap together.
+
+After changing copy, item count, stagger or duration, recompute group completion
+and every dependent event. Inspect the last child and the next arrival together,
+including the frames around their computed boundaries. Keep code and review on
+that computed schedule; [foundations](foundations.md) describes its implementation.
 
 ## Choose a starting duration, then inspect
 
@@ -23,9 +47,10 @@ be a useful experiment. This is an illustrative range, not a calibrated quality
 threshold. A large reveal, physical gesture or slow disclosure may need much longer;
 a graphic cut may need no animated entry. Convert seconds to the actual FPS.
 
-Related actions can share duration classes. Equal scene lengths may support a
-rhythmic typography piece. A slower exit may be the subject of the shot. Choose
-variation and asymmetry for meaning rather than satisfying a duration ratio.
+Allocate time to the action and viewer task before distributing a total duration
+among shots. Related actions can share duration classes, and equal lengths can
+support rhythmic typography. Inspect what each repetition contributes before
+retaining the same entry/hold/cut pattern. A slower exit can itself be the subject.
 
 If a move feels frantic, test time, distance and framing separately. Doubling its
 duration is one experiment; reducing unnecessary travel can be the better fix.

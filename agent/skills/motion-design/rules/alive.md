@@ -6,15 +6,30 @@ needs residual motion solely because the entrance has finished.
 
 ## Diagnose the interval
 
-Identify what should happen: read the phrase, inspect a result, wait for a visible
-process, experience an environment, or prepare for an accent. If the interval feels
-empty, inspect the message and duration first. A missing result or wrong crop is
-not repaired by adding drift.
+Name the viewer's task for the hold: read this phrase, inspect this detail, compare
+these results, experience the environment, or anticipate an accent. Mark when the
+required content actually becomes available and when it leaves. Judge the interval
+with that content at normal viewing size and speed, recording the inspected range.
+"Reading time" without identifying what needs reading does not justify a duration.
+
+If the interval feels empty, test a shorter hold or a change in staging and compare
+what the viewer can still understand. Fix a missing result or wrong crop at its
+source. Use [timing](timing.md) when the camera finishes before the required content.
 
 Secondary motion belongs to the depicted behavior: fabric can settle after its
 support, particles can continue through an impact, footage has its own action.
 A rigid UI can settle as one unit. Continuous background motion is appropriate
 when it establishes the environment; compare its attention demand with the subject.
+
+## Repeated staging
+
+Inspect repeated scenes as a run. Name what develops: new evidence, a comparison,
+accumulation, a rhythmic expectation or an eventual contrast. Check whether the
+content needs the same exposure and whether the repeated entry/hold/cut supports
+that development. If it merely restarts the presentation, regroup the material,
+adjust the time allocation or choose a relationship that carries it forward.
+Uniform timing remains useful when the sequence demonstrates its purpose; variety
+and continuous movement have no quota.
 
 ## Numeric and repeated motion
 

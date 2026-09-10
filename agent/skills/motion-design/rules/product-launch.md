@@ -36,8 +36,9 @@ not limits on how long a title or result may remain readable.
 ## Apply to a specific launch
 
 Identify the promise, real visual proof and final payoff. Choose the number and
-length of shots from those needs. Inspect a short proof of the hardest action before
-building the full launch. Compare event structure and framing with one suitable
+length of shots from those needs. Inspect a short passage demonstrating the central
+motion idea, event relationships and rhythm before building the full launch.
+Compare event structure and framing with one suitable
 reference rather than forcing every shot toward the sample median.
 
 Use `keeps_moving` only when the selected shot explicitly promises continuous motion.
