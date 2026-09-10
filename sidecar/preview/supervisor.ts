@@ -5,6 +5,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { Effect, Exit, Schema, type Scope, Stream } from "effect";
+import type {
+  ExportFormat,
+  ExportPreset,
+  ExportQuality,
+  ExportResolution,
+} from "@/shared/export";
 import {
   type CodeEdit,
   type CodeTarget,
@@ -265,14 +271,23 @@ export function clipFrom(
   );
 }
 
+export interface ExportRequest {
+  composition: string;
+  format: ExportFormat;
+  outputPath: string | null;
+  preset: ExportPreset;
+  quality: ExportQuality;
+  resolution: ExportResolution;
+}
+
 export function exportFrom(
   projectId: string,
-  composition: string,
+  request: ExportRequest,
   onEvent: (event: ExportEvent) => void
 ): Effect.Effect<Exported, PreviewError> {
   return ask<Exported>(
     projectId,
-    (id) => ({ composition, id, type: "export" }),
+    (id) => ({ ...request, id, type: "export" }),
     (settle) => ({
       fail: (message) => settle(Effect.fail(failed(message))),
       kind: "export",

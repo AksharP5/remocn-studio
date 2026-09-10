@@ -1,0 +1,333 @@
+[
+  {
+    "composition": "introducing-paid",
+    "tsxFiles": 15,
+    "tsxLines": 2298,
+    "documents": [
+      "docs/choreography.md",
+      "docs/motion.md",
+      "docs/brand.md",
+      "docs/script.md",
+      "docs/analysis.md",
+      "docs/review.md",
+      "assets/SOURCES.md"
+    ],
+    "sourceSignals": {
+      "ghost": 1,
+      "drift": 2,
+      "camera": 4,
+      "schema": 13,
+      "shader": 2,
+      "footage": 5
+    }
+  },
+  {
+    "composition": "reabit",
+    "tsxFiles": 5,
+    "tsxLines": 469,
+    "documents": [
+      "docs/choreography.md",
+      "docs/motion.md",
+      "docs/brand.md",
+      "docs/script.md",
+      "docs/analysis.md",
+      "docs/review.md"
+    ],
+    "sourceSignals": {
+      "ghost": 0,
+      "drift": 0,
+      "camera": 1,
+      "schema": 4,
+      "shader": 4,
+      "footage": 0
+    }
+  },
+  {
+    "composition": "remocn-intro-free-v",
+    "tsxFiles": 9,
+    "tsxLines": 713,
+    "documents": [],
+    "sourceSignals": {
+      "ghost": 0,
+      "drift": 2,
+      "camera": 0,
+      "schema": 0,
+      "shader": 1,
+      "footage": 2
+    }
+  },
+  {
+    "composition": "remocn-introducing-free",
+    "tsxFiles": 1,
+    "tsxLines": 329,
+    "documents": [],
+    "sourceSignals": {
+      "ghost": 0,
+      "drift": 0,
+      "camera": 0,
+      "schema": 1,
+      "shader": 0,
+      "footage": 1
+    }
+  },
+  {
+    "composition": "remocn-need-sponsor",
+    "tsxFiles": 15,
+    "tsxLines": 2947,
+    "documents": [],
+    "sourceSignals": {
+      "ghost": 3,
+      "drift": 4,
+      "camera": 2,
+      "schema": 14,
+      "shader": 0,
+      "footage": 1
+    }
+  },
+  {
+    "composition": "remocn-polish-landing",
+    "tsxFiles": 2,
+    "tsxLines": 341,
+    "documents": [],
+    "sourceSignals": {
+      "ghost": 1,
+      "drift": 1,
+      "camera": 2,
+      "schema": 0,
+      "shader": 0,
+      "footage": 1
+    }
+  },
+  {
+    "composition": "remocn-prs",
+    "tsxFiles": 9,
+    "tsxLines": 1150,
+    "documents": [
+      "docs/choreography.md",
+      "docs/motion.md",
+      "docs/brand.md",
+      "docs/script.md",
+      "docs/analysis.md",
+      "docs/review.md",
+      "assets/PROVENANCE.md"
+    ],
+    "sourceSignals": {
+      "ghost": 1,
+      "drift": 3,
+      "camera": 2,
+      "schema": 8,
+      "shader": 0,
+      "footage": 2
+    }
+  },
+  {
+    "composition": "remocn-rush-led",
+    "tsxFiles": 1,
+    "tsxLines": 143,
+    "documents": [],
+    "sourceSignals": {
+      "ghost": 0,
+      "drift": 0,
+      "camera": 1,
+      "schema": 0,
+      "shader": 1,
+      "footage": 1
+    }
+  },
+  {
+    "composition": "remocn-saas-typography",
+    "tsxFiles": 17,
+    "tsxLines": 1494,
+    "documents": [],
+    "sourceSignals": {
+      "ghost": 3,
+      "drift": 3,
+      "camera": 5,
+      "schema": 2,
+      "shader": 0,
+      "footage": 2
+    }
+  },
+  {
+    "composition": "remocn-sponsors",
+    "tsxFiles": 14,
+    "tsxLines": 3281,
+    "documents": [],
+    "sourceSignals": {
+      "ghost": 0,
+      "drift": 1,
+      "camera": 3,
+      "schema": 13,
+      "shader": 0,
+      "footage": 1
+    }
+  },
+  {
+    "composition": "remocn-studio-01",
+    "tsxFiles": 7,
+    "tsxLines": 1061,
+    "documents": [
+      "docs/choreography.md",
+      "docs/motion.md",
+      "docs/brand.md",
+      "docs/script.md",
+      "docs/analysis.md",
+      "docs/review.md"
+    ],
+    "sourceSignals": {
+      "ghost": 0,
+      "drift": 1,
+      "camera": 3,
+      "schema": 6,
+      "shader": 0,
+      "footage": 2
+    }
+  },
+  {
+    "composition": "remocn-studio-02",
+    "tsxFiles": 16,
+    "tsxLines": 1973,
+    "documents": [
+      "docs/choreography.md",
+      "docs/motion.md",
+      "docs/brand.md",
+      "docs/script.md",
+      "docs/analysis.md",
+      "docs/review.md"
+    ],
+    "sourceSignals": {
+      "ghost": 1,
+      "drift": 2,
+      "camera": 2,
+      "schema": 14,
+      "shader": 0,
+      "footage": 2
+    }
+  },
+  {
+    "composition": "remocn-studio-teaser",
+    "tsxFiles": 3,
+    "tsxLines": 515,
+    "documents": [],
+    "sourceSignals": {
+      "ghost": 0,
+      "drift": 0,
+      "camera": 2,
+      "schema": 2,
+      "shader": 0,
+      "footage": 3
+    }
+  },
+  {
+    "composition": "remocn-test-animation",
+    "tsxFiles": 1,
+    "tsxLines": 52,
+    "documents": [],
+    "sourceSignals": {
+      "ghost": 0,
+      "drift": 0,
+      "camera": 0,
+      "schema": 0,
+      "shader": 0,
+      "footage": 1
+    }
+  },
+  {
+    "composition": "remocn-test-easing",
+    "tsxFiles": 3,
+    "tsxLines": 741,
+    "documents": [],
+    "sourceSignals": {
+      "ghost": 1,
+      "drift": 1,
+      "camera": 1,
+      "schema": 0,
+      "shader": 0,
+      "footage": 2
+    }
+  },
+  {
+    "composition": "remocn-test-props",
+    "tsxFiles": 6,
+    "tsxLines": 403,
+    "documents": [],
+    "sourceSignals": {
+      "ghost": 1,
+      "drift": 0,
+      "camera": 1,
+      "schema": 2,
+      "shader": 0,
+      "footage": 1
+    }
+  },
+  {
+    "composition": "remocn-tutorial",
+    "tsxFiles": 1,
+    "tsxLines": 280,
+    "documents": [],
+    "sourceSignals": {
+      "ghost": 0,
+      "drift": 0,
+      "camera": 0,
+      "schema": 1,
+      "shader": 0,
+      "footage": 1
+    }
+  },
+  {
+    "composition": "remocn-tutorial-2",
+    "tsxFiles": 17,
+    "tsxLines": 4118,
+    "documents": [],
+    "sourceSignals": {
+      "ghost": 2,
+      "drift": 5,
+      "camera": 2,
+      "schema": 16,
+      "shader": 0,
+      "footage": 8
+    }
+  },
+  {
+    "composition": "remocn-vidrush-sponsor",
+    "tsxFiles": 21,
+    "tsxLines": 4924,
+    "documents": [
+      "docs/choreography.md",
+      "docs/motion.md",
+      "docs/brand.md",
+      "docs/script.md",
+      "docs/analysis.md",
+      "docs/review.md"
+    ],
+    "sourceSignals": {
+      "ghost": 2,
+      "drift": 2,
+      "camera": 3,
+      "schema": 20,
+      "shader": 0,
+      "footage": 4
+    }
+  },
+  {
+    "composition": "timer-teaser",
+    "tsxFiles": 23,
+    "tsxLines": 3602,
+    "documents": [
+      "docs/choreography.md",
+      "docs/motion.md",
+      "docs/brand.md",
+      "docs/script.md",
+      "docs/analysis.md",
+      "docs/review.md"
+    ],
+    "sourceSignals": {
+      "ghost": 1,
+      "drift": 3,
+      "camera": 4,
+      "schema": 11,
+      "shader": 3,
+      "footage": 5
+    }
+  }
+]

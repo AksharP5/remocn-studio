@@ -6,6 +6,8 @@ import {
   exportPercent,
   exportStatus,
   fileSize,
+  folderLabel,
+  targetPath,
 } from "./export";
 
 function progress(
@@ -136,30 +138,91 @@ describe("fileSize", () => {
 });
 
 describe("exportLabel", () => {
+  it("leaves the size out when the render never reported one", () => {
+    expect(
+      exportLabel(
+        { bytes: 48_000, height: 0, path: "/tmp/Main.mp4", width: 0 },
+        null
+      )
+    ).toBe("/tmp/Main.mp4 · 47 KB");
+  });
+
   it("shows the path relative to the project it was rendered in", () => {
     expect(
       exportLabel(
-        { bytes: 4_404_019, path: "/Users/me/scenes/out/Main.mp4" },
+        {
+          bytes: 4_404_019,
+          height: 1080,
+          path: "/Users/me/scenes/out/Main.mp4",
+          width: 1920,
+        },
         "/Users/me/scenes"
       )
-    ).toBe("out/Main.mp4 · 4.2 MB");
+    ).toBe("out/Main.mp4 · 1920×1080 · 4.2 MB");
   });
 
   it("falls back to the whole path when it is somewhere else", () => {
     expect(
       exportLabel(
-        { bytes: 48_000, path: "/tmp/other/out/Main.mp4" },
+        {
+          bytes: 48_000,
+          height: 1080,
+          path: "/tmp/other/out/Main.mp4",
+          width: 1920,
+        },
         "/Users/me"
       )
-    ).toBe("/tmp/other/out/Main.mp4 · 47 KB");
+    ).toBe("/tmp/other/out/Main.mp4 · 1920×1080 · 47 KB");
   });
 
   it("shows the whole path when there is no project to compare against", () => {
     expect(
       exportLabel(
-        { bytes: 48_000, path: "/Users/me/scenes/out/Main.mp4" },
+        {
+          bytes: 48_000,
+          height: 1080,
+          path: "/Users/me/scenes/out/Main.mp4",
+          width: 1920,
+        },
         null
       )
-    ).toBe("/Users/me/scenes/out/Main.mp4 · 47 KB");
+    ).toBe("/Users/me/scenes/out/Main.mp4 · 1920×1080 · 47 KB");
+  });
+});
+
+describe("where an export goes", () => {
+  const ROOT = "/Users/me/scenes";
+
+  it("defaults to the project's own out/ folder", () => {
+    expect(folderLabel(null, ROOT)).toBe("out");
+    expect(targetPath({ fileName: "Main.mp4", folder: null, root: ROOT })).toBe(
+      "/Users/me/scenes/out/Main.mp4"
+    );
+  });
+
+  it("stays relative while the folder is inside the project", () => {
+    expect(folderLabel("/Users/me/scenes/renders", ROOT)).toBe("renders");
+    expect(folderLabel("/Users/me/scenes", ROOT)).toBe("the project folder");
+  });
+
+  it("shortens a folder somewhere else to a path a person can read", () => {
+    expect(folderLabel("/Users/me/Desktop", ROOT)).toBe("~/Desktop");
+    expect(folderLabel("/Volumes/Work/out", ROOT)).toBe("/Volumes/Work/out");
+  });
+
+  it("hands the host a relative path when it does not know the project folder", () => {
+    expect(targetPath({ fileName: "Main.mp4", folder: null, root: null })).toBe(
+      "out/Main.mp4"
+    );
+  });
+
+  it("uses the folder that was chosen, wherever it is", () => {
+    expect(
+      targetPath({
+        fileName: "Main.webm",
+        folder: "/Volumes/Work",
+        root: ROOT,
+      })
+    ).toBe("/Volumes/Work/Main.webm");
   });
 });

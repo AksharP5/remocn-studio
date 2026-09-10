@@ -4,6 +4,7 @@ import path from "node:path";
 import { Effect } from "effect";
 import { errorMessage } from "@/lib/error-message";
 import type { Still, StillEvent } from "@/shared/ipc";
+import { explainRender, type RenderContext, UNKNOWN_CONTEXT } from "./failure";
 import { type Measured, PreviewError, type RenderOptions } from "./project";
 
 export type { Measured } from "./project";
@@ -13,7 +14,6 @@ export const DELAY_RENDER_TIMEOUT_MS = 30_000;
 
 const LOG_LEVEL = "error";
 const UNSAFE = /[^a-zA-Z0-9._-]+/g;
-const STUCK = /delayRender\(\)/;
 
 export interface DownloadProgress {
   percent: number;
@@ -84,7 +84,9 @@ export function makeCompositionCache(): CompositionCache {
 
 export interface StillInput {
   cache: CompositionCache;
+  context?: RenderContext;
   dir: string;
+  extra?: Record<string, unknown>;
   onEvent: (event: StillEvent) => void;
   options: RenderOptions;
   renderer: Renderer;
@@ -96,6 +98,7 @@ export interface StillInput {
 export interface WarmInput {
   cache: CompositionCache;
   composition: string;
+  context?: RenderContext;
   options: RenderOptions;
   renderer: Renderer;
   serveUrl: string;
@@ -111,8 +114,9 @@ export function warmComposition(
       return Effect.succeed(known);
     }
 
-    return measure({
+    return measureComposition({
       composition: input.composition,
+      context: input.context,
       options: input.options,
       renderer: input.renderer,
       serveUrl: input.serveUrl,
@@ -124,8 +128,9 @@ export function warmComposition(
   });
 }
 
-function measure(input: {
+export function measureComposition(input: {
   composition: string;
+  context?: RenderContext;
   options: RenderOptions;
   renderer: Renderer;
   serveUrl: string;
@@ -133,10 +138,13 @@ function measure(input: {
   const { chromeMode, chromiumOptions } = input.options;
 
   return Effect.tryPromise({
-    catch: renderError,
+    catch: renderErrorFor(input.context ?? UNKNOWN_CONTEXT),
     try: () =>
       input.renderer.selectComposition({
         ...(chromeMode === null ? {} : { chromeMode }),
+        ...(input.options.browserExecutable
+          ? { browserExecutable: input.options.browserExecutable }
+          : {}),
         chromiumOptions,
         id: input.composition,
         logLevel: LOG_LEVEL,
@@ -147,14 +155,12 @@ function measure(input: {
   });
 }
 
-export const renderError = (cause: unknown) =>
-  new PreviewError({ message: explain(errorMessage(cause)) });
+export const renderErrorFor = (context: RenderContext) => (cause: unknown) =>
+  new PreviewError({
+    message: explainRender(errorMessage(cause), context),
+  });
 
-function explain(message: string): string {
-  return STUCK.test(message)
-    ? `${message}\n\nThe render browser is not the preview's WebView: it has no GL backend unless the project asks for one, so a scene that draws with WebGL never finishes compiling and its delayRender() never clears. Add Config.setChromiumOpenGlRenderer("angle") to remotion.config.ts — npx remotion still needs the same thing — or raise Config.setDelayRenderTimeoutInMilliseconds() if the scene is merely slow.`
-    : message;
-}
+export const renderError = renderErrorFor(UNKNOWN_CONTEXT);
 
 export function stillFile(
   dir: string,
@@ -191,6 +197,8 @@ export function readyBrowser(
 export function captureStill(
   input: StillInput
 ): Effect.Effect<Still, PreviewError> {
+  const failed = renderErrorFor(input.context ?? UNKNOWN_CONTEXT);
+
   return Effect.gen(function* () {
     const output = yield* freshFile(input.dir, input.request);
     const { chromeMode, chromiumOptions } = input.options;
@@ -200,7 +208,7 @@ export function captureStill(
     const mode = chromeMode === null ? {} : { chromeMode };
 
     yield* Effect.tryPromise({
-      catch: renderError,
+      catch: failed,
       try: () =>
         input.renderer.ensureBrowser({
           ...mode,
@@ -221,16 +229,21 @@ export function captureStill(
     const measured = yield* warmComposition({
       cache: input.cache,
       composition: input.request.composition,
+      context: input.context,
       options: input.options,
       renderer: input.renderer,
       serveUrl: input.serveUrl,
     });
 
     yield* Effect.tryPromise({
-      catch: renderError,
+      catch: failed,
       try: () =>
         input.renderer.renderStill({
+          ...input.extra,
           ...mode,
+          ...(input.options.browserExecutable
+            ? { browserExecutable: input.options.browserExecutable }
+            : {}),
           chromiumOptions,
           composition: measured,
           frame: Math.max(0, Math.trunc(input.request.frame)),

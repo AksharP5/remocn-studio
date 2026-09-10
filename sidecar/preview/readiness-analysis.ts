@@ -220,10 +220,11 @@ export function analyzeFrames(
       ) {
         continue;
       }
+      const category = finding.type === "contrast" ? "contrast" : "text_bounds";
       findings.push(
         makeFinding({
           ...finding,
-          category: finding.type === "contrast" ? "contrast" : "text_bounds",
+          category: finding.intentionalReveal ? "motion_reveal" : category,
           conclusion: "measurement",
           confidence:
             "Measured at this rendered frame; persistence is evaluated across adjacent samples.",
@@ -566,6 +567,7 @@ export function mergeFindings(
   for (const row of findings) {
     const key = JSON.stringify([
       row.code,
+      row.category,
       row.selector,
       row.targetId,
       row.scene,

@@ -55,7 +55,7 @@ export const TOOL_SPECS: Record<ToolServer, readonly ToolSpec[]> = {
   [DESIGN_SERVER]: [
     {
       description:
-        "Use mode=full before export to check all seven readiness groups with automatic scene sampling, real audio mixdown, evidence and explicit incomplete coverage. Legacy mode: mechanically review 2–9 key frames of this chat's video before calling a scene finished. It renders temporary snapshots and reports measurable WCAG contrast, clipped/occluded/out-of-frame text, and a timeline that did not visibly advance. Pass the movements video/motion.md promises as motion assertions so the check verifies the declared motion instead of guessing; a selector that matches nothing or several elements is its own finding, never a silent pass. In the choreography stage add `video` with the whole scene map: that runs a second, cheap pass over the composition end to end and answers what no single frame can — whether the scene durations carry a rhythm, whether anything lives across each cut, how long the frame stood completely still, and whether the camera ever moved. Fix every finding or explain why it is intentional; inspect the returned snapshot paths for design judgement the checks cannot make.",
+        "Use mode=full before export to check all seven readiness groups, automatically discover v2 MotionReview contracts and prioritize their entry/reading/exit boundaries, real audio mixdown, evidence and explicit incomplete coverage. Legacy mode reviews 2–9 key frames for contrast, clipped/occluded/out-of-frame text and declared motion. Pass only behavior promised in this video's docs/motion.md as motion assertions; missing or ambiguous selectors remain findings. For choreography, add `video` with a scene map, including a single continuous shot if appropriate. Duration distribution, shared visible ids, sampled holds and camera transforms are diagnostics to compare with the brief and primary reference; they are not quotas for cuts, decoration or motion. Inspect returned images and actual event sequences for hierarchy, causality, continuity and reading time. Fix measured defects, preserve intentional holds and cuts, and review coverage and stale/failed checks before claiming completion. Inspect readiness.coverage.motion for missing or unvisited event frames. A passing checker is not a creative verdict.",
       name: DESIGN_CHECK,
       shape: {
         frames: z
@@ -211,7 +211,7 @@ export const TOOL_SPECS: Record<ToolServer, readonly ToolSpec[]> = {
               .min(1)
               .nullish()
               .describe(
-                "A CSS selector for the wrapper whose transform frames the whole scene. Leave it out and the pass says the video declared no camera rather than assuming the locked-off frame was a decision."
+                "A CSS selector for a camera wrapper to measure. Omit it or use null for a locked view without a camera assertion; camera movement is optional."
               ),
             scenes: z
               .array(
@@ -224,7 +224,7 @@ export const TOOL_SPECS: Record<ToolServer, readonly ToolSpec[]> = {
               .min(1)
               .max(500)
               .describe(
-                "Every scene in the order it plays, in frame numbers: from inclusive, to exclusive. A transition shows up as an overlap — one scene's to past the next scene's from — and the check reads the pair outside that overlap, so a crossfade cannot pass for continuity."
+                "Shots in playback order, from inclusive and to exclusive in frames. A continuous shot can be one scene with multiple internal beats. Transition overlap is sampled on both sides; shared design ids are observations, not proof of perceptual continuity."
               ),
           })
           .optional()
@@ -436,6 +436,13 @@ export const TOOL_SPECS: Record<ToolServer, readonly ToolSpec[]> = {
         "Move one stage of the video pipeline: mark the current stage done the moment its done-condition holds, and the next one active — then keep working. A review note may also reopen an earlier stage by setting it active again. It answers with the instructions for whatever stage is now active.",
       name: SET_PIPELINE_STAGE,
       shape: {
+        reviewReportId: z
+          .string()
+          .uuid()
+          .optional()
+          .describe(
+            "Required when marking review done. The full design_check report is reloaded against current sources; incomplete coverage, missing runtime motion contracts and unresolved measured errors keep the agent's review open. Human export stays available."
+          ),
         stage: z.enum(PIPELINE_STAGE_IDS as unknown as [PipelineStageId]),
         status: z.enum(PIPELINE_STATUSES as unknown as [PipelineStatus]),
       },

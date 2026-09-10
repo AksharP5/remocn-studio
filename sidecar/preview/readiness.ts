@@ -19,6 +19,7 @@ import {
   motionFrames,
 } from "./design";
 import type { Exporter } from "./export";
+import { MotionContractReview } from "./motion-contract";
 import { type Measured, PreviewError, type RenderOptions } from "./project";
 import {
   type AuditSample,
@@ -51,6 +52,7 @@ const RULES = [
   "choreography",
   "pauses",
   "transitions",
+  "motion_contract",
   "audio_clipping",
   "audio_headroom",
   "audio_presence",
@@ -70,6 +72,7 @@ const ignored = new Set([
   ".remotion",
   "coverage",
 ]);
+const PRODUCTION_NOTES = /^src\/videos\/[^/]+\/docs$/;
 export async function sourceRevision(
   root: string,
   extra: unknown,
@@ -87,6 +90,7 @@ export async function sourceRevision(
         : value
     )
   );
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: deterministic directory walk hashes source, assets and symlinks while excluding production notes.
   const walk = async (folder: string) => {
     for (const entry of (await readdir(folder, { withFileTypes: true })).sort(
       (a, b) => a.name.localeCompare(b.name)
@@ -96,6 +100,16 @@ export async function sourceRevision(
         continue;
       }
       const file = path.join(folder, entry.name);
+      // Pipeline notes are not compiled by the video registry. Writing the review
+      // must not invalidate the render it describes; actual source/assets still do.
+      if (
+        entry.isDirectory() &&
+        PRODUCTION_NOTES.test(
+          path.relative(root, file).split(path.sep).join("/")
+        )
+      ) {
+        continue;
+      }
       hash.update(path.relative(root, file));
       if (entry.isDirectory()) {
         await walk(file);
@@ -219,6 +233,7 @@ export async function runReadiness(
     stale = false,
     planned = 0,
     limited = false;
+  let motionReview: MotionContractReview | null = null;
   let findings: ReadinessReport["findings"][number][] = [],
     fps = 30,
     duration = 0,
@@ -313,6 +328,7 @@ export async function runReadiness(
       })
     );
     const plan = fullPlan(duration, fps, input.video, input.options);
+    motionReview = new MotionContractReview(fps, duration);
     const checkedMotion = input.motion.filter(
       (assertion) =>
         assertion.kind !== "keeps_moving" ||
@@ -326,7 +342,7 @@ export async function runReadiness(
             (input.options.maxFrames ?? 360))
     );
     const asserted = motionFrames(checkedMotion);
-    const queue = [...new Set([...plan.frames, ...asserted])];
+    const queue = [...new Set([0, ...plan.frames, ...asserted])];
     planned = Math.max(plan.required, queue.length);
     ({ limited } = plan);
     const maxFrames = input.options.maxFrames ?? 360;
@@ -357,6 +373,20 @@ export async function runReadiness(
           )
         );
         samples.push({ audit, frame, output });
+        const boundaries = motionReview.discover(
+          frame,
+          audit.details?.motionPlans ?? []
+        );
+        // Executed plans know short transitions that a uniform sample cannot discover.
+        const next = boundaries.filter((at) => !seen.has(at));
+        for (const at of next) {
+          const existing = queue.indexOf(at);
+          if (existing !== -1) {
+            queue.splice(existing, 1);
+          }
+        }
+        queue.unshift(...next);
+        planned = Math.max(planned, new Set([...seen, ...queue]).size);
         for (const limitation of audit.details?.limitations ?? []) {
           limitations.add(limitation);
         }
@@ -409,6 +439,45 @@ export async function runReadiness(
       input.options,
       plan.step
     );
+    findings.push(...motionReview.findings(samples));
+    const contractCoverage = motionReview.summary(
+      samples.map((sample) => sample.frame)
+    );
+    let contractStatus: "completed" | "failed" | "skipped" = "skipped";
+    if (
+      contractCoverage.contracts &&
+      !contractCoverage.unvisited.length &&
+      !contractCoverage.uncovered.length
+    ) {
+      contractStatus = "completed";
+    }
+    if (contractCoverage.invalid.length) {
+      contractStatus = "failed";
+    }
+    status(
+      "motion_contract",
+      contractStatus,
+      contractCoverage.contracts
+        ? `${contractCoverage.cues} cues; ${contractCoverage.boundaries.length} event frames, ${contractCoverage.unvisited.length} unvisited.`
+        : "No runtime motion contract was found. Add MotionReview around the generated sequence to inspect exact event boundaries."
+    );
+    if (!contractCoverage.contracts) {
+      limitations.add(
+        "No runtime motion contract: exact component handoffs, group exits and declared reading positions are not verified."
+      );
+    }
+    if (contractCoverage.unvisited.length) {
+      limited = true;
+      limitations.add(
+        `${contractCoverage.unvisited.length} motion event frames remain unvisited; increase the review budget.`
+      );
+    }
+    if (contractCoverage.contracts && contractCoverage.uncovered.length) {
+      limited = true;
+      limitations.add(
+        "Parts of the composition have no runtime motion contract. Keep MotionReview mounted across the full authored sequence and include each scene's executable plan."
+      );
+    }
     for (const rule of [
       "text_bounds",
       "reading_time",
@@ -540,7 +609,7 @@ export async function runReadiness(
         ? "Declared assertions evaluated where all required frames fit the budget; missing targets remain findings. Oversized or unvisited assertion intervals are unverified."
         : "No motion assertions declared."
     );
-    if (input.video && input.video.scenes.length >= 2) {
+    if (input.video && input.video.scenes.length >= 1) {
       const choreography = videoFindings({
         fps,
         plan: videoPlan(
@@ -576,7 +645,7 @@ export async function runReadiness(
       status(
         "choreography",
         "not_applicable",
-        "Rhythm and scene continuity require at least two declared scenes."
+        "No declared scene map. A single continuous shot is sufficient for camera analysis; rhythm and boundary comparisons need multiple shots."
       );
     }
     if (!active.aborted) {
@@ -757,6 +826,11 @@ export async function runReadiness(
     composition: input.composition,
     context: { motion: input.motion, video: input.video },
     coverage: {
+      ...(motionReview
+        ? {
+            motion: motionReview.summary(samples.map((sample) => sample.frame)),
+          }
+        : {}),
       cancelled: signal.aborted,
       complete:
         !(limited || stale) &&

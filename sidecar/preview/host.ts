@@ -4,6 +4,7 @@ import { mkdir, readdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { Effect, Exit, FiberMap, Ref, Stream } from "effect";
+import { FORMAT_SPECS, fileNameOf, withExtension } from "@/shared/export";
 import {
   type ExportEvent,
   GRAB_SCRIPT_ENV,
@@ -14,6 +15,20 @@ import {
 } from "@/shared/ipc";
 import { libraryRoot } from "../library/store";
 import { untilGone, untilOrphaned, untilSignalled } from "../lifecycle";
+import {
+  type BrowserReading,
+  browserOptionsOf,
+  prepareBrowser,
+  signatureOf,
+} from "./browser";
+import {
+  BUILDING,
+  type BuildState,
+  compiled as buildCompiled,
+  started as buildStarted,
+  pinnable,
+  troubleIn,
+} from "./build-state";
 import { BUNDLE_FLAGS } from "./bundling";
 import {
   type VideoCheck,
@@ -22,14 +37,24 @@ import {
   videoPlan,
 } from "./choreography";
 import { assemble, codemodsOf, statusesOf } from "./codemod";
+import { optionsFor, type ResolvedConfig } from "./config";
+import { type ConfigCache, makeConfigCache } from "./config-host";
 import {
   type DesignFinding,
   finishDesignResult,
   motionFrames,
   motionSamplingError,
 } from "./design";
-import { clipMedia, exporterOf, exportMedia } from "./export";
+import { clipMedia, exporterOf, exportMedia, OUT_DIR, planFor } from "./export";
+import type { RenderContext } from "./failure";
 import { withoutWebFonts } from "./grab";
+import {
+  JOBS_DIR,
+  type JobRegistry,
+  jobServeUrl,
+  makeJobRegistry,
+  pinBundle,
+} from "./job";
 import {
   agreedVersionIn,
   entryPointOf,
@@ -38,7 +63,6 @@ import {
   packageVersionOf,
   type RenderOptions,
   remotionRootOf,
-  renderOptionsOf,
   resolveFrom,
   type WebpackConfig,
   warmInternalsOf,
@@ -66,8 +90,8 @@ import {
   captureStill,
   DELAY_RENDER_TIMEOUT_MS,
   makeCompositionCache,
+  measureComposition,
   type Renderer,
-  readyBrowser,
   slug,
   stillFile,
   warmComposition,
@@ -132,8 +156,15 @@ const keepStdoutForFrames: Effect.Effect<void> = Effect.sync(() => {
 });
 
 interface Booted {
+  browser: Ref.Ref<{ reading: BrowserReading; signature: string } | null>;
+  build: Ref.Ref<BuildState>;
   cache: CompositionCache;
+  config: ConfigCache;
   dir: string;
+  jobs: JobRegistry;
+  jobsDir: string;
+  outDir: string;
+  publicDir: string;
   root: string;
   running: FiberMap.FiberMap<string>;
   serveUrl: string;
@@ -141,7 +172,10 @@ interface Booted {
 }
 
 interface Tools {
+  config: ResolvedConfig;
+  context: RenderContext;
   internals: WarmInternals | null;
+  note: string | null;
   options: RenderOptions;
   renderer: Renderer;
 }
@@ -211,16 +245,24 @@ function boot(root: string, preferred: string | null) {
     const cache = makeCompositionCache();
     const session = yield* Ref.make<Session | null>(null);
     const running = yield* FiberMap.make<string>();
+    const build = yield* Ref.make<BuildState>(BUILDING);
+    const browser = yield* Ref.make<{
+      reading: BrowserReading;
+      signature: string;
+    } | null>(null);
+    const jobs = makeJobRegistry();
+    const publicDir = path.join(root, "public");
 
     yield* Effect.addFinalizer(() => drop(session));
 
     const server = yield* serve({
       grab,
+      jobs,
       outDir,
       preferred,
       previewBase,
       proxies: proxies(libraryIndex(libraryRoot())),
-      publicDir: path.join(root, "public"),
+      publicDir,
       root,
       staticBase,
       title: path.basename(root),
@@ -239,6 +281,9 @@ function boot(root: string, preferred: string | null) {
           entry,
           extraPlugins: [
             new webpack.ProgressPlugin((percent) => {
+              if (percent === 0) {
+                Effect.runSync(Ref.update(build, buildStarted));
+              }
               Effect.runSync(
                 emit({ percent: Math.round(percent * 100), type: "building" })
               );
@@ -262,12 +307,20 @@ function boot(root: string, preferred: string | null) {
         Effect.runFork(drop(session));
         server.notifyRebuilt();
       },
-      server.port
+      server.port,
+      build
     );
 
     return {
+      browser,
+      build,
       cache,
+      config: makeConfigCache(),
       dir: path.join(outDir, "..", "stills"),
+      jobs,
+      jobsDir: path.join(outDir, "..", JOBS_DIR),
+      outDir,
+      publicDir,
       root,
       running,
       serveUrl: `http://127.0.0.1:${server.port}${RENDER_BASE}/index.html`,
@@ -348,7 +401,8 @@ function watch(
   webpack: Bundler["webpack"],
   config: WebpackConfig,
   notifyRebuilt: () => void,
-  port: number
+  port: number,
+  build: Ref.Ref<BuildState>
 ) {
   return Effect.acquireRelease(
     Effect.sync(() => {
@@ -358,14 +412,29 @@ function watch(
 
       return compiler.watch({}, (error, stats) => {
         if (error !== null) {
+          Effect.runSync(
+            Ref.update(build, (state) =>
+              buildCompiled(state, { message: error.message, ok: false })
+            )
+          );
           Effect.runSync(emit({ message: error.message, type: "failed" }));
           return;
         }
 
         if (stats?.hasErrors()) {
-          Effect.runSync(emit({ message: messagesOf(stats), type: "failed" }));
+          const message = messagesOf(stats);
+          Effect.runSync(
+            Ref.update(build, (state) =>
+              buildCompiled(state, { message, ok: false })
+            )
+          );
+          Effect.runSync(emit({ message, type: "failed" }));
           return;
         }
+
+        Effect.runSync(
+          Ref.update(build, (state) => buildCompiled(state, { ok: true }))
+        );
 
         if (ready) {
           notifyRebuilt();
@@ -528,7 +597,7 @@ function captureSource(
   command: SourceCommand
 ): Effect.Effect<void> {
   return Effect.gen(function* () {
-    const tools = yield* toolsFor(booted.root);
+    const tools = yield* toolsFor(booted);
     if (tools.internals === null) {
       return yield* Effect.fail(
         new PreviewError({
@@ -569,7 +638,7 @@ function inspectFullDesign(
   command: DesignCommand
 ): Effect.Effect<void> {
   return Effect.gen(function* () {
-    const tools = yield* toolsFor(booted.root);
+    const tools = yield* toolsFor(booted);
     if (command.mode === "report") {
       const result = yield* Effect.tryPromise({
         catch: (cause) => new PreviewError({ message: String(cause) }),
@@ -645,7 +714,7 @@ function inspectDesign(
     ].sort((left, right) => left - right);
     const selectors = command.motion.map(({ selector }) => selector);
 
-    const tools = yield* toolsFor(booted.root);
+    const tools = yield* toolsFor(booted);
     const session = yield* warmed(
       booted,
       command.composition,
@@ -794,7 +863,7 @@ function shipClip(booted: Booted, command: ClipCommand): Effect.Effect<void> {
   const { composition, frame, id } = command;
 
   return Effect.gen(function* () {
-    const tools = yield* toolsFor(booted.root);
+    const tools = yield* toolsFor(booted);
     const renderer = yield* exporterOf(tools.renderer);
 
     yield* log(`clip of ${composition} at ${frame} starting`);
@@ -802,6 +871,7 @@ function shipClip(booted: Booted, command: ClipCommand): Effect.Effect<void> {
     const path_ = yield* clipMedia({
       cache: booted.cache,
       composition,
+      context: tools.context,
       dir: booted.dir,
       frame,
       options: tools.options,
@@ -823,6 +893,33 @@ function shipClip(booted: Booted, command: ClipCommand): Effect.Effect<void> {
   );
 }
 
+function outputFor(
+  booted: Booted,
+  command: ExportCommand
+): { changed: boolean; path: string } {
+  if (command.outputPath !== null) {
+    return withExtension(
+      path.isAbsolute(command.outputPath)
+        ? command.outputPath
+        : path.join(booted.root, command.outputPath),
+      command.format
+    );
+  }
+
+  return {
+    changed: false,
+    path: path.join(
+      booted.root,
+      OUT_DIR,
+      fileNameOf({
+        composition: command.composition,
+        format: command.format,
+        preset: command.preset,
+      })
+    ),
+  };
+}
+
 function ship(booted: Booted, command: ExportCommand): Effect.Effect<void> {
   const { composition, id } = command;
 
@@ -830,27 +927,109 @@ function ship(booted: Booted, command: ExportCommand): Effect.Effect<void> {
     Effect.runSync(write({ event, id, type: "export-progress" }));
 
   return Effect.gen(function* () {
-    yield* agreedVersionIn(booted.root);
+    yield* Effect.sync(() => progress({ stage: "preparing", type: "stage" }));
 
-    const tools = yield* toolsFor(booted.root);
+    yield* agreedVersionIn(booted.root);
+    yield* settledBuild(booted);
+
+    // A fresh read every time: a remotion.config.ts edited since the last
+    // export has to reach this job, and a module cache in a long-lived host
+    // is exactly what would hide it.
+    const tools = yield* toolsFor(booted, () => undefined, true);
     const renderer = yield* exporterOf(tools.renderer);
 
-    yield* log(`export of ${composition} starting`);
+    const job = yield* pinBundle({
+      jobsDir: booted.jobsDir,
+      outDir: booted.outDir,
+      publicDir: booted.publicDir,
+      registry: booted.jobs,
+    });
+
+    const serveUrl = jobServeUrl(portOf(booted.serveUrl), job);
+
+    yield* log(
+      `export of ${composition} starting from pinned bundle ${job.id} into ${command.format}`
+    );
+
+    const measured = yield* measureComposition({
+      composition,
+      context: tools.context,
+      options: tools.options,
+      renderer: tools.renderer,
+      serveUrl,
+    });
+
+    const settings = {
+      format: command.format,
+      preset: command.preset,
+      quality: command.quality,
+      resolution: command.resolution,
+    };
+
+    const output = outputFor(booted, command);
+
+    if (output.changed) {
+      yield* Effect.sync(() =>
+        progress({
+          message: `Saved as ${path.basename(output.path)}: the renderer will not write ${command.format.toUpperCase()} to a file that does not end in .${FORMAT_SPECS[command.format].extension}.`,
+          type: "notice",
+        })
+      );
+    }
+
+    const { dropped, plan } = planFor({
+      config: tools.config,
+      outputPath: output.path,
+      settings,
+      size: { height: measured.height, width: measured.width },
+    });
+
+    for (const one of dropped) {
+      yield* log(`export dropped ${one.name}: ${one.reason}`);
+      yield* Effect.sync(() =>
+        progress({
+          message: `${one.name} from remotion.config.ts was left out — ${one.reason}.`,
+          type: "notice",
+        })
+      );
+    }
+
+    if (tools.note !== null) {
+      yield* Effect.sync(() =>
+        progress({ message: tools.note ?? "", type: "notice" })
+      );
+    }
+
+    if (tools.config.ffmpegOverride) {
+      yield* Effect.sync(() =>
+        progress({
+          message:
+            "This project sets an ffmpeg override in remotion.config.ts, which an export from the studio does not apply.",
+          type: "notice",
+        })
+      );
+    }
 
     const exported = yield* exportMedia({
-      cache: booted.cache,
       composition,
+      context: tools.context,
+      measured,
       onEvent: progress,
       options: tools.options,
+      plan,
       renderer,
-      root: booted.root,
-      serveUrl: booted.serveUrl,
+      serveUrl,
     });
 
     yield* log(`export wrote ${exported.bytes} bytes to ${exported.path}`);
 
-    return yield* write({ exported, id, type: "export-done" });
+    return exported;
   }).pipe(
+    // The scope closes — and with it the copy this job rendered from — before
+    // the answer goes out, so a person who exports twice in a row is never
+    // told an export is already running by a job that has in fact finished.
+    Effect.scoped,
+    Effect.flatMap((exported) => write({ exported, id, type: "export-done" })),
     Effect.catch((error) =>
       Effect.andThen(
         log(`export failed: ${error.message}`),
@@ -861,13 +1040,21 @@ function ship(booted: Booted, command: ExportCommand): Effect.Effect<void> {
   );
 }
 
+function portOf(serveUrl: string): number {
+  try {
+    return Number(new URL(serveUrl).port);
+  } catch {
+    return 0;
+  }
+}
+
 function answer(booted: Booted, command: StillCommand): Effect.Effect<void> {
   const { composition, id } = command;
 
   const progress = (event: StillEvent) =>
     Effect.runSync(write({ event, id, type: "still-progress" }));
 
-  return toolsFor(booted.root).pipe(
+  return toolsFor(booted, progress).pipe(
     Effect.flatMap((tools) =>
       command.type === "warm"
         ? Effect.andThen(
@@ -887,35 +1074,135 @@ function answer(booted: Booted, command: StillCommand): Effect.Effect<void> {
   );
 }
 
-function toolsFor(root: string): Effect.Effect<Tools, PreviewError> {
-  return Effect.all({
-    internals: warmInternalsOf(root).pipe(
+// One browser policy for every renderer-backed operation: the export, the
+// stills behind Snapshot, the clip, the design check and the source capture
+// all come through here, so a GL backend is decided once and measured once.
+function toolsFor(
+  booted: Booted,
+  onEvent: (event: StillEvent) => void = () => undefined,
+  fresh = false
+): Effect.Effect<Tools, PreviewError> {
+  return Effect.gen(function* () {
+    const config = yield* booted.config.read(booted.root, fresh);
+
+    const internals = yield* warmInternalsOf(booted.root).pipe(
       Effect.catch(() => Effect.succeed(null))
-    ),
-    module: importFrom<unknown>(root, "@remotion/renderer"),
-    options: renderOptionsOf(root),
-  }).pipe(
-    Effect.map(({ internals, module, options }) => ({
+    );
+    const module = yield* importFrom<unknown>(
+      booted.root,
+      "@remotion/renderer"
+    );
+    const renderer = rendererOf(module);
+
+    const signature = signatureOf(browserOptionsOf(config, process.platform));
+    const held = yield* Ref.get(booted.browser);
+
+    if (held !== null && held.signature === signature) {
+      return {
+        config,
+        context: held.reading.context,
+        internals,
+        note: held.reading.note,
+        options: held.reading.options,
+        renderer,
+      } satisfies Tools;
+    }
+
+    const reading = yield* prepareBrowser({
+      config,
       internals,
-      options,
-      renderer: rendererOf(module),
-    }))
-  );
+      onEvent,
+      platform: process.platform,
+      renderer,
+    });
+
+    yield* Ref.set(booted.browser, { reading, signature });
+    yield* log(
+      `render browser: ${String(reading.options.chromiumOptions.gl)} (${reading.context.glSource}), WebGL ${reading.context.support}${reading.note === null ? "" : ` — ${reading.note}`}`
+    );
+
+    for (const problem of config.problems) {
+      yield* log(`render setting ${problem.id}: ${problem.message}`);
+    }
+
+    return {
+      config,
+      context: reading.context,
+      internals,
+      note: reading.note,
+      options: reading.options,
+      renderer,
+    } satisfies Tools;
+  });
+}
+
+const BUILD_PATIENCE_MS = 180_000;
+
+const REBUILD_PATIENCE_MS = 30_000;
+
+function waitUntil(
+  build: Ref.Ref<BuildState>,
+  done: (state: BuildState) => boolean
+): Effect.Effect<BuildState> {
+  return Effect.gen(function* () {
+    const state = yield* Ref.get(build);
+
+    if (done(state)) {
+      return state;
+    }
+
+    yield* Effect.sleep(100);
+    return yield* waitUntil(build, done);
+  });
+}
+
+// A render is pinned to whatever is on disk, so it waits for a compile that has
+// actually finished. A rebuild already in flight is worth a shorter wait and
+// never a refusal: past it the bundle from the last settled compile is still a
+// coherent one to render.
+function settledBuild(booted: Booted): Effect.Effect<void, PreviewError> {
+  return Effect.gen(function* () {
+    const first = yield* waitUntil(booted.build, pinnable).pipe(
+      Effect.timeoutOrElse({
+        duration: BUILD_PATIENCE_MS,
+        orElse: () =>
+          Effect.fail(
+            new PreviewError({
+              message:
+                "the project has not finished compiling, so there is nothing to render from yet",
+            })
+          ),
+      })
+    );
+
+    const settled = first.compiling
+      ? yield* waitUntil(booted.build, (state) => !state.compiling).pipe(
+          Effect.timeoutOrElse({
+            duration: REBUILD_PATIENCE_MS,
+            orElse: () => Ref.get(booted.build),
+          })
+        )
+      : first;
+
+    const trouble = troubleIn(settled);
+
+    if (trouble !== null) {
+      return yield* Effect.fail(
+        new PreviewError({
+          message: `the project does not compile, so there is nothing to render:\n\n${trouble}`,
+        })
+      );
+    }
+  });
 }
 
 function warmed(
   booted: Booted,
   composition: string,
   tools: Tools,
-  onEvent: (event: StillEvent) => void
+  _onEvent: (event: StillEvent) => void
 ): Effect.Effect<Session | null, PreviewError> {
   return Effect.gen(function* () {
-    yield* readyBrowser({
-      onEvent,
-      options: tools.options,
-      renderer: tools.renderer,
-    });
-
     if (tools.internals === null) {
       yield* log(
         "this Remotion build does not expose what a warm render page needs, so every capture will load its own"
@@ -973,7 +1260,9 @@ function shoot(
     if (session === null) {
       return yield* captureStill({
         cache: booted.cache,
+        context: tools.context,
         dir: booted.dir,
+        extra: optionsFor(tools.config, "still"),
         onEvent,
         options: tools.options,
         renderer: tools.renderer,

@@ -1,0 +1,173 @@
+{
+  "remocn-saas-typography": {
+    "user": 23,
+    "activity": 320,
+    "skill:remocn-studio:video-lessons": 1,
+    "skill:remocn-studio:motion-design": 1,
+    "image_read": 49,
+    "assistant": 74,
+    "skill:remocn-studio:remotion-interactivity": 1,
+    "design_check": 3
+  },
+  "remocn-test-animation": {
+    "user": 1,
+    "activity": 8,
+    "skill:remocn-studio:video-lessons": 1
+  },
+  "remocn-rush-led": {
+    "user": 13,
+    "assistant": 30,
+    "activity": 122,
+    "skill:remocn-studio:video-lessons": 1,
+    "skill:remocn-studio:motion-design": 1,
+    "skill:remocn-studio:remocn": 1,
+    "skill:remocn-studio:remotion-interactivity": 1,
+    "design_check": 2,
+    "image_read": 12
+  },
+  "remocn-polish-landing": {
+    "user": 4,
+    "assistant": 23,
+    "activity": 134,
+    "skill:remocn-studio:motion-design": 1,
+    "skill:remocn-studio:video-lessons": 2,
+    "skill:remocn-studio:remotion-interactivity": 1,
+    "design_check": 3,
+    "image_read": 22
+  },
+  "remocn-test-props": {
+    "user": 10,
+    "notice": 1,
+    "assistant": 26,
+    "activity": 77,
+    "design_check": 5
+  },
+  "remocn-test-easing": {
+    "user": 1,
+    "activity": 31,
+    "skill:remocn-studio:remotion-interactivity": 1,
+    "skill:remocn-studio:video-lessons": 1,
+    "skill:remocn-studio:motion-design": 1,
+    "assistant": 2,
+    "design_check": 1,
+    "image_read": 4
+  },
+  "remocn-need-sponsor": {
+    "user": 7,
+    "assistant": 27,
+    "activity": 207,
+    "skill:remocn-studio:video-lessons": 3,
+    "skill:remocn-studio:motion-design": 1,
+    "image_read": 17,
+    "design_check": 2
+  },
+  "remocn-tutorial-2": {
+    "user": 5,
+    "assistant": 9,
+    "activity": 98,
+    "skill:remocn-studio:video-lessons": 1,
+    "skill:remocn-studio:motion-design": 1,
+    "skill:remocn-studio:remotion-interactivity": 1,
+    "skill:remocn-studio:remocn": 1,
+    "image_read": 21,
+    "design_check": 2
+  },
+  "remocn-sponsors": {
+    "user": 8,
+    "assistant": 20,
+    "activity": 179,
+    "skill:remocn-studio:video-lessons": 1,
+    "skill:remocn-studio:motion-design": 1,
+    "skill:remocn-studio:remotion-interactivity": 1,
+    "image_read": 22,
+    "design_check": 14
+  },
+  "remocn-vidrush-sponsor": {
+    "user": 7,
+    "assistant": 22,
+    "activity": 157,
+    "skill:remocn-studio:video-lessons": 1,
+    "skill:remocn-studio:motion-design": 1,
+    "skill:remocn-studio:remotion-interactivity": 1,
+    "skill:remocn-studio:remocn": 1,
+    "image_read": 29,
+    "design_check": 9
+  },
+  "remocn-studio-teaser": {
+    "user": 11,
+    "assistant": 19,
+    "activity": 146,
+    "image_read": 34,
+    "skill:remocn-studio:video-lessons": 1,
+    "skill:remocn-studio:remocn": 1,
+    "design_check": 3,
+    "notice": 2
+  },
+  "remocn-introducing-free": {
+    "user": 1,
+    "assistant": 1,
+    "activity": 3
+  },
+  "remocn-intro-free-v": {
+    "user": 1,
+    "assistant": 4,
+    "activity": 26,
+    "design_check": 2,
+    "image_read": 5
+  },
+  "introducing-paid": {
+    "user": 5,
+    "assistant": 12,
+    "activity": 99,
+    "skill:remocn-studio:video-lessons": 1,
+    "skill:remocn-studio:motion-design": 1,
+    "skill:remocn-studio:remotion-interactivity": 1,
+    "image_read": 10,
+    "design_check": 7,
+    "skill:remocn-studio:remocn": 1
+  },
+  "timer-teaser": {
+    "user": 15,
+    "assistant": 34,
+    "activity": 381,
+    "skill:remocn-studio:video-lessons": 1,
+    "skill:remocn-studio:motion-design": 1,
+    "image_read": 149,
+    "skill:remocn-studio:remotion-interactivity": 1,
+    "design_check": 12
+  },
+  "remocn-prs": {
+    "user": 9,
+    "assistant": 25,
+    "activity": 88,
+    "image_read": 9,
+    "skill:remocn-studio:video-lessons": 1,
+    "skill:remocn-studio:motion-design": 1,
+    "skill:remocn-studio:remotion-interactivity": 1,
+    "design_check": 9
+  },
+  "remocn-studio-01": {
+    "user": 2,
+    "notice": 1,
+    "assistant": 11,
+    "activity": 46,
+    "design_check": 5
+  },
+  "remocn-studio-02": {
+    "user": 2,
+    "assistant": 6,
+    "activity": 128,
+    "skill:remocn-studio:video-lessons": 2,
+    "skill:remocn-studio:motion-design": 2,
+    "skill:remocn-studio:remotion-interactivity": 1,
+    "design_check": 5,
+    "image_read": 13
+  },
+  "reabit": {
+    "user": 4,
+    "notice": 6,
+    "assistant": 15,
+    "activity": 69,
+    "design_check": 12
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "video": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/out/wandry/wandry-final.mp4",
+  "video_sha256": "68d8dff59be6ff32f297ab1698761fa5121bf56a3e95f0adf71be6573e178fae",
+  "method": "Current exported MP4, selected frame inspection and source timing analysis; no new render or real-time playback evaluation. No target-project edits.",
+  "source_files": [
+    {
+      "path": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry/components/CaseCard.tsx",
+      "sha256": "6cf76b7768164e9d4a546aca1c8a7f647b50f7043b6c62a62e9ae5f90d5e036e"
+    },
+    {
+      "path": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry/components/ChipRow.tsx",
+      "sha256": "8869c95c6866cd51566b0585b74f44ee193ae8e1a1e8ec8d3165172f496625cf"
+    },
+    {
+      "path": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry/components/Counter.tsx",
+      "sha256": "c9f15b3491a070ac51f12ba54cb75906ededbe9abaac558dba576bcf44cdc45e"
+    },
+    {
+      "path": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry/components/DarkPanel.tsx",
+      "sha256": "b7ff52073fc29fd57c98668d292dbeb1329afd4e005bd87b09b80be6480db98e"
+    },
+    {
+      "path": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry/components/Label.tsx",
+      "sha256": "67940762a8e609188fb3c17c033923fef161035382eab8aec33e2867b1ecec00"
+    },
+    {
+      "path": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry/components/Mascot.tsx",
+      "sha256": "2f65aebe465d8e19aa03e648064abae8df5b862d87f671fe9a4615f4393c5385"
+    },
+    {
+      "path": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry/components/RevealLines.tsx",
+      "sha256": "ed3df827a9044b8003a25fad98c887c59b8455def5b7db1adcf3e194ad59ff9d"
+    },
+    {
+      "path": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry/components/WordPush.tsx",
+      "sha256": "aeeec9ec3f326dfe87c149c81d3f57b3c495f09fed854526b3adc1435fa6c057"
+    },
+    {
+      "path": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry/components/Wordmark.tsx",
+      "sha256": "d883797c5a850267dcbb0ccd688970ecf2d1a4b7ec8c0a1fc3b9db48f87f2d68"
+    },
+    {
+      "path": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry/components/ZoomBlurEdge.tsx",
+      "sha256": "7483df1bd8c21af7398020928a76d405136243abfd61cc6ee4437b48813ae293"
+    },
+    {
+      "path": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry/index.tsx",
+      "sha256": "e1d2c48d5e51162d8a79cfb008236fcee9921539d5ba75779f5cc2e35ecb53bb"
+    },
+    {
+      "path": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry/scenes/CtaScene.tsx",
+      "sha256": "42411a1890770871acc77c39cbe8faedc8408d221715d7d56bad7a7c89df2e10"
+    },
+    {
+      "path": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry/scenes/HeroScene.tsx",
+      "sha256": "071defb82dd177d4e0cc63e4ce16b53e3e2fee839f8cc5f773483564cee00923"
+    },
+    {
+      "path": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry/scenes/LockupScene.tsx",
+      "sha256": "e5564625a8b5463fc34d935c4c94142a2a1e8dd35757c3aabb6036c197f02506"
+    },
+    {
+      "path": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry/scenes/ServicesScene.tsx",
+      "sha256": "a723bcecb5066b000eeae05af294b7f9ded0fa83f4396c5f88993269858e761e"
+    },
+    {
+      "path": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry/scenes/WorksScene.tsx",
+      "sha256": "b6b010bbb5cc85243cf690e79190b8670f75ece33ac127dfef1b803f44298563"
+    },
+    {
+      "path": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry/components/schema.ts",
+      "sha256": "e73f1dd6bdbe5d29062438026fb1411a3de10a7f80805c53be8e9506920c2921"
+    },
+    {
+      "path": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry/fonts.ts",
+      "sha256": "d189cf6cf4685e2e87361732ef3c2e7caa4560b6cc47a2bcd3c942b8bbffebec"
+    }
+  ],
+  "report": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry/docs/design-check-full.json",
+  "observed_issues": [
+    {
+      "id": "phrase-overlap",
+      "first_next_frame": 191,
+      "last_previous_frame": 195,
+      "exit_formula": "178 + 5 * 2 + 8 = 196",
+      "next_start": 190
+    },
+    {
+      "id": "services-read-window",
+      "fully_settled": 300,
+      "first_exit": 317,
+      "seconds": 0.5666666666666667
+    },
+    {
+      "id": "caption-unmount",
+      "before": 658,
+      "after": 659
+    }
+  ]
+}

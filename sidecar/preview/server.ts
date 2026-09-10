@@ -10,6 +10,7 @@ import { errorMessage } from "@/lib/error-message";
 import { etagOf, matches } from "./caching";
 import { GRAB_PATH } from "./grab";
 import { previewPage, renderPage } from "./html";
+import { type JobRegistry, jobPath, type Pinned } from "./job";
 import { PreviewError } from "./project";
 import { RENDER_BASE } from "./protocol";
 import type { Proxies } from "./proxies";
@@ -67,6 +68,7 @@ export interface PreviewServer {
 
 export interface ServerOptions {
   grab: string | null;
+  jobs: JobRegistry;
   outDir: string;
   preferred: string | null;
   previewBase: string;
@@ -191,6 +193,10 @@ function handle(
     return;
   }
 
+  if (servePinned(options, pathname, request, response)) {
+    return;
+  }
+
   if (pathname.startsWith(`${RENDER_BASE}/`)) {
     sendFile(
       options.outDir,
@@ -230,6 +236,61 @@ function handle(
     request,
     response
   );
+}
+
+// A render job is served from a copy of the bundle and of public/, taken when
+// the job started: an agent saving a file mid-render rebuilds what the pane is
+// watching, never the frames the encoder is still asking for.
+function servePinned(
+  options: ServerOptions,
+  pathname: string,
+  request: IncomingMessage,
+  response: ServerResponse
+): boolean {
+  const asked = jobPath(pathname);
+
+  if (asked !== null) {
+    const job = options.jobs.of(asked.id);
+
+    if (job === null) {
+      response.writeHead(404).end();
+      return true;
+    }
+
+    sendJob(options, job, asked.rest, request, response);
+    return true;
+  }
+
+  const owner = options.jobs.byStatic(pathname);
+
+  if (owner === null) {
+    return false;
+  }
+
+  sendFile(
+    owner.publicDir ?? options.publicDir,
+    pathname.slice(owner.staticBase.length + 1),
+    ORIGINAL,
+    request,
+    response
+  );
+
+  return true;
+}
+
+function sendJob(
+  options: ServerOptions,
+  job: Pinned,
+  rest: string,
+  request: IncomingMessage,
+  response: ServerResponse
+): void {
+  if (rest === "" || rest === "index.html") {
+    sendPage(renderPage(pageOptions(options, job.staticBase, null)), response);
+    return;
+  }
+
+  sendFile(job.outDir, rest, BUNDLE, request, response);
 }
 
 function previewing(options: ServerOptions): Delivery {

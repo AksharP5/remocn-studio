@@ -38,6 +38,7 @@
     "preview",
     "templates",
     "agent",
-    "remocn"
+    "remocn",
+    "test/fixtures"
   ]
 }

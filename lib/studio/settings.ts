@@ -3,6 +3,13 @@ import { Effect } from "effect";
 import type { LayoutStorage } from "react-resizable-panels";
 import { isPaneView, type PaneView } from "@/lib/studio/pane-view";
 import { crashConsentValue } from "@/shared/crash";
+import {
+  EXPORT_FORMATS,
+  EXPORT_PRESETS,
+  EXPORT_QUALITIES,
+  EXPORT_RESOLUTIONS,
+  type ExportSettings,
+} from "@/shared/export";
 import { type EffortLevel, isEffortLevel } from "@/shared/ipc";
 import type { AgentProvider } from "@/shared/providers";
 
@@ -251,3 +258,70 @@ export const layoutStorage: LayoutStorage = {
     Effect.runFork(persist(LAYOUT_KEY_PREFIX + key, value));
   },
 };
+
+const EXPORT_KEY_PREFIX = "export:";
+
+export interface RememberedExport {
+  folder: string | null;
+  settings: ExportSettings;
+}
+
+export function readExportSettings(projectId: string): RememberedExport | null {
+  const held = cache.get(EXPORT_KEY_PREFIX + projectId);
+
+  if (held === undefined) {
+    return null;
+  }
+
+  try {
+    return rememberedOf(JSON.parse(held));
+  } catch {
+    return null;
+  }
+}
+
+export function saveExportSettings(
+  projectId: string,
+  remembered: RememberedExport
+): Effect.Effect<void> {
+  return remember(
+    EXPORT_KEY_PREFIX + projectId,
+    JSON.stringify({ ...remembered.settings, folder: remembered.folder })
+  );
+}
+
+function rememberedOf(parsed: unknown): RememberedExport | null {
+  if (typeof parsed !== "object" || parsed === null) {
+    return null;
+  }
+
+  const { folder, format, preset, quality, resolution } = parsed as Record<
+    string,
+    unknown
+  >;
+
+  if (
+    !(
+      isOneOf(EXPORT_FORMATS, format) &&
+      isOneOf(EXPORT_PRESETS, preset) &&
+      isOneOf(EXPORT_QUALITIES, quality) &&
+      isOneOf(EXPORT_RESOLUTIONS, resolution)
+    )
+  ) {
+    return null;
+  }
+
+  return {
+    folder: typeof folder === "string" ? folder : null,
+    settings: { format, preset, quality, resolution },
+  };
+}
+
+function isOneOf<T extends string>(
+  allowed: readonly T[],
+  value: unknown
+): value is T {
+  return (
+    typeof value === "string" && (allowed as readonly string[]).includes(value)
+  );
+}

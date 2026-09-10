@@ -260,7 +260,7 @@ describe("captureStill", () => {
     );
   });
 
-  it("says why a WebGL scene never finished compiling", async () => {
+  it("says what a delayRender that never cleared could be, without blaming the GPU", async () => {
     const state = fake({
       onRender: () =>
         Promise.reject(
@@ -272,7 +272,8 @@ describe("captureStill", () => {
 
     const exit = await Effect.runPromiseExit(capture(state.renderer, dir()));
 
-    expect(String(exit)).toContain("setChromiumOpenGlRenderer");
+    expect(String(exit)).toContain("font");
+    expect(String(exit)).not.toContain("setChromiumOpenGlRenderer");
   });
 
   it("leaves an unrelated failure's message alone", async () => {

@@ -140,6 +140,9 @@ describe("expandTemplate", () => {
 
     expect(manifest.name).toBe("launch-film");
     expect(manifest.dependencies.remotion).toBeDefined();
+    expect(
+      await readFile(join(target, "src/lib/studio-motion-v1/timing.ts"), "utf8")
+    ).toContain("export function sequence");
     expect(await readFile(join(target, "src", "index.ts"), "utf8")).toContain(
       "registerRoot(withVideos(Root));"
     );

@@ -157,13 +157,29 @@ const tuning = Schema.Array(TuningTarget).pipe(
   Schema.withDecodingDefault(Effect.succeed([]))
 );
 
+export const PreviewMetadata = Schema.Struct({
+  durationInFrames: Schema.Int,
+  fps: Schema.Finite,
+  height: Schema.Int,
+  width: Schema.Int,
+});
+
 export const PreviewMessage = Schema.Union([
   Schema.Struct({
     compositionId: Schema.NullOr(Schema.String),
     compositions: Schema.Array(Schema.NonEmptyString),
+    // What the Player is really mounted with, calculateMetadata resolved. A
+    // page from a build before this shipped sends none, and the pane then
+    // knows only that the composition exists.
+    metadata: Schema.NullOr(PreviewMetadata).pipe(
+      Schema.withDecodingDefault(Effect.succeed(null))
+    ),
     reason: PreviewPick,
     source: from,
     total: Schema.Int,
+    trouble: Schema.NullOr(Schema.String).pipe(
+      Schema.withDecodingDefault(Effect.succeed(null))
+    ),
     type: Schema.Literal("composition"),
     unmeasured: Schema.Boolean,
   }),
@@ -321,6 +337,7 @@ export type PreviewComposition = Extract<
   PreviewMessage,
   { type: "composition" }
 >;
+export type PreviewMetadata = (typeof PreviewMetadata)["Type"];
 export type PreviewSelection = Extract<PreviewMessage, { type: "selection" }>;
 export type PreviewPlayhead = Extract<PreviewMessage, { type: "playhead" }>;
 export type PreviewWindow = (typeof PreviewWindow)["Type"];

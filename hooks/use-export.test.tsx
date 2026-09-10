@@ -1,21 +1,29 @@
 import { describe, expect, it } from "bun:test";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { type ExportSettings, useExport } from "@/hooks/use-export";
+import { Effect } from "effect";
+import { type ExportOptions, useExport } from "@/hooks/use-export";
 import type { ExportEvent, Exported } from "@/shared/ipc";
 
 const PROJECT = "project-1";
 const OTHER = "project-2";
 const OUTPUT = "/Users/me/scenes/out/Main.mp4";
 
-const SERVING: ExportSettings = {
+const SERVING: ExportOptions = {
   composition: "Main",
   isServing: true,
+  metadata: { durationInFrames: 300, fps: 30, height: 1080, width: 1920 },
   openedProjectId: PROJECT,
+  pick: () => Effect.succeed("/Users/me/scenes/out"),
   projectId: PROJECT,
 };
 
-const EXPORTED: Exported = { bytes: 4_404_019, path: OUTPUT };
+const EXPORTED: Exported = {
+  bytes: 4_404_019,
+  height: 1080,
+  path: OUTPUT,
+  width: 1920,
+};
 
 interface Internals {
   runCallback: (id: number, data: unknown) => void;
@@ -86,14 +94,19 @@ function mockExport() {
   };
 }
 
-async function started(settings: ExportSettings = SERVING) {
+async function started(settings: ExportOptions = SERVING) {
   const host = mockExport();
-  const rendered = renderHook((props: ExportSettings) => useExport(props), {
+  const rendered = renderHook((props: ExportOptions) => useExport(props), {
     initialProps: settings,
   });
 
   act(() => {
-    rendered.result.current.start();
+    rendered.result.current.open();
+  });
+
+  await act(async () => {
+    rendered.result.current.render();
+    await Promise.resolve();
   });
 
   await waitFor(() => {
@@ -102,6 +115,124 @@ async function started(settings: ExportSettings = SERVING) {
 
   return { host, rendered };
 }
+
+describe("the destination the dialog shows", () => {
+  function opened(over: Partial<ExportOptions> = {}) {
+    mockExport();
+    const rendered = renderHook(() =>
+      useExport({ ...SERVING, projectPath: "/Users/me/scenes", ...over })
+    );
+
+    act(() => {
+      rendered.result.current.open();
+    });
+
+    return rendered;
+  }
+
+  it("names the file and the folder before anybody presses anything", () => {
+    const { result } = opened();
+
+    expect(result.current.fileName).toBe("Main.mp4");
+    expect(result.current.folder).toBe("out");
+    expect(result.current.target).toBe("/Users/me/scenes/out/Main.mp4");
+  });
+
+  it("follows the preset into the name", () => {
+    const { result } = opened();
+
+    act(() => {
+      result.current.choosePreset("youtube");
+    });
+
+    expect(result.current.fileName).toBe("Main-youtube.mp4");
+  });
+
+  it("follows the format into the ending", () => {
+    const { result } = opened();
+
+    act(() => {
+      result.current.chooseFormat("webm");
+    });
+
+    expect(result.current.fileName).toBe("Main.webm");
+  });
+
+  it("keeps a name that was typed, and still moves its ending with the format", () => {
+    const { result } = opened();
+
+    act(() => {
+      result.current.rename({
+        currentTarget: { value: "opening" },
+      } as React.ChangeEvent<HTMLInputElement>);
+    });
+
+    expect(result.current.fileName).toBe("opening.mp4");
+
+    act(() => {
+      result.current.chooseFormat("gif");
+    });
+
+    expect(result.current.fileName).toBe("opening.gif");
+  });
+
+  it("takes a folder from the picker and shows it", async () => {
+    const { result } = opened({
+      pick: () => Effect.succeed("/Users/me/Desktop"),
+    });
+
+    await act(async () => {
+      result.current.chooseFolder();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(result.current.folder).toBe("~/Desktop");
+    });
+
+    expect(result.current.target).toBe("/Users/me/Desktop/Main.mp4");
+  });
+
+  it("keeps the folder it had when the picker was dismissed", async () => {
+    const { result } = opened({ pick: () => Effect.succeed(null) });
+
+    await act(async () => {
+      result.current.chooseFolder();
+      await Promise.resolve();
+    });
+
+    expect(result.current.folder).toBe("out");
+  });
+
+  it("renders to the file it showed, with no second step", async () => {
+    const host = mockExport();
+    const rendered = renderHook(() =>
+      useExport({ ...SERVING, projectPath: "/Users/me/scenes" })
+    );
+
+    act(() => {
+      rendered.result.current.open();
+    });
+
+    act(() => {
+      rendered.result.current.choosePreset("shorts");
+    });
+
+    const { target } = rendered.result.current;
+
+    await act(async () => {
+      rendered.result.current.render();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(rendered.result.current.isRunning).toBe(true);
+    });
+
+    expect(target).toBe("/Users/me/scenes/out/Main-shorts.mp4");
+    expect(host.state.requests).toBe(1);
+  });
+});
 
 describe("useExport", () => {
   it("refuses to export a preview that is not serving", () => {

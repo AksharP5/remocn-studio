@@ -9,6 +9,13 @@ import {
 import { DesignImport } from "./design-import";
 import { PlanTier } from "./entitlement";
 import {
+  DEFAULT_FORMAT,
+  EXPORT_FORMATS,
+  EXPORT_PRESETS,
+  EXPORT_QUALITIES,
+  EXPORT_RESOLUTIONS,
+} from "./export";
+import {
   Asset,
   AssetDraft,
   PromptAsset,
@@ -26,7 +33,7 @@ import {
 } from "./providers";
 import { TemplateDraft } from "./templates";
 
-export const SIDECAR_PROTOCOL = 29;
+export const SIDECAR_PROTOCOL = 30;
 
 export const SIDECAR_STATUS_EVENT = "sidecar://status";
 export const SIDECAR_NOTIFY_EVENT = "sidecar://notify";
@@ -956,17 +963,56 @@ export const WarmParams = Schema.Struct({
 
 export const Warmed = Schema.Struct({ warmed: Schema.Boolean });
 
+export const ExportFormat = Schema.Literals(EXPORT_FORMATS);
+
+export const ExportQuality = Schema.Literals(EXPORT_QUALITIES);
+
+export const ExportResolution = Schema.Literals(EXPORT_RESOLUTIONS);
+
+export const ExportPreset = Schema.Literals(EXPORT_PRESETS);
+
+// Everything the dialog picked. The defaults are what the button did before it
+// had a dialog: H.264 into the project's own out/, at the project's settings.
 export const ExportParams = Schema.Struct({
   composition: Schema.NonEmptyString,
+  format: ExportFormat.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_FORMAT))
+  ),
+  outputPath: Schema.NullOr(Schema.NonEmptyString).pipe(
+    Schema.withDecodingDefault(Effect.succeed(null))
+  ),
+  preset: ExportPreset.pipe(
+    Schema.withDecodingDefault(Effect.succeed("custom" as const))
+  ),
   projectId: Schema.NonEmptyString,
+  quality: ExportQuality.pipe(
+    Schema.withDecodingDefault(Effect.succeed("project" as const))
+  ),
+  resolution: ExportResolution.pipe(
+    Schema.withDecodingDefault(Effect.succeed("source" as const))
+  ),
 });
 
 export const ExportStage = Schema.Literals(["encoding", "muxing"]);
+
+export const ExportJobStage = Schema.Literals([
+  "preparing",
+  "rendering",
+  "finalizing",
+]);
 
 export const ExportEvent = Schema.Union([
   Schema.Struct({
     percent: Schema.Int,
     type: Schema.Literal("browser"),
+  }),
+  Schema.Struct({
+    stage: ExportJobStage,
+    type: Schema.Literal("stage"),
+  }),
+  Schema.Struct({
+    message: Schema.String,
+    type: Schema.Literal("notice"),
   }),
   Schema.Struct({
     encoded: Schema.Int,
@@ -980,7 +1026,9 @@ export const ExportEvent = Schema.Union([
 
 export const Exported = Schema.Struct({
   bytes: Schema.Int,
+  height: Schema.Int.pipe(Schema.withDecodingDefault(Effect.succeed(0))),
   path: Schema.NonEmptyString,
+  width: Schema.Int.pipe(Schema.withDecodingDefault(Effect.succeed(0))),
 });
 
 // What the project's own `@remotion/studio-codemods` needs to find a JSX call
@@ -1109,6 +1157,7 @@ export type ExportParams = (typeof ExportParams)["Type"];
 export type ExportStage = (typeof ExportStage)["Type"];
 export type ExportEvent = (typeof ExportEvent)["Type"];
 export type ExportProgress = Extract<ExportEvent, { type: "progress" }>;
+export type ExportJobStage = (typeof ExportJobStage)["Type"];
 export type Exported = (typeof Exported)["Type"];
 export type VideoConfigValues = (typeof VideoConfigValues)["Type"];
 export type CodeNodePath = (typeof CodeNodePath)["Type"];

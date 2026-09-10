@@ -1,0 +1,261 @@
+{
+  "comparisons": [
+    {
+      "equal": true,
+      "first": "type-short-30",
+      "second": "type-short-60",
+      "seconds": 0.2
+    },
+    {
+      "equal": true,
+      "first": "type-short-30",
+      "second": "type-short-60",
+      "seconds": 0.5
+    },
+    {
+      "equal": true,
+      "first": "type-short-30",
+      "second": "type-short-60",
+      "seconds": 1
+    },
+    {
+      "equal": true,
+      "first": "type-short-30",
+      "second": "type-short-60",
+      "seconds": 2.5
+    },
+    {
+      "equal": true,
+      "first": "type-short-30",
+      "second": "type-short-60",
+      "seconds": 3
+    },
+    {
+      "equal": true,
+      "first": "image-30",
+      "second": "image-60",
+      "seconds": 0.2
+    },
+    {
+      "equal": true,
+      "first": "image-30",
+      "second": "image-60",
+      "seconds": 0.5
+    },
+    {
+      "equal": true,
+      "first": "image-30",
+      "second": "image-60",
+      "seconds": 1
+    },
+    {
+      "equal": true,
+      "first": "image-30",
+      "second": "image-60",
+      "seconds": 2.5
+    },
+    {
+      "equal": true,
+      "first": "image-30",
+      "second": "image-60",
+      "seconds": 3
+    },
+    {
+      "equal": true,
+      "first": "metric-30",
+      "second": "metric-60",
+      "seconds": 0.2
+    },
+    {
+      "equal": true,
+      "first": "metric-30",
+      "second": "metric-60",
+      "seconds": 0.5
+    },
+    {
+      "equal": true,
+      "first": "metric-30",
+      "second": "metric-60",
+      "seconds": 1
+    },
+    {
+      "equal": true,
+      "first": "metric-30",
+      "second": "metric-60",
+      "seconds": 2.5
+    },
+    {
+      "equal": true,
+      "first": "metric-30",
+      "second": "metric-60",
+      "seconds": 3
+    }
+  ],
+  "failure": null,
+  "limits": "Mechanical render and timing coverage. Human visual review is separate; this is not a model-generation benchmark or audio evaluation.",
+  "remotion": "4.0.520",
+  "results": [
+    {
+      "fps": 30,
+      "frames": 216,
+      "height": 720,
+      "id": "type-short-30",
+      "initialFrameClear": true,
+      "reviewFrames": [
+        0, 1, 9, 10, 11, 19, 20, 21, 46, 47, 48, 73, 74, 75, 79, 80, 81, 84, 85,
+        86, 94, 95, 96, 104, 105, 106, 126, 127, 128, 149, 150, 151, 154, 155,
+        156, 160, 161, 162, 170, 171, 172, 179, 180, 181, 197, 198, 199, 215
+      ],
+      "timingIssues": [],
+      "video": "type-short-30.mp4",
+      "width": 1280
+    },
+    {
+      "fps": 60,
+      "frames": 431,
+      "height": 720,
+      "id": "type-short-60",
+      "initialFrameClear": true,
+      "reviewFrames": [
+        0, 1, 19, 20, 21, 38, 39, 40, 92, 93, 94, 147, 148, 149, 158, 159, 160,
+        169, 170, 171, 189, 190, 191, 208, 209, 210, 253, 254, 255, 298, 299,
+        300, 309, 310, 311, 321, 322, 323, 340, 341, 342, 359, 360, 361, 395,
+        396, 397, 430
+      ],
+      "timingIssues": [],
+      "video": "type-short-60.mp4",
+      "width": 1280
+    },
+    {
+      "fps": 30,
+      "frames": 262,
+      "height": 720,
+      "id": "type-long-30",
+      "initialFrameClear": true,
+      "reviewFrames": [
+        0, 1, 9, 10, 11, 19, 20, 21, 79, 80, 81, 139, 140, 141, 144, 145, 146,
+        150, 151, 152, 160, 161, 162, 169, 170, 171, 215, 216, 217, 261
+      ],
+      "timingIssues": [],
+      "video": "type-long-30.mp4",
+      "width": 1280
+    },
+    {
+      "fps": 30,
+      "frames": 262,
+      "height": 1280,
+      "id": "type-portrait-30",
+      "initialFrameClear": true,
+      "reviewFrames": [
+        0, 1, 9, 10, 11, 19, 20, 21, 79, 80, 81, 139, 140, 141, 144, 145, 146,
+        150, 151, 152, 160, 161, 162, 169, 170, 171, 215, 216, 217, 261
+      ],
+      "timingIssues": [],
+      "video": "type-portrait-30.mp4",
+      "width": 720
+    },
+    {
+      "fps": 24,
+      "frames": 179,
+      "height": 1280,
+      "id": "type-cyrillic-24",
+      "initialFrameClear": true,
+      "reviewFrames": [
+        0, 1, 7, 8, 9, 15, 16, 17, 33, 34, 35, 52, 53, 54, 56, 57, 58, 61, 62,
+        63, 68, 69, 70, 76, 77, 78, 97, 98, 99, 118, 119, 120, 123, 124, 125,
+        127, 128, 129, 135, 136, 137, 142, 143, 144, 160, 161, 162, 178
+      ],
+      "timingIssues": [],
+      "video": "type-cyrillic-24.mp4",
+      "width": 720
+    },
+    {
+      "fps": 30,
+      "frames": 182,
+      "height": 720,
+      "id": "image-30",
+      "initialFrameClear": true,
+      "reviewFrames": [
+        0, 1, 9, 10, 11, 19, 20, 21, 41, 42, 43, 63, 64, 65, 69, 70, 71, 74, 75,
+        76, 84, 85, 86, 88, 89, 90, 93, 94, 95, 99, 100, 101, 133, 134, 135,
+        140, 141, 142, 181
+      ],
+      "timingIssues": [],
+      "video": "image-30.mp4",
+      "width": 1280
+    },
+    {
+      "fps": 60,
+      "frames": 364,
+      "height": 720,
+      "id": "image-60",
+      "initialFrameClear": true,
+      "reviewFrames": [
+        0, 1, 19, 20, 21, 38, 39, 40, 82, 83, 84, 126, 127, 128, 138, 139, 140,
+        148, 149, 150, 151, 169, 170, 171, 177, 178, 179, 187, 188, 189, 198,
+        199, 200, 266, 267, 268, 281, 282, 283, 363
+      ],
+      "timingIssues": [],
+      "video": "image-60.mp4",
+      "width": 1280
+    },
+    {
+      "fps": 30,
+      "frames": 182,
+      "height": 1280,
+      "id": "image-portrait-30",
+      "initialFrameClear": true,
+      "reviewFrames": [
+        0, 1, 9, 10, 11, 19, 20, 21, 41, 42, 43, 63, 64, 65, 69, 70, 71, 74, 75,
+        76, 84, 85, 86, 88, 89, 90, 93, 94, 95, 99, 100, 101, 133, 134, 135,
+        140, 141, 142, 181
+      ],
+      "timingIssues": [],
+      "video": "image-portrait-30.mp4",
+      "width": 720
+    },
+    {
+      "fps": 30,
+      "frames": 168,
+      "height": 720,
+      "id": "metric-30",
+      "initialFrameClear": true,
+      "reviewFrames": [
+        0, 1, 19, 20, 21, 38, 39, 40, 56, 57, 58, 74, 75, 76, 83, 84, 85, 93,
+        94, 95, 103, 104, 105, 112, 113, 114, 139, 140, 141, 167
+      ],
+      "timingIssues": [],
+      "video": "metric-30.mp4",
+      "width": 1280
+    },
+    {
+      "fps": 60,
+      "frames": 335,
+      "height": 720,
+      "id": "metric-60",
+      "initialFrameClear": true,
+      "reviewFrames": [
+        0, 1, 38, 39, 40, 76, 77, 78, 112, 113, 114, 148, 149, 150, 167, 168,
+        169, 187, 188, 189, 206, 207, 208, 225, 226, 227, 279, 280, 281, 334
+      ],
+      "timingIssues": [],
+      "video": "metric-60.mp4",
+      "width": 1280
+    },
+    {
+      "fps": 30,
+      "frames": 168,
+      "height": 1280,
+      "id": "metric-portrait-30",
+      "initialFrameClear": true,
+      "reviewFrames": [
+        0, 1, 19, 20, 21, 38, 39, 40, 56, 57, 58, 74, 75, 76, 83, 84, 85, 93,
+        94, 95, 103, 104, 105, 112, 113, 114, 139, 140, 141, 167
+      ],
+      "timingIssues": [],
+      "video": "metric-portrait-30.mp4",
+      "width": 720
+    }
+  ],
+  "status": "passed"
+}

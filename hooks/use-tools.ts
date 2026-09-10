@@ -144,9 +144,11 @@ export function useTools({
   const exporting = useExport({
     composition: preview.composition,
     isServing: preview.isServing,
+    metadata: preview.pick?.metadata ?? null,
     openedProjectId,
     projectId: previewProjectId,
     projectPath,
+    selections: composer.selections.items,
   });
 
   return useMemo(

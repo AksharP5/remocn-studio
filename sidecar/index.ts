@@ -9,6 +9,8 @@ import { HistoryStore } from "./history/store";
 import { VideoStore } from "./history/videos";
 import { runHost } from "./host";
 import { untilOrphaned, untilSignalled } from "./lifecycle";
+import { CONFIG_HOST_FLAG } from "./preview/config";
+import { runConfigHost } from "./preview/config-host";
 import { runPreviewHost } from "./preview/host";
 import { PREVIEW_HOST_FLAG } from "./preview/supervisor";
 import { runToolsHost } from "./tools/host";
@@ -40,6 +42,9 @@ const chosen = (() => {
   }
   if (process.argv.includes(TOOLS_HOST_FLAG)) {
     return runToolsHost;
+  }
+  if (process.argv.includes(CONFIG_HOST_FLAG)) {
+    return runConfigHost;
   }
   return sidecar;
 })();

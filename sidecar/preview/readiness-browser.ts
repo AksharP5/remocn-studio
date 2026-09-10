@@ -17,6 +17,12 @@ export interface ReadinessFrame {
   }[];
   darkFraction: number;
   limitations: string[];
+  motionPlans?: { json: string; localFrame: number }[];
+  motionTargets?: {
+    id: string;
+    opacity: number;
+    bbox: { x: number; y: number; width: number; height: number };
+  }[];
   pixelHash: string;
   resources: { resource: string; reason: string; selector: string }[];
   texts: ReadinessText[];
@@ -136,10 +142,14 @@ export async function probeReadiness(
       }
     }
     const range = document.createRange();
-    range.selectNodeContents(node);
-    const rect = range.getBoundingClientRect();
     const text = node.textContent;
-    const shown = readable(element, rect);
+    const rects = [...text.matchAll(/\S+/gu)].flatMap((match) => {
+      range.setStart(node, match.index);
+      range.setEnd(node, match.index + match[0].length);
+      return [...range.getClientRects()];
+    });
+    const shown =
+      rects.length > 0 && rects.every((rect) => readable(element, rect));
     const existing = groups.get(group) ?? {
       bbox: box(group.getBoundingClientRect()),
       opacity: opacity(group),
@@ -308,6 +318,23 @@ export async function probeReadiness(
     contrast,
     darkFraction: dark / 1024,
     limitations,
+    motionPlans: [...document.querySelectorAll("[data-studio-motion-plan]")]
+      // Include one excess marker so the collector reports its bounded limit.
+      .slice(0, 129)
+      .map((element) => ({
+        json: (element.getAttribute("data-studio-motion-plan") ?? "").slice(
+          0,
+          262_145
+        ),
+        localFrame: Number(element.getAttribute("data-studio-motion-frame")),
+      })),
+    motionTargets: [...document.querySelectorAll("[data-motion-cue]")]
+      .slice(0, 4096)
+      .map((element) => ({
+        bbox: box(element.getBoundingClientRect()),
+        id: element.getAttribute("data-motion-cue") ?? "",
+        opacity: opacity(element),
+      })),
     pixelHash: String(hash),
     resources,
     texts: [...groups.values()],

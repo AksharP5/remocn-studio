@@ -79,8 +79,17 @@ describe("the dictionary", () => {
   });
 
   it("is documented name by name in the motion-design skill", () => {
+    expect(SKILL).toContain("(rules/dictionary.md)");
+    const dictionary = readFileSync(
+      join(
+        import.meta.dirname,
+        "..",
+        "agent/skills/motion-design/rules/dictionary.md"
+      ),
+      "utf8"
+    );
     for (const name of NAMES) {
-      expect(SKILL).toContain(`\`${name}\``);
+      expect(dictionary).toContain(`\`${name}\``);
     }
   });
 });

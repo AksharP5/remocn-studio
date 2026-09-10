@@ -117,6 +117,16 @@ export const ReadinessReport = Schema.Struct({
     ),
     fps: Schema.Finite,
     limitations: Schema.Array(Schema.String),
+    motion: Schema.optionalKey(
+      Schema.Struct({
+        boundaries: Schema.Array(Schema.Int),
+        contracts: Schema.Int,
+        cues: Schema.Int,
+        invalid: Schema.Array(Schema.String),
+        uncovered: Schema.optionalKey(Schema.Array(Interval)),
+        unvisited: Schema.Array(Schema.Int),
+      })
+    ),
     peakRssBytes: Schema.Finite,
     planned: Schema.Int,
     sampled: Schema.Array(Schema.Int),
