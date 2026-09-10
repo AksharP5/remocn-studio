@@ -1,0 +1,347 @@
+{
+  "fable": {
+    "path": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/out/wandry-v2/wandry-v2-final.mp4",
+    "sha256": "fe2eef179f6399775fa0c4e1c6b56790acfa9d9ff58786fec408b1c4764d9ffc",
+    "mtime": 1789050354.5487132,
+    "probe": {
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "h264",
+          "codec_long_name": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+          "profile": "High",
+          "codec_type": "video",
+          "codec_tag_string": "avc1",
+          "codec_tag": "0x31637661",
+          "mime_codec_string": "avc1.640028",
+          "width": 1920,
+          "height": 1080,
+          "coded_width": 1920,
+          "coded_height": 1080,
+          "has_b_frames": 2,
+          "sample_aspect_ratio": "1:1",
+          "display_aspect_ratio": "16:9",
+          "pix_fmt": "yuvj420p",
+          "level": 40,
+          "color_range": "pc",
+          "color_space": "bt470bg",
+          "chroma_location": "center",
+          "field_order": "progressive",
+          "is_avc": "true",
+          "nal_length_size": "4",
+          "id": "0x1",
+          "r_frame_rate": "30/1",
+          "avg_frame_rate": "30/1",
+          "time_base": "1/90000",
+          "start_pts": 0,
+          "start_time": "0.000000",
+          "duration_ts": 2700000,
+          "duration": "30.000000",
+          "bit_rate": "1163359",
+          "bits_per_raw_sample": "8",
+          "nb_frames": "900",
+          "extradata_size": 51,
+          "disposition": {
+            "default": 1,
+            "dub": 0,
+            "original": 0,
+            "comment": 0,
+            "lyrics": 0,
+            "karaoke": 0,
+            "forced": 0,
+            "hearing_impaired": 0,
+            "visual_impaired": 0,
+            "clean_effects": 0,
+            "attached_pic": 0,
+            "timed_thumbnails": 0,
+            "non_diegetic": 0,
+            "captions": 0,
+            "descriptions": 0,
+            "metadata": 0,
+            "dependent": 0,
+            "still_image": 0,
+            "multilayer": 0
+          },
+          "tags": {
+            "language": "und",
+            "handler_name": "VideoHandler",
+            "encoder": "Lavc61.19.100 libx264"
+          },
+          "side_data_list": [
+            {
+              "side_data_type": "ICC Profile"
+            }
+          ]
+        },
+        {
+          "index": 1,
+          "codec_name": "aac",
+          "codec_long_name": "AAC (Advanced Audio Coding)",
+          "profile": "LC",
+          "codec_type": "audio",
+          "codec_tag_string": "mp4a",
+          "codec_tag": "0x6134706d",
+          "mime_codec_string": "mp4a.40.2",
+          "sample_fmt": "fltp",
+          "sample_rate": "48000",
+          "channels": 2,
+          "channel_layout": "stereo",
+          "bits_per_sample": 0,
+          "initial_padding": 0,
+          "id": "0x2",
+          "r_frame_rate": "0/0",
+          "avg_frame_rate": "0/0",
+          "time_base": "1/48000",
+          "start_pts": 0,
+          "start_time": "0.000000",
+          "duration_ts": 1442816,
+          "duration": "30.058667",
+          "bit_rate": "317374",
+          "nb_frames": "1409",
+          "extradata_size": 2,
+          "disposition": {
+            "default": 1,
+            "dub": 0,
+            "original": 0,
+            "comment": 0,
+            "lyrics": 0,
+            "karaoke": 0,
+            "forced": 0,
+            "hearing_impaired": 0,
+            "visual_impaired": 0,
+            "clean_effects": 0,
+            "attached_pic": 0,
+            "timed_thumbnails": 0,
+            "non_diegetic": 0,
+            "captions": 0,
+            "descriptions": 0,
+            "metadata": 0,
+            "dependent": 0,
+            "still_image": 0,
+            "multilayer": 0
+          },
+          "tags": {
+            "language": "und",
+            "handler_name": "SoundHandler"
+          }
+        }
+      ],
+      "format": {
+        "filename": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/out/wandry-v2/wandry-v2-final.mp4",
+        "nb_streams": 2,
+        "nb_programs": 0,
+        "nb_stream_groups": 0,
+        "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+        "format_long_name": "QuickTime / MOV",
+        "start_time": "0.000000",
+        "duration": "30.058667",
+        "size": "5589019",
+        "bit_rate": "1487496",
+        "probe_score": 100,
+        "tags": {
+          "major_brand": "isom",
+          "minor_version": "512",
+          "compatible_brands": "isomiso2avc1mp41",
+          "encoder": "Lavf61.7.100",
+          "comment": "Made with Remotion 4.0.520"
+        }
+      }
+    },
+    "decodedFrameCount": 900
+  },
+  "gpt": {
+    "path": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry-v3/wandry-introducing.mp4",
+    "sha256": "7265d8925d6f67cec8c2c6a6f9546e0bfe1768a948247b35b1a2c511ad2d2673",
+    "mtime": 1789052147.8765173,
+    "probe": {
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "h264",
+          "codec_long_name": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+          "profile": "High",
+          "codec_type": "video",
+          "codec_tag_string": "avc1",
+          "codec_tag": "0x31637661",
+          "mime_codec_string": "avc1.640028",
+          "width": 1920,
+          "height": 1080,
+          "coded_width": 1920,
+          "coded_height": 1080,
+          "has_b_frames": 2,
+          "pix_fmt": "yuv420p",
+          "level": 40,
+          "chroma_location": "left",
+          "field_order": "progressive",
+          "is_avc": "true",
+          "nal_length_size": "4",
+          "id": "0x1",
+          "r_frame_rate": "30/1",
+          "avg_frame_rate": "30/1",
+          "time_base": "1/15360",
+          "start_pts": 0,
+          "start_time": "0.000000",
+          "duration_ts": 460800,
+          "duration": "30.000000",
+          "bit_rate": "768695",
+          "bits_per_raw_sample": "8",
+          "nb_frames": "900",
+          "extradata_size": 47,
+          "disposition": {
+            "default": 1,
+            "dub": 0,
+            "original": 0,
+            "comment": 0,
+            "lyrics": 0,
+            "karaoke": 0,
+            "forced": 0,
+            "hearing_impaired": 0,
+            "visual_impaired": 0,
+            "clean_effects": 0,
+            "attached_pic": 0,
+            "timed_thumbnails": 0,
+            "non_diegetic": 0,
+            "captions": 0,
+            "descriptions": 0,
+            "metadata": 0,
+            "dependent": 0,
+            "still_image": 0,
+            "multilayer": 0
+          },
+          "tags": {
+            "language": "und",
+            "handler_name": "VideoHandler",
+            "encoder": "Lavc62.28.102 libx264"
+          }
+        },
+        {
+          "index": 1,
+          "codec_name": "aac",
+          "codec_long_name": "AAC (Advanced Audio Coding)",
+          "profile": "LC",
+          "codec_type": "audio",
+          "codec_tag_string": "mp4a",
+          "codec_tag": "0x6134706d",
+          "mime_codec_string": "mp4a.40.2",
+          "sample_fmt": "fltp",
+          "sample_rate": "48000",
+          "channels": 2,
+          "channel_layout": "stereo",
+          "bits_per_sample": 0,
+          "initial_padding": 0,
+          "id": "0x2",
+          "r_frame_rate": "0/0",
+          "avg_frame_rate": "0/0",
+          "time_base": "1/48000",
+          "start_pts": 0,
+          "start_time": "0.000000",
+          "duration_ts": 1440000,
+          "duration": "30.000000",
+          "bit_rate": "241152",
+          "nb_frames": "1408",
+          "extradata_size": 5,
+          "disposition": {
+            "default": 1,
+            "dub": 0,
+            "original": 0,
+            "comment": 0,
+            "lyrics": 0,
+            "karaoke": 0,
+            "forced": 0,
+            "hearing_impaired": 0,
+            "visual_impaired": 0,
+            "clean_effects": 0,
+            "attached_pic": 0,
+            "timed_thumbnails": 0,
+            "non_diegetic": 0,
+            "captions": 0,
+            "descriptions": 0,
+            "metadata": 0,
+            "dependent": 0,
+            "still_image": 0,
+            "multilayer": 0
+          },
+          "tags": {
+            "language": "und",
+            "handler_name": "SoundHandler"
+          }
+        }
+      ],
+      "format": {
+        "filename": "/Users/dev_wandry/projects/opensource/remocn-news-videos/remocn-news-videos/src/videos/wandry-v3/wandry-introducing.mp4",
+        "nb_streams": 2,
+        "nb_programs": 0,
+        "nb_stream_groups": 0,
+        "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+        "format_long_name": "QuickTime / MOV",
+        "start_time": "0.000000",
+        "duration": "30.000000",
+        "size": "3821821",
+        "bit_rate": "1019152",
+        "probe_score": 100,
+        "tags": {
+          "major_brand": "isom",
+          "minor_version": "512",
+          "compatible_brands": "isomiso2avc1mp41",
+          "encoder": "Lavf62.12.102"
+        }
+      }
+    },
+    "hold_windows": [
+      {
+        "fromFrame": 66,
+        "toFrame": 149,
+        "seconds": 2.8,
+        "meanLumaFrameDifference": 8.283132530120482e-05,
+        "maxLumaFrameDifference": 0.0011805555555555556
+      },
+      {
+        "fromFrame": 198,
+        "toFrame": 269,
+        "seconds": 2.4,
+        "meanLumaFrameDifference": 3.423317683881064e-05,
+        "maxLumaFrameDifference": 6.944444444444444e-05
+      },
+      {
+        "fromFrame": 300,
+        "toFrame": 389,
+        "seconds": 3.0,
+        "meanLumaFrameDifference": 0.0002036516853932584,
+        "maxLumaFrameDifference": 0.001388888888888889
+      },
+      {
+        "fromFrame": 420,
+        "toFrame": 509,
+        "seconds": 3.0,
+        "meanLumaFrameDifference": 0.00022862047440699125,
+        "maxLumaFrameDifference": 0.001736111111111111
+      },
+      {
+        "fromFrame": 540,
+        "toFrame": 629,
+        "seconds": 3.0,
+        "meanLumaFrameDifference": 7.33458177278402e-05,
+        "maxLumaFrameDifference": 0.0006944444444444445
+      },
+      {
+        "fromFrame": 669,
+        "toFrame": 749,
+        "seconds": 2.7,
+        "meanLumaFrameDifference": 0.0003958333333333334,
+        "maxLumaFrameDifference": 0.003263888888888889
+      },
+      {
+        "fromFrame": 816,
+        "toFrame": 899,
+        "seconds": 2.8,
+        "meanLumaFrameDifference": 0.00015896921017402945,
+        "maxLumaFrameDifference": 0.0011111111111111111
+      }
+    ],
+    "decodedFrameCount": 900
+  },
+  "method": {
+    "visual": "Encoded MP4 contact sheets, dense sampled transition neighbors, source and generation-log inspection. Not continuous subjective playback or loudspeaker audition.",
+    "lumaDifference": "Adjacent decoded grayscale 160x90 mean absolute luma difference; used only to corroborate holds, not score quality."
+  }
+}

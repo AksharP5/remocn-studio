@@ -98,7 +98,9 @@ code-authored in this first version.
 
 ## Verify the actual sequence
 
-1. Build the hardest short combination with the intended assets and final size.
+1. Build the passage selected to demonstrate the film's motion idea, event
+   relationships and rhythm, with the intended assets and final size. Include a
+   difficult combination when that direction depends on it.
 2. `checkTiming(plan, enclosingFrames, fps)` must report no accidental truncation
    or unallocated tail. Recipes execute this check while rendering.
 3. Render the proof. `reviewFrames(plan, fps)` lists event neighbours and reading

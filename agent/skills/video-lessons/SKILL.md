@@ -20,8 +20,10 @@ render requirements or artistic direction.
    the affected consecutive frames, not only a settled still.
 2. Identify the component, local/global frame, asset and installed version involved.
    Read only the relevant reference below and verify against the current code/API.
-3. Apply the narrowest supported correction. Preserve the intended appearance and
-   inspect the affected interval and neighbors again.
+3. Correct the owning cause: the component schedule, upstream event, shared anchor
+   or rendering behavior established by the reproducer. Follow its dependencies
+   into affected neighbors; a local symptom may require updating their timing or
+   geometry together. Preserve the intended appearance and inspect that interval again.
 4. Record the reproducer, environment, fix and verification with the video. A fix
    is complete when the observed defect is resolved without changing the intended
    event, geometry or identity.
