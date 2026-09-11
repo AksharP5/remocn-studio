@@ -28,8 +28,8 @@
 
 ## 4. Webview — Settings
 
-- [ ] 4.1 Add `lib/studio/integrations.ts` returning `Effect` over the Tauri commands, with failures as `Data.TaggedError`; verify `lib/studio/integrations.test.ts` covers each call and that a failure arrives as a sentence
-- [ ] 4.2 Add `hooks/use-integrations.ts` — the list, the add flow's steps, and check, reconfigure, reconnect, disable, enable and remove as actions; verify `hooks/use-integrations.test.tsx` covers a successful add, a check that refuses, a cancel that stores nothing, and a keychain failure that adds no row
+- [x] 4.1 Add `lib/studio/integrations.ts` returning `Effect` over the Tauri commands, with failures as `Data.TaggedError`; verify `lib/studio/integrations.test.ts` covers each call and that a failure arrives as a sentence
+- [x] 4.2 Add `hooks/use-integrations.ts` — the list, the add flow's steps, and check, reconfigure, reconnect, disable, enable and remove as actions; verify `hooks/use-integrations.test.tsx` covers a successful add, a check that refuses, a cancel that stores nothing, and a keychain failure that adds no row
 - [ ] 4.3 Add the Integrations section to `components/studio/settings-page.tsx` with the services group and the AI accounts group, rows carrying service, name, account, capabilities and state; verify `components/studio/settings-page.test.tsx` covers both groups, a row that needs authorization, and two connections of one service told apart by account
 - [ ] 4.4 Make every connection action reachable by keyboard and put a confirmation before removal that names the secret on this Mac; verify `components/studio/settings-page.test.tsx` walks the actions by keyboard and asserts nothing is removed until the confirmation is accepted
 - [ ] 4.5 Replace `accounts` with `integrations` in `SETTINGS_SECTIONS` in `hooks/use-settings-view.ts`, and point `openAccounts(provider)` at Integrations with that provider's row marked; verify `components/studio/settings-page.test.tsx` asserts the model menu's *Sign in* lands on Integrations with the row outlined
