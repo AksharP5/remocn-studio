@@ -42,6 +42,9 @@ function connection(shape: Record<string, unknown> = {}) {
 
 function studio(
   options: {
+    account?: string | null;
+    begin?: Error;
+    confirm?: Error;
     catalogue?: unknown[];
     connections?: unknown[];
     remove?: unknown;
@@ -50,7 +53,7 @@ function studio(
   const seen: string[] = [];
   let listed = options.connections ?? [];
 
-  mockIPC((cmd) => {
+  mockIPC((cmd, args) => {
     seen.push(cmd);
 
     if (cmd === "integrations_catalogue") {
@@ -62,6 +65,25 @@ function studio(
     if (cmd === "integrations_remove") {
       listed = [];
       return options.remove ?? { detail: null, withdrawn: true };
+    }
+    if (cmd === "integrations_begin") {
+      if (options.begin) {
+        throw options.begin;
+      }
+      return {
+        account:
+          options.account === undefined ? "studio@remocn.dev" : options.account,
+        capabilities: ["audio"],
+        provider: "elevenlabs",
+      };
+    }
+    if (cmd === "integrations_confirm") {
+      if (options.confirm) {
+        throw options.confirm;
+      }
+      const saved = connection({ name: (args as { name: string }).name });
+      listed = [saved];
+      return saved;
     }
     if (cmd === "integrations_cancel") {
       return null;
@@ -98,7 +120,7 @@ describe("the services group", () => {
     render(<IntegrationsSection />);
 
     expect(await screen.findByText("My ElevenLabs")).toBeVisible();
-    expect(screen.getByText("elevenlabs")).toBeVisible();
+    expect(screen.getByText("ElevenLabs", { selector: "span" })).toBeVisible();
     expect(screen.getByText(ACCOUNT)).toBeVisible();
     expect(screen.getByText("Connected")).toBeVisible();
   });
@@ -249,5 +271,104 @@ describe("adding an integration", () => {
       expect(screen.queryByText("Choose a service")).toBeNull()
     );
     expect(screen.getByText("My ElevenLabs")).toBeVisible();
+  });
+});
+
+describe("connection form feedback", () => {
+  it.each([
+    { account: "Kapishdima", clear: false, expected: "Kapishdima" },
+    { account: null, clear: false, expected: "ElevenLabs" },
+    { account: "Kapishdima", clear: true, expected: "Kapishdima" },
+  ])(
+    "returns to the list without requiring a custom name: %j",
+    async ({ account, clear, expected }) => {
+      studio({ account });
+      render(<IntegrationsSection />);
+      fireEvent.click(await screen.findByRole("button", { name: ADD }));
+      fireEvent.click(screen.getByRole("button", { name: ELEVENLABS_NAME }));
+      fireEvent.change(screen.getByLabelText("API key for ElevenLabs"), {
+        target: { value: "test-key" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Verify access" }));
+      const name = await screen.findByLabelText("Name this connection");
+      expect(name).toHaveValue(expected);
+      if (clear) {
+        fireEvent.change(name, { target: { value: "   " } });
+      }
+      const save = screen.getByRole("button", {
+        name: "Save and return to integrations",
+      });
+      expect(save).toBeEnabled();
+      fireEvent.click(save);
+      expect(await screen.findByText("Connected")).toBeVisible();
+      expect(screen.getByText(expected, { selector: "p" })).toBeVisible();
+      expect(screen.queryByLabelText("Connection progress")).toBeNull();
+      expect(screen.getByRole("button", { name: ADD })).toBeVisible();
+    }
+  );
+
+  it("keeps the form open and explains a failed save", async () => {
+    studio({ confirm: new Error("Could not save to keychain.") });
+    render(<IntegrationsSection />);
+    fireEvent.click(await screen.findByRole("button", { name: ADD }));
+    fireEvent.click(screen.getByRole("button", { name: ELEVENLABS_NAME }));
+    fireEvent.change(screen.getByLabelText("API key for ElevenLabs"), {
+      target: { value: "test-key" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Verify access" }));
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Save and return to integrations",
+      })
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not save to keychain."
+    );
+    expect(screen.getByLabelText("Name this connection")).toHaveValue(
+      "studio@remocn.dev"
+    );
+    expect(
+      screen.getByRole("button", { name: "Save and return to integrations" })
+    ).toBeEnabled();
+    expect(screen.queryByText("Connected")).toBeNull();
+  });
+
+  it("verifies access and saves through native form submission", async () => {
+    const seen = studio();
+    render(<IntegrationsSection />);
+    fireEvent.click(await screen.findByRole("button", { name: ADD }));
+    fireEvent.click(screen.getByRole("button", { name: ELEVENLABS_NAME }));
+    const secret = screen.getByLabelText("API key for ElevenLabs");
+    expect(
+      screen.getByRole("button", { name: "Verify access" })
+    ).toBeDisabled();
+    fireEvent.change(secret, { target: { value: "test-key" } });
+    fireEvent.submit(secret.closest("form") as HTMLFormElement);
+    expect(await screen.findByText("Access verified")).toBeVisible();
+    const name = screen.getByLabelText("Name this connection");
+    fireEvent.change(name, { target: { value: "My ElevenLabs" } });
+    fireEvent.submit(name.closest("form") as HTMLFormElement);
+    expect(await screen.findByText("My ElevenLabs")).toBeVisible();
+    expect(seen).toContain("integrations_confirm");
+    expect(screen.queryByLabelText("Connection progress")).toBeNull();
+  });
+
+  it("associates a rejected key with its input and permits retry", async () => {
+    studio({ begin: new Error("ElevenLabs rejected that key.") });
+    render(<IntegrationsSection />);
+    fireEvent.click(await screen.findByRole("button", { name: ADD }));
+    fireEvent.click(screen.getByRole("button", { name: ELEVENLABS_NAME }));
+    const secret = screen.getByLabelText("API key for ElevenLabs");
+    fireEvent.change(secret, { target: { value: "test-key" } });
+    fireEvent.submit(secret.closest("form") as HTMLFormElement);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "ElevenLabs rejected that key."
+    );
+    expect(secret).toHaveAttribute("aria-invalid", "true");
+    expect(secret).toHaveAttribute(
+      "aria-describedby",
+      "integration-secret-help integration-error"
+    );
+    expect(screen.getByRole("button", { name: "Verify access" })).toBeEnabled();
   });
 });
