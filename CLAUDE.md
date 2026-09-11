@@ -432,7 +432,13 @@ One seam per line: what it owns, the specs that define it, the records that expl
   `templates/remotion/video-templates/` is a hand-synced copy of the landing's composition.
 - **Settings** live in `settings.json` through `plugin-store`; `useHydratedSettings` is the
   one hook not to modernise (see *Effect*). Per-project settings live in the project's
-  `.remocn/project.json`; export settings under `export:<projectId>`.
+  `.remocn/project.json`; export settings under `export:<projectId>`. The `integrations` key
+  holds connection **metadata only** — id, provider, name, account label, capabilities and a
+  reference to a keychain entry. Every secret is in the login keychain under
+  `com.remocn.remocn-studio` / `integration:<connectionId>`, one entry per connection, read
+  and used only by Rust. An unsigned debug build therefore raises the system's keychain prompt
+  **once per connection** after each `cargo build`, where the account token alone raised one;
+  a signed release asks once. Nothing in the app can suppress it.
 - **History**: schema changes are one more entry in `MIGRATIONS` in
   `sidecar/history/migrations.ts`, applied in one transaction with foreign keys off. There
   are no users yet, so a migration may drop rather than convert.

@@ -43,9 +43,9 @@
 
 ## 6. Verification
 
-- [ ] 6.1 Run `bun run fix` then `bun run typecheck` — fix can drop or duplicate a JSX attribute, so the typecheck is the gate
-- [ ] 6.2 Run `bun run check` and `cargo check --manifest-path src-tauri/Cargo.toml`, and confirm both pass on the final tree
-- [ ] 6.3 Run the touched test files, then `bun run test` once in full, and confirm no suite regressed
-- [ ] 6.4 Add a changeset with `bun run changeset` covering the Integrations section, the AI Accounts move and the removal of Stock media from Settings
-- [ ] 6.5 Record in CLAUDE.md the two new working facts: one keychain prompt per connection in an unsigned development build, and that `settings.json` carries connection metadata while the keychain carries every secret
+- [x] 6.1 Run `bun run fix` then `bun run typecheck` — fix can drop or duplicate a JSX attribute, so the typecheck is the gate
+- [x] 6.2 Run `bun run check` and `cargo check --manifest-path src-tauri/Cargo.toml`, and confirm both pass on the final tree
+- [x] 6.3 Run the touched test files, then `bun run test` once in full, and confirm no suite regressed
+- [x] 6.4 Add a changeset with `bun run changeset` covering the Integrations section, the AI Accounts move and the removal of Stock media from Settings
+- [x] 6.5 Record in CLAUDE.md the two new working facts: one keychain prompt per connection in an unsigned development build, and that `settings.json` carries connection metadata while the keychain carries every secret
 - [ ] 6.6 Ask the user to run the app and confirm what only the running app shows: Settings opens on Integrations and the shell underneath keeps its turn and preview; a browser authorization trip completes and a cancelled one leaves no pending connection; the macOS keychain prompt appears as expected on a debug build; and the stock pane's no-key wording reads correctly with the key removed from the environment
