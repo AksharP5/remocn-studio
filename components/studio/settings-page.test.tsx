@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mockIPC } from "@tauri-apps/api/mocks";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import Page from "@/app/page";
 import { ThemeProvider } from "@/components/theme-provider";
 import type { EnvironmentCheck } from "@/shared/ipc";
@@ -149,6 +155,25 @@ describe("the settings page", () => {
     expect(
       screen.getByRole("switch", { name: "Library suggestions" })
     ).toBeVisible();
+  });
+
+  it("lists every shortcut under Hotkeys, read-only", async () => {
+    await renderShell();
+    await openSettings();
+
+    fireEvent.click(screen.getByRole("button", { name: "Hotkeys" }));
+
+    expect(screen.getByRole("heading", { name: "Hotkeys" })).toBeVisible();
+    const video = within(screen.getByRole("region", { name: "Video" }));
+    expect(video.getByText("Export")).toBeVisible();
+    expect(video.getByLabelText("⌘E")).toBeVisible();
+    expect(video.getByLabelText("⇧⌘S")).toBeVisible();
+    expect(video.getByLabelText("⌥⌘↓")).toBeVisible();
+    expect(
+      screen
+        .getByRole("region", { name: "Settings" })
+        .querySelectorAll("input, button[role=switch], [role=switch]")
+    ).toHaveLength(0);
   });
 
   it("keeps the notifications switch unavailable without the desktop app", async () => {

@@ -30,6 +30,7 @@ export interface Docs {
   readonly onReveal: (event: MouseEvent<HTMLButtonElement>) => void;
   readonly open: OpenDocument | null;
   readonly openPath: string | null;
+  readonly pickMode: (mode: PreviewMode) => void;
   readonly tabs: readonly DocumentTab[];
 }
 
@@ -84,12 +85,18 @@ export function useDocs({
     [videoId]
   );
 
-  const onPickMode = useCallback(
-    (event: MouseEvent<HTMLButtonElement>) => {
-      const mode = event.currentTarget.value === "docs" ? "docs" : "preview";
+  const pickMode = useCallback(
+    (mode: PreviewMode) => {
       choose((current) => ({ ...current, mode }));
     },
     [choose]
+  );
+
+  const onPickMode = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      pickMode(event.currentTarget.value === "docs" ? "docs" : "preview");
+    },
+    [pickMode]
   );
 
   // The stage row in the Video dock is the other way in: it names the file and
@@ -195,6 +202,7 @@ export function useDocs({
       onReveal,
       open,
       openPath,
+      pickMode,
       tabs,
     }),
     [
@@ -207,6 +215,7 @@ export function useDocs({
       onReveal,
       open,
       openPath,
+      pickMode,
       tabs,
     ]
   );

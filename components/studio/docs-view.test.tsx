@@ -25,6 +25,7 @@ function docs(shape: Partial<Docs> = {}): Docs {
     onReveal: mock(),
     open: null,
     openPath: tabs[0]?.file.path ?? null,
+    pickMode: mock(),
     ...shape,
     tabs,
   };

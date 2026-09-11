@@ -61,6 +61,7 @@ export interface Workspace
   openedProject: Project | null;
   openedVideo: Video | null;
   openTemplate: (draft: TemplateDraft) => Promise<TemplateOutcome>;
+  openVideo: (videoId: string) => void;
   startSessionIn: (videoId: string) => void;
 }
 
@@ -260,9 +261,8 @@ export function useWorkspace(
   // The row opens; the chevron beside it expands. They used to be the same
   // click, which left a video looking selected — expanded and highlighted —
   // with an unrelated chat driving the preview, the conventions and Export.
-  const onOpenVideo = useCallback(
-    (event: MouseEvent<HTMLButtonElement>) => {
-      const videoId = event.currentTarget.value;
+  const openVideo = useCallback(
+    (videoId: string) => {
       const newest = newestChat(rows, videoId);
 
       if (newest === null) {
@@ -273,6 +273,13 @@ export function useWorkspace(
       openSession(newest);
     },
     [expandVideo, openSession, rows]
+  );
+
+  const onOpenVideo = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      openVideo(event.currentTarget.value);
+    },
+    [openVideo]
   );
 
   // File → ‹project› moved the video list and the preview and left the chat
@@ -350,6 +357,7 @@ export function useWorkspace(
       openedVideo,
       openFolder,
       openTemplate,
+      openVideo,
       relocateProject,
       removeProject,
       renameProject,
@@ -373,6 +381,7 @@ export function useWorkspace(
       openFolder,
       openSession,
       openTemplate,
+      openVideo,
       projects,
       relocateProject,
       removeProject,

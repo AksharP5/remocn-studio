@@ -138,6 +138,8 @@ function mockStudio(
   );
 }
 
+const OLDER_CHAT = /The older one/;
+
 async function renderShell() {
   render(<Page />);
   await screen.findByRole("heading", { name: "Videos" });
@@ -271,6 +273,27 @@ describe("app shell", () => {
     expect(
       await screen.findByRole("heading", { name: "The newer one" })
     ).toBeVisible();
+  });
+
+  it("opens the command palette on Cmd+K and reaches a chat from it", async () => {
+    mockStudio({
+      projects: [PROJECT],
+      sessions: [
+        { ...STORED_SESSION, id: "session-2", title: "The newer one" },
+        { ...STORED_SESSION, id: "session-1", title: "The older one" },
+      ],
+    });
+    await renderShell();
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    expect(await screen.findByRole("combobox")).toBeVisible();
+
+    fireEvent.click(await screen.findByRole("option", { name: OLDER_CHAT }));
+
+    expect(
+      await screen.findByRole("heading", { name: "The older one" })
+    ).toBeVisible();
+    expect(screen.queryByRole("combobox")).toBeNull();
   });
 
   // Row and chevron did the same thing, so the affordance that tells "expand"

@@ -9,6 +9,7 @@ export const SETTINGS_SECTIONS = [
   "appearance",
   "behavior",
   "notifications",
+  "hotkeys",
   "stock",
   "updates",
   "accounts",
@@ -42,9 +43,9 @@ export interface SettingsView {
 
 // Settings is a view of the window rather than a dialog over it: it takes the
 // whole window while open and the shell stays mounted underneath, so a turn,
-// the preview and the sidecar carry on. Cmd+, is the standard macOS settings
-// shortcut and Escape is the way back; the listeners live here, not in the
-// pane, so both work while the sidebar is hidden.
+// the preview and the sidecar carry on. Escape is the way back and its
+// listener lives here, not in the pane, so it works while the sidebar is
+// hidden; Cmd+, is a registry command and fires through use-shortcuts.
 export function useSettingsView(
   activeProjectId: string | null = null
 ): SettingsView {
@@ -119,11 +120,6 @@ export function useSettingsView(
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "," && (event.metaKey || event.ctrlKey)) {
-        event.preventDefault();
-        setIsOpen(true);
-        return;
-      }
       // A menu or a popover open on the page answers Escape first and
       // prevents the default; only an Escape nothing else wanted leaves.
       if (event.key === "Escape" && isOpen && !event.defaultPrevented) {

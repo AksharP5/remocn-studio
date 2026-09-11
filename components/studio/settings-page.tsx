@@ -9,6 +9,7 @@ import {
   CircleUserRoundIcon,
   CopyIcon,
   ImagesIcon,
+  KeyboardIcon,
   LightbulbIcon,
   MailIcon,
   MessageSquareIcon,
@@ -42,6 +43,13 @@ import {
 } from "@/hooks/use-theme-choice";
 import { shortDay } from "@/lib/studio/account";
 import type { NotifyEvent } from "@/lib/studio/attention";
+import {
+  formatShortcut,
+  HOTKEY_GROUPS,
+  SHORTCUT_TITLES,
+  SHORTCUTS,
+  shortcutKeys,
+} from "@/lib/studio/command-registry";
 import type { ShellMood } from "@/lib/studio/mood";
 import { modKeyLabel } from "@/lib/studio/platform";
 import { downloadedLabel, downloadedShare } from "@/lib/studio/updates";
@@ -103,6 +111,12 @@ const SECTIONS: readonly {
     icon: BellIcon,
     id: "notifications",
     label: "Notifications",
+  },
+  {
+    description: "Every keyboard shortcut, in one place",
+    icon: KeyboardIcon,
+    id: "hotkeys",
+    label: "Hotkeys",
   },
   {
     description: "Searching Pexels from the Assets pane",
@@ -198,6 +212,7 @@ export function SettingsPage() {
               {section === "appearance" ? <AppearanceSection /> : null}
               {section === "behavior" ? <BehaviorSection /> : null}
               {section === "notifications" ? <NotificationsSection /> : null}
+              {section === "hotkeys" ? <HotkeysSection /> : null}
               {section === "stock" ? <StockSection /> : null}
               {section === "updates" ? <UpdatesSection /> : null}
               {section === "accounts" ? <AccountsSection /> : null}
@@ -348,6 +363,34 @@ function Row({
       </div>
       <div className="shrink-0">{children}</div>
     </div>
+  );
+}
+
+function HotkeysSection() {
+  return (
+    <>
+      {HOTKEY_GROUPS.map((group) => (
+        <Group key={group.title} title={group.title}>
+          <div className="flex flex-col divide-y divide-border/60">
+            {group.ids.map((id) => (
+              <div
+                className="flex items-center justify-between gap-6 py-3 first:pt-0 last:pb-0"
+                key={id}
+              >
+                <span className="text-sm">{SHORTCUT_TITLES[id]}</span>
+                <KbdGroup aria-label={formatShortcut(SHORTCUTS[id])}>
+                  {shortcutKeys(SHORTCUTS[id]).map((key) => (
+                    <Kbd aria-hidden="true" key={key}>
+                      {key}
+                    </Kbd>
+                  ))}
+                </KbdGroup>
+              </div>
+            ))}
+          </div>
+        </Group>
+      ))}
+    </>
   );
 }
 
