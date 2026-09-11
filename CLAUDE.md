@@ -144,9 +144,10 @@ developed on is eight processes at full tilt) and it implies `--isolate`, so a
 module mock cannot leak. `test:watch` passes `--isolate` by hand for the same
 reason. **While iterating, run only the files you touched** —
 `bun run test hooks/use-tours.test.tsx` — and the full suite once before a
-commit. `--timeout=15000` sits above Testing Library's 5 s `asyncUtilTimeout`,
-or a query that will never resolve dies as "timed out" instead of "unable to
-find element".
+commit. `--timeout=15000` sits above Testing Library's `asyncUtilTimeout` — 5 s locally, 10 s
+under `CI`, where the runner is about four times slower and the heaviest shell mounts
+crossed 5 s a different file each run — or a query that will never resolve dies as
+"timed out" instead of "unable to find element".
 
 **happy-dom is registered by the first preload, and the order is the point.**
 `test/register-dom.ts` does nothing but `GlobalRegistrator.register()`;
