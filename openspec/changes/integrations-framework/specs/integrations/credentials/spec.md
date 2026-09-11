@@ -54,28 +54,6 @@ create the connection, and SHALL NOT report a connection as saved.
 - **WHEN** the keychain refuses to write
 - **THEN** the failure is shown as a sentence and no connection appears in the list
 
-### Requirement: Browser authorization is a trip the person can abandon
-
-Where a provider authorizes in a browser, the studio SHALL open the person's own browser,
-SHALL listen for the answer on this Mac only, and SHALL carry whatever proof of origin that
-provider requires. A trip that is cancelled, that times out, or that the person never finishes
-SHALL leave the connection in a stated failure, never waiting forever.
-
-#### Scenario: The person closes the browser
-
-- **WHEN** the person abandons the authorization and comes back to the studio
-- **THEN** the attempt ends with a sentence saying it was not completed, and no connection is left pending
-
-#### Scenario: The trip takes too long
-
-- **WHEN** no answer arrives within the time the studio waits
-- **THEN** the attempt ends as timed out and can be started again
-
-#### Scenario: An answer from a different attempt
-
-- **WHEN** an answer arrives that does not match the attempt in progress
-- **THEN** it is ignored, and the attempt in progress is neither completed nor failed by it
-
 ### Requirement: Re-authorizing touches one connection and no other
 
 Authorizing again SHALL replace the secret of the connection it was started for, and SHALL NOT
@@ -92,22 +70,22 @@ connection of the same provider.
 - **WHEN** the person authorizes as an account other than the one the connection names
 - **THEN** the studio says the account does not match and does not silently rebind the connection
 
-### Requirement: Refreshing a credential happens once at a time, and is stored before it is used
+### Requirement: A credential that cannot be renewed asks to be replaced
 
-Where a provider can refresh a credential, the studio SHALL refresh it without the person, SHALL
-allow only one refresh of a connection at a time, and SHALL store the new credential before
-relying on it. Where a provider offers no refresh, an expired credential SHALL put the connection
-into needing authorization with a sentence asking for a new key.
+Where a provider offers no way to renew a credential, a credential the service rejects SHALL put
+the connection into needing authorization, with the service's own reason worded as a sentence and
+replacing the credential offered as the way out. The studio SHALL NOT keep retrying a credential
+the service has rejected.
 
-#### Scenario: Two operations meet an expired credential together
+#### Scenario: A key the service now rejects
 
-- **WHEN** two operations on one connection both find the credential expired
-- **THEN** the credential is refreshed once and both operations continue with it
+- **WHEN** a check finds the stored key rejected
+- **THEN** the connection reads as needing authorization, says why in the service's own words, and offers to replace the key
 
-#### Scenario: A key that cannot be refreshed expires
+#### Scenario: The replacement is accepted
 
-- **WHEN** a key with no refresh is rejected as expired
-- **THEN** the connection asks for a replacement key, naming the service
+- **WHEN** a new key is given and the check succeeds
+- **THEN** the connection is connected again and the old key is gone from this Mac
 
 ### Requirement: No shared studio credential travels in the application
 

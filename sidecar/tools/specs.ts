@@ -27,10 +27,20 @@ export function isToolServer(value: string): value is ToolServer {
 export interface ToolSpec {
   readonly description: string;
   readonly name: string;
+  readonly outward?: boolean;
   readonly shape: z.ZodRawShape;
 }
 
+export function isOutwardTool(name: string): boolean {
+  return TOOL_SERVERS.some((server) =>
+    TOOL_SPECS[server].some(
+      (spec) => spec.name === name && spec.outward === true
+    )
+  );
+}
+
 export const LIST_ASSETS = "list_assets";
+export const LIST_CONNECTIONS = "list_connections";
 export const SAVE_ASSET = "save_asset";
 export const SEARCH_STOCK = "search_stock";
 export const GET_MOODBOARD = "get_moodboard";
@@ -235,6 +245,12 @@ export const TOOL_SPECS: Record<ToolServer, readonly ToolSpec[]> = {
     },
   ],
   [LIBRARY_SERVER]: [
+    {
+      description:
+        "List the outside services this studio is connected to and what each one may be used for. Answers only with connections the person has checked and left enabled; a service that is not listed cannot be reached, and the person connects one in Settings under Integrations. Carries no keys or tokens.",
+      name: LIST_CONNECTIONS,
+      shape: {},
+    },
     {
       description:
         "List everything in the studio's asset library: images, videos, audio and finished Remotion components the person saved from earlier videos. Call it when they ask what is in the library, or ask you to reuse something without saying which reference it is.",

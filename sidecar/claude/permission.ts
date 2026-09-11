@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { type PermissionReason, PLUGIN_DIR_ENV } from "@/shared/ipc";
 import { escapee } from "../contained";
-import { TOOL_SERVERS } from "../tools/specs";
+import { isOutwardTool, TOOL_SERVERS } from "../tools/specs";
 
 export type PermissionVerdict =
   | { readonly kind: "allow" }
@@ -41,7 +41,8 @@ const STUDIO_TOOL_PREFIXES = TOOL_SERVERS.map((server) => `mcp__${server}__`);
 export function review(
   cwd: string,
   toolName: string,
-  input: Record<string, unknown>
+  input: Record<string, unknown>,
+  outward: (tool: string) => boolean = isOutwardTool
 ): Effect.Effect<PermissionVerdict> {
   if (toolName === EXIT_PLAN_TOOL) {
     return Effect.succeed(ask("plan", toolName, text(input, "plan") ?? ""));
@@ -51,10 +52,17 @@ export function review(
     return Effect.succeed(ask("bash", toolName, text(input, "command") ?? ""));
   }
 
-  if (
-    FREE_TOOLS.has(toolName) ||
-    STUDIO_TOOL_PREFIXES.some((prefix) => toolName.startsWith(prefix))
-  ) {
+  const studio = STUDIO_TOOL_PREFIXES.find((prefix) =>
+    toolName.startsWith(prefix)
+  );
+
+  if (studio !== undefined && outward(toolName.slice(studio.length))) {
+    return Effect.succeed(
+      ask("outward", toolName, text(input, "summary") ?? "")
+    );
+  }
+
+  if (FREE_TOOLS.has(toolName) || studio !== undefined) {
     return Effect.succeed(ALLOW);
   }
 

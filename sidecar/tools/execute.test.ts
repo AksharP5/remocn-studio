@@ -29,6 +29,7 @@ function asset(shape: Partial<Asset> = {}): Asset {
 
 function tools(shape: Partial<TurnTools> = {}): TurnTools {
   return {
+    connections: { usable: () => Promise.resolve([]) },
     cwd: CWD,
     design: {
       check: () => Promise.reject(new Error("no design check in this test")),

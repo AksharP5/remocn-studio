@@ -254,7 +254,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
       (matched) => ({ matched })
     ),
 
-  "agent.prompt": ({ emit, log, params }) =>
+  "agent.prompt": ({ ask, emit, log, params }) =>
     Effect.gen(function* () {
       const turnId = yield* Effect.sync(() => crypto.randomUUID());
       const project = yield* located(params.projectId);
@@ -391,6 +391,9 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
       const result = yield* Effect.scoped(
         gateway
           .serving(turnId, {
+            connections: {
+              usable: () => Effect.runPromise(ask("integrations.usable", null)),
+            },
             cwd: project.path,
             design: {
               check: (

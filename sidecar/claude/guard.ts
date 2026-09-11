@@ -55,7 +55,10 @@ function decide(
       return ALLOWED;
     }
 
-    if (yield* options.gate.remembers(verdict.signature)) {
+    if (
+      verdict.reason !== "outward" &&
+      (yield* options.gate.remembers(verdict.signature))
+    ) {
       return ALLOWED;
     }
 

@@ -10,6 +10,7 @@ import type {
   PipelineStatus,
 } from "@/shared/pipeline";
 import { pipelineBrief } from "../claude/conventions";
+import { type ConnectionCalls, listConnections } from "../integrations/tools";
 import type { MoodboardDraft, MoodboardRecord } from "../library/moodboard";
 import { moodboardBrief } from "../library/moodboard";
 import type { VideoCheck } from "../preview/choreography";
@@ -27,6 +28,7 @@ import {
   GET_MOODBOARD,
   LIBRARY_SERVER,
   LIST_ASSETS,
+  LIST_CONNECTIONS,
   PIPELINE_SERVER,
   REQUEST_SOURCE_ASSET,
   SAVE_ASSET,
@@ -96,6 +98,7 @@ export interface DesignCalls {
 }
 
 export interface TurnTools {
+  readonly connections: ConnectionCalls;
   readonly cwd: string;
   readonly design: DesignCalls;
   readonly library: LibraryCalls;
@@ -141,6 +144,9 @@ function run(
 ): Promise<string> {
   if (server === LIBRARY_SERVER && tool === LIST_ASSETS) {
     return listAssets(tools.library);
+  }
+  if (server === LIBRARY_SERVER && tool === LIST_CONNECTIONS) {
+    return listConnections(tools.connections);
   }
   if (server === LIBRARY_SERVER && tool === SAVE_ASSET) {
     return saveAsset(args, tools);

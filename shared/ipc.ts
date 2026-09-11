@@ -755,6 +755,7 @@ export const AgentFailure = Schema.Struct({
 export const PermissionReason = Schema.Literals([
   "bash",
   "outside",
+  "outward",
   "plan",
   "tool",
 ]);

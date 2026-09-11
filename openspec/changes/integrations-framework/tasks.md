@@ -23,8 +23,8 @@
 ## 3. Sidecar — the turn's side
 
 - [x] 3.1 Add `sidecar/integrations/core.ts` — the Effect client for the reverse channel, failing with a `Data.TaggedError` so no bare `UnknownException` reaches a caller; verify `sidecar/integrations/core.test.ts` covers an answer, a worded failure and a request that is never answered
-- [ ] 3.2 Add the connections read to the studio's own tool servers — service, name, account and capabilities for connected connections only, an empty list worded as a sentence; verify `sidecar/integrations/core.test.ts` and `sidecar/tools/specs.test.ts` cover a populated answer, an empty one, and that a disabled or unchecked connection is absent
-- [ ] 3.3 Teach the gate the outward-acting class in `sidecar/claude/permission.ts` — always a card, in every mode, never remembered; verify `sidecar/claude/permission.test.ts` registers a fake outward tool and asserts a card in auto, a second card for a repeat call, no remember option, and denial on a stopped turn
+- [x] 3.2 Add the connections read to the studio's own tool servers — service, name, account and capabilities for connected connections only, an empty list worded as a sentence; verify `sidecar/integrations/core.test.ts` and `sidecar/tools/specs.test.ts` cover a populated answer, an empty one, and that a disabled or unchecked connection is absent
+- [x] 3.3 Teach the gate the outward-acting class in `sidecar/claude/permission.ts` — always a card, in every mode, never remembered; verify `sidecar/claude/permission.test.ts` registers a fake outward tool and asserts a card in auto, a second card for a repeat call, no remember option, and denial on a stopped turn
 
 ## 4. Webview — Settings
 

@@ -117,6 +117,18 @@ the tool name and therefore the policy. A consequence worth stating: user-config
 keep arriving and keep raising a card per call. This change neither improves that nor makes it
 worse, and does not claim to manage it.
 
+### The loopback listener is built, and waits for its first provider
+
+Browser authorization has no provider in this change: ElevenLabs and Figma both take a secret the
+person pastes. The listener below is written and tested because the decision it embodies is worth
+settling once, but nothing calls it yet, so `browser.rs` carries `allow(dead_code)` and the
+`integrations/credentials` spec makes no promise about a browser trip. The first provider that
+needs one — YouTube, REM-408 — wires it in and adds the requirements back.
+
+That provider is also where the question this change does not answer belongs: Google desktop
+OAuth needs a registered application, and REM-406 forbids shipping a Remocn client secret inside
+the distribution, so either every person registers their own or that rule is revisited.
+
 ### Browser authorization listens on loopback, not on the deep link
 
 Where a provider authorizes in a browser, the core opens the person's browser and listens on a

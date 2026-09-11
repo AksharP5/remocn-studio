@@ -2,6 +2,9 @@ import { Cause, Data, Effect, Exit, FiberMap, Stream } from "effect";
 import { errorMessage } from "@/lib/error-message";
 import {
   CANCELLED,
+  type CoreMethod,
+  type CoreParams,
+  type CoreResult,
   codecsFor,
   decodeHostFrame,
   decodeMethod,
@@ -13,7 +16,7 @@ import {
   type SidecarStream,
 } from "@/shared/ipc";
 import { type SidecarChannel as Channel, SidecarChannel } from "./channel";
-import { settleCoreResult } from "./integrations/core";
+import { askCore, type CoreError, settleCoreResult } from "./integrations/core";
 import {
   checkProjectAvailable,
   projectActivity,
@@ -25,6 +28,10 @@ export class HandlerError extends Data.TaggedError("HandlerError")<{
 }> {}
 
 export interface HandlerInput<M extends SidecarMethod> {
+  ask: <C extends CoreMethod>(
+    method: C,
+    params: CoreParams<C>
+  ) => Effect.Effect<CoreResult<C>, CoreError>;
   emit: (chunk: SidecarStream<M>) => Effect.Effect<void>;
   log: (message: string) => Effect.Effect<void>;
   params: SidecarParams<M>;
@@ -37,6 +44,10 @@ export type Handler<M extends SidecarMethod, R = never> = (
 export type Handlers<R = never> = { [M in SidecarMethod]: Handler<M, R> };
 
 type ErasedHandler<R> = (input: {
+  ask: <C extends CoreMethod>(
+    method: C,
+    params: CoreParams<C>
+  ) => Effect.Effect<CoreResult<C>, CoreError>;
   emit: (chunk: never) => Effect.Effect<void>;
   log: (message: string) => Effect.Effect<void>;
   params: never;
@@ -136,6 +147,10 @@ function serve<R>(
     const decoded = yield* codecsFor(method).params(params);
 
     let operation = erased[method]({
+      ask: (asked, asking) =>
+        askCore(asked, asking).pipe(
+          Effect.provideService(SidecarChannel, channel)
+        ),
       emit: (chunk) => channel.send({ data: chunk, id, type: "stream" }),
       log: channel.log,
       params: decoded as never,

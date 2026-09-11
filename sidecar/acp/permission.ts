@@ -68,7 +68,10 @@ export async function answerPermission(
       : { outcome: { optionId: allow, outcome: "selected" } };
   }
 
-  if (await Effect.runPromise(options.gate.remembers(verdict.signature))) {
+  if (
+    verdict.reason !== "outward" &&
+    (await Effect.runPromise(options.gate.remembers(verdict.signature)))
+  ) {
     const allow =
       pickOption(ask, "allow_once") ?? pickOption(ask, "allow_always");
     return allow === null
