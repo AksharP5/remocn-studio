@@ -3,16 +3,15 @@
 import {
   ArrowLeftIcon,
   BellIcon,
-  BotIcon,
   CheckIcon,
   CircleArrowUpIcon,
   CircleUserRoundIcon,
   CopyIcon,
-  ImagesIcon,
   KeyboardIcon,
   LightbulbIcon,
   MailIcon,
   MessageSquareIcon,
+  PlugZapIcon,
   RefreshCwIcon,
   RotateCwIcon,
   SlidersHorizontalIcon,
@@ -22,7 +21,6 @@ import type { MouseEvent } from "react";
 import { Fragment, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -35,7 +33,6 @@ import {
   isSettingsSection,
   type SettingsSection,
 } from "@/hooks/use-settings-view";
-import { useStockKey } from "@/hooks/use-stock-key";
 import {
   isThemeChoice,
   type ThemeChoice,
@@ -66,6 +63,7 @@ import {
 } from "@/shared/providers";
 import { AccountSection } from "./account-section";
 import { CHECK_ICONS } from "./environment-checklist";
+import { IntegrationsSection } from "./integrations-section";
 import { ProjectSettingsSection } from "./project-settings-section";
 import { ProviderIcon } from "./provider-icon";
 import { ProviderSteps } from "./provider-steps";
@@ -119,22 +117,16 @@ const SECTIONS: readonly {
     label: "Hotkeys",
   },
   {
-    description: "Searching Pexels from the Assets pane",
-    icon: ImagesIcon,
-    id: "stock",
-    label: "Stock media",
+    description: "Services and AI accounts the studio can reach",
+    icon: PlugZapIcon,
+    id: "integrations",
+    label: "Integrations",
   },
   {
     description: "Keep the studio current",
     icon: CircleArrowUpIcon,
     id: "updates",
     label: "Updates",
-  },
-  {
-    description: "Who answers when a session speaks",
-    icon: BotIcon,
-    id: "accounts",
-    label: "AI Accounts",
   },
   {
     description: "Tell us what broke, or what is missing",
@@ -213,9 +205,13 @@ export function SettingsPage() {
               {section === "behavior" ? <BehaviorSection /> : null}
               {section === "notifications" ? <NotificationsSection /> : null}
               {section === "hotkeys" ? <HotkeysSection /> : null}
-              {section === "stock" ? <StockSection /> : null}
+              {section === "integrations" ? (
+                <>
+                  <IntegrationsSection />
+                  <AccountsSection />
+                </>
+              ) : null}
               {section === "updates" ? <UpdatesSection /> : null}
-              {section === "accounts" ? <AccountsSection /> : null}
               {section === "feedback" ? <FeedbackSection /> : null}
             </div>
           </div>
@@ -1115,59 +1111,5 @@ function AccountStatus({
         </span>
       ) : null}
     </div>
-  );
-}
-
-function StockSection() {
-  const stockKey = useStockKey();
-  const canSave = stockKey.value.trim().length > 0;
-
-  return (
-    <Group
-      description="Searching Pexels from the Assets pane needs a key of your own. It is free at pexels.com/api, kept in the studio’s data folder on this Mac, and never leaves it except to talk to Pexels."
-      title="Pexels"
-    >
-      <div className="flex flex-col gap-2">
-        <Label className="text-sm" htmlFor="settings-pexels-key">
-          API key
-        </Label>
-        <div className="flex items-center gap-2">
-          <Input
-            className="flex-1"
-            id="settings-pexels-key"
-            onChange={stockKey.onChange}
-            placeholder={
-              stockKey.isConfigured === true
-                ? "A key is saved"
-                : "Paste your key"
-            }
-            type="password"
-            value={stockKey.value}
-          />
-          <Button
-            disabled={!canSave}
-            onClick={stockKey.onSave}
-            size="sm"
-            variant="outline"
-          >
-            Save
-          </Button>
-          {stockKey.isConfigured === true ? (
-            <Button onClick={stockKey.onForget} size="sm" variant="ghost">
-              Remove
-            </Button>
-          ) : null}
-        </div>
-        <p className="text-muted-foreground text-xs">
-          {stockKey.isConfigured === true
-            ? "A key is saved on this Mac."
-            : "No key yet; the Stock tab in Assets stays empty until there is one."}
-        </p>
-      </div>
-
-      {stockKey.error === null ? null : (
-        <p className="break-words text-destructive text-xs">{stockKey.error}</p>
-      )}
-    </Group>
   );
 }

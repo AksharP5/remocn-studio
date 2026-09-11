@@ -26,11 +26,9 @@ const PLACEHOLDERS = ["one", "two", "three"];
 
 export function StockPane({
   kind,
-  onOpenSettings,
   onSaved,
 }: {
   kind: StockKind;
-  onOpenSettings: () => void;
   onSaved: () => void;
 }) {
   const stock = useStock(kind, onSaved);
@@ -51,31 +49,24 @@ export function StockPane({
         </div>
       }
     >
-      <StockBody onOpenSettings={onOpenSettings} stock={stock} />
+      <StockBody stock={stock} />
     </PaneScreen>
   );
 }
 
-function StockBody({
-  onOpenSettings,
-  stock,
-}: {
-  onOpenSettings: () => void;
-  stock: Stock;
-}) {
+function StockBody({ stock }: { stock: Stock }) {
   if (stock.isConfigured === false) {
     return (
       <Empty className="border-none px-4 py-8">
         <EmptyHeader>
-          <EmptyTitle className="text-base">Pexels needs an API key</EmptyTitle>
+          <EmptyTitle className="text-base">
+            Stock search is unavailable
+          </EmptyTitle>
           <EmptyDescription className="text-pretty">
-            The key is free — create one at pexels.com/api, then paste it into
-            Settings. It stays on this machine.
+            This build has no Pexels key configured. Setting
+            REMOCN_STUDIO_PEXELS_KEY supplies one.
           </EmptyDescription>
         </EmptyHeader>
-        <Button onClick={onOpenSettings} size="sm" variant="outline">
-          Open Settings
-        </Button>
       </Empty>
     );
   }

@@ -2,12 +2,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { Data, Effect, Exit, Schema } from "effect";
 import { errorMessage } from "@/lib/error-message";
 import {
+  type AuthorizationKind,
   Catalogue,
   Connection,
   ConnectionAttempt,
   ConnectionRemoval,
   Connections,
-  type AuthorizationKind,
 } from "@/shared/integrations";
 
 export class IntegrationError extends Data.TaggedError("IntegrationError")<{
@@ -34,9 +34,7 @@ function command<A>(
   }).pipe(
     Effect.flatMap((data) =>
       decode(data).pipe(
-        Effect.mapError(
-          () => new IntegrationError({ message: DECODE_FAILED })
-        )
+        Effect.mapError(() => new IntegrationError({ message: DECODE_FAILED }))
       )
     )
   );

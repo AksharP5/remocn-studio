@@ -83,7 +83,6 @@ export const METHOD_NAMES = [
   "library.remove",
   "library.rename",
   "library.save",
-  "library.stockKey",
   "library.stockSave",
   "library.stockSearch",
   "library.stockStatus",
@@ -1277,11 +1276,6 @@ export const SIDECAR_METHODS = {
   "library.save": {
     params: AssetDraft,
     result: Asset,
-    stream: Schema.Never,
-  },
-  "library.stockKey": {
-    params: StockKeyChange,
-    result: StockConfigured,
     stream: Schema.Never,
   },
   "library.stockSave": {

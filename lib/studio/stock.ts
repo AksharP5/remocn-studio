@@ -51,22 +51,6 @@ export const stockStatus: Effect.Effect<boolean, SidecarError> = Effect.gen(
   }
 );
 
-export function setStockKey(
-  key: string | null
-): Effect.Effect<boolean, SidecarError> {
-  return Effect.gen(function* () {
-    const id = yield* newRequestId;
-
-    const answer = yield* requestSidecar({
-      id,
-      method: "library.stockKey",
-      params: { key },
-    });
-
-    return answer.configured;
-  });
-}
-
 // Pexels' alt text is a sentence, and a sentence is not a name. The library
 // grid is two columns in a 288px sidebar — about twelve characters a label —
 // so every stock photo read `Dynamic wa…`, `A serene vi…`, `Close up of…`:

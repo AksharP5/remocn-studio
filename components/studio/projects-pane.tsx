@@ -199,11 +199,7 @@ export function ProjectsPane() {
             onRetry={library.reload}
           />
         ) : (
-          <StockPane
-            kind={stockKind}
-            onOpenSettings={settingsView.open}
-            onSaved={library.refresh}
-          />
+          <StockPane kind={stockKind} onSaved={library.refresh} />
         )}
       </>
     );

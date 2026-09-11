@@ -56,7 +56,6 @@ import {
   type StockError,
   saveStock,
   searchStock,
-  setStockKey,
   stockConfigured,
 } from "./library/stock";
 import {
@@ -600,12 +599,6 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
 
   "library.save": ({ params }) =>
     saveAsset(params).pipe(Effect.mapError(unlibraried)),
-
-  "library.stockKey": ({ params }) =>
-    setStockKey(params.key).pipe(
-      Effect.map((configured) => ({ configured })),
-      Effect.mapError(unstocked)
-    ),
 
   "library.stockSave": ({ emit, params }) =>
     saveStock(params, (progress) => Effect.runSync(emit(progress))).pipe(

@@ -30,16 +30,16 @@
 
 - [x] 4.1 Add `lib/studio/integrations.ts` returning `Effect` over the Tauri commands, with failures as `Data.TaggedError`; verify `lib/studio/integrations.test.ts` covers each call and that a failure arrives as a sentence
 - [x] 4.2 Add `hooks/use-integrations.ts` — the list, the add flow's steps, and check, reconfigure, reconnect, disable, enable and remove as actions; verify `hooks/use-integrations.test.tsx` covers a successful add, a check that refuses, a cancel that stores nothing, and a keychain failure that adds no row
-- [ ] 4.3 Add the Integrations section to `components/studio/settings-page.tsx` with the services group and the AI accounts group, rows carrying service, name, account, capabilities and state; verify `components/studio/settings-page.test.tsx` covers both groups, a row that needs authorization, and two connections of one service told apart by account
-- [ ] 4.4 Make every connection action reachable by keyboard and put a confirmation before removal that names the secret on this Mac; verify `components/studio/settings-page.test.tsx` walks the actions by keyboard and asserts nothing is removed until the confirmation is accepted
-- [ ] 4.5 Replace `accounts` with `integrations` in `SETTINGS_SECTIONS` in `hooks/use-settings-view.ts`, and point `openAccounts(provider)` at Integrations with that provider's row marked; verify `components/studio/settings-page.test.tsx` asserts the model menu's *Sign in* lands on Integrations with the row outlined
+- [x] 4.3 Add the Integrations section to `components/studio/settings-page.tsx` with the services group and the AI accounts group, rows carrying service, name, account, capabilities and state; verify `components/studio/settings-page.test.tsx` covers both groups, a row that needs authorization, and two connections of one service told apart by account
+- [x] 4.4 Make every connection action reachable by keyboard and put a confirmation before removal that names the secret on this Mac; verify `components/studio/settings-page.test.tsx` walks the actions by keyboard and asserts nothing is removed until the confirmation is accepted
+- [x] 4.5 Replace `accounts` with `integrations` in `SETTINGS_SECTIONS` in `hooks/use-settings-view.ts`, and point `openAccounts(provider)` at Integrations with that provider's row marked; verify `components/studio/settings-page.test.tsx` asserts the model menu's *Sign in* lands on Integrations with the row outlined
 
 ## 5. Removing Stock media from Settings
 
-- [ ] 5.1 Delete the Stock media section from `components/studio/settings-page.tsx`, delete `hooks/use-stock-key.ts`, and drop `stock` from `SETTINGS_SECTIONS`; verify `components/studio/settings-page.test.tsx` no longer finds the section and its rail row
-- [ ] 5.2 Remove `library.stockKey` from `shared/ipc.ts`, `sidecar/handlers.ts` and `lib/studio/stock.ts`, leaving `stockStatus`, `stockSearch` and `stockSave`; verify `lib/studio/stock.test.ts` passes and `bun run typecheck` finds no caller left
-- [ ] 5.3 Read the Pexels key from `REMOCN_STUDIO_PEXELS_KEY` only in `sidecar/library/stock.ts`, ignoring a `stock.json` written by an earlier version; verify `sidecar/library/stock.test.ts` covers a key from the environment, no key at all, and a stale file being ignored
-- [ ] 5.4 Reword the stock pane's no-key and refused-key messages so neither offers Settings, in `hooks/use-stock.ts` and `components/studio/stock-pane.tsx`; verify `components/studio/stock-pane.test.tsx` asserts the new wording and that no Open Settings control is rendered
+- [x] 5.1 Delete the Stock media section from `components/studio/settings-page.tsx`, delete `hooks/use-stock-key.ts`, and drop `stock` from `SETTINGS_SECTIONS`; verify `components/studio/settings-page.test.tsx` no longer finds the section and its rail row
+- [x] 5.2 Remove `library.stockKey` from `shared/ipc.ts`, `sidecar/handlers.ts` and `lib/studio/stock.ts`, leaving `stockStatus`, `stockSearch` and `stockSave`; verify `lib/studio/stock.test.ts` passes and `bun run typecheck` finds no caller left
+- [x] 5.3 Read the Pexels key from `REMOCN_STUDIO_PEXELS_KEY` only in `sidecar/library/stock.ts`, ignoring a `stock.json` written by an earlier version; verify `sidecar/library/stock.test.ts` covers a key from the environment, no key at all, and a stale file being ignored
+- [x] 5.4 Reword the stock pane's no-key and refused-key messages so neither offers Settings, in `hooks/use-stock.ts` and `components/studio/stock-pane.tsx`; verify `components/studio/stock-pane.test.tsx` asserts the new wording and that no Open Settings control is rendered
 
 ## 6. Verification
 

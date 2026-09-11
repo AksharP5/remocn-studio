@@ -2,8 +2,9 @@ import { describe, expect, it } from "bun:test";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { useIntegrations } from "@/hooks/use-integrations";
+import type { IntegrationProvider } from "@/shared/integrations";
 
-const PROVIDER = {
+const PROVIDER: IntegrationProvider = {
   authorization: ["api-key"],
   capabilities: ["audio"],
   id: "elevenlabs",
@@ -206,7 +207,8 @@ describe("living with a connection", () => {
     studio({
       connections: [CONNECTION],
       remove: {
-        detail: "ElevenLabs could not be reached, so the key may still work there.",
+        detail:
+          "ElevenLabs could not be reached, so the key may still work there.",
         withdrawn: false,
       },
     });

@@ -292,7 +292,7 @@ describe("the settings page", () => {
     await renderShell();
     await openSettings();
 
-    fireEvent.click(screen.getByRole("button", { name: "AI Accounts" }));
+    fireEvent.click(screen.getByRole("button", { name: "Integrations" }));
 
     expect(await screen.findByText("Claude Code is logged in")).toBeVisible();
     expect(screen.getByText("Codex is not logged in")).toBeVisible();

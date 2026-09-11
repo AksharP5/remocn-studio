@@ -6,6 +6,7 @@ import { StockPane } from "@/components/studio/stock-pane";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import type { StockItem } from "@/shared/library";
 
+const ENV_KEY = /REMOCN_STUDIO_PEXELS_KEY/;
 const NOTHING_FOUND = /Nothing on Pexels matches/;
 
 function item(shape: Partial<StockItem> = {}): StockItem {
@@ -80,7 +81,7 @@ function install(configured: boolean, items: readonly StockItem[]): Calls {
 function pane(onSaved = mock()) {
   render(
     <SidebarProvider>
-      <StockPane kind="photo" onOpenSettings={mock()} onSaved={onSaved} />
+      <StockPane kind="photo" onSaved={onSaved} />
     </SidebarProvider>
   );
 }
@@ -90,14 +91,15 @@ beforeEach(() => {
 });
 
 describe("StockPane", () => {
-  it("asks for a key when none is configured", async () => {
+  it("says stock search is unavailable when no key is configured", async () => {
     install(false, []);
     pane();
 
     expect(
-      await screen.findByText("Pexels needs an API key")
+      await screen.findByText("Stock search is unavailable")
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open Settings" })).toBeEnabled();
+    expect(screen.getByText(ENV_KEY)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open Settings" })).toBeNull();
   });
 
   it("invites a search while the field is empty", async () => {
