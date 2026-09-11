@@ -62,7 +62,10 @@ expect.extend(
 // build running alongside — a dozen suites time out at 1005ms with nothing
 // wrong. The number buys headroom for a slow machine; it does not slow a fast
 // one down, because a passing query resolves on the first poll either way.
-configure({ asyncUtilTimeout: 5000 });
+// GitHub's runner is about four times slower than the laptop the suite is
+// measured on (51 s against 12 s for the same run) and its heaviest shell
+// mounts crossed five seconds one file at a time, a different file each run.
+configure({ asyncUtilTimeout: process.env.CI ? 10_000 : 5000 });
 
 class InertObserver {
   disconnect = () => undefined;
