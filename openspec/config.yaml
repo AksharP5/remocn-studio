@@ -1,0 +1,130 @@
+schema: spec-driven
+
+# Planning context handed to the agent on every OpenSpec operation.
+# CLAUDE.md is the full architecture record; this is the short version that
+# shapes proposals, specs, designs and tasks.
+context: |
+  ## What this is
+  Remocn Studio — a local macOS desktop app (Tauri v2) in which a coding agent
+  (Claude Code, Codex, GitHub Copilot or Grok Build — the person's own CLI, signed
+  in with their own subscription; no API key, nothing bundled) writes a real
+  Remotion project into a folder on disk. The app previews the result live, lets
+  the person point at an element and tune it, and exports an mp4 through the
+  project's own @remotion/renderer. Design record: GitHub Remocn/remocn#218 and its
+  children; tickets are Linear REM-nnn. This is NOT studio.remocn.dev (the hosted,
+  spec-driven web editor) — never carry its timeline / project-JSON design here.
+  openspec/specs/ is the source of truth for what the studio does; read the
+  capability a change touches before planning it. docs/decisions/ holds the design
+  records — the measurements and failed runs behind each decision — and is history,
+  never authority: where a record and a spec disagree, the spec is right.
+  docs/decisions/drift-2026-09-11.md lists the known disagreements.
+
+  ## Stack
+  - Frontend: Next.js 16.2 (App Router, `output: "export"` — no Node server at
+    runtime), React 19.2, TypeScript 5.8, Tailwind v4 (CSS-first, tokens in
+    app/globals.css, dark-first), shadcn on @base-ui/react (style base-vega, NOT
+    Radix), lucide icons, Streamdown for assistant markdown, Shiki (own plugin),
+    dialkit 2.0 for the properties pane, react-resizable-panels for the layout.
+  - Desktop core: Tauri v2 (Rust) — window and splash, Tauri commands, the sidecar
+    supervisor, keychain-held account token, deep links, updater, pasted-image
+    writes, the asset protocol, crash reporting behind a Cargo feature.
+  - Sidecar: one bun process (bun 1.4.x, shipped inside the .app) written in
+    Effect 4 (effect@4.0.0-beta.101) end to end — SQLite history via bun:sqlite,
+    the agent adapters, stdio-MCP tool hosts, the preview host (the project's own
+    webpack + @remotion/bundler with our Player entry), stills and the mp4 export
+    (the project's own @remotion/renderer), the asset library, the moodboard.
+  - Agents: @anthropic-ai/claude-agent-sdk, @openai/codex-sdk, an ACP (Agent Client
+    Protocol) bridge for Copilot and Grok. One skills bundle in agent/skills/
+    (three vendored remotion/remocn skills + video-lessons + motion-design).
+  - Tooling: bun (lockfile bun.lock), Biome 2.5.5 via Ultracite (`bun run check`
+    / `bun run fix`), `bun run typecheck`, `bun test` + Testing Library + happy-dom
+    (three workers, isolated globals), Changesets for versioning, GitHub Actions
+    for the macOS release.
+
+  ## Architecture invariants — plan with them, never against them
+  - No SSR features. Anything needing a runtime goes to a Rust command or the
+    sidecar, never to a Next.js server.
+  - shared/ipc.ts is the only webview↔sidecar contract (Effect Schema; every
+    boundary is decoded, never cast) and src-tauri/src/ipc.rs mirrors it with
+    serde. A frame change bumps SIDECAR_PROTOCOL and Rust PROTOCOL together.
+  - lib/** returns Effect, hooks run it. Failures are Data.TaggedError values that
+    reach the UI as sentences; cancellation is fiber interruption; subscriptions
+    are acquireRelease. Behaviour lives in hooks/ and pure lib/studio/* functions;
+    components render and decide nothing.
+  - Project → Video → Chat. The open chat determines everything: the composition
+    the preview plays, the folder in the conventions, the target of Export,
+    Inspect and Snapshot. One running turn per video; different videos parallel.
+  - Permissions: file tools inside the opened folder run automatically; Bash and
+    any path outside the folder raise an Allow/Deny card. Modes are auto,
+    acceptEdits, plan — never bypassPermissions.
+  - Preview, stills and export resolve Remotion from the project's own
+    node_modules; the app bundles no Remotion. One compiled bundle serves the
+    Player and the renderer; an export renders from a pinned copy of it.
+  - History is our own SQLite, written by the sidecar; the CLI transcript format
+    is not a contract. shared/transcript.ts holds the one fold both sides run.
+  - Nothing reaches a third party without consent: crash reports are opt-in,
+    there is no telemetry, the skills bundle never writes into ~/.claude,
+    ~/.codex, ~/.copilot or ~/.grok, and nothing is written into the person's
+    project except what a turn or an explicit gesture asked for.
+  - Free / Pro: shared/entitlement.ts PRO_FEATURES is the one list of what Pro
+    adds; a feature added to Pro must be gated on both sides and listed there.
+  - Every user-facing failure is a worded sentence — never a protocol token, a raw
+    renderer message or a stack trace. Degrade to a notice; fail the turn only
+    when the words themselves cannot be delivered.
+
+  ## Conventions
+  - Effect v4 names differ from v3: Effect.callback, Effect.result, Effect.catch,
+    Schema.decodeUnknownEffect / decodeUnknownExit. Read
+    agent-patterns/effect-schema.md before any Schema code.
+  - Biome rules that shape components: noArrayIndexKey (rows carry their own id),
+    noJsxPropsBind (per-item handlers read event.currentTarget). components/ui/**
+    is shadcn output — never hand-edit it; typecheck is its only gate.
+  - No code comments unless asked; the rationale goes in the PR body and CLAUDE.md.
+  - Tests import from bun:test; IPC in tests goes through mockIPC; run only the
+    touched test files while iterating and the full suite once before a commit.
+  - Never start a dev server (bun dev, next dev, bun tauri dev) — the user owns
+    that terminal. Verify what a build, typecheck and tests can verify, then name
+    what must be checked in the running app.
+  - Measure before designing around a claim: a number from the real CLI, the real
+    package or the running app beats an argument. Record the measurement.
+  - Vocabulary: Project, Video, Chat, turn, permission card, Inspect, Snapshot,
+    Export, library, Docs, plan (Free / Pro). "Composition" and "session" never
+    appear in user-facing text.
+
+rules:
+  proposal:
+    - Name the issue the change answers (Linear REM-nnn or GitHub remocn#nnn) when there is one
+    - Keep it under 600 words — the motivation first, then the observable change, then the impact by seam (shared contract, sidecar, Rust core, webview)
+    - Include a Non-goals list; say what stays out of scope on purpose and why
+    - List every capability whose requirements change under openspec/specs; a pure refactor or tooling change sets skip_specs instead of inventing a requirement
+  specs:
+    - Write requirements as observable behaviour (SHALL), not implementation; name a file or function only where the behaviour is defined by it
+    - Every requirement carries at least one WHEN/THEN scenario, and every mechanism that can fail carries its failure-direction scenario (what the person sees when it goes wrong)
+    - Use the product vocabulary — Project, Video, Chat, turn, permission card, Inspect, Snapshot, Export, library, plan — never "composition" or "session" in user-facing wording
+    - Keep a capability to one seam; when a requirement spans webview, sidecar and core, say which side owns the decision
+    - Prefer nested capability paths by domain (shell/, sidecar/, projects/, agent/, history/, composer/, preview/, export/, library/, account/) and reuse an existing path before creating one
+  design:
+    - Record the measurement or the failed run that ruled an alternative out, not only the decision taken
+    - State which process owns each new piece of state (webview, sidecar, preview host, Rust core) and how it crosses the wire (shared/ipc.ts method, Tauri command, host frame, MCP tool)
+    - Name the failure direction of each new mechanism — what degrades to a notice, what fails the turn, what must never be silent
+    - Call out protocol bumps (SIDECAR_PROTOCOL + Rust PROTOCOL), history migrations (sidecar/history/migrations.ts) and new settings.json keys explicitly
+    - Express effects in Effect; a design that reaches for AbortController, setTimeout or a bare Promise in lib/** or the sidecar needs a stated reason
+  tasks:
+    - Split by seam in dependency order — shared contract, sidecar, Rust core, webview hooks, components, tests
+    - Every behavioural task names its test file, and every UI task its hook; no logic inline in a component
+    - End with bun run check, bun run typecheck, the touched test files, and the full suite once; a change needing runtime verification names exactly what the user must check in the running app
+    - Add a changeset (bun run changeset) for anything user-visible; a new tooling fact or working rule goes in CLAUDE.md, a decision stays in design.md
+
+operations:
+  apply:
+    guidance:
+      - Never start bun dev, next dev or bun tauri dev; verify with build, typecheck and tests, then ask the user to run the app for what only the app can show
+      - Run bun run fix and then bun run typecheck — fix can drop or duplicate a JSX attribute
+      - Run only the touched test files while iterating; run the full bun run test once before finishing
+      - Read the vendored source under repos/ (Effect, etc.) before trusting an API from memory
+      - A new load-bearing decision goes in the change's design.md; CLAUDE.md carries only working rules and tooling facts
+  archive:
+    guidance:
+      - Confirm bun run check, bun run typecheck and bun run test pass on the final tree
+      - Confirm a changeset exists for user-visible work and that design.md records the load-bearing reasons
+      - Summarize what shipped, what was verified in the running app, and what is still the user's to confirm

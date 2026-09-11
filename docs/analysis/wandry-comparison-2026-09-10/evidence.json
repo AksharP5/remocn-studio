@@ -292,15 +292,15 @@
         "fromFrame": 66,
         "toFrame": 149,
         "seconds": 2.8,
-        "meanLumaFrameDifference": 8.283132530120482e-05,
+        "meanLumaFrameDifference": 8.283132530120482e-5,
         "maxLumaFrameDifference": 0.0011805555555555556
       },
       {
         "fromFrame": 198,
         "toFrame": 269,
         "seconds": 2.4,
-        "meanLumaFrameDifference": 3.423317683881064e-05,
-        "maxLumaFrameDifference": 6.944444444444444e-05
+        "meanLumaFrameDifference": 3.423317683881064e-5,
+        "maxLumaFrameDifference": 6.944444444444444e-5
       },
       {
         "fromFrame": 300,
@@ -320,7 +320,7 @@
         "fromFrame": 540,
         "toFrame": 629,
         "seconds": 3.0,
-        "meanLumaFrameDifference": 7.33458177278402e-05,
+        "meanLumaFrameDifference": 7.33458177278402e-5,
         "maxLumaFrameDifference": 0.0006944444444444445
       },
       {
