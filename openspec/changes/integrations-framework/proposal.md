@@ -16,6 +16,9 @@ set of capabilities the studio's own tools draw on.
 
 ## What Changes
 
+- **Two services can be connected: ElevenLabs with an API key and Figma with a personal access
+  token.** Each is an adapter of about eighty lines — how it authorizes, how it checks itself,
+  what it can do — and neither carries any lifecycle of its own.
 - A new **Integrations** section in Settings: a catalogue of services, *Add integration*, and
   a list of connections showing service, name, account, capabilities and state. Check,
   reconfigure, reconnect, disable and remove. Several connections of one service are allowed
@@ -79,7 +82,13 @@ set of capabilities the studio's own tools draw on.
   REM-265 from the framework.
 - **No Pexels migration.** The shared key stays baked into the release bundle exactly as it is
   today; only its Settings surface goes.
-- **No provider verticals.** ElevenLabs, Figma, YouTube, TikTok and Instagram adapters are
-  their own tickets on top of this; shipping the framework does not wait on them.
+- **No feature built on a connection.** The adapters here only connect and check themselves.
+  Generating a sound, importing a frame and publishing a video stay with REM-411, REM-260 and
+  REM-262; a connection this change creates is something the studio holds, not yet something it
+  uses.
+- **No TikTok or Instagram adapter.** REM-404 asks for their feasibility to be confirmed before
+  an adapter is written — TikTok needs a client secret the studio may not ship and a Direct Post
+  audit, Instagram needs a person's own Meta application. Guessing at either would put a service
+  in the catalogue that cannot honestly be connected.
 - **No publishing UI.** The permission rule for outward tools is written here; the flows that
   use it are not.

@@ -1,5 +1,7 @@
 pub mod browser;
 pub mod commands;
+pub mod elevenlabs;
+pub mod figma;
 pub mod keychain;
 pub mod lifecycle;
 pub mod provider;

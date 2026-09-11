@@ -9,10 +9,16 @@
 
 - [x] 2.1 Add `src-tauri/src/integrations/keychain.rs` — one `keyring` entry per connection id, with store, read, replace and delete; verify a Rust unit test covers a write, a replace that leaves a second connection untouched, a delete, and a refused write surfacing as a worded failure
 - [x] 2.2 Add `src-tauri/src/integrations/store.rs` — the `integrations` key in `settings.json`, holding only id, provider, name, account label, capabilities, disabled and the keychain reference; verify a Rust unit test round-trips the list and rejects a record carrying any secret-shaped field
-- [ ] 2.3 Add `src-tauri/src/integrations/provider.rs` — the adapter trait a provider fills in (how it authorizes, how it checks itself, which capabilities it implements) and the registry over it; verify a Rust unit test drives a fake adapter through create, check, reconnect, disable and remove without provider-specific lifecycle code
-- [ ] 2.4 Add the loopback listener for browser authorization — ephemeral port, the provider's required proof of origin, cancel and timeout, and dropping an answer whose state does not match the attempt in progress; verify a Rust unit test covers a completed trip, a cancelled one, a timed-out one and a mismatched answer
+- [x] 2.3 Add `src-tauri/src/integrations/provider.rs` — the adapter trait a provider fills in (how it authorizes, how it checks itself, which capabilities it implements) and the registry over it; verify a Rust unit test drives a fake adapter through create, check, reconnect, disable and remove without provider-specific lifecycle code
+- [x] 2.4 Add the loopback listener for browser authorization — ephemeral port, the provider's required proof of origin, cancel and timeout, and dropping an answer whose state does not match the attempt in progress; verify a Rust unit test covers a completed trip, a cancelled one, a timed-out one and a mismatched answer
 - [ ] 2.5 Add the Tauri commands the webview calls for the `integrations.*` family, each returning a worded failure rather than a status code; verify `cargo check` compiles and a Rust unit test asserts a failing provider answer reaches the command as a sentence
 - [x] 2.6 Answer reverse requests from the sidecar on a task independent of the webview request being serviced, in `src-tauri/src/sidecar/`; verify a Rust unit test proves a reverse request is answered while a webview request is in flight, and that an unanswerable one returns a worded failure rather than hanging
+
+## 2b. The first two adapters
+
+- [x] 2b.1 Add `src-tauri/src/integrations/elevenlabs.rs` — an API key checked against `GET /v1/user` with the `xi-api-key` header, carrying the audio capability; verify a Rust unit test covers the account read from a body that names one and one that does not, and that a refused, rate-limited and unexpected status each come back as a sentence
+- [x] 2b.2 Add `src-tauri/src/integrations/figma.rs` — a personal access token checked against `GET /v1/me` with the `X-Figma-Token` header, carrying the import capability; verify a Rust unit test covers the account falling back from email to handle to id, and that a 403 names the scopes the token is missing
+- [x] 2b.3 Put both in the shipped registry; verify a Rust unit test asserts the catalogue is exactly those two and that a service with no adapter is absent
 
 ## 3. Sidecar — the turn's side
 

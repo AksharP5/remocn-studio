@@ -80,7 +80,10 @@ impl Registry {
 }
 
 pub fn shipped() -> Registry {
-    Registry::new()
+    Registry::of(vec![
+        Box::new(super::elevenlabs::ElevenLabs),
+        Box::new(super::figma::Figma),
+    ])
 }
 
 #[cfg(test)]
@@ -206,7 +209,15 @@ mod tests {
 
     #[test]
     fn the_shipped_registry_offers_only_what_has_an_adapter() {
-        assert!(shipped().catalogue().is_empty());
+        let offered: Vec<&str> = shipped()
+            .catalogue()
+            .into_iter()
+            .map(|one| one.id)
+            .collect();
+
+        assert_eq!(offered, vec!["elevenlabs", "figma"]);
+        assert!(shipped().find("youtube").is_none());
+        assert!(shipped().find("paper").is_none());
     }
 
     #[test]
