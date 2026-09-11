@@ -4,6 +4,8 @@ import { createContext, use, useCallback, useMemo } from "react";
 import { type Account, useAccount } from "@/hooks/use-account";
 import { useAppMenu } from "@/hooks/use-app-menu";
 import { type ClaudeEffort, useClaudeEffort } from "@/hooks/use-claude-effort";
+import { useCommandPalette } from "@/hooks/use-command-palette";
+import { useCommands } from "@/hooks/use-commands";
 import { type Composer, useComposer } from "@/hooks/use-composer";
 import { useCrashReporting } from "@/hooks/use-crash-reporting";
 import { type Docs, useDocs } from "@/hooks/use-docs";
@@ -32,6 +34,8 @@ import {
 import { type Queue, useQueue } from "@/hooks/use-queue";
 import { useReconciledVideos } from "@/hooks/use-reconciled-videos";
 import { type SettingsView, useSettingsView } from "@/hooks/use-settings-view";
+import { useShortcuts } from "@/hooks/use-shortcuts";
+import { useSidecar } from "@/hooks/use-sidecar";
 import { useSidecarStatus } from "@/hooks/use-sidecar-status";
 import { useTemplateLinks } from "@/hooks/use-template-links";
 import {
@@ -44,7 +48,6 @@ import { type Tours, useTours } from "@/hooks/use-tours";
 import { type TrialCardState, useTrialCard } from "@/hooks/use-trial-card";
 import { type Updates, useUpdates } from "@/hooks/use-updates";
 import { useWorkspace, type Workspace } from "@/hooks/use-workspace";
-import type { AppMenuModel } from "@/lib/studio/app-menu";
 import type { VideoFormat } from "@/lib/studio/formats";
 import type { StudioSettings } from "@/lib/studio/settings";
 import { currentTasks } from "@/lib/studio/tasks";
@@ -52,6 +55,7 @@ import type { TourReveal } from "@/lib/studio/tours";
 import type { PlanTier } from "@/shared/entitlement";
 import type { ProjectDraft } from "@/shared/ipc";
 import { PROVIDER_INFO } from "@/shared/providers";
+import { CommandPalette } from "./command-palette";
 import { ProjectDialogs } from "./project-dialogs";
 
 export type Studio = ClaudeEffort &
@@ -213,53 +217,11 @@ function StudioStateProvider({
   );
   const projectMenu = useProjectMenu(activeProject, projectCommands);
 
-  const menuModel = useMemo<AppMenuModel>(
-    () => ({
-      canCreateVideo: activeProject !== null && !activeProject.missing,
-      onLocateProject: projectMenu.locate,
-      onNewProject: newProject.open,
-      onNewVideo: newVideo.open,
-      onOpenFolder: openFolder,
-      onProjectSettings: () => {
-        if (activeProject) {
-          settingsView.openProject(activeProject.id);
-        }
-      },
-      onRemoveProject: projectMenu.openRemove,
-      onRenameProject: projectMenu.openRename,
-      onRevealProject: projectMenu.reveal,
-      onSelectProject: selectProject,
-      open:
-        activeProject === null
-          ? null
-          : {
-              id: activeProject.id,
-              isActive: true,
-              isMissing: activeProject.missing,
-              name: activeProject.name,
-            },
-      projects: projects.map((row) => ({
-        id: row.id,
-        isActive: row.id === activeProject?.id,
-        isMissing: row.missing,
-        name: row.name,
-      })),
-    }),
-    [
-      activeProject,
-      newProject.open,
-      newVideo.open,
-      openFolder,
-      projectMenu.locate,
-      projectMenu.openRemove,
-      settingsView.openProject,
-      projectMenu.openRename,
-      projectMenu.reveal,
-      projects,
-      selectProject,
-    ]
-  );
-  useAppMenu(menuModel);
+  const openProjectSettings = useCallback(() => {
+    if (activeProject !== null) {
+      settingsView.openProject(activeProject.id);
+    }
+  }, [activeProject, settingsView.openProject]);
 
   const library = useLibrary(workspace.hasRunningTurns);
 
@@ -298,6 +260,8 @@ function StudioStateProvider({
   const opened = workspace.openedProject;
   const openedId = opened?.id ?? null;
   const openedMissing = opened?.missing ?? false;
+  const openedVideoId = workspace.openedVideo?.id ?? null;
+  const openedSessionId = workspace.openedSession?.id ?? null;
 
   const composer = useComposer({
     onEscape: turn.isRunning ? turn.stop : undefined,
@@ -313,7 +277,7 @@ function StudioStateProvider({
     entries: turn.entries,
     isTurnRunning: workspace.hasRunningTurns,
     projectId: openedId,
-    videoId: workspace.openedVideo?.id ?? null,
+    videoId: openedVideoId,
   });
 
   const tools = useTools({
@@ -336,6 +300,49 @@ function StudioStateProvider({
     // same one the preview is showing whenever the tools are available at all.
     writeProjectId: openedId,
   });
+
+  const sidecar = useSidecar();
+
+  const baseCommands = useCommands({
+    canCreateVideo: activeProject !== null && !activeProject.missing,
+    docsMode: docs.mode,
+    exportUnavailable: tools.exporting.unavailable,
+    groups: workspace.groups,
+    inspectUnavailable: tools.inspect.unavailable,
+    isPreviewShown: panes.isPreviewShown,
+    isProjectsShown: panes.isProjectsShown,
+    isTurnRunning: turn.isRunning,
+    locateProject: projectMenu.locate,
+    openExport: tools.exporting.open,
+    openedSessionId,
+    openedVideoId,
+    openFolder,
+    openNewProject: newProject.open,
+    openNewVideo: newVideo.open,
+    openProject: activeProject,
+    openProjectSettings,
+    openRemoveProject: projectMenu.openRemove,
+    openRenameProject: projectMenu.openRename,
+    openSettings: settingsView.open,
+    openVideo: workspace.openVideo,
+    paneView: panes.paneView,
+    pickDocsMode: docs.pickMode,
+    projects,
+    restartSidecar: sidecar.restart,
+    revealProject: projectMenu.reveal,
+    selectProject,
+    selectSession: workspace.selectSession,
+    showPane,
+    snapshotUnavailable: tools.snapshot.unavailable,
+    stopTurn: turn.stop,
+    toggleInspect: tools.inspect.toggle,
+    togglePreview: panes.togglePreview,
+    toggleProjects: panes.toggleProjects,
+    toggleSnapshot: tools.snapshot.toggle,
+  });
+  const palette = useCommandPalette(baseCommands, openedSessionId);
+  const isMenuInstalled = useAppMenu(palette.commands);
+  useShortcuts(palette.commands, isMenuInstalled);
 
   const environment = useEnvironment(
     openedMissing ? null : openedId,
@@ -461,6 +468,7 @@ function StudioStateProvider({
     <StudioContext value={studio}>
       {children}
       <ProjectDialogs menu={projectMenu} project={activeProject} />
+      <CommandPalette palette={palette} />
     </StudioContext>
   );
 }

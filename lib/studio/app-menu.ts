@@ -8,61 +8,65 @@ import {
 } from "@tauri-apps/api/menu";
 import { Data, Effect } from "effect";
 import { errorMessage } from "@/lib/error-message";
-import { fileManagerName } from "@/lib/studio/platform";
+import {
+  acceleratorOf,
+  type Command,
+  type MenuName,
+} from "@/lib/studio/command-registry";
 
 export class MenuError extends Data.TaggedError("MenuError")<{
   message: string;
 }> {}
 
-export interface MenuProject {
-  readonly id: string;
-  readonly isActive: boolean;
-  readonly isMissing: boolean;
-  readonly name: string;
-}
-
-export interface AppMenuModel {
-  readonly canCreateVideo: boolean;
-  readonly onLocateProject: () => void;
-  readonly onNewProject: () => void;
-  readonly onNewVideo: () => void;
-  readonly onOpenFolder: () => void;
-  readonly onProjectSettings?: () => void;
-  readonly onRemoveProject: () => void;
-  readonly onRenameProject: () => void;
-  readonly onRevealProject: () => void;
-  readonly onSelectProject: (projectId: string) => void;
-  readonly open: MenuProject | null;
-  readonly projects: readonly MenuProject[];
-}
+export type RunCommand = (id: string) => void;
 
 const fail = (cause: unknown) =>
   new MenuError({ message: errorMessage(cause) });
+
+export function menuShape(commands: readonly Command[]): string {
+  return commands
+    .filter((command) => command.menu !== undefined)
+    .map(
+      (command) =>
+        `${command.id}|${command.title}|${command.enabled === true ? 1 : 0}|${command.checked === true ? 1 : 0}`
+    )
+    .join("\n");
+}
 
 // Replacing the app menu wholesale is the only way to own the File submenu, so
 // every standard submenu is rebuilt here too — dropping Edit would silently
 // take Cmd+C/V away from the webview, and dropping Quit would take Cmd+Q.
 export function installAppMenu(
-  model: AppMenuModel,
+  commands: readonly Command[],
+  run: RunCommand,
   isCurrent: () => boolean
 ): Effect.Effect<void, MenuError> {
   return Effect.tryPromise({
     catch: fail,
-    try: () => install(model, isCurrent),
+    try: () => install(commands, run, isCurrent),
   });
 }
 
 async function install(
-  model: AppMenuModel,
+  commands: readonly Command[],
+  run: RunCommand,
   isCurrent: () => boolean
 ): Promise<void> {
+  const rowsOf = (name: MenuName) =>
+    commands.filter((command) => command.menu === name);
+
   const menu = await Menu.new({
     items: await Promise.all([
-      applicationMenu(),
-      fileMenu(model),
-      projectMenu(model),
+      applicationMenu(rowsOf("app"), run),
+      fileMenu(rowsOf("file"), run),
+      submenuOf("Project", itemsOf(rowsOf("project"), run)),
       editMenu(),
-      viewMenu(),
+      submenuOf("View", [
+        ...itemsOf(rowsOf("view"), run),
+        predefined("Separator"),
+        predefined("Fullscreen"),
+      ]),
+      submenuOf("Video", itemsOf(rowsOf("video"), run)),
       windowMenu(),
     ]),
   });
@@ -76,15 +80,41 @@ async function install(
   await previous?.close();
 }
 
+type Item = Promise<CheckMenuItem | MenuItem | PredefinedMenuItem | Submenu>;
+
 function predefined(item: PredefinedMenuItemOptions["item"]) {
   return PredefinedMenuItem.new({ item });
 }
 
+function itemOf(command: Command, run: RunCommand): Item {
+  const shared = {
+    action: () => run(command.id),
+    enabled: command.enabled === true,
+    text: command.title,
+    ...(command.shortcut === undefined
+      ? {}
+      : { accelerator: acceleratorOf(command.shortcut) }),
+  };
+  return command.checked === undefined
+    ? MenuItem.new(shared)
+    : CheckMenuItem.new({ ...shared, checked: command.checked });
+}
+
+function itemsOf(commands: readonly Command[], run: RunCommand): Item[] {
+  return commands.flatMap((command) =>
+    command.separatorBefore === true
+      ? [predefined("Separator"), itemOf(command, run)]
+      : [itemOf(command, run)]
+  );
+}
+
 // macOS titles this submenu with the app's own name; the text is only what
 // other platforms would show.
-function applicationMenu() {
+function applicationMenu(commands: readonly Command[], run: RunCommand) {
   return submenuOf("Remocn Studio", [
     predefined({ About: null }),
+    predefined("Separator"),
+    ...itemsOf(commands, run),
     predefined("Separator"),
     predefined("Services"),
     predefined("Separator"),
@@ -96,76 +126,19 @@ function applicationMenu() {
   ]);
 }
 
-function fileMenu(model: AppMenuModel) {
+function fileMenu(commands: readonly Command[], run: RunCommand) {
+  const actions = commands.filter((command) => command.group !== "projects");
+  const projects = commands.filter((command) => command.group === "projects");
   const projectRows =
-    model.projects.length === 0
+    projects.length === 0
       ? []
-      : [
-          predefined("Separator"),
-          ...model.projects.map((project) =>
-            CheckMenuItem.new({
-              action: () => model.onSelectProject(project.id),
-              checked: project.isActive,
-              text: project.name,
-            })
-          ),
-        ];
+      : [predefined("Separator"), ...itemsOf(projects, run)];
 
   return submenuOf("File", [
-    MenuItem.new({
-      accelerator: "CmdOrCtrl+N",
-      action: model.onNewVideo,
-      enabled: model.canCreateVideo,
-      text: "New Video…",
-    }),
-    MenuItem.new({
-      accelerator: "CmdOrCtrl+Shift+N",
-      action: model.onNewProject,
-      text: "New Project…",
-    }),
-    MenuItem.new({
-      accelerator: "CmdOrCtrl+O",
-      action: model.onOpenFolder,
-      text: "Open Folder…",
-    }),
+    ...itemsOf(actions, run),
     ...projectRows,
     predefined("Separator"),
     predefined("CloseWindow"),
-  ]);
-}
-
-// The row is disabled rather than dropped when it does not apply, so the menu
-// keeps one shape and nothing appears to come and go between projects.
-function projectMenu(model: AppMenuModel) {
-  const { open } = model;
-
-  return submenuOf("Project", [
-    MenuItem.new({
-      action: model.onProjectSettings,
-      enabled: open !== null,
-      text: "Project Settings…",
-    }),
-    MenuItem.new({
-      action: model.onRenameProject,
-      enabled: open !== null,
-      text: "Rename…",
-    }),
-    MenuItem.new({
-      action: model.onLocateProject,
-      enabled: open !== null,
-      text: "Locate Folder…",
-    }),
-    MenuItem.new({
-      action: model.onRevealProject,
-      enabled: open !== null && !open.isMissing,
-      text: `Reveal in ${fileManagerName()}`,
-    }),
-    predefined("Separator"),
-    MenuItem.new({
-      action: model.onRemoveProject,
-      enabled: open !== null,
-      text: "Remove from Studio…",
-    }),
   ]);
 }
 
@@ -181,10 +154,6 @@ function editMenu() {
   ]);
 }
 
-function viewMenu() {
-  return submenuOf("View", [predefined("Fullscreen")]);
-}
-
 function windowMenu() {
   return submenuOf("Window", [
     predefined("Minimize"),
@@ -194,11 +163,6 @@ function windowMenu() {
   ]);
 }
 
-async function submenuOf(
-  text: string,
-  items: readonly Promise<
-    CheckMenuItem | MenuItem | PredefinedMenuItem | Submenu
-  >[]
-) {
+async function submenuOf(text: string, items: readonly Item[]) {
   return Submenu.new({ items: await Promise.all(items), text });
 }
