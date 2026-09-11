@@ -1,15 +1,24 @@
+pub mod browser;
+pub mod commands;
 pub mod keychain;
+pub mod lifecycle;
+pub mod provider;
 pub mod store;
 
 use std::{
     collections::HashMap,
-    sync::{Mutex, MutexGuard},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Mutex, MutexGuard,
+    },
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, Runtime};
 
+use provider::{Checked, Registry};
 use store::Record;
 
 pub const USABLE_METHOD: &str = "integrations.usable";
@@ -37,19 +46,68 @@ pub struct Connection {
 }
 
 #[derive(Debug, Clone)]
-struct Standing {
+pub(crate) struct Standing {
     state: ConnectionState,
     detail: Option<String>,
 }
 
-#[derive(Default)]
+#[derive(Debug, Clone)]
+pub struct Attempt {
+    pub provider: String,
+    pub secret: Option<String>,
+    pub checked: Checked,
+}
+
 pub struct Integrations {
     standing: Mutex<HashMap<String, Standing>>,
+    attempt: Mutex<Option<Attempt>>,
+    counter: AtomicU64,
+    pub registry: Registry,
+}
+
+impl Default for Integrations {
+    fn default() -> Self {
+        Self {
+            standing: Mutex::new(HashMap::new()),
+            attempt: Mutex::new(None),
+            counter: AtomicU64::new(0),
+            registry: provider::shipped(),
+        }
+    }
 }
 
 impl Integrations {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn hold(&self, provider: &str, secret: Option<String>, checked: Checked) {
+        *self.attempt.lock().unwrap_or_else(|err| err.into_inner()) = Some(Attempt {
+            provider: provider.to_string(),
+            secret,
+            checked,
+        });
+    }
+
+    pub fn held(&self) -> Option<Attempt> {
+        self.attempt
+            .lock()
+            .unwrap_or_else(|err| err.into_inner())
+            .clone()
+    }
+
+    pub fn drop_attempt(&self) {
+        *self.attempt.lock().unwrap_or_else(|err| err.into_inner()) = None;
+    }
+
+    pub fn next_id(&self) -> String {
+        let seq = self.counter.fetch_add(1, Ordering::SeqCst);
+        let millis = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|since| since.as_millis())
+            .unwrap_or(0);
+
+        format!("cn_{millis}_{seq}")
     }
 
     fn standing(&self) -> MutexGuard<'_, HashMap<String, Standing>> {
@@ -65,7 +123,7 @@ impl Integrations {
         self.standing().remove(id);
     }
 
-    fn seen(&self, id: &str) -> Standing {
+    pub(crate) fn seen(&self, id: &str) -> Standing {
         self.standing().get(id).cloned().unwrap_or(Standing {
             state: ConnectionState::Checking,
             detail: None,
@@ -73,7 +131,7 @@ impl Integrations {
     }
 }
 
-fn viewed(record: &Record, standing: Standing) -> Connection {
+pub(crate) fn viewed(record: &Record, standing: Standing) -> Connection {
     Connection {
         account: record.account.clone(),
         capabilities: record.capabilities.clone(),
