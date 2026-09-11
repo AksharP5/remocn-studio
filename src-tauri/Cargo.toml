@@ -28,6 +28,7 @@ serde_json = "1"
 time = { version = "0.3", features = ["formatting"] }
 tokio = { version = "1", features = ["io-util", "process", "rt", "sync", "time"] }
 tauri-plugin-updater = "2.10.1"
+tauri-plugin-notification = "2"
 keyring = { version = "3", features = ["apple-native"] }
 reqwest = { version = "0.13", features = ["json"] }
 # Off by default, and deliberately: nothing in CI compiles this crate — the

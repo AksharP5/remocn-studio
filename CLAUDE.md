@@ -411,6 +411,11 @@ One seam per line: what it owns, the specs that define it, the records that expl
   `bun build --env` takes exactly one glob (`REMOCN_STUDIO_*`) and silently drops a second;
   runtime env vars are read by bracket access so the substitution never touches them.
   `--preview-host`, `--tools-host` and `--render-config` re-exec the same bundle.
+- **Notifications in dev**: `tauri-plugin-notification` signs a development post with
+  `com.apple.Terminal`, whatever terminal launched `bun tauri dev`, so nothing arrives until
+  Terminal is allowed under System Settings › Notifications. A bundle posts under the app's own
+  identifier and needs its own row there. The plugin also answers *granted* for every
+  permission query on desktop, so a refusal in System Settings is invisible to the app.
 - **Rust**: the `crash-reports` Cargo feature is off by default and switched on by the
   release job; `cargo check --features crash-reports` on a Mac stands in for a CI gate.
   `ClientOptions` is `#[non_exhaustive]` — build it by assignment.

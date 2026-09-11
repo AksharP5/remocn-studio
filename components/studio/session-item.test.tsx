@@ -122,12 +122,25 @@ describe("SessionItem", () => {
     expect(screen.queryByText(TRACE)).not.toBeInTheDocument();
   });
 
-  it("marks news that arrived while the session was away", () => {
+  it("marks news that arrived while the session was away, at reading size", () => {
     renderItem({ unread: true });
 
-    expect(
-      screen.getByRole("img", { name: "A promo for the launch has news" })
-    ).toBeVisible();
+    const mark = screen.getByRole("img", {
+      name: "A promo for the launch has news",
+    });
+    expect(mark).toBeVisible();
+    expect(mark).toHaveClass("size-2");
+    expect(screen.getByText("A promo for the launch")).toHaveClass(
+      "text-sidebar-foreground"
+    );
+  });
+
+  it("keeps a quiet row's title muted", () => {
+    renderItem();
+
+    expect(screen.getByText("A promo for the launch")).toHaveClass(
+      "text-muted-foreground"
+    );
   });
 
   it("keeps the delete button away from a session that is busy", () => {

@@ -17,6 +17,10 @@ import { type Library, useLibrary } from "@/hooks/use-library";
 import { type StudioModels, useModels } from "@/hooks/use-models";
 import { type NewProject, useNewProject } from "@/hooks/use-new-project";
 import { type NewVideo, useNewVideo } from "@/hooks/use-new-video";
+import {
+  type NotificationConsent,
+  useNotificationConsent,
+} from "@/hooks/use-notification-consent";
 import { type OpenTurn, useOpenTurn } from "@/hooks/use-open-turn";
 import { type Panes, usePanes } from "@/hooks/use-panes";
 import {
@@ -37,6 +41,7 @@ import { type SettingsView, useSettingsView } from "@/hooks/use-settings-view";
 import { useShortcuts } from "@/hooks/use-shortcuts";
 import { useSidecar } from "@/hooks/use-sidecar";
 import { useSidecarStatus } from "@/hooks/use-sidecar-status";
+import { useStudioAttention } from "@/hooks/use-studio-attention";
 import { useTemplateLinks } from "@/hooks/use-template-links";
 import {
   PRO_ONLY,
@@ -72,6 +77,7 @@ export type Studio = ClaudeEffort &
     library: Library;
     newProject: NewProject;
     newVideo: NewVideo;
+    notifications: NotificationConsent;
     preferences: Preferences;
     queue: Queue;
     settings: StudioSettings | null;
@@ -149,6 +155,7 @@ function StudioStateProvider({
   const accounts = useProviderAccounts();
   const effort = useClaudeEffort(settings);
   const preferences = usePreferences(settings);
+  const notifications = useNotificationConsent(settings);
   const settingsView = useSettingsView(workspace.activeProject?.id ?? null);
   const updates = useUpdates();
 
@@ -344,6 +351,16 @@ function StudioStateProvider({
   const isMenuInstalled = useAppMenu(palette.commands);
   useShortcuts(palette.commands, isMenuInstalled);
 
+  useStudioAttention({
+    exportState: tools.exporting.state,
+    isEnabled: notifications.isOn,
+    isEventEnabled: notifications.isEventEnabled,
+    sessions: workspace.sessions,
+    sidecarPhase,
+    turns: workspace.turns,
+    videos: workspace.videos,
+  });
+
   const environment = useEnvironment(
     openedMissing ? null : openedId,
     previewProjectId === opened?.id ? tools.preview.pick : null,
@@ -423,6 +440,7 @@ function StudioStateProvider({
       library,
       newProject,
       newVideo,
+      notifications,
       preferences,
       queue,
       settings,
@@ -446,6 +464,7 @@ function StudioStateProvider({
       model,
       newProject,
       newVideo,
+      notifications,
       panes,
       preferences,
       queue,

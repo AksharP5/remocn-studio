@@ -2,6 +2,7 @@
 
 import {
   ArrowLeftIcon,
+  BellIcon,
   BotIcon,
   CheckIcon,
   CircleArrowUpIcon,
@@ -28,6 +29,7 @@ import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { useCopyCommand } from "@/hooks/use-copy-command";
+import type { NotificationConsent } from "@/hooks/use-notification-consent";
 import { useScrolledIntoView } from "@/hooks/use-scrolled-into-view";
 import {
   isSettingsSection,
@@ -40,6 +42,7 @@ import {
   useThemeChoice,
 } from "@/hooks/use-theme-choice";
 import { shortDay } from "@/lib/studio/account";
+import type { NotifyEvent } from "@/lib/studio/attention";
 import {
   formatShortcut,
   HOTKEY_GROUPS,
@@ -102,6 +105,12 @@ const SECTIONS: readonly {
     icon: SlidersHorizontalIcon,
     id: "behavior",
     label: "Behavior",
+  },
+  {
+    description: "How the studio calls you back when it is not in front",
+    icon: BellIcon,
+    id: "notifications",
+    label: "Notifications",
   },
   {
     description: "Every keyboard shortcut, in one place",
@@ -202,6 +211,7 @@ export function SettingsPage() {
               {section === "account" ? <AccountSection /> : null}
               {section === "appearance" ? <AppearanceSection /> : null}
               {section === "behavior" ? <BehaviorSection /> : null}
+              {section === "notifications" ? <NotificationsSection /> : null}
               {section === "hotkeys" ? <HotkeysSection /> : null}
               {section === "stock" ? <StockSection /> : null}
               {section === "updates" ? <UpdatesSection /> : null}
@@ -561,6 +571,136 @@ function BehaviorSection() {
         />
       </Group>
     </>
+  );
+}
+
+const EVENT_ROWS: readonly {
+  description: string;
+  event: NotifyEvent;
+  title: string;
+}[] = [
+  {
+    description: "The agent has finished a turn in a chat",
+    event: "turnEnded",
+    title: "A turn finished",
+  },
+  {
+    description:
+      "A permission card or a question about a source is waiting on you",
+    event: "waiting",
+    title: "The agent is waiting for your answer",
+  },
+  {
+    description: "A render wrote its file, or could not",
+    event: "export",
+    title: "An export finished or failed",
+  },
+  {
+    description: "The studio's helper stopped and could not be brought back",
+    event: "sidecar",
+    title: "The studio's helper stopped",
+  },
+];
+
+function NotificationsSection() {
+  const { notifications } = useStudio();
+  const { permission } = notifications;
+  const isUnavailable = permission === "unavailable";
+  const needsPermission = permission === "default" || permission === "denied";
+
+  return (
+    <>
+      <Group
+        description="Only while another app is in front; the pane and the chat list already show everything while the studio is"
+        title="Notifications"
+      >
+        <div className="flex flex-col gap-2">
+          <Row
+            description="Turn every notification on or off. macOS asks once, the first time this goes on."
+            htmlFor="settings-notifications"
+            title="Notify me"
+          >
+            <Switch
+              checked={notifications.isEnabled}
+              disabled={isUnavailable}
+              id="settings-notifications"
+              onCheckedChange={notifications.toggle}
+            />
+          </Row>
+
+          {isUnavailable ? (
+            <p className="text-muted-foreground text-xs leading-snug">
+              Notifications need the desktop app.
+            </p>
+          ) : null}
+
+          {needsPermission ? (
+            <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+              <p className="text-muted-foreground text-xs leading-snug">
+                {permission === "denied"
+                  ? "Notifications are off for the studio in System Settings. Nothing will arrive until they are turned on there."
+                  : "macOS has not allowed the studio to notify yet. Nothing will arrive until it has."}
+              </p>
+              <Button onClick={notifications.grant} size="sm" variant="outline">
+                Grant permission
+              </Button>
+            </div>
+          ) : null}
+
+          {notifications.trouble === null ? null : (
+            <p className="text-destructive text-xs leading-snug">
+              {notifications.trouble}
+            </p>
+          )}
+        </div>
+      </Group>
+
+      <Group
+        description="Which moments are worth a notification"
+        title="Events"
+      >
+        <div className="flex flex-col divide-y divide-border/60">
+          {EVENT_ROWS.map((row) => (
+            <EventRow
+              consent={notifications}
+              description={row.description}
+              event={row.event}
+              key={row.event}
+              title={row.title}
+            />
+          ))}
+        </div>
+      </Group>
+    </>
+  );
+}
+
+function EventRow({
+  consent,
+  description,
+  event,
+  title,
+}: {
+  consent: NotificationConsent;
+  description: string;
+  event: NotifyEvent;
+  title: string;
+}) {
+  const id = `settings-notify-${event}`;
+  const onChange = useCallback(
+    (enabled: boolean) => consent.setEvent(event, enabled),
+    [consent, event]
+  );
+
+  return (
+    <Row description={description} htmlFor={id} title={title}>
+      <Switch
+        checked={consent.isEnabled && consent.events[event]}
+        disabled={!consent.isEnabled}
+        id={id}
+        onCheckedChange={onChange}
+      />
+    </Row>
   );
 }
 
