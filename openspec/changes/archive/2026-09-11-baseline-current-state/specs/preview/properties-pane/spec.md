@@ -1,0 +1,348 @@
+## Purpose
+
+The properties pane: a fourth panel beside the chat and the preview that opens on an element picked in the preview and lets its declared parameters be edited live, so what is being judged is the frame itself. What the person sets either reaches the agent as a request or is written into the code, which `preview/write-to-code` owns.
+
+## ADDED Requirements
+
+### Requirement: The pane exists only while there is something in it
+
+The studio SHALL open the properties pane when a picked element resolves to at least one component declaring an editable parameter, and SHALL keep it out of the layout entirely at every other moment. An element that resolves to no such component SHALL instead get the compact comment card anchored over the frame. Closing the pane SHALL restore the values it arrived with.
+
+#### Scenario: An element with editable parameters is picked
+
+- **WHEN** a pick resolves to a component that declares parameters the pane can edit
+- **THEN** the properties pane is added to the window as its own resizable panel beside the preview
+- **AND** the pane opens on the innermost such component rather than on any ancestor
+
+#### Scenario: An element with nothing to tune is picked
+
+- **WHEN** a pick resolves to no component declaring editable parameters
+- **THEN** no properties pane is added
+- **AND** the compact comment card is drawn over the frame instead
+
+#### Scenario: The pane is closed
+
+- **WHEN** the person closes the pane, from its × or from Cancel
+- **THEN** every value the pane changed is restored in the preview
+- **AND** the pane leaves the window
+
+#### Scenario: Inspect is turned off with the pane open
+
+- **WHEN** the person disarms Inspect while the pane is open
+- **THEN** the pane stays open on the element it was opened for, with its values still live
+- **AND** only Cancel or Add ends it
+
+### Requirement: The chain of components is offered, innermost first
+
+The studio SHALL collect every component around the picked element that declares parameters, order them innermost first, and show one at a time with a switcher. Switching SHALL be a local move that asks the preview for nothing. A link whose whole declaration is framing plumbing SHALL be dropped unless it is the innermost one. The pane SHALL be titled by the name the component declares for itself and subtitled by what it is inside and the file and line it is written at.
+
+#### Scenario: A word inside a component is picked
+
+- **WHEN** the picked element sits inside a markup primitive which sits inside a component with its own parameters
+- **THEN** the pane opens on the primitive, and the component is offered in the switcher
+- **AND** the switcher is not drawn at all when there is only one link
+
+#### Scenario: Another link is chosen
+
+- **WHEN** the person chooses another link in the switcher
+- **THEN** that link's own fields replace the ones on screen with no round trip to the preview
+- **AND** edits already made on the previous link are kept and still count towards Add
+
+#### Scenario: The open link is pointed at
+
+- **WHEN** the pane is showing a link
+- **THEN** that link's element is boxed inside the preview
+- **AND** moving a value does not repaint the box, while switching links moves it
+
+#### Scenario: The component declares no name
+
+- **WHEN** the open component carries no declared name
+- **THEN** the title falls back to the component's own name with the markup-primitive spelling stripped
+- **AND** the subtitle reads "no source" when there is no file behind it
+
+### Requirement: Every key the component declares is answered
+
+The studio SHALL draw a row for every declared key whose value it can read, and SHALL NOT drop a key in silence. A value that does not match its declared type SHALL be coerced where that is unambiguous and otherwise kept as a read-only row that says so. A key the component's runtime holds no value for at all SHALL be omitted, and a key the declaration marks as belonging to a timeline rather than a property list SHALL be hidden.
+
+#### Scenario: A number is declared as one of a set of text options
+
+- **WHEN** the runtime holds a number for a key declared as a set of text options, and its text form is one of them
+- **THEN** the row is drawn as that option and stays editable
+
+#### Scenario: A value with a unit is declared as a number
+
+- **WHEN** the runtime holds a string carrying a unit for a key declared as a number
+- **THEN** the row is drawn read-only showing that value, so it is visible and cannot be dragged
+
+#### Scenario: A value nothing can read
+
+- **WHEN** the runtime holds a value that matches none of the declared shapes
+- **THEN** the row is drawn read-only, labelled as the value in code, printed safely
+- **AND** a value that cannot be printed at all costs its own row and not the whole selection
+
+#### Scenario: A key with no value
+
+- **WHEN** the component declares a key its runtime holds no value for
+- **THEN** no row is drawn for it, rather than a row reading nothing
+
+#### Scenario: A label would be prose
+
+- **WHEN** the declared description of a key is longer than 24 characters
+- **THEN** the row is labelled with the key's own name, humanised and in sentence case
+- **AND** the description is drawn as prose under the control, where it has the pane's width to wrap in
+
+### Requirement: Sections are ordered like an inspector and remember their fold
+
+The studio SHALL group rows by what each key means and draw the groups in one fixed order: Transform, Layer, Typography, Fill, Stroke, Parameters, Entry, Exit, Effects, Timing. A section heading SHALL fold its rows, and the set of folded section names SHALL be remembered as `collapsedPropGroups` in `settings.json`.
+
+#### Scenario: An element opens with many groups
+
+- **WHEN** an element declares keys across several groups
+- **THEN** the sections are drawn in that order, with any group the studio does not know about last
+
+#### Scenario: A section is folded
+
+- **WHEN** the person folds a section
+- **THEN** its rows are hidden and the count of rows in it is shown on the heading
+- **AND** the rows are hidden rather than taken down, so they keep whatever was being typed in them
+
+#### Scenario: Another element is picked
+
+- **WHEN** the person folds a section and then picks another element
+- **THEN** that section is still folded
+- **AND** a group neither element had is open rather than arriving shut, what is stored being the folded names
+
+### Requirement: Each value is edited by the instrument its kind deserves
+
+The studio SHALL draw one control per row chosen by the key's declared kind: a number as a field that takes a drag, the arrow keys, and typing, painting how far along a bounded value is behind it; a pair that is a place on the frame as a two-dimensional pad; any other two-part value as labelled axes; an easing as a curve editor with presets; a colour as its own text beside a swatch that opens a picker; a true/false as a switch; a set of options as a menu; a picture as a picker over the project's own `public/` folder; and a run of words as a text area. Opacity SHALL read as a percentage and be stored as a fraction.
+
+#### Scenario: A place on the frame is edited
+
+- **WHEN** the key is a translation, a transform origin or a normalised coordinate holding two numbers
+- **THEN** it is drawn as one pad whose point moves both numbers at once
+- **AND** the pad's vertical axis is mirrored inside its own range, a pad's vertical axis growing upward where all three of those keys measure downward
+
+#### Scenario: An easing is edited
+
+- **WHEN** the key's name ends in easing and it holds four numbers
+- **THEN** the curve's two handles are draggable and its four numbers are editable
+- **AND** the preview dot runs the element's own window, falling back to 1.8 seconds when the element has no window
+
+#### Scenario: An easing that can only be named
+
+- **WHEN** the key's name ends in easing and it holds one of a set of named curves
+- **THEN** the curve is drawn for the named value with its handles inert, the key being unable to hold an arbitrary curve
+
+#### Scenario: A spring's three numbers
+
+- **WHEN** a section holds keys ending in damping and stiffness under one common prefix, with mass optional
+- **THEN** the spring's response is drawn above the first of those numbers as a readout
+- **AND** the three numbers keep their own controls under it
+
+#### Scenario: A picture is chosen
+
+- **WHEN** the person opens a picture row's picker
+- **THEN** the options are the images in the project's own `public/` folder, by the names the code would use
+- **AND** the pane holds the name rather than the preview's own URL, and offers no upload
+
+#### Scenario: A two-part value cannot be parsed
+
+- **WHEN** a two-part value is written in a form the studio cannot split
+- **THEN** the row falls back to a plain text field rather than guessing at its halves
+
+### Requirement: An edit reaches the frame at once, and says where it lands
+
+The studio SHALL apply every edit to the running preview, coalescing the edits made within one animation frame into one command per key. A key the code animates SHALL keep animating through the edit, with the frame the value was judged at travelling with it, and SHALL be badged in the pane. A key the code computes SHALL still be previewable while the pane is holding a value for it. Where one call site renders several instances, the pane SHALL say that an edit moves all of them.
+
+#### Scenario: A value is dragged
+
+- **WHEN** the person drags a value
+- **THEN** the pane holds the new value immediately and one command per key goes to the preview on the next animation frame
+- **AND** the frame on screen at that moment is remembered for that key
+
+#### Scenario: An animated key is edited
+
+- **WHEN** the key's value is animated in the code
+- **THEN** the row carries an animated badge and the animation keeps running, the edit moving the value it lands on
+
+#### Scenario: Several instances share one call site
+
+- **WHEN** the open component is one of several instances rendered from the same place in the code
+- **THEN** the header badges which instance the pane opened on, out of how many
+- **AND** the pane says that a change here moves all of them
+
+#### Scenario: The element is not on screen
+
+- **WHEN** a value is set while the element is not on screen at the current frame
+- **THEN** the change is refused with a sentence naming the frame and the frames the element runs between
+
+### Requirement: A timing edit replays the element's own window
+
+The studio SHALL schedule one replay of the picked element's own window 250 milliseconds after the last edit to a key in Entry, Exit, Effects or Timing, or to any key whose name ends in easing, and SHALL skip it entirely while the preview is already playing. Picking an element SHALL NOT move the frame. The pane SHALL carry a time strip reading the current frame beside the element's window, a range that seeks within it, and Replay.
+
+#### Scenario: A burst of easing edits
+
+- **WHEN** the person drags an easing handle repeatedly
+- **THEN** exactly one replay runs, 250 milliseconds after the last of them
+
+#### Scenario: An edit that changes no timing
+
+- **WHEN** the person edits a colour or a size
+- **THEN** nothing is replayed and the frame on screen stays the one being judged
+
+#### Scenario: The element has no timed window
+
+- **WHEN** the picked element sits in no timed scene
+- **THEN** the strip shows the frame alone, with no range, and Replay is off with the reason on its tooltip
+
+#### Scenario: The preview is playing
+
+- **WHEN** a timing edit is made while the preview is playing
+- **THEN** no replay is scheduled
+
+### Requirement: A refusal belongs to the row that asked for it
+
+The studio SHALL render the preview's refusal of a change under the control that asked for it, roll that control's value back to what it was, and keep the pane open. A refusal naming no key SHALL be rendered once at the foot of the pane. A later success SHALL clear only a refusal recorded for that same key on that same component, and a success for a request the pane never recorded SHALL clear nothing.
+
+#### Scenario: One row is refused
+
+- **WHEN** the preview refuses a change to one key
+- **THEN** the message is drawn under that row and the row shows its previous value
+- **AND** every other row is unmarked
+
+#### Scenario: Another row then succeeds
+
+- **WHEN** a change to a different key succeeds while a refusal is showing
+- **THEN** the refusal stays where it is
+
+#### Scenario: An untracked success arrives
+
+- **WHEN** a success arrives for a request the pane is not tracking, such as one raised by a reset or a rebuild
+- **THEN** the standing refusal is left alone
+
+#### Scenario: The project's runtime cannot apply live changes
+
+- **WHEN** the project's own preview runtime cannot apply parameter overrides at all
+- **THEN** the change is refused with a sentence saying so, rather than reverting in silence
+
+### Requirement: A reset names paths, never a whole component
+
+Every reset the studio sends SHALL name the exact keys it is taking back. Resetting the whole selection — Reset all, Cancel, picking another element, a rebuild, or removing the chip from the composer — SHALL cover every link of the chain and not only the one on screen, and SHALL never be sent as an unqualified "drop everything on this component".
+
+#### Scenario: One row is reset
+
+- **WHEN** the person resets a single row
+- **THEN** only that key is taken back, on the component that owns it
+
+#### Scenario: Reset all with edits on two links
+
+- **WHEN** the person has edited keys on two links of the chain and presses Reset all
+- **THEN** both links' changed keys are taken back, each on its own component
+
+#### Scenario: An ancestor is shared with another chip
+
+- **WHEN** a card is cancelled whose chain includes an ancestor another chip has already added a change on
+- **THEN** only the keys this card moved are taken back, and the other chip's change stays live
+
+#### Scenario: Nothing has moved
+
+- **WHEN** a reset is asked for and no value has moved
+- **THEN** no command is sent at all
+
+### Requirement: Reverting unsent edits says so, with an undo
+
+When the person picks another element while the open pane is holding unsent changes, the studio SHALL revert those changes, raise a message naming how many were reverted and on which component, and offer an undo for ten seconds. Taking the undo SHALL first abandon whatever card is open, then re-send every reverted value and reopen the card it came from. Cancel SHALL revert without a message, its own tooltip already saying that it restores the original values.
+
+#### Scenario: Picking elsewhere with edits pending
+
+- **WHEN** the person picks a different element while unsent edits are open
+- **THEN** those edits are reverted and a message says how many and on what
+
+#### Scenario: The undo is taken
+
+- **WHEN** the person takes that undo
+- **THEN** any card opened since is abandoned first, the reverted values are set again, and the earlier card is reopened
+
+#### Scenario: The window closes
+
+- **WHEN** ten seconds pass without the undo being taken
+- **THEN** the revert stands and the message is gone
+
+#### Scenario: Edits that were already added
+
+- **WHEN** the pane holds only changes that have already been added to the composer and the person picks elsewhere
+- **THEN** nothing is reverted
+
+### Requirement: Add keeps the card and rebases its baseline
+
+Add SHALL hand the pane's changes to the composer, leave the pane open on the same element with the values still live in the frame, empty the comment field, and rebase the baseline to the values just sent, so a second Add carries only what has changed since the first. Add SHALL count every changed key across the whole chain, plus an edited run of words, and show that count on its own button.
+
+#### Scenario: Add with changes on two links
+
+- **WHEN** the person has changed a value on the open link and another on a link they switched away from
+- **THEN** the Add button counts both
+- **AND** both are handed over
+
+#### Scenario: A second Add
+
+- **WHEN** the person presses Add, changes one more value and presses Add again
+- **THEN** the second message carries only the value changed since the first
+
+#### Scenario: The same element is clicked again
+
+- **WHEN** the person clicks the element the pane is already open on
+- **THEN** nothing is reverted and the chain is not reopened at its innermost link
+
+### Requirement: Words the runtime cannot hold are asked for instead
+
+Where the project's own runtime exposes no live field for an element's words, the studio SHALL show a Text section above everything else carrying the element's own words, marked as sent to the agent rather than previewed. Editing it SHALL change no pixels, SHALL count as one of the changes on Add, and SHALL reach the agent as a request against the element's own words. Where the runtime does expose a live field for the words, no such section SHALL be drawn.
+
+#### Scenario: A runtime with no text field
+
+- **WHEN** the picked element's innermost component declares no live field for its words
+- **THEN** the Text section is drawn with the element's words and the note that it is not previewed
+
+#### Scenario: A runtime with a text field
+
+- **WHEN** the innermost component does declare a live field for its words
+- **THEN** no Text section is drawn, the live field being what moves the frame
+
+#### Scenario: The words are edited and added
+
+- **WHEN** the person edits the words and presses Add
+- **THEN** nothing in the preview changes, the change is counted, and the agent is asked for it
+- **AND** the draft is rebased, so a second message does not ask for it twice
+
+### Requirement: What the agent is asked for is grouped by who owns it
+
+The changes the pane hands over SHALL reach the agent as a list of key, previous value and new value, grouped under a heading naming the component that owns them, the name it declares for itself, and the file and line it is written at. A change whose previous value was sampled from the running preview rather than read out of the code SHALL be marked so the agent is told to move the value the animation lands on rather than pin the frame.
+
+#### Scenario: A chain's changes reach the agent
+
+- **WHEN** a message carries changes made on two different components of one chain
+- **THEN** each component's changes sit under their own heading with that component's file and line
+
+#### Scenario: A sampled previous value
+
+- **WHEN** a change's previous value was taken from the running preview at a frame
+- **THEN** the line names the frame it was sampled at and says to change the landing value, not the frame
+
+### Requirement: A chip in the composer keeps the whole chain
+
+A selection added to the composer SHALL carry every link of its chain, which of them the message was written from, the baseline values of each, the element's window, its words and the loaded font families. Reopening the chip SHALL restore the pane on the link the message was written from. Removing the chip SHALL reset every link the message carried.
+
+#### Scenario: A chip is reopened
+
+- **WHEN** the person clicks a chip written from an ancestor link
+- **THEN** the pane reopens on that link, not on the innermost one
+- **AND** the time strip, the words and the font list come back with it
+
+#### Scenario: A chip is removed
+
+- **WHEN** the person removes a chip whose message changed values on two links
+- **THEN** both links' keys are reset in the preview
+
+#### Scenario: A rebuild happened first
+
+- **WHEN** the project has rebuilt since the chip was added
+- **THEN** the chip is marked stale, and reopening or resetting it does nothing
