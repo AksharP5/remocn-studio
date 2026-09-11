@@ -10,6 +10,13 @@
     "store:default",
     "dialog:allow-open",
     "updater:default",
-    "deep-link:default"
+    "deep-link:default",
+    "notification:default",
+    "core:window:allow-set-progress-bar",
+    "core:window:allow-set-badge-count",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "x-apple.systempreferences:*" }]
+    }
   ]
 }

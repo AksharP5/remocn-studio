@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import Page from "@/app/page";
 import { ThemeProvider } from "@/components/theme-provider";
 import type { EnvironmentCheck } from "@/shared/ipc";
+import { stubGlobal, unstubAllGlobals } from "@/test/stub-global";
 
 const STORE_RID = 7;
 
@@ -31,19 +32,37 @@ const CODEX_ROW: EnvironmentCheck = {
   title: "Codex is not logged in",
 };
 
-function mockStudio(written: [string, unknown][]) {
+const REFUSED_WORDING =
+  /Notifications are off for the studio in System Settings/;
+
+const NEVER_ASKED = /macOS has not allowed the studio to notify yet/;
+
+function notificationShim(permission: "default" | "denied" | "granted") {
+  return {
+    permission,
+    requestPermission: () => Promise.resolve(permission),
+  };
+}
+
+function mockStudio(
+  written: [string, unknown][],
+  entries: readonly [string, unknown][] = []
+) {
   mockIPC(
     (cmd, payload) => {
       if (cmd === "plugin:store|load") {
         return STORE_RID;
       }
       if (cmd === "plugin:store|entries") {
-        return [];
+        return entries;
       }
       if (cmd === "plugin:store|set") {
         const { key, value } = payload as { key: string; value: unknown };
         written.push([key, value]);
         return null;
+      }
+      if (cmd === "plugin:notification|is_permission_granted") {
+        return false;
       }
       if (cmd === "studio_build") {
         return { environment: "development", os: "15.5", version: "0.3.0" };
@@ -95,6 +114,10 @@ describe("the settings page", () => {
     mockStudio(written);
   });
 
+  afterEach(() => {
+    unstubAllGlobals();
+  });
+
   it("opens from the gear on Appearance", async () => {
     await renderShell();
     await openSettings();
@@ -125,6 +148,102 @@ describe("the settings page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Behavior" }));
     expect(
       screen.getByRole("switch", { name: "Library suggestions" })
+    ).toBeVisible();
+  });
+
+  it("keeps the notifications switch unavailable without the desktop app", async () => {
+    await renderShell();
+    await openSettings();
+
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+
+    expect(
+      await screen.findByText("Notifications need the desktop app.")
+    ).toBeVisible();
+    expect(screen.getByRole("switch", { name: "Notify me" })).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
+    expect(
+      screen.queryByRole("button", { name: "Grant permission" })
+    ).toBeNull();
+  });
+
+  it("reads the master switch as on once macOS agreed, with every event on", async () => {
+    stubGlobal("Notification", notificationShim("granted"));
+    mockStudio(written, [
+      ["notifications", "enabled"],
+      ["notifySidecar", "disabled"],
+    ]);
+    await renderShell();
+    await openSettings();
+
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("switch", { name: "Notify me" })).toBeChecked()
+    );
+    expect(
+      screen.queryByRole("button", { name: "Grant permission" })
+    ).toBeNull();
+    expect(
+      screen.getByRole("switch", { name: "A turn finished" })
+    ).toBeChecked();
+    expect(
+      screen.getByRole("switch", { name: "The studio's helper stopped" })
+    ).not.toBeChecked();
+
+    fireEvent.click(
+      screen.getByRole("switch", { name: "An export finished or failed" })
+    );
+
+    await waitFor(() =>
+      expect(written).toContainEqual(["notifyExport", "disabled"])
+    );
+  });
+
+  it("reads every event as off while the master switch is off", async () => {
+    stubGlobal("Notification", notificationShim("granted"));
+    mockStudio(written, [["notifications", "disabled"]]);
+    await renderShell();
+    await openSettings();
+
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+
+    const turn = await screen.findByRole("switch", { name: "A turn finished" });
+    expect(turn).not.toBeChecked();
+    expect(turn).toHaveAttribute("aria-disabled", "true");
+
+    fireEvent.click(screen.getByRole("switch", { name: "Notify me" }));
+
+    await waitFor(() => expect(turn).toBeChecked());
+  });
+
+  it("offers Grant permission with the refused wording when macOS said no", async () => {
+    stubGlobal("Notification", notificationShim("denied"));
+    mockStudio(written, [["notifications", "enabled"]]);
+    await renderShell();
+    await openSettings();
+
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+
+    expect(await screen.findByText(REFUSED_WORDING)).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Grant permission" })
+    ).toBeVisible();
+    expect(screen.getByRole("switch", { name: "Notify me" })).toBeChecked();
+  });
+
+  it("offers Grant permission while macOS has never been asked", async () => {
+    stubGlobal("Notification", notificationShim("default"));
+    await renderShell();
+    await openSettings();
+
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+
+    expect(await screen.findByText(NEVER_ASKED)).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Grant permission" })
     ).toBeVisible();
   });
 

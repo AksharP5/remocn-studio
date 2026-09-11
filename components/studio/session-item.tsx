@@ -89,7 +89,9 @@ function RowShell({
           <div
             className={cn(
               "min-w-0 flex-1 truncate",
-              isActive ? "text-sidebar-foreground" : "text-muted-foreground"
+              isActive || row.unread
+                ? "text-sidebar-foreground"
+                : "text-muted-foreground"
             )}
             id={titleId}
           >
@@ -183,8 +185,9 @@ function Marker({ row }: { row: SessionRow }) {
       aria-label={label}
       className={cn(
         className,
-        "top-3.5 left-3 size-1.5 rounded-full bg-sidebar-primary"
+        "top-3 left-2.5 size-2 rounded-full bg-sidebar-primary"
       )}
+      data-unread=""
       role="img"
     />
   );

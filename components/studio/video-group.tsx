@@ -230,7 +230,10 @@ function Rollup({ rollup }: { rollup: GroupRollup | null }) {
         <CircleAlertIcon className="size-4 shrink-0 text-destructive" />
       ) : null}
       {status === "unread" ? (
-        <span className="size-1.5 rounded-full bg-sidebar-primary" />
+        <>
+          <span className="size-2 shrink-0 rounded-full bg-sidebar-primary" />
+          <span aria-hidden="true">{count}</span>
+        </>
       ) : null}
     </span>
   );
