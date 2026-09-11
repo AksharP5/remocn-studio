@@ -1,6 +1,7 @@
 mod account;
 mod commands;
 mod crash;
+mod integrations;
 mod ipc;
 mod links;
 mod paste;
@@ -57,6 +58,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::new().build())
+        .manage(integrations::Integrations::new())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![

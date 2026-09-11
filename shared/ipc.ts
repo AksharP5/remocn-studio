@@ -15,6 +15,7 @@ import {
   EXPORT_QUALITIES,
   EXPORT_RESOLUTIONS,
 } from "./export";
+import { Connections } from "./integrations";
 import {
   Asset,
   AssetDraft,
@@ -33,7 +34,7 @@ import {
 } from "./providers";
 import { TemplateDraft } from "./templates";
 
-export const SIDECAR_PROTOCOL = 30;
+export const SIDECAR_PROTOCOL = 31;
 
 export const SIDECAR_STATUS_EVENT = "sidecar://status";
 export const SIDECAR_NOTIFY_EVENT = "sidecar://notify";
@@ -1536,6 +1537,16 @@ export const HostFrame = Schema.Union([
     id: RequestId,
     type: Schema.Literal("cancel"),
   }),
+  Schema.Struct({
+    data: Schema.Unknown,
+    id: RequestId,
+    type: Schema.Literal("result"),
+  }),
+  Schema.Struct({
+    id: RequestId,
+    message: Schema.String,
+    type: Schema.Literal("error"),
+  }),
 ]);
 
 export type HostFrame = (typeof HostFrame)["Type"];
@@ -1568,9 +1579,40 @@ export const SidecarFrame = Schema.Union([
     data: Schema.Unknown,
     type: Schema.Literal("notify"),
   }),
+  Schema.Struct({
+    id: RequestId,
+    method: Schema.String,
+    params: Schema.Unknown,
+    type: Schema.Literal("request"),
+  }),
 ]);
 
 export type SidecarFrame = (typeof SidecarFrame)["Type"];
+
+export type CoreRequestFrame = Extract<SidecarFrame, { type: "request" }>;
+
+export type CoreResultFrame = Extract<HostFrame, { type: "result" }>;
+
+export type CoreFailureFrame = Extract<HostFrame, { type: "error" }>;
+
+export type CoreAnswerFrame = CoreResultFrame | CoreFailureFrame;
+
+export const CORE_METHOD_NAMES = ["integrations.usable"] as const;
+
+export type CoreMethod = (typeof CORE_METHOD_NAMES)[number];
+
+export const CORE_METHODS = {
+  "integrations.usable": {
+    params: Schema.Null,
+    result: Connections,
+  },
+} as const;
+
+export type CoreParams<M extends CoreMethod> =
+  (typeof CORE_METHODS)[M]["params"]["Type"];
+
+export type CoreResult<M extends CoreMethod> =
+  (typeof CORE_METHODS)[M]["result"]["Type"];
 
 export const SidecarPhase = Schema.Literals([
   "starting",
@@ -1652,3 +1694,26 @@ export const decodeSidecarNotification: Decoder<SidecarNotification> =
 
 export const decodeStudioBuild: Decoder<StudioBuild> =
   Schema.decodeUnknownExit(StudioBuild);
+
+export interface CoreCodecs<M extends CoreMethod> {
+  params: Decoder<CoreParams<M>>;
+  result: Decoder<CoreResult<M>>;
+}
+
+const CORE_CODECS = Object.fromEntries(
+  CORE_METHOD_NAMES.map((method) => [
+    method,
+    {
+      params: Schema.decodeUnknownExit(CORE_METHODS[method].params),
+      result: Schema.decodeUnknownExit(CORE_METHODS[method].result),
+    },
+  ])
+) as { [M in CoreMethod]: CoreCodecs<M> };
+
+export function coreCodecsFor<M extends CoreMethod>(method: M): CoreCodecs<M> {
+  return CORE_CODECS[method];
+}
+
+export const decodeCoreMethod: Decoder<CoreMethod> = Schema.decodeUnknownExit(
+  Schema.Literals(CORE_METHOD_NAMES)
+);

@@ -13,6 +13,7 @@ import {
   type SidecarStream,
 } from "@/shared/ipc";
 import { type SidecarChannel as Channel, SidecarChannel } from "./channel";
+import { settleCoreResult } from "./integrations/core";
 import {
   checkProjectAvailable,
   projectActivity,
@@ -78,6 +79,10 @@ function handleLine<R>(
 
     if (frame.value.type === "cancel") {
       return FiberMap.remove(inflight, frame.value.id);
+    }
+
+    if (frame.value.type === "result" || frame.value.type === "error") {
+      return settleCoreResult(frame.value);
     }
 
     return dispatch(handlers, channel, inflight, frame.value);
