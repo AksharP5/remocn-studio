@@ -1,6 +1,7 @@
 import { load } from "@tauri-apps/plugin-store";
 import { Effect } from "effect";
 import type { LayoutStorage } from "react-resizable-panels";
+import type { NotifyEvent } from "@/lib/studio/attention";
 import { isPaneView, type PaneView } from "@/lib/studio/pane-view";
 import { crashConsentValue } from "@/shared/crash";
 import {
@@ -23,6 +24,13 @@ const GROK_MODEL_KEY = "grokModel";
 const CLAUDE_EFFORT_KEY = "claudeEffort";
 const ASSET_OFFERS_KEY = "assetOffers";
 const CRASH_REPORTS_KEY = "crashReports";
+const NOTIFICATIONS_KEY = "notifications";
+const NOTIFY_EVENT_KEYS: Readonly<Record<NotifyEvent, string>> = {
+  export: "notifyExport",
+  sidecar: "notifySidecar",
+  turnEnded: "notifyTurnEnded",
+  waiting: "notifyWaiting",
+};
 const PREVIEW_PANE_KEY = "previewPane";
 const PROJECTS_PANE_KEY = "projectsPane";
 const TASK_DOCK_KEY = "taskDock";
@@ -53,6 +61,8 @@ export interface StudioSettings {
   expandedVideos: readonly string[];
   grokModel: string | null;
   legacyProjectFolder: string | null;
+  notifications: boolean | null;
+  notifyEvents: Readonly<Record<NotifyEvent, boolean | null>>;
   paneView: PaneView | null;
   previewPane: boolean | null;
   projectsPane: boolean | null;
@@ -84,6 +94,13 @@ export const hydrateSettings: Effect.Effect<StudioSettings> = openStore.pipe(
       expandedVideos: idsOf(cache.get(EXPANDED_VIDEOS_KEY)),
       grokModel: cache.get(GROK_MODEL_KEY) ?? null,
       legacyProjectFolder: cache.get(PROJECT_FOLDER_KEY) ?? null,
+      notifications: enabledOf(cache.get(NOTIFICATIONS_KEY)),
+      notifyEvents: {
+        export: enabledOf(cache.get(NOTIFY_EVENT_KEYS.export)),
+        sidecar: enabledOf(cache.get(NOTIFY_EVENT_KEYS.sidecar)),
+        turnEnded: enabledOf(cache.get(NOTIFY_EVENT_KEYS.turnEnded)),
+        waiting: enabledOf(cache.get(NOTIFY_EVENT_KEYS.waiting)),
+      },
       paneView: paneViewOf(cache.get(PANE_VIEW_KEY)),
       previewPane: shownOf(cache.get(PREVIEW_PANE_KEY)),
       projectsPane: shownOf(cache.get(PROJECTS_PANE_KEY)),
@@ -225,6 +242,17 @@ export function saveTitlebarMotion(enabled: boolean): Effect.Effect<void> {
 
 export function saveAssetOffers(enabled: boolean): Effect.Effect<void> {
   return remember(ASSET_OFFERS_KEY, enabled ? "enabled" : "disabled");
+}
+
+export function saveNotifications(enabled: boolean): Effect.Effect<void> {
+  return remember(NOTIFICATIONS_KEY, enabled ? "enabled" : "disabled");
+}
+
+export function saveNotifyEvent(
+  event: NotifyEvent,
+  enabled: boolean
+): Effect.Effect<void> {
+  return remember(NOTIFY_EVENT_KEYS[event], enabled ? "enabled" : "disabled");
 }
 
 // The one setting the Rust core reads too — it opens this file itself at

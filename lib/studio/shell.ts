@@ -120,7 +120,8 @@ export function revealInFinder(path: string): Effect.Effect<void, ShellError> {
 }
 
 export function watchWindowFocus(
-  onFocus: () => void
+  onFocus: () => void,
+  onBlur: () => void = () => undefined
 ): Effect.Effect<void, ShellError, Scope.Scope> {
   return Effect.acquireRelease(
     Effect.tryPromise({
@@ -129,6 +130,8 @@ export function watchWindowFocus(
         getCurrentWindow().onFocusChanged(({ payload }) => {
           if (payload) {
             onFocus();
+          } else {
+            onBlur();
           }
         }),
     }),

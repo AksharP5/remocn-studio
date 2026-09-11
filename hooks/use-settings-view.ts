@@ -8,6 +8,7 @@ export const SETTINGS_SECTIONS = [
   "account",
   "appearance",
   "behavior",
+  "notifications",
   "stock",
   "updates",
   "accounts",

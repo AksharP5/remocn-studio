@@ -48,6 +48,7 @@ function exporting(
     settings,
     size,
     start: () => undefined,
+    state: { phase: "idle" },
     status: null,
     target: "/Users/me/scenes/out/Main.mp4",
     trouble: null,

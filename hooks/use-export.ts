@@ -91,6 +91,7 @@ export interface Exporting {
   settings: ExportSettings;
   size: CompositionSize;
   start: () => void;
+  state: ExportState;
   status: string | null;
   target: string;
   trouble: string | null;
@@ -412,6 +413,7 @@ export function useExport({
       settings,
       size,
       start,
+      state,
       status: mine?.phase === "running" ? exportStatus(mine.event) : null,
       target,
       trouble: (mine?.phase === "failed" ? mine.message : null) ?? error,
@@ -442,6 +444,7 @@ export function useExport({
       shown,
       size,
       start,
+      state,
       target,
       unavailable,
     ]

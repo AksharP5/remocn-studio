@@ -35,6 +35,8 @@ const SETTINGS: StudioSettings = {
   expandedVideos: [],
   grokModel: null,
   legacyProjectFolder: null,
+  notifications: null,
+  notifyEvents: { export: null, sidecar: null, turnEnded: null, waiting: null },
   paneView: null,
   previewPane: null,
   projectsPane: null,

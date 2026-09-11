@@ -36,6 +36,7 @@ function exporting(overrides: Partial<Exporting> = {}): Exporting {
     settings: DEFAULT_EXPORT_SETTINGS,
     size: { height: 1080, width: 1920 },
     start: () => undefined,
+    state: { phase: "idle" },
     status: null,
     target: "/Users/me/scenes/out/Main.mp4",
     trouble: null,
