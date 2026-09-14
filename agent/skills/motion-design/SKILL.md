@@ -3,7 +3,7 @@ name: motion-design
 description: >
   Direct a Remotion film from its brief, brand and visual references. Use when
   creating a video, changing its direction, or diagnosing weak staging, framing,
-  transitions or rhythm. Includes a movement dictionary and optional guides;
+  transitions or rhythm. Includes template motion examples and a movement dictionary;
   targeted technical fixes need only the relevant guide.
 ---
 
@@ -40,6 +40,14 @@ Without a reference, choose a concrete direction from the brief and brand. Use
 [direction profiles](rules/direction.md) when choosing between a typography piece,
 product demonstration, graphic brand film, dimensional scene or footage edit.
 These are branches, not ingredients to combine automatically.
+
+Before selecting choreography for a new film or a change of direction, read the
+[template motion examples](references/templates/index.md). Consider the full
+catalog, then inspect only the studies and actual source passages relevant to
+this video's tasks. Use them to make concrete motion choices under the brief
+and primary reference. Record the chosen passage, what its choreography must
+preserve and what the new content changes; a pointed technical fix needs only
+its relevant guide.
 
 Locate the real assets before committing to a shot. Resolve missing UI states,
 footage, fonts and dimensional materials. A physical device or glass object needs
@@ -114,6 +122,11 @@ direction on five questions:
 - Reading: is there time to see the important text and result?
 - Coherence: do type, material, composition and motion belong together?
 
+When adapting a template example, compare the real-content proof with its source
+passage too: inspect intermediate poses, speed changes and combined inner/outer
+motion. Record where the adaptation weakens the intended effect and correct it,
+or support a deliberate difference with observed evidence.
+
 If audio is part of the brief, identify preparation, impact and release cues and
 check perceived visual accents against the actual mix. An amplitude peak alone
 does not define an edit.
@@ -134,6 +147,7 @@ limits. Recheck the changed passage and dependent neighbors after a correction.
 | Guide | Use when |
 | --- | --- |
 | [Direction](rules/direction.md) | Choosing the visual and production approach |
+| [Template motion examples](references/templates/index.md) | Selecting and adapting authored choreography across the full template catalog |
 | [Staging](rules/staging.md) | Planning attention, UI actions and keyframes |
 | [Timing](rules/timing.md) | Choosing event times, reading windows or audio accents |
 | [Easing](rules/easing.md) | Choosing curves and physical response |
