@@ -110,6 +110,7 @@ export function usePreview(
   const launch = useCallback(
     (target: string) => {
       let served = false;
+      let failed = false;
 
       setPick(null);
       setFrame(0);
@@ -119,17 +120,23 @@ export function usePreview(
       running.current = Effect.runFork(
         startPreview({ projectId: target }, (event) => {
           if (event.type === "building") {
-            if (!served) {
-              setPreview({ percent: event.percent, phase: "building" });
+            // A compile that failed still ticks to 100% afterwards; only a
+            // fresh compile, starting from nothing, takes the error down.
+            if (served || (failed && event.percent > 0)) {
+              return;
             }
+            failed = false;
+            setPreview({ percent: event.percent, phase: "building" });
             return;
           }
           if (event.type === "ready") {
             served = true;
+            failed = false;
             setPreview({ phase: "ready", url: event.url });
             return;
           }
           served = false;
+          failed = true;
           setPreview({
             message: previewFailure(event.message),
             phase: "failed",

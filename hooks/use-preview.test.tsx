@@ -176,6 +176,27 @@ describe("usePreview", () => {
     expect(rendered.result.current.isServing).toBe(false);
   });
 
+  // webpack reports 100% once its cache goes idle, which is after the watch
+  // callback has already said the compile failed.
+  it("keeps the compile error up when a late build progress event arrives", async () => {
+    const { host, rendered } = await served();
+
+    host.send({ message: "Unexpected token", type: "failed" });
+    host.send({ percent: 100, type: "building" });
+
+    expect(rendered.result.current.preview).toEqual({
+      message: "Unexpected token",
+      phase: "failed",
+    });
+
+    host.send({ percent: 0, type: "building" });
+
+    expect(rendered.result.current.preview).toEqual({
+      percent: 0,
+      phase: "building",
+    });
+  });
+
   // Killing the sidecar failed the preview's long-lived request and nothing
   // brought it back: every other pane healed itself, and the one that costs
   // seven seconds to rebuild sat dead behind an unlabelled Restart button.

@@ -284,6 +284,12 @@ function boot(root: string, preferred: string | null) {
               if (percent === 0) {
                 Effect.runSync(Ref.update(build, buildStarted));
               }
+              // webpack keeps reporting after the watch callback has run: its
+              // cache going idle is the 100%. Sent, that tick lands after
+              // `failed` and buries the compile error under a full bar.
+              if (!Effect.runSync(Ref.get(build)).compiling) {
+                return;
+              }
               Effect.runSync(
                 emit({ percent: Math.round(percent * 100), type: "building" })
               );
@@ -417,6 +423,9 @@ function watch(
               buildCompiled(state, { message: error.message, ok: false })
             )
           );
+          Effect.runSync(
+            log(`the project failed to compile: ${error.message}`)
+          );
           Effect.runSync(emit({ message: error.message, type: "failed" }));
           return;
         }
@@ -428,6 +437,8 @@ function watch(
               buildCompiled(state, { message, ok: false })
             )
           );
+          // The event goes to the pane; the log is what a bug report carries.
+          Effect.runSync(log(`the project failed to compile: ${message}`));
           Effect.runSync(emit({ message, type: "failed" }));
           return;
         }
