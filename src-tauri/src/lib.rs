@@ -1,4 +1,5 @@
 mod account;
+mod app_icon;
 mod commands;
 mod crash;
 mod integrations;
@@ -72,6 +73,7 @@ pub fn run() {
             account::account_sign_in_start,
             account::account_sign_out,
             account::account_status,
+            app_icon::set_app_icon,
             commands::quit_studio,
             commands::reveal_studio,
             commands::restart_studio,

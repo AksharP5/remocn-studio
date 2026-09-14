@@ -39,6 +39,25 @@ function flatten(entries: readonly TranscriptEntry[]): string[] {
 }
 
 describe("groupActivity", () => {
+  it("keeps review results visible between successful tool runs", () => {
+    const report = activity({
+      id: "review",
+      name: "mcp__remocn-design__design_check",
+    });
+    const items = groupActivity([read("a", "a"), report, read("b", "b")]);
+    expect(items.map((item) => item.kind)).toEqual(["entry", "entry", "entry"]);
+  });
+
+  it("groups consecutive identical failed attempts without dropping their logs", () => {
+    const a = activity({
+      id: "a",
+      result: "Error: missing file",
+      state: "failed",
+    });
+    const b = { ...a, id: "b" };
+    const items = groupActivity([a, b]);
+    expect(items).toEqual([{ entries: [a, b], id: "a", kind: "run" }]);
+  });
   it("folds consecutive calls into one run, keyed by the first of them", () => {
     const items = groupActivity([
       read("a", "src/A.tsx"),

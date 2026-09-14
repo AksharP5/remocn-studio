@@ -203,3 +203,45 @@ describe("readiness tool lifecycle", () => {
     }
   });
 });
+
+it("cancels a running sound tool when its turn scope closes", async () => {
+  const path = socketPath();
+  let started: () => void = () => undefined;
+  const ready = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  let aborted = false;
+  const gatewayTools = tools();
+  const { release } = await serving(
+    {
+      ...gatewayTools,
+      sounds: {
+        generate: (_request, execution) =>
+          new Promise<string>((_resolve, reject) => {
+            execution?.signal?.addEventListener(
+              "abort",
+              () => {
+                aborted = true;
+                reject(new Error("The turn stopped."));
+              },
+              { once: true }
+            );
+            started();
+          }),
+        status: () => Promise.resolve("unused"),
+      },
+    },
+    path
+  );
+  const link = await connectGateway(path, TURN, "remocn-library");
+  const answer = link.ask("generate_sound_effect", {
+    connectionId: "cn_1",
+    name: "Door",
+    text: "Door closes",
+  });
+  await ready;
+  await release();
+  expect((await answer).isError).toBe(true);
+  expect(aborted).toBe(true);
+  link.end();
+});

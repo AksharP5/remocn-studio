@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "remocn-studio",
+  "productName": "Remocn Studio",
   "version": "../package.json",
   "identifier": "com.remocn.remocn-studio",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "remocn studio",
+        "title": "Remocn Studio",
         "visible": false,
         "backgroundColor": "#111111",
         "width": 1440,
@@ -37,10 +37,27 @@
   },
   "bundle": {
     "active": true,
+    "publisher": "Remocn",
+    "homepage": "https://remocn.studio",
+    "category": "Video",
+    "shortDescription": "Create videos with AI as editable Remotion projects.",
+    "longDescription": "Remocn Studio is a desktop app for creating videos with your coding agent. Describe a video, direct changes in a live preview, and export an MP4. Every video is a standard Remotion project stored on your device, with source code you can edit and keep.",
+    "copyright": "Copyright (c) 2026 Remocn",
+    "license": "MIT",
+    "licenseFile": "../LICENSE",
+    "macOS": {
+      "dmg": {
+        "background": "assets/dmg-background.png",
+        "windowSize": { "width": 720, "height": 460 },
+        "appPosition": { "x": 190, "y": 230 },
+        "applicationFolderPosition": { "x": 530, "y": 230 }
+      }
+    },
     "targets": "all",
     "externalBin": ["binaries/bun"],
     "createUpdaterArtifacts": true,
     "resources": {
+      "../LICENSE": "LICENSE",
       "../sidecar-dist/main.js": "sidecar/main.js",
       "../preview/entry.tsx": "preview/entry.tsx",
       "../preview/anchor.ts": "preview/anchor.ts",

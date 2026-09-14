@@ -35,6 +35,13 @@ export function fold(
   entries: readonly TranscriptEntry[],
   event: AgentEvent
 ): readonly TranscriptEntry[] {
+  if (event.type === "sound_result") {
+    const id = `sound-${event.result.operationId}`;
+    const entry: TranscriptEntry = { id, kind: "sound", result: event.result };
+    return entries.some((item) => item.id === id)
+      ? entries.map((item) => (item.id === id ? entry : item))
+      : [...entries, entry];
+  }
   if (event.type === "text") {
     return appendText(entries, event.text);
   }

@@ -29,6 +29,7 @@ import {
   playableFileOf,
 } from "@/shared/library";
 import { AssetTypeIcon } from "./asset-type-icon";
+import { SoundAsset } from "./sound-asset";
 import { VideoThumbnail } from "./video-thumbnail";
 
 export function AssetGrid({
@@ -138,7 +139,14 @@ function AssetRowItem({
   const clipSource = asset.clip === null ? null : previewUrl(asset.clip);
 
   if (clipSource === null) {
-    return card;
+    return asset.type === "audio" ? (
+      <div className="min-w-0">
+        {card}
+        <SoundAsset asset={asset} />
+      </div>
+    ) : (
+      card
+    );
   }
 
   return (

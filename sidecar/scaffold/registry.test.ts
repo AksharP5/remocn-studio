@@ -185,6 +185,23 @@ describe("ensureRegistry", () => {
     ).toBe("// mine\n");
   });
 
+  it("repairs the old shipped wrapper type without replacing authored registries", async () => {
+    const root = await project();
+    const shipped = await readFile(join(TEMPLATE, "registry.tsx"), "utf8");
+    const old = shipped.replace(
+      "withVideos(Root: ComponentType) {",
+      "withVideos(Root: ComponentType): ComponentType {"
+    );
+    const path = join(root, "src", "videos", REGISTRY_FILE);
+    await mkdir(join(root, "src", "videos"), { recursive: true });
+    await writeFile(path, old);
+    await run(ensureRegistry(root));
+    expect(await readFile(path, "utf8")).toBe(shipped);
+    await writeFile(path, `${old}\n// authored addition\n`);
+    await run(ensureRegistry(root));
+    expect(await readFile(path, "utf8")).toBe(`${old}\n// authored addition\n`);
+  });
+
   it("says which entry it could not read rather than rewriting it", async () => {
     const root = await project(
       'import { registerRoot } from "remotion";\nregisterRoot(() => null);\n'

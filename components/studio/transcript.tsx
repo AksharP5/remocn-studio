@@ -13,6 +13,7 @@ import { AssetRow } from "./asset-row";
 import { Markdown } from "./markdown";
 import { MediaRow } from "./media-row";
 import { MessageText } from "./message-text";
+import { SoundResultCard } from "./sound-result-card";
 import { TaskChecklist } from "./task-checklist";
 import { Thinking } from "./thinking";
 
@@ -150,6 +151,12 @@ function EntryBlock({
 
   if (entry.kind === "notice") {
     return <p className="text-muted-foreground text-xs">{entry.text}</p>;
+  }
+
+  if (entry.kind === "sound") {
+    return (
+      <SoundResultCard key={entry.result.operationId} result={entry.result} />
+    );
   }
 
   return <ActivityLine cwd={cwd} entry={entry} />;

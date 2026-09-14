@@ -14,7 +14,7 @@ function described(connection: Connection): string {
       ? "nothing yet"
       : connection.capabilities.join(", ");
 
-  return `- ${connection.provider} — “${connection.name}”${account}: ${can}`;
+  return `- [${connection.id}] ${connection.provider} — “${connection.name}”${account}: ${can}`;
 }
 
 export async function listConnections(calls: ConnectionCalls): Promise<string> {

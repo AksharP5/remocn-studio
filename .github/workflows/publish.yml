@@ -179,13 +179,13 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
         with:
           tagName: v${{ needs.version.outputs.version }}
-          releaseName: remocn studio v${{ needs.version.outputs.version }}
+          releaseName: Remocn Studio v${{ needs.version.outputs.version }}
           releaseBody: |
             Unsigned macOS build — see CHANGELOG.md for what changed.
 
             macOS will refuse to open this on **first** install because it is not
             signed or notarized: right-click the app and choose Open, or run
-            `xattr -dr com.apple.quarantine /Applications/remocn-studio.app`.
+            `xattr -dr com.apple.quarantine "/Applications/Remocn Studio.app"`.
             In-app updates are not affected — the app replaces its own bundle,
             so nothing is quarantined.
           # Published, not a draft: a draft's assets have no reachable download

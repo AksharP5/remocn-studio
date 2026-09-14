@@ -3,6 +3,8 @@ import type { PermissionDecision, SessionMode } from "@/shared/ipc";
 
 export interface PermissionAsk {
   readonly id: string;
+  readonly onReady?: () => Effect.Effect<void>;
+  readonly rememberable?: boolean;
   readonly signature: string;
   readonly turnId: string;
 }
@@ -25,6 +27,7 @@ export interface PermissionGate {
 
 interface Pending {
   readonly deferred: Deferred.Deferred<GateAnswer>;
+  readonly rememberable: boolean;
   readonly signature: string;
   readonly turnId: string;
 }
@@ -51,6 +54,9 @@ export function makeGate(
       }
 
       pending.delete(id);
+      if (decision === "always" && !entry.rememberable) {
+        return Effect.as(Deferred.succeed(entry.deferred, REFUSED), true);
+      }
       if (decision === "always") {
         remembered.add(entry.signature);
       }
@@ -82,9 +88,13 @@ export function makeGate(
         const deferred = yield* Deferred.make<GateAnswer>();
         pending.set(ask.id, {
           deferred,
+          rememberable: ask.rememberable ?? true,
           signature: ask.signature,
           turnId: ask.turnId,
         });
+        if (ask.onReady !== undefined) {
+          yield* ask.onReady();
+        }
         return yield* Deferred.await(deferred);
       }).pipe(
         Effect.timeoutOrElse({

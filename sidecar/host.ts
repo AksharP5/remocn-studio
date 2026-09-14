@@ -17,6 +17,7 @@ import {
 } from "@/shared/ipc";
 import { type SidecarChannel as Channel, SidecarChannel } from "./channel";
 import { askCore, type CoreError, settleCoreResult } from "./integrations/core";
+import { recoverSounds } from "./integrations/sounds";
 import {
   checkProjectAvailable,
   projectActivity,
@@ -65,6 +66,14 @@ export function runHost<R>(handlers: Handlers<R>) {
       protocol: SIDECAR_PROTOCOL,
       type: "ready",
     });
+
+    yield* recoverSounds(
+      (method, params) =>
+        askCore(method, params).pipe(
+          Effect.provideService(SidecarChannel, channel)
+        ),
+      channel.log
+    ).pipe(Effect.forkChild);
 
     yield* Stream.runForEach(channel.lines, (line) =>
       handleLine(handlers, channel, inflight, line)

@@ -32,9 +32,10 @@ import {
   ProviderStep,
   ToolVerb,
 } from "./providers";
+import { AudioRequest, SoundOperation, SoundRef } from "./sound-effects";
 import { TemplateDraft } from "./templates";
 
-export const SIDECAR_PROTOCOL = 31;
+export const SIDECAR_PROTOCOL = 33;
 
 export const SIDECAR_STATUS_EVENT = "sidecar://status";
 export const SIDECAR_NOTIFY_EVENT = "sidecar://notify";
@@ -355,7 +356,19 @@ const verb = Schema.NullOr(ToolVerb).pipe(
   Schema.withDecodingDefault(Effect.succeed(null))
 );
 
+export const SoundResult = Schema.Struct({
+  asset: Asset,
+  operationId: Schema.NonEmptyString,
+  request: AudioRequest,
+});
+export type SoundResult = typeof SoundResult.Type;
+
 export const TranscriptEntry = Schema.Union([
+  Schema.Struct({
+    id: Schema.String,
+    kind: Schema.Literal("sound"),
+    result: SoundResult,
+  }),
   Schema.Struct({
     assets,
     attachments: Schema.Array(PromptAttachment),
@@ -790,6 +803,10 @@ export const SourceAssetResolution = Schema.Struct({
 });
 
 export const AgentEvent = Schema.Union([
+  Schema.Struct({
+    result: SoundResult,
+    type: Schema.Literal("sound_result"),
+  }),
   Schema.Struct({
     mode: Schema.NullOr(SessionMode),
     model: Schema.String,
@@ -1592,7 +1609,15 @@ export type CoreFailureFrame = Extract<HostFrame, { type: "error" }>;
 
 export type CoreAnswerFrame = CoreResultFrame | CoreFailureFrame;
 
-export const CORE_METHOD_NAMES = ["integrations.usable"] as const;
+export const CORE_METHOD_NAMES = [
+  "integrations.usable",
+  "sounds.prepare",
+  "sounds.commit",
+  "sounds.status",
+  "sounds.cancel",
+  "sounds.recover",
+  "sounds.imported",
+] as const;
 
 export type CoreMethod = (typeof CORE_METHOD_NAMES)[number];
 
@@ -1601,6 +1626,15 @@ export const CORE_METHODS = {
     params: Schema.Null,
     result: Connections,
   },
+  "sounds.cancel": { params: SoundRef, result: SoundOperation },
+  "sounds.commit": { params: SoundRef, result: SoundOperation },
+  "sounds.imported": { params: SoundRef, result: SoundOperation },
+  "sounds.prepare": { params: AudioRequest, result: SoundOperation },
+  "sounds.recover": {
+    params: Schema.Null,
+    result: Schema.Array(SoundOperation),
+  },
+  "sounds.status": { params: SoundRef, result: SoundOperation },
 } as const;
 
 export type CoreParams<M extends CoreMethod> =

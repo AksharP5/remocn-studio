@@ -725,3 +725,70 @@ describe("design_check reports untunable easings", () => {
     expect(JSON.parse(answer.text)).toMatchObject({ composition: "Main" });
   });
 });
+
+it("routes music through paid generation with instrumental defaults and its own status tool", async () => {
+  const requests: unknown[] = [];
+  const ids: (string | undefined)[] = [];
+  const calls = tools({
+    sounds: {
+      generate: (request) => {
+        requests.push(request);
+        return Promise.resolve("prepared");
+      },
+      status: (id) => {
+        ids.push(id);
+        return Promise.resolve("completed");
+      },
+    },
+  });
+  const answer = await executeTool(
+    "remocn-library",
+    "generate_music",
+    {
+      connectionId: "cn_1",
+      durationSeconds: 120,
+      name: "Theme",
+      text: "Calm piano",
+    },
+    calls
+  );
+  expect(answer.isError).toBe(false);
+  expect(requests).toEqual([
+    {
+      connectionId: "cn_1",
+      durationSeconds: 120,
+      forceInstrumental: true,
+      format: "mp3_44100_128",
+      kind: "music",
+      name: "Theme",
+      text: "Calm piano",
+    },
+  ]);
+  expect(
+    (
+      await executeTool(
+        "remocn-library",
+        "music_status",
+        { id: "sound_1" },
+        calls
+      )
+    ).isError
+  ).toBe(false);
+  expect(ids).toEqual(["sound_1"]);
+  expect(
+    (
+      await executeTool(
+        "remocn-library",
+        "generate_music",
+        {
+          connectionId: "cn_1",
+          durationSeconds: 601,
+          name: "Theme",
+          text: "Piano",
+        },
+        calls
+      )
+    ).isError
+  ).toBe(true);
+  expect(requests).toHaveLength(1);
+});

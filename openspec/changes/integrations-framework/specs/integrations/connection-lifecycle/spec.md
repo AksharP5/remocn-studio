@@ -41,7 +41,10 @@ be allowed, SHALL be told apart by their name and account, and SHALL NOT overwri
 ### Requirement: A capability exists only where the provider offers it and a check confirmed it
 
 A connection's capabilities SHALL be the intersection of what its provider implements and what
-the last successful check proved the account is permitted to do. A capability that a provider
+the last successful check proved the account is permitted to do. Where a provider does not
+expose operation-specific key permissions, the connection SHALL distinguish verified account
+access from operation access, which is verified by the first explicitly approved operation;
+a paid probe SHALL NOT be used during connection checks. A capability that a provider
 does not implement SHALL be absent rather than reported as failing, and an operation asked of a
 connection that lacks its capability SHALL be refused with a sentence rather than attempted.
 

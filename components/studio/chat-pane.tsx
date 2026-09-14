@@ -52,6 +52,7 @@ import { AboveComposer, NoticeCard } from "./notice-card";
 import { Pane, PaneActions, PaneBody, PaneHeader, PaneTitle } from "./pane";
 import { PermissionCard } from "./permission-card";
 import { QueueDock } from "./queue-dock";
+import { SoundPrompt } from "./sound-prompt";
 import { Startup } from "./startup";
 import { StartupBackdrop } from "./startup-backdrop";
 import { useStudio } from "./studio-provider";
@@ -252,6 +253,7 @@ function Conversation({
     hasTranscript ||
     isListFailed
   );
+  const composerDisabled = !hasProject || missing || environment.isBlocking;
   const now = useNow(turn.isRunning ? TICK : null);
   const offer = useAssetOffer({
     enabled: offersEnabled,
@@ -352,6 +354,8 @@ function Conversation({
             </AboveComposer>
           )}
 
+          <SoundPrompt disabled={composerDisabled} />
+
           {/* Both drawers sit on top of the composer, collapsed to one line
               each and opening upwards. The plan reads the same `currentTasks`
               the transcript and the projects pane read, so the three cannot
@@ -373,7 +377,7 @@ function Conversation({
             canPickProvider={turn.canPickProvider}
             context={turn.context}
             cwd={cwd}
-            disabled={!hasProject || missing || environment.isBlocking}
+            disabled={composerDisabled}
             isRunning={turn.isRunning}
             isWaiting={turn.permission !== null || turn.source !== null}
             mode={turn.mode}

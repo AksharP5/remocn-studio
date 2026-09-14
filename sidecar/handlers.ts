@@ -43,6 +43,11 @@ import { recording } from "./history/recorder";
 import { type HistoryError, HistoryStore } from "./history/store";
 import { VideoStore } from "./history/videos";
 import { HandlerError, type Handlers } from "./host";
+import {
+  generateSound,
+  recoverSounds,
+  soundStatus,
+} from "./integrations/sounds";
 import { listBundled } from "./library/bundled";
 import {
   addCommandFor,
@@ -451,6 +456,30 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
                 moved(store.setStage(params.historyId, stage, status)),
               start: () => moved(store.startPipeline(params.historyId)),
             },
+            sounds: {
+              generate: (request, execution) =>
+                Effect.runPromise(
+                  generateSound(request, { ask, emit, gate, turnId }),
+                  { signal: execution?.signal }
+                ),
+              status: (id) =>
+                Effect.runPromise(
+                  id === undefined
+                    ? recoverSounds(ask, (message) =>
+                        emit({ message, type: "notice" })
+                      ).pipe(
+                        Effect.andThen(ask("sounds.recover", null)),
+                        Effect.map((operations) =>
+                          JSON.stringify(
+                            operations.map(
+                              ({ file: _file, ...operation }) => operation
+                            )
+                          )
+                        )
+                      )
+                    : soundStatus(ask, id, emit)
+                ),
+            },
             stock: {
               search: (query) => Effect.runPromise(searchStock(query)),
             },
@@ -566,7 +595,11 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
       Effect.mapError(unlibraried)
     ),
 
-  "library.list": () => listAssets().pipe(Effect.mapError(unlibraried)),
+  "library.list": ({ ask, log }) =>
+    recoverSounds(ask, log).pipe(
+      Effect.andThen(listAssets()),
+      Effect.mapError(unlibraried)
+    ),
 
   "library.offer": ({ params }) =>
     unofferedFrom(params.attachments.map((item) => item.path)).pipe(

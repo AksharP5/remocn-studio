@@ -6,6 +6,7 @@ import { migrate, prepare } from "@/sidecar/history/migrations";
 import { recording } from "@/sidecar/history/recorder";
 import { driverFor } from "@/sidecar/history/sqlite";
 import { broken, type HistoryStore, make } from "@/sidecar/history/store";
+import { SOUND_RESULT } from "@/test/fixtures/sound-result";
 
 const PROJECT_ID = "project-1";
 const VIDEO_ID = "video-1";
@@ -225,4 +226,25 @@ describe("recording", () => {
     );
     expect(logged).toContain("history: no disk");
   });
+});
+
+it("persists a sound card and updates duplicate completion events in place", async () => {
+  const history = store();
+  const input = params({});
+  const result = {
+    ...SOUND_RESULT,
+    asset: { ...SOUND_RESULT.asset, name: "New title" },
+  };
+  await Effect.runPromise(
+    Effect.gen(function* () {
+      const recorder = yield* recording(history, input, log);
+      yield* recorder.event({ result: SOUND_RESULT, type: "sound_result" });
+      yield* recorder.event({ result, type: "sound_result" });
+    })
+  );
+  const stored = await Effect.runPromise(history.blocks(input.historyId));
+  const sounds = stored.filter((entry) => entry.kind === "sound");
+  expect(sounds).toHaveLength(1);
+  expect(sounds[0]).toMatchObject({ kind: "sound", result });
+  expect(JSON.stringify(sounds)).not.toContain("secret");
 });

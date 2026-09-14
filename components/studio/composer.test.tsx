@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import {
+  act,
   createEvent,
   fireEvent,
   render,
@@ -10,8 +11,11 @@ import {
 import userEvent from "@testing-library/user-event";
 import { useCallback } from "react";
 import { Composer } from "@/components/studio/composer";
+import { SoundPrompt } from "@/components/studio/sound-prompt";
+import { SoundResultCard } from "@/components/studio/sound-result-card";
 import { StudioProvider, useStudio } from "@/components/studio/studio-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import type { Connection } from "@/shared/integrations";
 import type {
   Project,
   PromptElement,
@@ -19,11 +23,15 @@ import type {
   SessionMode,
   Video,
 } from "@/shared/ipc";
+import { SOUND_RESULT } from "@/test/fixtures/sound-result";
 
 interface ComposerShape {
+  completed?: boolean;
   isRunning?: boolean;
+  isWaiting?: boolean;
   mode?: SessionMode;
   onModeChange?: (value: string) => void;
+  soundCard?: boolean;
 }
 
 const PICKED = ["/Users/me/Desktop/shot.png"];
@@ -118,6 +126,19 @@ const ANY_REMOVE = /^Remove/;
 const ANY_SHOW = /^Show TitleCard/;
 
 const sent: PromptParams[] = [];
+const SOUND_CONNECTION: Connection = {
+  account: "My account",
+  capabilities: ["audio"],
+  detail: null,
+  disabled: false,
+  id: "sounds-1",
+  name: "My sounds",
+  provider: "elevenlabs",
+  state: "connected",
+};
+let soundConnections: () =>
+  | readonly Connection[]
+  | Promise<readonly Connection[]> = () => [];
 
 function mockShell(
   status: unknown,
@@ -135,12 +156,18 @@ function mockShell(
       if (cmd === "sidecar_status") {
         return status;
       }
+      if (cmd === "integrations_list") {
+        return soundConnections();
+      }
       if (cmd === "save_pasted_image") {
         saved += 1;
         return save(saved);
       }
       if (cmd === "sidecar_request") {
         const request = payload as { method: string; params: unknown };
+        if (request.method === "library.list") {
+          return [SOUND_RESULT.asset];
+        }
         if (request.method === "project.list") {
           return [PROJECT];
         }
@@ -161,6 +188,9 @@ function mockShell(
         }
         if (request.method === "agent.prompt") {
           sent.push(request.params as PromptParams);
+          (
+            payload as { onStream: { onmessage: (event: unknown) => void } }
+          ).onStream.onmessage({ text: "Your scene is ready.", type: "text" });
           return { context: null, failure: null, sessionId: "sdk-1" };
         }
         throw new Error(`unexpected sidecar method: ${request.method}`);
@@ -275,7 +305,10 @@ function SelectProbe() {
 async function renderComposer(
   _onSubmit = mock(),
   {
+    soundCard = false,
+    completed = false,
     isRunning = false,
+    isWaiting = false,
     mode = "auto",
     onModeChange = mock(),
   }: ComposerShape = {}
@@ -285,13 +318,16 @@ async function renderComposer(
       <TooltipProvider>
         <SelectProbe />
         <CaptureProbe />
+        <SoundSettingsProbe />
+        {soundCard ? <SoundResultCard result={SOUND_RESULT} /> : null}
+        <SoundPrompt disabled={isWaiting || isRunning} />
         <Composer
           canPickProvider={true}
           context={{ maxTokens: 200_000, totalTokens: 50_000 }}
           cwd={PROJECT.path}
           disabled={false}
           isRunning={isRunning}
-          isWaiting={false}
+          isWaiting={isWaiting}
           mode={mode}
           onModeChange={onModeChange}
           onProviderChange={mock()}
@@ -302,15 +338,162 @@ async function renderComposer(
     </StudioProvider>
   );
 
-  return {
-    onModeChange,
-    textarea: await screen.findByRole("textbox", { name: "Message Claude" }),
-  };
+  const textarea = await screen.findByRole("textbox", {
+    name: "Message Claude",
+  });
+  if (completed) {
+    typeInto(textarea, "Create a scene");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() => expect(textarea).toHaveValue(""));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Generate sound" })
+      ).toBeVisible()
+    );
+    sent.length = 0;
+  }
+  return { onModeChange, textarea };
+}
+
+function SoundSettingsProbe() {
+  const { settingsView } = useStudio();
+  return (
+    <output aria-label="Settings destination">
+      {settingsView.isOpen ? settingsView.section : "closed"}
+    </output>
+  );
 }
 
 describe("Composer", () => {
   beforeEach(() => {
+    soundConnections = () => [];
     mockShell(READY);
+  });
+
+  it("uses a sound from its result card without sending or clearing the draft", async () => {
+    const { textarea } = await renderComposer(mock(), { soundCard: true });
+    typeInto(textarea, "My unfinished request");
+    await userEvent.click(screen.getByRole("button", { name: "Use in video" }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0].assets[0]).toMatchObject({ slug: SOUND_RESULT.asset.slug });
+    expect(sent[0].prompt).not.toContain("My unfinished request");
+    expect(textarea).toHaveValue("My unfinished request");
+    expect(
+      await screen.findByRole("button", { name: "Request sent" })
+    ).toBeDisabled();
+  });
+
+  it("regenerates by adding editable original parameters without sending", async () => {
+    const { textarea } = await renderComposer(mock(), { soundCard: true });
+    typeInto(textarea, "Keep my draft.");
+    await userEvent.click(screen.getByRole("button", { name: "Regenerate" }));
+    expect(textOf(textarea)).toContain("Keep my draft.");
+    expect(textOf(textarea)).toContain(SOUND_RESULT.request.text);
+    expect(textOf(textarea)).toContain("2 seconds");
+    expect(textOf(textarea)).toContain(SOUND_RESULT.request.format);
+    expect(textarea).toHaveFocus();
+    expect(sent).toHaveLength(0);
+  });
+
+  it("hides the sound shortcut in a new chat", async () => {
+    await renderComposer();
+    expect(screen.queryByRole("button", { name: "Generate sound" })).toBeNull();
+  });
+
+  it("hides the sound shortcut while a turn is running", async () => {
+    await renderComposer(mock(), { isRunning: true });
+    expect(screen.queryByRole("button", { name: "Generate sound" })).toBeNull();
+  });
+
+  it("offers an English sound prompt, focuses it and waits for the person to send", async () => {
+    soundConnections = () => [SOUND_CONNECTION];
+    const { textarea } = await renderComposer(mock(), { completed: true });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Generate sound" })
+    );
+    await waitFor(() =>
+      expect(textarea).toHaveValue("Generate a sound effect: ")
+    );
+    expect(textarea).toHaveFocus();
+    expect((textarea as HTMLTextAreaElement).selectionStart).toBe(
+      textOf(textarea).length
+    );
+    expect(sent).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Generate sound" })).toBeNull();
+  });
+
+  it.each(["missing", "disabled", "needs-authorization"])(
+    "opens Integrations when ElevenLabs is %s",
+    async (state) => {
+      soundConnections = () =>
+        state === "missing"
+          ? []
+          : [
+              {
+                ...SOUND_CONNECTION,
+                disabled: state === "disabled",
+                state:
+                  state === "needs-authorization"
+                    ? "needs-authorization"
+                    : "connected",
+              },
+            ];
+      const { textarea } = await renderComposer(mock(), { completed: true });
+      await userEvent.click(
+        screen.getByRole("button", { name: "Generate sound" })
+      );
+      await waitFor(() =>
+        expect(screen.getByLabelText("Settings destination")).toHaveTextContent(
+          "integrations"
+        )
+      );
+      expect(textarea).toHaveValue("");
+      expect(sent).toHaveLength(0);
+    }
+  );
+
+  it("keeps text entered while the connection check is pending", async () => {
+    const reply = Promise.withResolvers<readonly Connection[]>();
+    soundConnections = () => reply.promise;
+    const { textarea } = await renderComposer(mock(), { completed: true });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Generate sound" })
+    );
+    expect(
+      screen.getByRole("button", { name: "Generate sound" })
+    ).toBeDisabled();
+    typeInto(textarea, "My own message");
+    await act(async () => {
+      reply.resolve([SOUND_CONNECTION]);
+      await reply.promise;
+    });
+    await waitFor(() => expect(textarea).toHaveValue("My own message"));
+    expect(sent).toHaveLength(0);
+  });
+
+  it("shows a connection error and allows retrying the sound shortcut", async () => {
+    soundConnections = () => {
+      throw new Error("Connections are unavailable");
+    };
+    const { textarea } = await renderComposer(mock(), { completed: true });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Generate sound" })
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Connections are unavailable"
+    );
+    soundConnections = () => [SOUND_CONNECTION];
+    await userEvent.click(
+      screen.getByRole("button", { name: "Generate sound" })
+    );
+    await waitFor(() =>
+      expect(textarea).toHaveValue("Generate a sound effect: ")
+    );
+  });
+
+  it("hides the sound shortcut while waiting for approval", async () => {
+    await renderComposer(mock(), { isWaiting: true });
+    expect(screen.queryByRole("button", { name: "Generate sound" })).toBeNull();
   });
 
   it("offers the mode, the model and the effort next to the send button", async () => {
@@ -895,5 +1078,33 @@ describe("Composer", () => {
     typeInto(textarea, "a long drafts");
 
     expect(mirror.scrollTop).toBe(30);
+  });
+
+  it("inserts a music prompt without submitting or spending credits", async () => {
+    soundConnections = () => [SOUND_CONNECTION];
+    const { textarea } = await renderComposer(mock(), { completed: true });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Generate music" })
+    );
+    await waitFor(() =>
+      expect(textarea).toHaveValue("Generate instrumental music: ")
+    );
+    expect(textarea).toHaveFocus();
+    expect(sent).toHaveLength(0);
+  });
+
+  it("opens Integrations when music has no usable connection", async () => {
+    soundConnections = () => [];
+    const { textarea } = await renderComposer(mock(), { completed: true });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Generate music" })
+    );
+    await waitFor(() =>
+      expect(screen.getByLabelText("Settings destination")).toHaveTextContent(
+        "integrations"
+      )
+    );
+    expect(textarea).toHaveValue("");
+    expect(sent).toHaveLength(0);
   });
 });

@@ -5,13 +5,15 @@ pub mod figma;
 pub mod keychain;
 pub mod lifecycle;
 pub mod provider;
+pub mod sound_http;
+pub mod sounds;
 pub mod store;
 
 use std::{
     collections::HashMap,
     sync::{
         atomic::{AtomicU64, Ordering},
-        Mutex, MutexGuard,
+        Arc, Mutex, MutexGuard,
     },
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -65,6 +67,8 @@ pub struct Integrations {
     attempt: Mutex<Option<Attempt>>,
     counter: AtomicU64,
     pub registry: Registry,
+    pub sounds: Arc<Mutex<sounds::Jobs>>,
+    revisions: Mutex<HashMap<String, u64>>,
 }
 
 impl Default for Integrations {
@@ -74,6 +78,8 @@ impl Default for Integrations {
             attempt: Mutex::new(None),
             counter: AtomicU64::new(0),
             registry: provider::shipped(),
+            sounds: Arc::new(Mutex::new(sounds::Jobs::default())),
+            revisions: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -116,12 +122,31 @@ impl Integrations {
         self.standing.lock().unwrap_or_else(|err| err.into_inner())
     }
 
+    pub fn revision(&self, id: &str) -> u64 {
+        *self
+            .revisions
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .get(id)
+            .unwrap_or(&0)
+    }
+
+    pub fn invalidate(&self, id: &str) {
+        let mut revisions = self
+            .revisions
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        *revisions.entry(id.to_string()).or_default() += 1;
+    }
+
     pub fn mark(&self, id: &str, state: ConnectionState, detail: Option<String>) {
+        self.invalidate(id);
         self.standing()
             .insert(id.to_string(), Standing { state, detail });
     }
 
     pub fn forget(&self, id: &str) {
+        self.invalidate(id);
         self.standing().remove(id);
     }
 

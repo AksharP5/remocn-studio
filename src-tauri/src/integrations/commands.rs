@@ -178,6 +178,7 @@ pub async fn integrations_reconfigure(
         lifecycle::check_secret(adapter, Some(&secret)).await?
     };
 
+    integrations.invalidate(&id);
     let updated = lifecycle::reauthorized(&records, &Keychain, &id, &checked, Some(&secret))?;
     store::write(&app, &updated.records)?;
     integrations.mark(&id, ConnectionState::Connected, None);
@@ -193,6 +194,7 @@ pub fn integrations_set_disabled(
     disabled: bool,
 ) -> Result<Connection, String> {
     let records = store::read(&app)?;
+    integrations.invalidate(&id);
     let updated = lifecycle::set_disabled(&records, &id, disabled)?;
     store::write(&app, &updated.records)?;
 

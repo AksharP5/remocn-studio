@@ -34,6 +34,42 @@ const PATH_KEYS = new Set(["file_path", "notebook_path", "path"]);
 const SEPARATOR = "/";
 
 const FAILURE_LINES = 3;
+const SHELL_PREFIX = /^\/bin\/(?:zsh|bash|sh) -[a-z]+ ["']?/;
+const TRAILING_QUOTE = /["']$/;
+const ROOT_FAILURE = /\bFATAL\b|Permission denied|EACCES|ENOENT/;
+const DIAGNOSTIC = /\berror(?:\s+TS\d+|:)|\bError:|MCP error|failed to/i;
+
+export function toolName(name: string): string {
+  if (name === "shell") {
+    return "Command";
+  }
+  if (!name.startsWith("mcp__")) {
+    return name;
+  }
+  const action = name.split("__").at(-1)?.replaceAll("_", " ") ?? name;
+  return action.charAt(0).toUpperCase() + action.slice(1);
+}
+
+// Display-only shortening: permission prompts still use toolTargetParts verbatim.
+export function activityTarget(
+  call: ToolCall,
+  cwd: string | null
+): ToolTarget | null {
+  const target = toolTargetParts(call.input, cwd);
+  if (call.name !== "shell" || target === null) {
+    return target;
+  }
+  const text = targetText(target).replace(SHELL_PREFIX, "");
+  const [first] = text.split("\n");
+  return {
+    kind: "text",
+    lead: "",
+    name:
+      first.length > 90 || text.includes("\n")
+        ? `${first.slice(0, 90)}…`
+        : first.replace(TRAILING_QUOTE, ""),
+  };
+}
 
 export function toolTargetParts(
   input: unknown,
@@ -73,12 +109,13 @@ export function toolDetail(call: ToolCall): ToolDetail | null {
   if (call.name === "Edit") {
     const before = string(record, "old_string");
     const after = string(record, "new_string");
-    return before === null && after === null
-      ? textOf(call.result)
-      : { kind: "diff", lines: diffLines(before ?? "", after ?? "") };
+    if (before === null && after === null) {
+      return textOf(call.result);
+    }
+    return { kind: "diff", lines: diffLines(before ?? "", after ?? "") };
   }
 
-  if (call.name === "Bash") {
+  if (call.name === "Bash" || call.name === "shell") {
     const command = string(record, "command");
     return command === null
       ? textOf(call.result)
@@ -95,6 +132,12 @@ export function toolFailure(result: string | null): string | null {
   }
 
   const lines = text.split("\n");
+  const diagnostic =
+    lines.find((line) => ROOT_FAILURE.test(line)) ??
+    lines.find((line) => DIAGNOSTIC.test(line));
+  if (diagnostic !== undefined) {
+    return diagnostic.trim().slice(0, 400);
+  }
   const head = lines.slice(0, FAILURE_LINES).join("\n");
   return lines.length > FAILURE_LINES ? `${head}…` : head;
 }
