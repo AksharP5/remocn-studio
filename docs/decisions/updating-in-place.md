@@ -13,10 +13,13 @@ release that is neither a draft nor a prerelease.
 - **The updater signature is not optional.** `pubkey` is a plain required `String`
   in the plugin's config — there is no unsigned mode to choose. It is a minisign
   key from `tauri signer generate` and has nothing to do with Apple code signing,
-  which this app still does not do: the private half is the
-  `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` repository
-  secrets, and the CLI refuses to build when the configured pubkey has no private
-  counterpart — or when the two do not match.
+  which the release job does separately since REM-413 (2026-09-14): the private
+  half is the `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+  repository secrets, and the CLI refuses to build when the configured pubkey has
+  no private counterpart — or when the two do not match. The order in the bundler
+  is Apple first: sign inside out, notarize and staple the `.app`, and only then
+  make the `.app.tar.gz` from it, so what the updater installs is the stapled
+  bundle and Gatekeeper never sees an unsigned one.
 - **Step 4 stopped drafting because of this.** A draft's assets have no reachable
   download URL, so a drafted release can serve neither the manifest nor the
   `.app.tar.gz` it points at. Publishing on tag push is what makes the feature

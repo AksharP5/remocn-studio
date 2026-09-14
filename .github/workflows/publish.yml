@@ -137,16 +137,45 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # notarytool wants the App Store Connect key as a file. tauri-bundler
+      # would also find it on its own under `~/.private_keys/AuthKey_<id>.p8`,
+      # but an explicit path is one fewer convention to remember.
+      - name: Write the App Store Connect key
+        env:
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+        run: |
+          printf '%s\n' "$APPLE_API_KEY_CONTENT" > "$RUNNER_TEMP/AuthKey.p8"
+          echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
+
       # tauri-action runs `beforeBuildCommand` (`bun run build`) itself, producing
       # the Next static export in `out/` before compiling the Rust binary.
       - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # The updater's own minisign key — not Apple code signing, which this
-          # build still does not do. `bundle.createUpdaterArtifacts` makes the
-          # CLI produce `.app.tar.gz` and a `.sig` next to it, and it fails the
-          # build outright when the pubkey in tauri.conf.json has no private
-          # counterpart here.
+          # Two signatures, and they are unrelated (REM-413).
+          #
+          # Apple's: the Developer ID certificate as a base64 .p12 plus its
+          # password. tauri-bundler imports it into a throwaway keychain, signs
+          # every binary inside out — the bundled bun first, then the app — with
+          # the hardened runtime and `src-tauri/Entitlements.plist`, then
+          # notarizes and staples the .app before the .dmg and the updater
+          # archive are made from it. `APPLE_SIGNING_IDENTITY` is optional but
+          # makes the build fail loudly if the certificate is not the one we
+          # expect. The three `APPLE_API_*` values are the App Store Connect key
+          # notarytool authenticates with; with any of them missing the CLI
+          # still signs but *silently skips notarization*, and Gatekeeper
+          # refuses the result on first launch.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          # The updater's own minisign key. `bundle.createUpdaterArtifacts`
+          # makes the CLI produce `.app.tar.gz` and a `.sig` next to it, and it
+          # fails the build outright when the pubkey in tauri.conf.json has no
+          # private counterpart here. The key has no password; the variable
+          # still has to exist, or the CLI prompts for one and dies without a
+          # TTY.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # The app's own Pexels key: `sidecar:build` runs inside this step and
@@ -181,13 +210,11 @@ jobs:
           tagName: v${{ needs.version.outputs.version }}
           releaseName: Remocn Studio v${{ needs.version.outputs.version }}
           releaseBody: |
-            Unsigned macOS build — see CHANGELOG.md for what changed.
+            See CHANGELOG.md for what changed.
 
-            macOS will refuse to open this on **first** install because it is not
-            signed or notarized: right-click the app and choose Open, or run
-            `xattr -dr com.apple.quarantine "/Applications/Remocn Studio.app"`.
-            In-app updates are not affected — the app replaces its own bundle,
-            so nothing is quarantined.
+            Signed with a Developer ID and notarized by Apple — the app opens
+            without a Gatekeeper prompt on first install, and in-app updates
+            bring the next version the same way.
           # Published, not a draft: a draft's assets have no reachable download
           # URL, so the updater could fetch neither `latest.json` nor the
           # `.app.tar.gz` it points at.
@@ -209,3 +236,25 @@ jobs:
           # append after ours would be swallowed as another feature name.
           args: --features crash-reports --target ${{ matrix.target }}
           uploadUpdaterJson: true
+
+      # tauri-bundler notarizes and staples the .app, then only *signs* the
+      # .dmg around it, and Gatekeeper evaluates a downloaded disk image on its
+      # own: `spctl -t open` rejected the locally built one as "Unnotarized
+      # Developer ID" (REM-413). So the .dmg goes to Apple a second time — fast,
+      # since everything inside already carries a ticket — gets its own ticket
+      # stapled, and replaces the copy tauri-action has already attached to the
+      # release. `latest.json` never points at the .dmg, so the updater is not
+      # involved.
+      - name: Notarize and staple the .dmg
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          set -euo pipefail
+          dmg="$(ls src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg)"
+          xcrun notarytool submit "$dmg" --wait \
+            --key "$APPLE_API_KEY_PATH" --key-id "$APPLE_API_KEY" --issuer "$APPLE_API_ISSUER"
+          xcrun stapler staple "$dmg"
+          spctl -a -vv -t open --context context:primary-signature "$dmg"
+          gh release upload "v${{ needs.version.outputs.version }}" "$dmg" --clobber

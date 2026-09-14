@@ -146,10 +146,18 @@ event.
   - **The checklist row for bun is gone**, because the runtime is now always
     there. What took its place answers a different question — see *A project
     installs with its own package manager*.
-  - bun is MIT, so redistributing the binary is free of conditions. Signing is
-    REM-10's problem and unchanged by this: the app is not signed today, and when
-    it is, a hardened runtime signs nested binaries — `Contents/MacOS/bun` is one
-    more of those, not a new class of thing.
+  - bun is MIT, so redistributing the binary is free of conditions. Signing
+    (REM-413, 2026-09-14) treats `Contents/MacOS/bun` as one more nested binary,
+    with one thing to know: Oven ships it already signed with the hardened
+    runtime and five entitlements (`allow-jit`,
+    `allow-unsigned-executable-memory`, `disable-executable-page-protection`,
+    `allow-dyld-environment-variables`, `disable-library-validation`), and
+    tauri-bundler re-signs every `externalBin` with `codesign --force` and *our*
+    entitlements file. Without those five in `src-tauri/Entitlements.plist` the
+    re-sign would strip JavaScriptCore's JIT rights and the sidecar would not
+    start; with them, `codesign -d --entitlements -` on the bundled bun shows the
+    same five under our identity, and notarization accepts them — they are the
+    standard hardened-runtime exceptions.
 - **Where the script comes from differs by profile**: debug resolves
   `../sidecar/index.ts` from `CARGO_MANIFEST_DIR` (edit and restart, no build
   step), release resolves the bundled `sidecar/main.js` from the resource dir.

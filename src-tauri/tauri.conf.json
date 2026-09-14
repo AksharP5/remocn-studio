@@ -46,6 +46,7 @@
     "license": "MIT",
     "licenseFile": "../LICENSE",
     "macOS": {
+      "entitlements": "Entitlements.plist",
       "dmg": {
         "background": "assets/dmg-background.png",
         "windowSize": { "width": 720, "height": 460 },

@@ -68,11 +68,19 @@ The lockfile is `bun.lock`; use bun.
   ships as a Tauri resource. **Only release builds need this** — in debug the
   core runs `sidecar/index.ts` from the repo, so there is nothing to rebuild.
   `bun tauri build` runs it via `tauri:before-build`.
-- `bun tauri build` — unsigned `.app` bundle. `--no-bundle` compiles without
+- `bun tauri build` — the `.app` bundle, unsigned unless the `APPLE_*` variables
+  from `publish.yml` are exported (see REM-413). `--no-bundle` compiles without
   packaging; `--bundles app` skips the DMG. Since `createUpdaterArtifacts` is on,
-  it now also wants the updater's signing key: export
-  `TAURI_SIGNING_PRIVATE_KEY_PATH`, or pass `--no-sign` to skip the `.sig` — a
-  bundle built that way cannot be released, only run. See `docs/decisions/updating-in-place.md`.
+  it now also wants the updater's signing key: export `TAURI_SIGNING_PRIVATE_KEY`
+  (the key text **or a path to the key file** — `build` reads only that variable;
+  `TAURI_SIGNING_PRIVATE_KEY_PATH` is read by `tauri signer sign` alone, and
+  exporting it here ends the build with *A public key has been found, but no
+  private key* after the bundles are already on disk) **and**
+  `TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""` — the key has no password, but with the
+  variable unset the CLI prompts for one, and in a non-interactive shell that
+  prompt dies as *Device not configured (os error 6)*, again after the bundles
+  are on disk. Or pass `--no-sign` to skip the `.sig` — a bundle built that way
+  cannot be released, only run. See `docs/decisions/updating-in-place.md`.
 - `bunx shadcn@latest add <component>` — add UI components (config in
   `components.json`).
 - `bun run skills:sync` — refresh the vendored agent skills under `agent/skills`
@@ -205,7 +213,12 @@ what makes it work on a private package at all.
    `published`.
 4. That output — not the tag — releases the macOS build (Apple silicon + Intel)
    in the same run, which publishes the GitHub release with the bundles and
-   `latest.json` attached.
+   `latest.json` attached. Each build is signed with the Developer ID from the
+   `APPLE_*` secrets, notarized and stapled by tauri-bundler (sign inside out →
+   notarize the `.app` → staple → `.dmg` → `.app.tar.gz` for the updater), and
+   a step after tauri-action notarizes the `.dmg` itself, which the bundler
+   only signs. Notarization waits on Apple — minutes normally, 52 for the
+   account's very first submission — so a release is slower than the build.
 
 The version script is named `version:packages`, not `version`, because npm and
 bun treat a `version` script as an `npm version` lifecycle hook, which recurses.
