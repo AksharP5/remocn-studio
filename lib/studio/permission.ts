@@ -17,15 +17,40 @@ export interface PermissionChoice {
 const TITLES: Record<PermissionReason, string> = {
   bash: "Approve this command?",
   outside: "Approve this path outside the project?",
+  outward: "Send this to a connected service?",
   plan: "Ready to build this plan?",
   tool: "Approve this tool call?",
 };
 
-const AGAIN: Record<Exclude<PermissionReason, "plan">, string> = {
+const AGAIN: Record<Exclude<PermissionReason, "outward" | "plan">, string> = {
   bash: "Don’t ask again for this command this session",
   outside: "Don’t ask again for this path this session",
   tool: "Don’t ask again for this call this session",
 };
+
+const OUTWARD_CHOICES: PermissionChoice[] = [
+  {
+    action: "allow",
+    description: "Send it once; the studio asks again next time",
+    id: "allow",
+    label: "Send",
+    mode: null,
+  },
+  {
+    action: "deny",
+    description: "Send nothing and let the agent continue",
+    id: "deny",
+    label: "Decline",
+    mode: null,
+  },
+  {
+    action: "cancel",
+    description: "Send nothing and stop the turn",
+    id: "cancel",
+    label: "Cancel turn",
+    mode: null,
+  },
+];
 
 const PLAN_CHOICES: PermissionChoice[] = [
   {
@@ -78,6 +103,10 @@ export function permissionChoices(
     return PLAN_CHOICES;
   }
 
+  if (reason === "outward") {
+    return OUTWARD_CHOICES;
+  }
+
   return [
     {
       action: "allow",
@@ -88,7 +117,8 @@ export function permissionChoices(
     },
     {
       action: "always",
-      description: AGAIN[reason],
+      description:
+        AGAIN[reason as Exclude<PermissionReason, "outward" | "plan">],
       id: "always",
       label: "Always allow this session",
       mode: null,

@@ -25,6 +25,7 @@ import {
   saveProxy,
   sourceFor,
 } from "@/lib/studio/proxy";
+import { watchSidecarNotifications } from "@/lib/studio/sidecar";
 import { stillFor, ThumbnailError } from "@/lib/studio/thumbnail";
 import type { Audiomap } from "@/shared/audiomap";
 import type { PromptMedia } from "@/shared/ipc";
@@ -379,6 +380,21 @@ export function useLibrary(
 
   const reload = useCallback(() => load(false), [load]);
   const refresh = useCallback(() => load(true), [load]);
+
+  useEffect(() => {
+    const fiber = Effect.runFork(
+      Effect.scoped(
+        watchSidecarNotifications((notification) => {
+          if (notification.channel === "sounds.changed") {
+            refresh();
+          }
+        }).pipe(Effect.andThen(Effect.never))
+      ).pipe(Effect.ignore)
+    );
+    return () => {
+      Effect.runFork(Fiber.interrupt(fiber));
+    };
+  }, [refresh]);
 
   useEffect(() => {
     reload();

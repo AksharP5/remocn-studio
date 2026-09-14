@@ -3,8 +3,10 @@ import { mkdir, mkdtemp, realpath, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
+import { permissionChoices } from "@/lib/studio/permission";
 import { PLUGIN_DIR_ENV } from "@/shared/ipc";
 import { review, signatureOf } from "@/sidecar/claude/permission";
+import { isOutwardTool } from "@/sidecar/tools/specs";
 
 let project = "";
 let elsewhere = "";
@@ -216,5 +218,78 @@ describe("review", () => {
     );
 
     expect(verdicts).toEqual(tools.map(() => ({ kind: "allow" })));
+  });
+});
+
+const ALWAYS_OUTWARD = () => true;
+
+describe("a tool that acts on an outside service", () => {
+  it("lets a studio tool that acts on nothing outside run silently", async () => {
+    const silent = await Effect.runPromise(
+      review(project, "mcp__remocn-library__list_connections", {})
+    );
+
+    expect(silent.kind).toBe("allow");
+  });
+
+  it("raises a card when the tool's own spec declares it outward-acting", async () => {
+    const asked = await Effect.runPromise(
+      review(
+        project,
+        "mcp__remocn-library__upload_video",
+        { summary: "Publish \u201CLaunch promo\u201D to YouTube as Work" },
+        ALWAYS_OUTWARD
+      )
+    );
+
+    expect(asked.kind).toBe("ask");
+    if (asked.kind === "ask") {
+      expect(asked.reason).toBe("outward");
+      expect(asked.signature).toContain("Launch promo");
+    }
+  });
+
+  it("asks again for the very same call", async () => {
+    const once = await Effect.runPromise(
+      review(
+        project,
+        "mcp__remocn-library__upload_video",
+        { summary: "same" },
+        ALWAYS_OUTWARD
+      )
+    );
+    const twice = await Effect.runPromise(
+      review(
+        project,
+        "mcp__remocn-library__upload_video",
+        { summary: "same" },
+        ALWAYS_OUTWARD
+      )
+    );
+
+    expect(once.kind).toBe("ask");
+    expect(twice.kind).toBe("ask");
+  });
+
+  it("marks no shipped tool as outward-acting yet", () => {
+    expect(isOutwardTool("list_connections")).toBe(false);
+    expect(isOutwardTool("save_asset")).toBe(false);
+    expect(isOutwardTool("design_check")).toBe(false);
+  });
+});
+
+describe("what an outward card offers", () => {
+  it("has no way to stop being asked", () => {
+    const actions = permissionChoices("outward").map((choice) => choice.action);
+
+    expect(actions).toContain("allow");
+    expect(actions).toContain("deny");
+    expect(actions).not.toContain("always");
+  });
+
+  it("still offers to remember an ordinary tool call", () => {
+    const actions = permissionChoices("tool").map((choice) => choice.action);
+
+    expect(actions).toContain("always");
   });
 });

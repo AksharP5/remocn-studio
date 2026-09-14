@@ -15,6 +15,7 @@ import {
   EXPORT_QUALITIES,
   EXPORT_RESOLUTIONS,
 } from "./export";
+import { Connections } from "./integrations";
 import {
   Asset,
   AssetDraft,
@@ -31,9 +32,10 @@ import {
   ProviderStep,
   ToolVerb,
 } from "./providers";
+import { AudioRequest, SoundOperation, SoundRef } from "./sound-effects";
 import { TemplateDraft } from "./templates";
 
-export const SIDECAR_PROTOCOL = 30;
+export const SIDECAR_PROTOCOL = 33;
 
 export const SIDECAR_STATUS_EVENT = "sidecar://status";
 export const SIDECAR_NOTIFY_EVENT = "sidecar://notify";
@@ -82,7 +84,6 @@ export const METHOD_NAMES = [
   "library.remove",
   "library.rename",
   "library.save",
-  "library.stockKey",
   "library.stockSave",
   "library.stockSearch",
   "library.stockStatus",
@@ -355,7 +356,19 @@ const verb = Schema.NullOr(ToolVerb).pipe(
   Schema.withDecodingDefault(Effect.succeed(null))
 );
 
+export const SoundResult = Schema.Struct({
+  asset: Asset,
+  operationId: Schema.NonEmptyString,
+  request: AudioRequest,
+});
+export type SoundResult = typeof SoundResult.Type;
+
 export const TranscriptEntry = Schema.Union([
+  Schema.Struct({
+    id: Schema.String,
+    kind: Schema.Literal("sound"),
+    result: SoundResult,
+  }),
   Schema.Struct({
     assets,
     attachments: Schema.Array(PromptAttachment),
@@ -754,6 +767,7 @@ export const AgentFailure = Schema.Struct({
 export const PermissionReason = Schema.Literals([
   "bash",
   "outside",
+  "outward",
   "plan",
   "tool",
 ]);
@@ -789,6 +803,10 @@ export const SourceAssetResolution = Schema.Struct({
 });
 
 export const AgentEvent = Schema.Union([
+  Schema.Struct({
+    result: SoundResult,
+    type: Schema.Literal("sound_result"),
+  }),
   Schema.Struct({
     mode: Schema.NullOr(SessionMode),
     model: Schema.String,
@@ -1277,11 +1295,6 @@ export const SIDECAR_METHODS = {
     result: Asset,
     stream: Schema.Never,
   },
-  "library.stockKey": {
-    params: StockKeyChange,
-    result: StockConfigured,
-    stream: Schema.Never,
-  },
   "library.stockSave": {
     params: StockItem,
     result: Asset,
@@ -1536,6 +1549,16 @@ export const HostFrame = Schema.Union([
     id: RequestId,
     type: Schema.Literal("cancel"),
   }),
+  Schema.Struct({
+    data: Schema.Unknown,
+    id: RequestId,
+    type: Schema.Literal("result"),
+  }),
+  Schema.Struct({
+    id: RequestId,
+    message: Schema.String,
+    type: Schema.Literal("error"),
+  }),
 ]);
 
 export type HostFrame = (typeof HostFrame)["Type"];
@@ -1568,9 +1591,57 @@ export const SidecarFrame = Schema.Union([
     data: Schema.Unknown,
     type: Schema.Literal("notify"),
   }),
+  Schema.Struct({
+    id: RequestId,
+    method: Schema.String,
+    params: Schema.Unknown,
+    type: Schema.Literal("request"),
+  }),
 ]);
 
 export type SidecarFrame = (typeof SidecarFrame)["Type"];
+
+export type CoreRequestFrame = Extract<SidecarFrame, { type: "request" }>;
+
+export type CoreResultFrame = Extract<HostFrame, { type: "result" }>;
+
+export type CoreFailureFrame = Extract<HostFrame, { type: "error" }>;
+
+export type CoreAnswerFrame = CoreResultFrame | CoreFailureFrame;
+
+export const CORE_METHOD_NAMES = [
+  "integrations.usable",
+  "sounds.prepare",
+  "sounds.commit",
+  "sounds.status",
+  "sounds.cancel",
+  "sounds.recover",
+  "sounds.imported",
+] as const;
+
+export type CoreMethod = (typeof CORE_METHOD_NAMES)[number];
+
+export const CORE_METHODS = {
+  "integrations.usable": {
+    params: Schema.Null,
+    result: Connections,
+  },
+  "sounds.cancel": { params: SoundRef, result: SoundOperation },
+  "sounds.commit": { params: SoundRef, result: SoundOperation },
+  "sounds.imported": { params: SoundRef, result: SoundOperation },
+  "sounds.prepare": { params: AudioRequest, result: SoundOperation },
+  "sounds.recover": {
+    params: Schema.Null,
+    result: Schema.Array(SoundOperation),
+  },
+  "sounds.status": { params: SoundRef, result: SoundOperation },
+} as const;
+
+export type CoreParams<M extends CoreMethod> =
+  (typeof CORE_METHODS)[M]["params"]["Type"];
+
+export type CoreResult<M extends CoreMethod> =
+  (typeof CORE_METHODS)[M]["result"]["Type"];
 
 export const SidecarPhase = Schema.Literals([
   "starting",
@@ -1652,3 +1723,26 @@ export const decodeSidecarNotification: Decoder<SidecarNotification> =
 
 export const decodeStudioBuild: Decoder<StudioBuild> =
   Schema.decodeUnknownExit(StudioBuild);
+
+export interface CoreCodecs<M extends CoreMethod> {
+  params: Decoder<CoreParams<M>>;
+  result: Decoder<CoreResult<M>>;
+}
+
+const CORE_CODECS = Object.fromEntries(
+  CORE_METHOD_NAMES.map((method) => [
+    method,
+    {
+      params: Schema.decodeUnknownExit(CORE_METHODS[method].params),
+      result: Schema.decodeUnknownExit(CORE_METHODS[method].result),
+    },
+  ])
+) as { [M in CoreMethod]: CoreCodecs<M> };
+
+export function coreCodecsFor<M extends CoreMethod>(method: M): CoreCodecs<M> {
+  return CORE_CODECS[method];
+}
+
+export const decodeCoreMethod: Decoder<CoreMethod> = Schema.decodeUnknownExit(
+  Schema.Literals(CORE_METHOD_NAMES)
+);

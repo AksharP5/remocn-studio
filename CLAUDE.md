@@ -68,11 +68,19 @@ The lockfile is `bun.lock`; use bun.
   ships as a Tauri resource. **Only release builds need this** — in debug the
   core runs `sidecar/index.ts` from the repo, so there is nothing to rebuild.
   `bun tauri build` runs it via `tauri:before-build`.
-- `bun tauri build` — unsigned `.app` bundle. `--no-bundle` compiles without
+- `bun tauri build` — the `.app` bundle, unsigned unless the `APPLE_*` variables
+  from `publish.yml` are exported (see REM-413). `--no-bundle` compiles without
   packaging; `--bundles app` skips the DMG. Since `createUpdaterArtifacts` is on,
-  it now also wants the updater's signing key: export
-  `TAURI_SIGNING_PRIVATE_KEY_PATH`, or pass `--no-sign` to skip the `.sig` — a
-  bundle built that way cannot be released, only run. See `docs/decisions/updating-in-place.md`.
+  it now also wants the updater's signing key: export `TAURI_SIGNING_PRIVATE_KEY`
+  (the key text **or a path to the key file** — `build` reads only that variable;
+  `TAURI_SIGNING_PRIVATE_KEY_PATH` is read by `tauri signer sign` alone, and
+  exporting it here ends the build with *A public key has been found, but no
+  private key* after the bundles are already on disk) **and**
+  `TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""` — the key has no password, but with the
+  variable unset the CLI prompts for one, and in a non-interactive shell that
+  prompt dies as *Device not configured (os error 6)*, again after the bundles
+  are on disk. Or pass `--no-sign` to skip the `.sig` — a bundle built that way
+  cannot be released, only run. See `docs/decisions/updating-in-place.md`.
 - `bunx shadcn@latest add <component>` — add UI components (config in
   `components.json`).
 - `bun run skills:sync` — refresh the vendored agent skills under `agent/skills`
@@ -176,6 +184,12 @@ are stricter than Vitest's — `toEqual(expected: T)` against the received type 
 and `test/matchers.d.ts` widens the four structural matchers back to `unknown`
 rather than casting two dozen literals.
 
+**happy-dom reports the host OS, and the tests assume a Mac.** Its default user
+agent is built from `process.platform`, so on the Linux CI runner
+`currentPlatform()` answered `linux` and every shortcut rendered as `Ctrl+…`
+while the tests looked for `⌘`; `test/register-dom.ts` registers the DOM with a
+macOS user agent because the app only ever runs in a macOS WKWebView.
+
 **happy-dom is not a Tauri webview.** There is no `window.__TAURI_INTERNALS__`,
 so any `invoke()` that reaches the real transport throws. Tests touching IPC
 must install a fake with `mockIPC` from `@tauri-apps/api/mocks`; `test/setup.ts`
@@ -184,6 +198,14 @@ next. `app/page.test.tsx` is the worked example. A `mock.module` is not hoisted,
 so a module already imported keeps its binding live rather than being replaced:
 the two suites that swap `ENTITLEMENT_PUBLIC_KEY` import the real module first
 and spread it into the factory.
+
+**A mounted pane is not a ready one.** `turn.send` returns false while
+`projectId` or `videoId` is still null — both arrive over IPC — and the Send
+button stays enabled throughout, so a test that types and presses as soon as
+the textarea exists watches the click do nothing and then spends its whole
+`waitFor` budget on a send that never started. The composer's harness waits for
+a probe that reads "ready" first: with every mocked IPC answer 250 ms late,
+thirteen of that file's tests fail without the wait and none with it.
 
 ## Releases
 
@@ -205,7 +227,12 @@ what makes it work on a private package at all.
    `published`.
 4. That output — not the tag — releases the macOS build (Apple silicon + Intel)
    in the same run, which publishes the GitHub release with the bundles and
-   `latest.json` attached.
+   `latest.json` attached. Each build is signed with the Developer ID from the
+   `APPLE_*` secrets, notarized and stapled by tauri-bundler (sign inside out →
+   notarize the `.app` → staple → `.dmg` → `.app.tar.gz` for the updater), and
+   a step after tauri-action notarizes the `.dmg` itself, which the bundler
+   only signs. Notarization waits on Apple — minutes normally, 52 for the
+   account's very first submission — so a release is slower than the build.
 
 The version script is named `version:packages`, not `version`, because npm and
 bun treat a `version` script as an `npm version` lifecycle hook, which recurses.
@@ -432,7 +459,13 @@ One seam per line: what it owns, the specs that define it, the records that expl
   `templates/remotion/video-templates/` is a hand-synced copy of the landing's composition.
 - **Settings** live in `settings.json` through `plugin-store`; `useHydratedSettings` is the
   one hook not to modernise (see *Effect*). Per-project settings live in the project's
-  `.remocn/project.json`; export settings under `export:<projectId>`.
+  `.remocn/project.json`; export settings under `export:<projectId>`. The `integrations` key
+  holds connection **metadata only** — id, provider, name, account label, capabilities and a
+  reference to a keychain entry. Every secret is in the login keychain under
+  `com.remocn.remocn-studio` / `integration:<connectionId>`, one entry per connection, read
+  and used only by Rust. An unsigned debug build therefore raises the system's keychain prompt
+  **once per connection** after each `cargo build`, where the account token alone raised one;
+  a signed release asks once. Nothing in the app can suppress it.
 - **History**: schema changes are one more entry in `MIGRATIONS` in
   `sidecar/history/migrations.ts`, applied in one transaction with foreign keys off. There
   are no users yet, so a migration may drop rather than convert.

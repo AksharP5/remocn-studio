@@ -1,8 +1,14 @@
 [package]
 name = "remocn-studio"
+# Internal crate version; the app release version comes from ../package.json
+# through tauri.conf.json and is managed by Changesets.
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Create videos with AI as editable Remotion projects."
+authors = ["Remocn"]
+license = "MIT"
+homepage = "https://remocn.studio"
+repository = "https://github.com/Remocn/remocn-studio"
+publish = false
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -18,7 +24,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["protocol-asset"] }
+tauri = { version = "2", features = ["protocol-asset", "image-png"] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-store = "2"
@@ -26,7 +32,7 @@ percent-encoding = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 time = { version = "0.3", features = ["formatting"] }
-tokio = { version = "1", features = ["io-util", "process", "rt", "sync", "time"] }
+tokio = { version = "1", features = ["io-util", "net", "process", "rt", "sync", "time"] }
 tauri-plugin-updater = "2.10.1"
 tauri-plugin-notification = "2"
 keyring = { version = "3", features = ["apple-native"] }
@@ -54,3 +60,7 @@ crash-reports = ["dep:sentry"]
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSImage"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSData"] }

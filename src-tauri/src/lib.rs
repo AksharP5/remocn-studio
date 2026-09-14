@@ -1,6 +1,8 @@
 mod account;
+mod app_icon;
 mod commands;
 mod crash;
+mod integrations;
 mod ipc;
 mod links;
 mod paste;
@@ -57,6 +59,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::new().build())
+        .manage(integrations::Integrations::new())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
@@ -70,6 +73,7 @@ pub fn run() {
             account::account_sign_in_start,
             account::account_sign_out,
             account::account_status,
+            app_icon::set_app_icon,
             commands::quit_studio,
             commands::reveal_studio,
             commands::restart_studio,
@@ -78,6 +82,15 @@ pub fn run() {
             commands::sidecar_restart,
             commands::sidecar_status,
             commands::studio_build,
+            integrations::commands::integrations_begin,
+            integrations::commands::integrations_cancel,
+            integrations::commands::integrations_catalogue,
+            integrations::commands::integrations_check,
+            integrations::commands::integrations_confirm,
+            integrations::commands::integrations_list,
+            integrations::commands::integrations_reconfigure,
+            integrations::commands::integrations_remove,
+            integrations::commands::integrations_set_disabled,
             links::take_deep_links,
             paste::save_pasted_image,
             paste::save_proxy,

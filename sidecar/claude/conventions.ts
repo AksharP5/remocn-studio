@@ -221,6 +221,8 @@ bundle and is yours to read.`;
 
 const PRECEDENCE = `Before designing a new film or changing its direction, invoke
 \`${MOTION_SKILL}\` for reference analysis, staging and the movement dictionary.
+Use its template motion examples to select and adapt relevant passages from the
+full catalog; the supplied brief, references and brand determine the direction.
 For video implementation, consult \`${LESSONS_SKILL}\` and load only the technical
 reference relevant to the component or observed defect. Its historical fixes have
 runtime conditions; verify them against the installed version and rendered output.

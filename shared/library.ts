@@ -1,6 +1,7 @@
 import { Effect, Schema } from "effect";
 import { Audiomap } from "./audiomap";
 import { MotionRole } from "./motion";
+import { GeneratedMusicSource, GeneratedSoundSource } from "./sound-effects";
 
 export const ASSET_TYPES = ["img", "video", "audio", "component"] as const;
 
@@ -52,13 +53,19 @@ export const StockProvider = Schema.Literals(STOCK_PROVIDERS);
 
 export type StockProvider = (typeof StockProvider)["Type"];
 
-export const AssetSource = Schema.Struct({
+const StockSource = Schema.Struct({
   author: Schema.String,
   authorUrl: Schema.String,
   id: Schema.NonEmptyString,
   provider: StockProvider,
   url: Schema.String,
 });
+
+export const AssetSource = Schema.Union([
+  StockSource,
+  GeneratedSoundSource,
+  GeneratedMusicSource,
+]);
 
 export type AssetSource = (typeof AssetSource)["Type"];
 

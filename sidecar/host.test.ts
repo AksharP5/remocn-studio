@@ -72,9 +72,20 @@ describe("runHost", () => {
     const host = harness();
     await settled();
 
-    expect(host.sent).toEqual([
-      { pid: process.pid, protocol: SIDECAR_PROTOCOL, type: "ready" },
-    ]);
+    expect(host.sent[0]).toEqual({
+      pid: process.pid,
+      protocol: SIDECAR_PROTOCOL,
+      type: "ready",
+    });
+    expect(host.sent[1]).toMatchObject({
+      method: "sounds.recover",
+      params: null,
+      type: "request",
+    });
+    const [, recovery] = host.sent;
+    if (recovery?.type === "request") {
+      host.push(JSON.stringify({ data: [], id: recovery.id, type: "result" }));
+    }
 
     host.close();
     await host.finished;

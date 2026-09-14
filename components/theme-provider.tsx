@@ -1,6 +1,13 @@
 "use client";
 
-import { ThemeProvider as NextThemesProvider } from "next-themes";
+import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
+import { useAppIcon } from "@/hooks/use-app-icon";
+
+function AppIconTheme() {
+  const { resolvedTheme } = useTheme();
+  useAppIcon(resolvedTheme);
+  return null;
+}
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return (
@@ -13,6 +20,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       disableTransitionOnChange
       enableSystem
     >
+      <AppIconTheme />
       {children}
     </NextThemesProvider>
   );

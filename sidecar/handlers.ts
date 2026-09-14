@@ -43,6 +43,11 @@ import { recording } from "./history/recorder";
 import { type HistoryError, HistoryStore } from "./history/store";
 import { VideoStore } from "./history/videos";
 import { HandlerError, type Handlers } from "./host";
+import {
+  generateSound,
+  recoverSounds,
+  soundStatus,
+} from "./integrations/sounds";
 import { listBundled } from "./library/bundled";
 import {
   addCommandFor,
@@ -56,7 +61,6 @@ import {
   type StockError,
   saveStock,
   searchStock,
-  setStockKey,
   stockConfigured,
 } from "./library/stock";
 import {
@@ -254,7 +258,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
       (matched) => ({ matched })
     ),
 
-  "agent.prompt": ({ emit, log, params }) =>
+  "agent.prompt": ({ ask, emit, log, params }) =>
     Effect.gen(function* () {
       const turnId = yield* Effect.sync(() => crypto.randomUUID());
       const project = yield* located(params.projectId);
@@ -391,6 +395,9 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
       const result = yield* Effect.scoped(
         gateway
           .serving(turnId, {
+            connections: {
+              usable: () => Effect.runPromise(ask("integrations.usable", null)),
+            },
             cwd: project.path,
             design: {
               check: (
@@ -448,6 +455,30 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
               setStage: (stage, status) =>
                 moved(store.setStage(params.historyId, stage, status)),
               start: () => moved(store.startPipeline(params.historyId)),
+            },
+            sounds: {
+              generate: (request, execution) =>
+                Effect.runPromise(
+                  generateSound(request, { ask, emit, gate, turnId }),
+                  { signal: execution?.signal }
+                ),
+              status: (id) =>
+                Effect.runPromise(
+                  id === undefined
+                    ? recoverSounds(ask, (message) =>
+                        emit({ message, type: "notice" })
+                      ).pipe(
+                        Effect.andThen(ask("sounds.recover", null)),
+                        Effect.map((operations) =>
+                          JSON.stringify(
+                            operations.map(
+                              ({ file: _file, ...operation }) => operation
+                            )
+                          )
+                        )
+                      )
+                    : soundStatus(ask, id, emit)
+                ),
             },
             stock: {
               search: (query) => Effect.runPromise(searchStock(query)),
@@ -564,7 +595,11 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
       Effect.mapError(unlibraried)
     ),
 
-  "library.list": () => listAssets().pipe(Effect.mapError(unlibraried)),
+  "library.list": ({ ask, log }) =>
+    recoverSounds(ask, log).pipe(
+      Effect.andThen(listAssets()),
+      Effect.mapError(unlibraried)
+    ),
 
   "library.offer": ({ params }) =>
     unofferedFrom(params.attachments.map((item) => item.path)).pipe(
@@ -597,12 +632,6 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
 
   "library.save": ({ params }) =>
     saveAsset(params).pipe(Effect.mapError(unlibraried)),
-
-  "library.stockKey": ({ params }) =>
-    setStockKey(params.key).pipe(
-      Effect.map((configured) => ({ configured })),
-      Effect.mapError(unstocked)
-    ),
 
   "library.stockSave": ({ emit, params }) =>
     saveStock(params, (progress) => Effect.runSync(emit(progress))).pipe(

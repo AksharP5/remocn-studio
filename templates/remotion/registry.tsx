@@ -67,7 +67,7 @@ export function Videos() {
   );
 }
 
-export function withVideos(Root: ComponentType): ComponentType {
+export function withVideos(Root: ComponentType) {
   return function Registered() {
     return (
       <>

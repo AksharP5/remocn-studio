@@ -118,6 +118,7 @@ describe("agent review completion", () => {
     let loaded = 0;
     let current = report();
     const tools: TurnTools = {
+      connections: { usable: () => Promise.resolve([]) },
       cwd: "/project",
       design: {
         check: (input) => {

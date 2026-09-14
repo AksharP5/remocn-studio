@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync } from "node:fs";
+import { constants, existsSync, mkdirSync } from "node:fs";
 import {
   copyFile,
   mkdir,
@@ -294,18 +294,16 @@ export function layoutOf(files: readonly string[]): {
 
 async function write(draft: AssetDraft, now: number): Promise<Asset> {
   const dir = join(libraryRoot(), ASSETS);
-  const slug = freeSlug(dir, slugOf(draft.name));
+  const slug = await reserveSlug(dir, slugOf(draft.name));
   const target = join(dir, slug);
   const { base, names } = layoutOf(draft.files);
-
-  await mkdir(target, { recursive: true });
 
   const written = await Promise.all(
     names.map(async (name) => {
       const to = join(target, name);
 
       await mkdir(dirname(to), { recursive: true });
-      await copyFile(join(base, name), to);
+      await copyFile(join(base, name), to, constants.COPYFILE_EXCL);
 
       return hashOf(to);
     })
@@ -354,16 +352,21 @@ async function copiedPreview(
   }
 }
 
-function freeSlug(dir: string, wanted: string): string {
-  let slug = wanted;
-  let suffix = 2;
-
-  while (existsSync(join(dir, slug))) {
-    slug = `${wanted}-${suffix}`;
-    suffix += 1;
+async function reserveSlug(
+  dir: string,
+  wanted: string,
+  suffix = 1
+): Promise<string> {
+  const slug = suffix === 1 ? wanted : `${wanted}-${suffix}`;
+  try {
+    await mkdir(join(dir, slug));
+    return slug;
+  } catch (cause) {
+    if ((cause as NodeJS.ErrnoException).code !== "EEXIST") {
+      throw cause;
+    }
+    return reserveSlug(dir, wanted, suffix + 1);
   }
-
-  return slug;
 }
 
 async function manifestIn(

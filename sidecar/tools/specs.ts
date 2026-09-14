@@ -7,6 +7,7 @@ import {
   type PipelineStageId,
   type PipelineStatus,
 } from "@/shared/pipeline";
+import { SOUND_FORMATS } from "@/shared/sound-effects";
 
 export const LIBRARY_SERVER = "remocn-library";
 export const PIPELINE_SERVER = "remocn-pipeline";
@@ -27,10 +28,24 @@ export function isToolServer(value: string): value is ToolServer {
 export interface ToolSpec {
   readonly description: string;
   readonly name: string;
+  readonly outward?: boolean;
   readonly shape: z.ZodRawShape;
 }
 
+export function isOutwardTool(name: string): boolean {
+  return TOOL_SERVERS.some((server) =>
+    TOOL_SPECS[server].some(
+      (spec) => spec.name === name && spec.outward === true
+    )
+  );
+}
+
 export const LIST_ASSETS = "list_assets";
+export const LIST_CONNECTIONS = "list_connections";
+export const GENERATE_MUSIC = "generate_music";
+export const MUSIC_STATUS = "music_status";
+export const GENERATE_SOUND = "generate_sound_effect";
+export const SOUND_STATUS = "sound_effect_status";
 export const SAVE_ASSET = "save_asset";
 export const SEARCH_STOCK = "search_stock";
 export const GET_MOODBOARD = "get_moodboard";
@@ -235,6 +250,49 @@ export const TOOL_SPECS: Record<ToolServer, readonly ToolSpec[]> = {
     },
   ],
   [LIBRARY_SERVER]: [
+    {
+      description:
+        "Generate music only when requested. List connections first and choose an ElevenLabs connection ID. Use instrumental music by default; allow vocals only when requested. Studio asks for approval before spending credits and saves the result to the library without editing the project. Never repeat an uncertain generation: check music_status with its operation ID. Each new generation needs new approval.",
+      name: GENERATE_MUSIC,
+      shape: {
+        connectionId: z.string().min(1),
+        durationSeconds: z.number().min(3).max(600).nullable().default(null),
+        forceInstrumental: z.boolean().default(true),
+        format: z.literal("mp3_44100_128").default("mp3_44100_128"),
+        name: z.string().trim().min(1).max(5000),
+        text: z.string().trim().min(1).max(4100),
+      },
+    },
+    {
+      description:
+        "Check a music operation without generating or spending credits. Omit id to list audio operations and recover completed downloads into the library. Never regenerate an uncertain operation automatically.",
+      name: MUSIC_STATUS,
+      shape: { id: z.string().min(1).optional() },
+    },
+    {
+      description:
+        "Generate a sound effect only when the person asks for one. List connections first and use the chosen ElevenLabs connection ID. Studio shows exact parameters and asks before spending credits. It saves audio to the library without editing the project. Never repeat an uncertain generation: use sound_effect_status with its operation ID instead. Each new generation spends credits and requires new approval.",
+      name: GENERATE_SOUND,
+      shape: {
+        connectionId: z.string().min(1),
+        durationSeconds: z.number().min(0.5).max(30).nullable().default(null),
+        format: z.enum(SOUND_FORMATS).default("mp3_44100_128"),
+        name: z.string().trim().min(1).max(5000),
+        text: z.string().trim().min(1).max(5000),
+      },
+    },
+    {
+      description:
+        "Check an existing sound operation without generating or spending credits. Recover a completed download into the library if needed. Omit id to list operations and recover completed sounds after a lost response. Never automatically regenerate an uncertain operation.",
+      name: SOUND_STATUS,
+      shape: { id: z.string().min(1).optional() },
+    },
+    {
+      description:
+        "List the outside services this studio is connected to and what each one may be used for. Answers only with connections the person has checked and left enabled; a service that is not listed cannot be reached, and the person connects one in Settings under Integrations. Carries no keys or tokens.",
+      name: LIST_CONNECTIONS,
+      shape: {},
+    },
     {
       description:
         "List everything in the studio's asset library: images, videos, audio and finished Remotion components the person saved from earlier videos. Call it when they ask what is in the library, or ask you to reuse something without saying which reference it is.",

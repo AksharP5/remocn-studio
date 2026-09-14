@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-pub const PROTOCOL: u32 = 30;
+pub const PROTOCOL: u32 = 33;
 pub const STATUS_EVENT: &str = "sidecar://status";
 pub const NOTIFY_EVENT: &str = "sidecar://notify";
 pub const QUIT_EVENT: &str = "app://quit-requested";
@@ -33,6 +33,14 @@ pub enum HostFrame {
     Cancel {
         id: String,
     },
+    Result {
+        id: String,
+        data: Value,
+    },
+    Error {
+        id: String,
+        message: String,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -43,6 +51,7 @@ pub enum SidecarFrame {
     Result { id: String, data: Value },
     Error { id: String, message: String },
     Notify { channel: String, data: Value },
+    Request { id: String, method: String, params: Value },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]

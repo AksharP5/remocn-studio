@@ -1,5 +1,5 @@
 import { createWriteStream } from "node:fs";
-import { mkdtemp, readFile, rm, unlink, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { Data, Effect, Exit, Schema } from "effect";
@@ -15,18 +15,16 @@ import {
   slugOf,
   sourceOf,
 } from "@/shared/library";
-import { type LibraryError, libraryRoot, saveAsset } from "./store";
+import { type LibraryError, saveAsset } from "./store";
 
 export class StockError extends Data.TaggedError("StockError")<{
   message: string;
 }> {}
 
 export const NO_KEY =
-  "Searching Pexels needs an API key — add one in Settings, or set REMOCN_STUDIO_PEXELS_KEY.";
+  "Stock search is unavailable in this build: no Pexels key is configured. Setting REMOCN_STUDIO_PEXELS_KEY supplies one.";
 
 export const PER_PAGE = 30;
-
-const KEY_FILE = "stock.json";
 
 const PHOTO_ENDPOINT = "https://api.pexels.com/v1/search";
 const VIDEO_ENDPOINT = "https://api.pexels.com/videos/search";
@@ -39,14 +37,6 @@ const failed = (cause: unknown) =>
 function attempt<A>(run: () => Promise<A>): Effect.Effect<A, StockError> {
   return Effect.tryPromise({ catch: failed, try: run });
 }
-
-const StockKeyFile = Schema.Struct({
-  pexelsKey: Schema.NullOr(Schema.NonEmptyString).pipe(
-    Schema.withDecodingDefault(Effect.succeed(null))
-  ),
-});
-
-const decodeKeyFile = Schema.decodeUnknownExit(StockKeyFile);
 
 const maybe = Schema.NullOr(Schema.String).pipe(
   Schema.withDecodingDefault(Effect.succeed(null))
@@ -253,44 +243,11 @@ function shippedKey(): string | null {
 }
 
 export function stockKey(): Effect.Effect<string | null, StockError> {
-  return attempt(async () => {
-    const stored = await storedKey();
-    return stored ?? shippedKey();
-  });
+  return Effect.sync(shippedKey);
 }
 
 export function stockConfigured(): Effect.Effect<boolean, StockError> {
   return Effect.map(stockKey(), (key) => key !== null);
-}
-
-export function setStockKey(
-  key: string | null
-): Effect.Effect<boolean, StockError> {
-  return attempt(async () => {
-    const file = join(libraryRoot(), KEY_FILE);
-
-    if (key === null) {
-      await unlink(file).catch(() => undefined);
-    } else {
-      await writeFile(
-        file,
-        `${JSON.stringify({ pexelsKey: key }, null, 2)}\n`,
-        "utf8"
-      );
-    }
-
-    return key !== null || shippedKey() !== null;
-  });
-}
-
-async function storedKey(): Promise<string | null> {
-  try {
-    const source = await readFile(join(libraryRoot(), KEY_FILE), "utf8");
-    const decoded = decodeKeyFile(JSON.parse(source));
-    return Exit.isSuccess(decoded) ? decoded.value.pexelsKey : null;
-  } catch {
-    return null;
-  }
 }
 
 export function searchStock(
@@ -316,7 +273,7 @@ export function searchStock(
     if (answer.status === 401 || answer.status === 403) {
       return yield* Effect.fail(
         new StockError({
-          message: "Pexels refused the API key — check it in Settings.",
+          message: "Pexels refused the key this build is using.",
         })
       );
     }

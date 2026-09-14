@@ -10,9 +10,8 @@ export const SETTINGS_SECTIONS = [
   "behavior",
   "notifications",
   "hotkeys",
-  "stock",
+  "integrations",
   "updates",
-  "accounts",
   "feedback",
 ] as const;
 
@@ -96,7 +95,7 @@ export function useSettingsView(
 
   const openAccounts = useCallback(
     (target: AgentProvider) => {
-      setSection("accounts");
+      setSection("integrations");
       setProvider(target);
       setIsOpen(true);
     },

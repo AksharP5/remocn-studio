@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect, Exit } from "effect";
@@ -18,7 +18,6 @@ import {
   photoItemOf,
   saveStock,
   searchStock,
-  setStockKey,
   stockConfigured,
   stockKey,
   videoItemOf,
@@ -245,22 +244,26 @@ describe("attributionOf", () => {
 });
 
 describe("the key", () => {
-  it("starts unconfigured, remembers a key, and forgets it", async () => {
+  it("is unconfigured when the environment names no key", async () => {
     expect(await Effect.runPromise(stockConfigured())).toBe(false);
-
-    expect(await Effect.runPromise(setStockKey("abc"))).toBe(true);
-    expect(await Effect.runPromise(stockKey())).toBe("abc");
-
-    expect(await Effect.runPromise(setStockKey(null))).toBe(false);
     expect(await Effect.runPromise(stockKey())).toBeNull();
   });
 
-  it("falls back to the environment", async () => {
+  it("takes the key the environment carries", async () => {
     process.env[PEXELS_KEY_ENV] = "from-env";
-    expect(await Effect.runPromise(stockKey())).toBe("from-env");
 
-    await Effect.runPromise(setStockKey("stored"));
-    expect(await Effect.runPromise(stockKey())).toBe("stored");
+    expect(await Effect.runPromise(stockKey())).toBe("from-env");
+    expect(await Effect.runPromise(stockConfigured())).toBe(true);
+  });
+
+  it("ignores a key file an earlier version wrote", async () => {
+    writeFileSync(
+      join(library, "stock.json"),
+      JSON.stringify({ pexelsKey: "left-behind" })
+    );
+
+    expect(await Effect.runPromise(stockKey())).toBeNull();
+    expect(await Effect.runPromise(stockConfigured())).toBe(false);
   });
 });
 
@@ -288,7 +291,7 @@ describe("searchStock", () => {
   });
 
   it("maps a photo page", async () => {
-    await Effect.runPromise(setStockKey("abc"));
+    process.env[PEXELS_KEY_ENV] = "abc";
 
     const page = await Effect.runPromise(
       searchStock(QUERY, answering({ photos: [PHOTO], total_results: 61 }))
@@ -301,7 +304,7 @@ describe("searchStock", () => {
   });
 
   it("maps a video page", async () => {
-    await Effect.runPromise(setStockKey("abc"));
+    process.env[PEXELS_KEY_ENV] = "abc";
 
     const page = await Effect.runPromise(
       searchStock(
@@ -315,12 +318,12 @@ describe("searchStock", () => {
   });
 
   it("blames the key on a 401", async () => {
-    await Effect.runPromise(setStockKey("abc"));
+    process.env[PEXELS_KEY_ENV] = "abc";
 
     const exit = await Effect.runPromiseExit(
       searchStock(QUERY, answering({}, 401))
     );
-    expect(String(exit)).toContain("refused the API key");
+    expect(String(exit)).toContain("refused the key this build is using");
   });
 });
 

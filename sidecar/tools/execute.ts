@@ -10,6 +10,7 @@ import type {
   PipelineStatus,
 } from "@/shared/pipeline";
 import { pipelineBrief } from "../claude/conventions";
+import { type ConnectionCalls, listConnections } from "../integrations/tools";
 import type { MoodboardDraft, MoodboardRecord } from "../library/moodboard";
 import { moodboardBrief } from "../library/moodboard";
 import type { VideoCheck } from "../preview/choreography";
@@ -24,14 +25,19 @@ import { reviewCompletionProblem } from "./review";
 import {
   DESIGN_CHECK,
   DESIGN_SERVER,
+  GENERATE_MUSIC,
+  GENERATE_SOUND,
   GET_MOODBOARD,
   LIBRARY_SERVER,
   LIST_ASSETS,
+  LIST_CONNECTIONS,
+  MUSIC_STATUS,
   PIPELINE_SERVER,
   REQUEST_SOURCE_ASSET,
   SAVE_ASSET,
   SAVE_MOODBOARD,
   SEARCH_STOCK,
+  SOUND_STATUS,
   START_PIPELINE,
   TOOL_SPECS,
   type ToolServer,
@@ -96,11 +102,19 @@ export interface DesignCalls {
 }
 
 export interface TurnTools {
+  readonly connections: ConnectionCalls;
   readonly cwd: string;
   readonly design: DesignCalls;
   readonly library: LibraryCalls;
   readonly moodboard: MoodboardCalls;
   readonly pipeline: PipelineCalls;
+  readonly sounds?: {
+    generate: (
+      request: import("@/shared/sound-effects").AudioRequest,
+      execution?: ToolExecution
+    ) => Promise<string>;
+    status: (id?: string) => Promise<string>;
+  };
   readonly stock: StockCalls;
 }
 
@@ -123,6 +137,32 @@ export function executeTool(
     }
 
     const args = z.object(spec.shape).parse(params ?? {});
+    if (
+      server === LIBRARY_SERVER &&
+      (tool === GENERATE_SOUND ||
+        tool === GENERATE_MUSIC ||
+        tool === SOUND_STATUS ||
+        tool === MUSIC_STATUS)
+    ) {
+      if (tools.sounds === undefined) {
+        throw new Error("Sound generation is not available in this turn.");
+      }
+      if (tool === GENERATE_MUSIC) {
+        return tools.sounds.generate(
+          {
+            ...args,
+            kind: "music",
+          } as import("@/shared/sound-effects").MusicRequest,
+          execution
+        );
+      }
+      return tool === GENERATE_SOUND
+        ? tools.sounds.generate(
+            args as import("@/shared/sound-effects").AudioRequest,
+            execution
+          )
+        : tools.sounds.status(args.id as string | undefined);
+    }
     return run(server, tool, args, {
       ...tools,
       design: {
@@ -141,6 +181,9 @@ function run(
 ): Promise<string> {
   if (server === LIBRARY_SERVER && tool === LIST_ASSETS) {
     return listAssets(tools.library);
+  }
+  if (server === LIBRARY_SERVER && tool === LIST_CONNECTIONS) {
+    return listConnections(tools.connections);
   }
   if (server === LIBRARY_SERVER && tool === SAVE_ASSET) {
     return saveAsset(args, tools);

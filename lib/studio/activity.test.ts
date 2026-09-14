@@ -207,6 +207,13 @@ describe("toolTarget, on a task", () => {
 });
 
 describe("toolFailure", () => {
+  it("finds the browser failure below download progress", () => {
+    expect(
+      toolFailure(
+        "Downloading Chrome\nGetting Headless Shell - 9 Mb\nBundling 32%\nError: Failed to launch the browser process!\nFATAL: bootstrap_check_in: Permission denied (1100)\nNode.js v22"
+      )
+    ).toBe("FATAL: bootstrap_check_in: Permission denied (1100)");
+  });
   it("keeps the error short and says there is more", () => {
     expect(toolFailure("one\ntwo\nthree\nfour")).toBe("one\ntwo\nthree…");
   });

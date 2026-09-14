@@ -69,14 +69,26 @@ async function install(source: string, root: string): Promise<Registered> {
   );
   const videos = join(root, "src", VIDEOS_DIR);
   const registry = join(videos, REGISTRY_FILE);
+  const shippedRegistry = await readFile(
+    join(source, REGISTRY_TEMPLATE),
+    "utf8"
+  );
 
-  if (!(await exists(registry))) {
-    await mkdir(videos, { recursive: true });
-    await writeFile(
-      registry,
-      await readFile(join(source, REGISTRY_TEMPLATE), "utf8"),
-      "utf8"
+  if (await exists(registry)) {
+    // Upgrade only the exact old shipped file, never a person's authored copy.
+    const oldRegistry = shippedRegistry.replace(
+      "withVideos(Root: ComponentType) {",
+      "withVideos(Root: ComponentType): ComponentType {"
     );
+    if (
+      oldRegistry !== shippedRegistry &&
+      (await readFile(registry, "utf8")) === oldRegistry
+    ) {
+      await writeFile(registry, shippedRegistry, "utf8");
+    }
+  } else {
+    await mkdir(videos, { recursive: true });
+    await writeFile(registry, shippedRegistry, "utf8");
   }
 
   const entry = await entryOf(root);

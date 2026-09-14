@@ -38,6 +38,7 @@ export function makeGateway(
   )
 ): ToolGateway {
   const turns = new Map<string, TurnTools>();
+  const active = new Map<string, Set<AbortController>>();
 
   let listening: Promise<Server> | null = null;
 
@@ -101,6 +102,7 @@ export function makeGateway(
 
       const controller = new AbortController();
       executions.set(id, controller);
+      active.get(turn)?.add(controller);
       executeTool(server, tool, params, tools, {
         progress: (stage, completed, total) =>
           reply({
@@ -114,6 +116,7 @@ export function makeGateway(
       })
         .then((answer) => {
           executions.delete(id);
+          active.get(turn)?.delete(controller);
           log(`tools: ${server}.${tool} ${answer.isError ? "failed" : "ok"}`);
           reply({
             id,
@@ -141,8 +144,16 @@ export function makeGateway(
             log(`tools: the gateway could not listen: ${errorMessage(cause)}`);
           }
           turns.set(turnId, tools);
+          active.set(turnId, new Set());
         }),
-        () => Effect.sync(() => turns.delete(turnId))
+        () =>
+          Effect.sync(() => {
+            turns.delete(turnId);
+            for (const controller of active.get(turnId) ?? []) {
+              controller.abort();
+            }
+            active.delete(turnId);
+          })
       ).pipe(Effect.asVoid),
 
     transport: (server, turnId) => ({

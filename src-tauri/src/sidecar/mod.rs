@@ -503,6 +503,27 @@ fn handle_frame(inner: &Arc<Inner>, frame: SidecarFrame, was_ready: &AtomicBool)
                 .app
                 .emit(NOTIFY_EVENT, SidecarNotification { channel, data });
         }
+        SidecarFrame::Request { id, method, params } => {
+            let inner = Arc::clone(inner);
+            tauri::async_runtime::spawn(async move {
+                let integrations = inner.app.state::<crate::integrations::Integrations>();
+                let answer = if method.starts_with("sounds.") {
+                    crate::integrations::sounds::answer(inner.app.clone(), &method, params).await
+                } else {
+                    crate::integrations::answer(&inner.app, &integrations, &method, params)
+                };
+                let frame = match answer {
+                    Ok(data) => HostFrame::Result { id, data },
+                    Err(message) => HostFrame::Error { id, message },
+                };
+
+                if let Err(reason) = inner.send(frame) {
+                    inner
+                        .log
+                        .host(format!("could not answer the sidecar: {reason}"));
+                }
+            });
+        }
     }
 }
 
