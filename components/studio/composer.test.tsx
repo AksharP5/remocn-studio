@@ -31,6 +31,10 @@ interface ComposerShape {
   isWaiting?: boolean;
   mode?: SessionMode;
   onModeChange?: (value: string) => void;
+  // Whether this render has a project and a video to open at all: a shell mock
+  // that answers `sidecar_status` and nothing else never opens one, and that
+  // render is only ever asked about the sidecar's own banner.
+  opens?: boolean;
   soundCard?: boolean;
 }
 
@@ -311,6 +315,7 @@ async function renderComposer(
     isWaiting = false,
     mode = "auto",
     onModeChange = mock(),
+    opens = true,
   }: ComposerShape = {}
 ) {
   render(
@@ -319,6 +324,7 @@ async function renderComposer(
         <SelectProbe />
         <CaptureProbe />
         <SoundSettingsProbe />
+        <OpenProbe />
         {soundCard ? <SoundResultCard result={SOUND_RESULT} /> : null}
         <SoundPrompt disabled={isWaiting || isRunning} />
         <Composer
@@ -341,6 +347,19 @@ async function renderComposer(
   const textarea = await screen.findByRole("textbox", {
     name: "Message Claude",
   });
+
+  // `turn.send` refuses every message until the project and the video have
+  // arrived over IPC — `projectId === null || videoId === null` returns false
+  // before anything is sent — and the Send button is enabled the whole time.
+  // A test that types and presses before then watches a click do nothing and
+  // then spends its entire `waitFor` budget on a send that never started,
+  // which is how a different one of these failed on CI each run. Wait for the
+  // studio to have something to send to.
+  if (opens) {
+    await waitFor(() =>
+      expect(screen.getByLabelText("Open target")).toHaveTextContent("ready")
+    );
+  }
   if (completed) {
     typeInto(textarea, "Create a scene");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
@@ -353,6 +372,15 @@ async function renderComposer(
     sent.length = 0;
   }
   return { onModeChange, textarea };
+}
+
+function OpenProbe() {
+  const { openedProject, openedVideo } = useStudio();
+  return (
+    <output aria-label="Open target">
+      {openedProject === null || openedVideo === null ? "loading" : "ready"}
+    </output>
+  );
 }
 
 function SoundSettingsProbe() {
@@ -711,7 +739,7 @@ describe("Composer", () => {
 
   it("notices the sidecar came up even if it missed the event", async () => {
     mockShellReadyOnSecondLook();
-    await renderComposer();
+    await renderComposer(mock(), { opens: false });
 
     expect(await screen.findByText("Starting the sidecar…")).toBeVisible();
 

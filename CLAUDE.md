@@ -199,6 +199,14 @@ so a module already imported keeps its binding live rather than being replaced:
 the two suites that swap `ENTITLEMENT_PUBLIC_KEY` import the real module first
 and spread it into the factory.
 
+**A mounted pane is not a ready one.** `turn.send` returns false while
+`projectId` or `videoId` is still null — both arrive over IPC — and the Send
+button stays enabled throughout, so a test that types and presses as soon as
+the textarea exists watches the click do nothing and then spends its whole
+`waitFor` budget on a send that never started. The composer's harness waits for
+a probe that reads "ready" first: with every mocked IPC answer 250 ms late,
+thirteen of that file's tests fail without the wait and none with it.
+
 ## Releases
 
 Version lives in **one** place: `package.json`. `src-tauri/tauri.conf.json` sets
