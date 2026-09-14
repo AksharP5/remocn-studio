@@ -1,5 +1,618 @@
 # remocn-studio
 
+## 0.8.0
+
+### Minor Changes
+
+- fea3077: Generate sound effects through a personal ElevenLabs connection with per-request approval. Save and play audio locally, retain generation details, recover completed downloads, and prevent automatic paid retries after uncertain results.
+
+  Discover sound generation from the empty composer with a Generate sound shortcut that prepares an editable prompt or opens integration settings.
+
+  Show generated sounds directly in chat with local playback, a Use in video action, and an editable Regenerate prompt. Preserve result cards in chat history.
+
+- fea3077: Generate music through an ElevenLabs integration using the same chat workflow as sound effects. Add a Generate music shortcut, per-request approval, local playback, library saving, and music-aware regeneration. Preserve instrumental preferences and recover completed downloads without repeating paid requests.
+- a0e2cda: Export asks what you want and renders what you are looking at.
+
+  - **A dialog before the render**: a preset to start from — YouTube, Shorts ·
+    Reels · TikTok, Instagram Feed — then format (MP4/H.264, WebM/VP9, GIF,
+    MOV/ProRes), resolution (source, or a 720, 1080 or 2160 short side) and
+    quality (Draft, Standard, High, or the project's own settings). The file it
+    will write is a field in the same dialog, not a save panel afterwards: the
+    name follows the preset and the format until you type one, and the folder is
+    `out` until you choose another. A summary says the real output size, the
+    container and the length; a preset that does not match the video's shape warns
+    without changing it; a GIF says it carries no audio. Format and folder are
+    remembered per project.
+  - **A WebGL scene exports without editing `remotion.config.ts` first.** The
+    render browser is a headless Chrome of its own and Remotion 4 gives it no GL
+    backend by default, so a shader never finished compiling and the render died
+    with stock advice about disk space. The studio now chooses `angle` on the
+    desktop, measures whether that browser can really make a WebGL2 context, and
+    falls back to software once if it cannot — while never substituting for a
+    backend the project chose itself. Every renderer-backed feature shares that
+    one policy.
+  - **A `delayRender()` that never cleared is no longer blamed on WebGL.**
+    Failures are classified — no GL context, a lost one, a dead browser, a missing
+    asset, the encoder, the scene's own code — and the GL sentence only appears
+    when the browser really could not make a context.
+  - **The project's own render settings actually reach the render.** They are read
+    from the installed Remotion's own option registry, in a fresh process so an
+    edited `remotion.config.ts` is never served from a module cache, and forwarded
+    only where that Remotion's `renderMedia` accepts them. A setting that the
+    chosen codec would refuse — a CRF on ProRes, a ProRes profile on H.264, an
+    audio codec the container cannot hold — is left out and said out loud.
+  - **A render is pinned to the bundle and assets it started with**, so an agent
+    saving a file mid-export cannot change frames that are still being encoded.
+  - **The preview and the export agree on the composition**: `calculateMetadata`
+    is resolved in the preview too, so a composition that computes its size plays
+    in the pane and exports at the size the dialog promised. Element changes
+    waiting in the composer block the export rather than being quietly left out of
+    it.
+
+- a0e2cda: Give generated videos shared timing plans for entry, reading and complete exits,
+  including staggered groups, heading/details and persistent cards that become a grid.
+  The new versioned motion library installs beside existing authored components.
+
+  Full review discovers event boundaries from the rendered code and checks the
+  actual targets. Agent completion requires a current report with complete boundary
+  coverage and no unresolved measured viewer defects. Intentional text reveals are
+  distinguished from text that stays clipped after settling.
+
+  Generation instructions select a story from the supplied material and give the
+  agent responsibility for routine movement and editing. A repeatable evaluation
+  corpus records real exports, first-pass usability and user corrections separately
+  from mechanical render tests.
+
+- f9c429f: Settings has an Integrations section: services the studio can reach with your
+  own account.
+
+  - **ElevenLabs and Figma can be connected**, with an API key and a personal
+    access token. Choose the service, paste the key, the studio checks it with
+    the service before keeping anything, and you name the connection. Several
+    accounts of one service are allowed and told apart by name. Check,
+    reconnect, disable and remove are on each row; removing asks first and says
+    plainly when the service itself could not be told.
+  - **Each key lives in this Mac's keychain, in an entry of its own**, and never
+    reaches a chat, a model, a log or your project. A key that is stored is never
+    shown back — replacing it means typing a new one.
+  - **A turn can ask which services are connected** and what each may be used
+    for, and is told about connections you have checked and left enabled. It is
+    never told the key.
+  - **AI Accounts moved** out of its own row in the rail and into Integrations,
+    where it sits beside the services as its own group. Nothing about it changed:
+    the studio still only probes your own signed-in CLI.
+  - **Stock media left Settings.** The Pexels key was never yours to change — the
+    build ships one — so the section is gone and the Assets pane says so directly
+    when a build carries no key.
+
+- e0dead6: The app answers `remocn-studio://` links, and one of them makes a project.
+  `remocn-studio://open-template?template=welcome-early-member&props=…` — the
+  link the landing's thank-you page writes — creates `Welcome — ‹name›` under
+  `~/Movies/Remocn Studio`, with the welcome composition copied in as its first
+  video and the props from the link written into that video's `defaultProps`, and
+  opens it on the player. It works from a cold start and into a running app, and
+  it works signed out and on Free: the template is not a Pro feature.
+
+  A link that is not one of ours, names a route or a template the studio does not
+  have, or carries props that are not base64url JSON in the shape the composition
+  declares, raises a toast and creates nothing. The link can carry no path and no
+  command: only a template name from the list, and props.
+
+- 3c11bcd: The documents the production pipeline writes — analysis, brand, script,
+  motion, choreography, review — can be read in the app. The right pane's title
+  becomes a **Preview | Docs** switch, and Docs is a file manager's tab strip
+  over the document itself: one tab per markdown file the video's docs folder
+  holds, in pipeline order with anything else after it by name, each carrying
+  its file icon and its stage's name. Inspect and Snapshot leave the header in
+  Docs — they point at pixels that are not on screen — while Export stays,
+  because a render already running must not be hidden by looking at a document;
+  arming either and switching to Docs disarms it, down the same path a rebuild
+  takes. The preview iframe is hidden rather than unmounted, so coming back
+  costs neither a page load nor the frame you were on. In the Video dock, a
+  stage whose document is on disk becomes a button that opens it; a stage that
+  has written nothing stays a plain line.
+
+  The documents also moved: `src/videos/<slug>/docs/*.md`, inside the video
+  rather than at `video/*.md` in the project root. The old literal path was
+  shared by every video in a project, so a second video overwrote the first
+  one's script. `docsFolderOf(slug)` in `shared/pipeline.ts` is now the one
+  source for both the agent's brief and the viewer, and the stage templates
+  carry the folder as a token the turn's own slug fills in — outputs, discovery
+  and done-conditions alike. There are no users and no migration; documents
+  written under the old path have to be moved by hand.
+
+  Two sidecar methods carry it: `video.documents` lists a video's markdown with
+  its folder — a folder that does not exist yet answers with an empty list, not
+  an error — and `project.read` reads one file, resolving symlinks and `..` and
+  refusing anything outside the project, larger than a megabyte, or holding
+  bytes no text file holds. That containment is the permission gate's own check,
+  moved to `sidecar/contained.ts` so there is one implementation of it rather
+  than two. The list is re-read when a turn settles and the open document is
+  re-read when the agent writes to it, both off signals the webview already
+  receives; no watcher was added.
+
+- bb12ad9: Inspect can now tune a scene live, in a properties pane of its own. Clicking a
+  component that declares an `InteractivitySchema` (exported through
+  `Interactive.withSchema()`, with its `controls` passed to its own `<Sequence>`)
+  opens a resizable pane to the right of the preview: every supported field —
+  numbers, booleans, colors, enum variants, CSS transforms, UV coordinates and
+  constrained arrays — rerenders the Preview as it changes, coalesced to one
+  command per animation frame, and only the selected instance moves when the same
+  component is mounted twice. It is shaped like a design tool's inspector:
+  sections for Transform, Layer, Typography, Fill and Stroke ahead of the
+  component's own parameters, every number typed or stepped with the arrow keys
+  (shift for ten) through DialKit-backed tactile sliders, with safe unbounded
+  values retaining the scrub-capable numeric fallback. Two-value properties like
+  offset and transform origin split into editable X and Y that keep their units,
+  opacity is shown as a percentage, and colors use DialKit's swatch and editable
+  hex treatment. Remocn remains the owner of Preview state and AI diffs; DialKit
+  is the controlled presentation layer. Cancel and per-row Reset restore the
+  original values; Add keeps the live result on screen and hands the agent a
+  structured `Requested changes` diff — paths and values, never runtime target
+  ids. A rebuild clears the overrides and marks saved diffs `Preview changed`.
+  Elements with no schema keep the compact comment card over the frame, and raw
+  `TransitionSeries.Transition` factory arguments stay out of scope for this
+  version.
+
+  Inspect also picks elements it used to fall straight through: a scene that
+  puts `pointer-events: none` on an overlay layer — the usual way to keep a
+  title from eating `clickToPlay` — is hidden from `elementsFromPoint`, so
+  clicking the words selected the scene behind them. The canvas is forced
+  hit-testable while Inspect is armed.
+
+### Patch Changes
+
+- a9bc9e4: Let the studio call you back when it is not in front: a macOS notification when
+  a turn ends, the agent waits for your answer, an export finishes or fails, or
+  the studio's helper stops, behind a new Settings › Notifications section: one
+  master switch that asks macOS once, a Grant permission button for when it has
+  not, and a switch per event. The Dock icon carries a badge with the number of permission cards
+  waiting and a progress bar for a running export, and the unread mark on a chat
+  whose turn ended while you were looking elsewhere is now big enough to see.
+- 5cc54be: The bundled bun runtime moves from 1.3.2 to 1.4.2, and the test suite runs on
+  `bun test` instead of Vitest: the same 2406 tests in a quarter of the wall clock
+  and a fifth of the CPU. The properties pane's asset picker now lists a
+  project's `public/` in a stable order, whatever order the file system hands
+  the entries back in.
+- 4589790: Guide video agents to trace reference events, derive dependent movement from actual
+  group completion, and prove the film's direction with a representative passage.
+  Require observed evidence for holds, repeated staging and review exceptions while
+  keeping technical checks separate from creative judgment.
+- 7d618c8: Add a command palette on ⌘K that reaches every action, video, chat and project
+  by name, a View menu and a Video menu built from the same command registry as
+  the palette, and a shortcut for each: ⌘E Export, ⌘I Inspect, ⇧⌘S Snapshot,
+  ⌘B the project list, ⌘\ the preview, ⌘1 ⌘2 ⌘3 the sidebar views, ⌘D Docs,
+  ⌥⌘↑ ⌥⌘↓ the previous and next video, ⌘. stop the turn, ⇧⌘R restart the helper.
+  Settings gains a read-only Hotkeys section that lists them all.
+- 70c8faa: The composer keeps what you hand it. Five ways it did not:
+
+  - A file dropped on the message field was silently filed in the asset library
+    instead, and the drop ring never lit — the drag position arrives in CSS
+    pixels, not the physical ones it was being scaled from.
+  - Pasting a picture with the caret inside an existing `[Image #N]` cut that
+    token in half and silently dropped the attachment it stood for. The caret now
+    snaps outside a reference before anything is inserted, on every path.
+  - The Model, Effort and Mode menus stayed open after a choice, so the next
+    click — aimed at the text field they overlap — silently changed the setting
+    again.
+  - macOS substitution turned `--flag` into `—flag` on the way to the agent, and
+    the transcript stored the mangled text for good.
+  - `.m4v`, `.mkv`, `.avi`, `.mpeg`, `.flac`, `.aiff`, `.opus` and `.oga` are
+    taken now; a `.heic` is still refused, but the refusal names the format and
+    says to export it as JPEG or PNG.
+
+- 042f255: The composer's control row now adapts to a narrow chat pane instead of pushing
+  the Send button out of the box. `buttonVariants` carries `shrink-0` in its base,
+  so the row could not give: dragged past roughly 500px the chips simply overflowed
+  the rounded container and Send was clipped by the pane's edge.
+
+  The row is a container of its own, because the pane is resized independently of
+  the window — a viewport breakpoint would measure the wrong thing. Two things
+  share the work. The model chip is the elastic one, `min-w-0 shrink` with a
+  truncating label, so no combination of labels can overflow the box; and the
+  labels collapse in the order of what is worth reading, Effort first (its labels
+  are the longest and it is the value changed least), Mode last, each chip keeping
+  its icon, its chevron and now a `title` carrying what the hidden label said. The
+  Queue button that appears during a running turn collapses with Effort, since
+  Queue beside Stop is the widest arrangement the row ever holds.
+
+  Collapse is decided by width alone, never by which mode or model happens to be
+  selected, so dragging the splitter moves through the same two steps every time.
+
+- 3be88cf: The properties pane moves to dialkit 2.0, which takes back three things it had
+  been doing for itself. The slider now carries its own role, tab stop and
+  keyboard, so the wrapper that added them is gone — keeping it would have meant
+  a slider inside a slider. The colour control is a text field beside a swatch
+  that opens dialkit's own popover, so the CSS that laid a native colour input
+  over the swatch went with it, and nothing coerces the value any more: a colour
+  written as `rgb(…)` or `oklch(…)` reads as itself instead of arriving black.
+  The bezier curve is dialkit's too, handles and all, in place of our SVG and its
+  drag hook. The preview dot under it is still ours and now runs the element's
+  own window rather than a fixed 1.8 seconds.
+- 594f999: The line between Free and Pro, drawn in the client. The plan document the
+  account server signs is verified against its Ed25519 key before it is believed,
+  cached in app data so a bad connection keeps the plan that was paid for, read
+  again once a day, and read as Free — with a card saying the subscription could
+  not be checked — once it has been offline longer than the document lasts.
+  Each turn carries the plan to the sidecar: on Free the skills bundle is
+  withheld, the `remocn-pipeline` server is not served, and the conventions keep
+  the lane and drop the craft; Inspect and Snapshot are disabled with the reason
+  on their tooltip and open the trial card instead. A Pro turn reads exactly what
+  it read before.
+- 9635c87: An edit in the properties pane now says who it moves, what it took back, and why
+  it was refused.
+
+  A target is found again rather than remembered. The runtime used to cache the
+  controls of everything ever selected so a later edit could find its schema by id
+  — which is exactly wrong for a Player that unmounts a scene on every loop, since
+  the ids it held were dead by the time the next edit used them. The registry is
+  keyed on the anchor instead and `rebind` re-resolves every live target on every
+  registration: the anchor back to a node, then that node's `refForOutline`
+  owners, then the fiber chain when none of them claim it. `sameMappings` keeps it
+  idempotent, republishing the synthetic `overrideId → nodePath` map only when it
+  really changed. A `targetId` is now `anchor::componentName` while an
+  `instanceId` stays the bare anchor, because `controlsChain` routinely returns
+  two links whose host is the same DOM node — an `Interactive.Div` and the
+  `withSchema` wrapper around it — and a bare anchor would merge those two into
+  one card, losing the author's own schema behind Remotion's built-in style one.
+
+  A reset names paths, never a target. The preview reads an empty path list as
+  "drop this target's whole draft", and a `CameraRig` framing the scene is in
+  every chain — so letting go of one card used to take a camera change another
+  card had already Added. `changedPaths` is the one door every reset goes through
+  now: Cancel, Reset all, picking elsewhere, a rebuild, and removing a chip from
+  the composer each send only the paths that card actually moved. `byTarget`'s
+  empty-list branch, the last thing that could still emit `[]`, is gone.
+
+  Reverting unsent edits says so, with Undo. Picking elsewhere with pending
+  changes raises `Reverted 2 changes on Pushed line`, whose Undo is a fiber
+  interrupt on an `Effect.sleep` window and re-sends every value it took back,
+  reopening that card — the shape a deleted asset already uses, and the same ten
+  seconds. Undo abandons whatever card is open before it restores, or edits made
+  on the element you had moved to would be left live in the preview with nothing
+  listing them.
+
+  A refusal belongs to a row. `tuningRefusal` carries `{message, path, targetId}`
+  and renders under the control that asked for it; only a refusal naming no path —
+  a reset, or a runtime that named no field — keeps the footer line. A later `ok`
+  clears it for that same target and path and nothing else, and an `ok` for a
+  request nothing recorded clears nothing at all, since `abandon`, a rebuild and
+  removing a chip all mint request ids without registering them. An element off
+  screen at the playhead is refused with the frame it would appear on: _This
+  element is not on screen at frame 42. Title runs from frame 30 to 120._ That
+  window is read from Remotion's own `SequenceContext` value — `cumulatedFrom +
+relativeFrom` — because summing `memoizedProps.from` up the fiber chain
+  triple-counts an `Interactive.Div`, which is three fibers deep, reading
+  `from={30}` as 90; and the end is the sequence's real duration, with 60 frames
+  kept only as the fallback when there is no finite one, since a cap would report
+  a 300-frame scene as ending 60 frames in and make the sentence lie.
+
+  The pane says when an edit is shared: `Shared by 4 · a change here moves all of
+them` under the title, because one nodePath per `overrideId` is Remotion's model
+  and there is no per-instance key to publish an override against through the
+  contexts a Player exposes. `PropsPanel` is keyed on the innermost target's
+  `instanceId`, so a comment typed for one line does not follow you to the next. A
+  stored selection now keeps the whole chain rather than the one link that was
+  edited, so reopening a chip lands on the link the message was written from and
+  removing one resets every link it carried. And the agent's block groups the
+  changes by owner — `Requested changes on Title ‹headline›
+(src/videos/intro/Title.tsx:24):` — because a flat list of paths taken off a
+  three-link chain read as one component's props and sent it editing the wrong
+  file.
+
+- b7d12e1: Inspect now shows you what you picked, and knows which one of them it is.
+
+  The selection is a box of its own. It used to be the hover box — `hovered ??
+pinned` — so what you had clicked was visible only while the pointer was off the
+  canvas, and a click the app then discarded made it disappear, which reads as a
+  deselect. There are two boxes now: a thin hover box that lives and dies with the
+  armed session, and a solid selection box that is module-level, set
+  synchronously on `pointerdown` before anything is awaited, and cleared only by a
+  rebuild. Turning Inspect off keeps it, along with any Add markers and the open
+  card: off means stop picking, not forget what I picked.
+
+  Identity is the picked DOM node, not Remotion's `overrideId`. Every
+  `Interactive.*` rendered from one JSX call site shares one id — the bundler
+  injects a `stack` prop and `with-interactivity-schema.js` keys the id on it in a
+  module-level map; measured, five instances, one id. So comparing that id made
+  four claim lines one element and threw away every click after the first.
+  `preview/anchor.ts` mints an anchor instead — the nearest `data-design-id` plus
+  `:nth-child` steps, falling back to the canvas — which is per instance and
+  survives a remount. The edit still lands on the call site, because one node path
+  per `overrideId` is the whole of Remotion's override model; what changes is that
+  the pane can say `2 of 4` about which instance was meant. A literal re-click on
+  the instance already open pulses the box and changes nothing else — but only
+  while a card is open, since Cancel never reaches the page and the next click on
+  that element would otherwise be a dead one.
+
+  The pane is titled by the name the agent wrote. Remotion already delivers it —
+  it appends a hidden `name` field to every schema and reads it into
+  `controls.currentRuntimeValueDotNotation` — and `preview/tuning.ts` was dropping
+  it with the rest of the hidden fields, which is why two clicks on two different
+  lines drew byte-identical panes. Under the title is where the link lives, `Div
+in WordPush · src/components/WordPush.tsx:245`. A chain link whose whole schema
+  is `hidden` and `layout` — the `<Series>` chip, whose two controls hide the
+  whole film — is dropped unless it is the innermost.
+
+  The picker aims at what the person sees. An element whose computed `opacity` is
+  below 0.05, or whose `visibility` is not `visible`, paints nothing, so an
+  unrevealed word before its entry frame is no longer pickable; a masked element
+  paints only where it shows text, because a mask can hide any part of a surface
+  and text is the one thing it is known to show. The text test now walks every
+  descendant text node and widens each rect horizontally by 0.35 × its font size —
+  the word gap — so a click between two `inline-block` words lands on their line
+  rather than on the marker or the backdrop behind it, and a candidate covering
+  text beats one that merely paints a surface. A surface filling at least 80 % of
+  the container on both axes — a full-frame glow, a scene backdrop — loses to any
+  later candidate under the same point that covers less. Alt still picks the
+  literal topmost node.
+
+  Codegen writes for that pane, and `design_check` enforces it. The conventions
+  now say what shape a run of text takes: one named `Interactive.H1`/`P`/`Span`
+  whose direct child is the string, typography as literals in its own `style`, a
+  `name` unique in the frame and equal to its `data-design-id`, and a component
+  that splits a run into words keeping the split inside behind one `text` prop
+  (declared `type: "text-content"` from Remotion 4.0.513). The easing scan that
+  was one regex is seven rules — constant easing, a spring whose physics are
+  nailed shut, a text run in a plain element, one literal `name` shared by every
+  mapped instance, a curve whose window defaults to zero, a schema component that
+  never forwards its `controls`, and a raw export of the component `withSchema`
+  wraps — merged into `design_check`'s own `findings` array with a `tunability_*`
+  code and counted into its `summary`, because prose appended after the JSON is
+  not a finding and the review stage's done-condition is that every mechanical
+  finding is fixed or explained. Measured over the eleven videos of
+  `remocn-news-videos`: 75 findings, 51 of them constant easings.
+  `motion-design` gains `rules/tunable-text.md`, a worked `Headline` typechecked
+  against Remotion 4.0.481 and pinned as a fixture that scores zero, and the
+  shipped video template now exposes its spring's `damping` as a prop rather than
+  failing its own rule set. The conventions text grew by 879 characters
+  (+6.9 %); the prose that replaces paragraph 9 is simply longer than what it
+  replaced.
+
+- 9635c87: The pane now moves the frame, marks what animates, and edits text and type.
+
+  A curve is inert at a settled frame. Every generated `interpolate` clamps both
+  sides, so outside an element's own window every bezier yields the same constant
+  — which is why dragging an easing looked like nothing happening, and why the
+  agent itself wrote _"Set from the preview. Still inert"_ into an AskScene. The
+  selection carries `window`, the element's own sequence span, and the pane leads
+  with a time strip: the frozen frame in mono, a range over `[from, until]` that
+  seeks, and Replay. An edit to Entry, Exit, Effects or Timing, or to anything
+  whose path ends in `easing`, schedules **one** replay 250 ms after the last
+  flush — a forked `Effect.sleep` each flush interrupts and re-forks — skipped
+  while the preview is already playing. Picking still does not seek: the paused
+  frame is the one being judged.
+
+  The playhead crosses the wire, and it is deliberately not React state. The
+  entry subscribes to the Player's own `frameupdate`/`play`/`pause` and posts
+  `playhead` at most once per animation frame; every `frameupdate` also repaints
+  the selection box, so it tracks an element that is moving instead of lying
+  about where it was. Holding that frame in `usePreview`'s state was free while
+  it moved only on `selection`, `capture` and `rebuilt` and cost the whole
+  application the moment it moved sixty times a second — `frame` is in
+  `PreviewControl`'s memo, which is in `tools`, which is in the studio context
+  that ten components read, so playing the preview re-rendered the transcript,
+  the sidebar and the composer every frame. It is a ref with its own listener set
+  now, read through `useSyncExternalStore` by the only two things that draw it,
+  while the turn's `playing` frame is a stable getter called at send time. The
+  armed readout carries no `role="status"`, the same rule the running-time ticker
+  already follows.
+
+  The Player's transport bar works while Inspect is armed. The swallow used to
+  test the canvas _rectangle_, which is also the rectangle the transport bar is
+  drawn over, so the bar appeared on hover and did nothing when clicked;
+  `overCanvas` asks `elementsFromPoint` what is actually under the point and
+  stops the event only when the canvas contains it, falling back to the rectangle
+  where nothing can be hit-tested.
+
+  A field the code animates is marked, because a static override replaces the
+  animation with a constant. `tuning.read` is throttled to once per 250 ms with
+  one trailing read when the frame settles, and the answer is
+  `currentRuntimeValueDotNotation` — the component's own incoming props, taken
+  before Remotion merges the drag overrides in, which is exactly what makes it an
+  animation detector. The mark is sticky: a key does not stop animating in code
+  because somebody overrode it, and recomputing it per read cleared the badge the
+  moment the field was edited and took `sampled` off the change with it. The
+  first version also tried to report _the preview is no longer applying this
+  value_ from the same reading, which differs from a draft **by construction** —
+  so it fired on every edited field as soon as the playhead moved. There is no
+  merged reading to ask for; that detector is gone rather than left firing, and a
+  runtime that genuinely refuses an override already says so in `tune.set`'s own
+  answer. `sampled: true` rides the change and reaches the agent as `from
+(runtime value at frame N, animated in code; change the landing value, not the
+frame)`.
+
+  Nothing the schema declares is dropped in silence. `fontWeight: 800` (a number
+  against 4.0.520's enum of strings) and `letterSpacing: "-0.03em"` (a unit
+  string against a number) used to vanish with nothing on screen to say so.
+  `readingOf` now answers for every value: the enum case coerces and stays
+  editable, the unit string keeps a read-only row, a `text-content` built from
+  parts says so, and anything else keeps its row as _value in code_ through a
+  guarded stringify — a circular value throwing there would have cost not its row
+  but the whole selection. Only a key the runtime holds no value for is still
+  dropped, or a text element on 4.0.520 would draw eight rows reading
+  `undefined`. `TYPOGRAPHY` matches bare `fontSize`/`fontWeight`/… as well as
+  `style.`-prefixed paths, which is how every agent-written video writes them.
+
+  Text is a field where the runtime has one and a request where it does not. On
+  4.0.481 the selection carries the element's own words and the loaded families,
+  and the pane opens a **Text** section labelled _sent to Claude, not previewed_
+  that rides `tuningChanges` as `{path: "children"}`; it exists only while the
+  innermost target declares no live `children` field. A stored selection chip now
+  carries `window`, `text` and `fonts`, so a reopened chip keeps its time strip
+  and its faces.
+
+  The environment checklist warns below Remotion 4.0.513 and never upgrades
+  silently. The row reads what is _installed_ — `node_modules/remotion`'s own
+  version, with the declared range only as the fallback — so `^4.0.481` resolved
+  to 4.0.520 is not accused, and a range that cannot be read stays `ok` rather
+  than being guessed at. _Upgrade Remotion_ runs `pmOf`'s manager with
+  `name@4.0.520`, in the manifest the row read rather than the lockfile's
+  directory: for a workspace member those differ, adding at the root would write
+  the pin somewhere the row never looks, and `yarn add` at a workspace root
+  refuses outright. `warn` does not lock the composer and no longer claims the
+  project is broken — the card reads _This project has one thing worth fixing_
+  until something has actually failed.
+
+  **The template pin does not move in this wave.** The six packages stay on
+  4.0.481 until the gate in the running app is run against the prepared 4.0.520
+  copy of the videos project: the preview compiles, a click opens a pane with a
+  Typography group, dragging `style.fontSize` changes pixels, typing in Text
+  changes the frame, and a snapshot still stays byte-identical to `npx remotion
+still` on the same frame from the same copy. The mechanism is complete and
+  pressable; moving the pin on a packed-source reading rather than a running
+  Player would ship every new project onto a Remotion this studio has never
+  previewed.
+
+- 6effc7d: The left pane reads the way it is meant to.
+
+  - Clicking a video opens its most recent chat, as the design always said it
+    did. The row only expanded, so a video could sit expanded and highlighted
+    while an unrelated chat drove the preview, the conventions and Export. The
+    chevron beside it now has its own hit area and expands alone.
+  - An inactive chat title was fainter than its own timestamp and failed WCAG AA
+    in both themes — a fade applied to a token that was already a fade. The
+    active row carries the emphasis instead.
+  - The Components pane's sticky role heading sat under the tiles, so its text
+    collided with tile labels while scrolling. It is above them now.
+  - A saved stock photo is named `ocean — Magda Ehlers` rather than a truncated
+    sentence of Pexels alt text, which made every card read `Dynamic wa…`.
+
+- 76f5b1d: Make the permission gate absolute in Accept edits and Plan. Claude Code's own
+  classifier approved a tool call before `canUseTool` was ever consulted, so a Bash
+  command in either mode ran with no Allow/Deny card — measured: `ls src/videos`
+  produced a tool row and nothing else. A `PreToolUse` hook now runs the same review
+  ahead of that classifier and routes the calls that want a card into the existing
+  gate. `auto` is unchanged, where the classifier deciding first is the trade that
+  mode is. A stream chunk the webview cannot decode is also no longer dropped in
+  silence — that is what made this impossible to diagnose from the logs.
+
+  Say why a turn did not run in the mode it was given, and stop the Mode chip
+  claiming one it did not. Haiku 4.5 does not offer Auto — Claude Code downgrades
+  it to `default` and only the notice said so, in words that read as a fault in the
+  studio. The notice now names the model, the chip reports the mode the turn will
+  really run in, and the menu's Auto row carries the reason it cannot be picked.
+  The session keeps the mode that was chosen, so a model with Auto brings it back.
+
+- f8d87be: Dragging the chat/preview divider to the window edge no longer strands the
+  preview. The panel collapsing inside react-resizable-panels was a different
+  state from the app's own "preview hidden", and the header renders the way back
+  off the latter — so one drag took the preview along with the toggle, Inspect,
+  Snapshot and Export, in a layout the studio then persisted across launches. A
+  collapse the panel reports now folds into the one flag, so the existing "Show
+  the preview" button is there, and a layout already stored collapsed heals on
+  the next launch.
+- baf5416: The preview pane comes back, and says things in words.
+
+  - After a sidecar crash the pane showed the bare word `cancelled` and stayed
+    dead until someone found the unlabelled Restart button. It now comes back on
+    its own when the sidecar does, and the gap is worded.
+  - A failed Snapshot printed the renderer's raw error — a wall of percent-encoded
+    URL, clipped where it ran off the pane, ending in Remotion's advice to buy more
+    disk. It now names the asset that would not load, and nothing can overflow the
+    pane again.
+  - The Inspect box no longer stays painted on the frame after Cancel: it belongs
+    to the properties pane, not to the mode, so disarming still keeps it while the
+    pane is open.
+  - An element chip is named the way the properties pane names it — the component
+    the person saw, not the wrapped function behind it.
+
+- 5d81098: The properties pane picks up the rest of dialkit's controls. A pair of numbers
+  that is really a place on the frame — an offset, a transform origin, a UV
+  coordinate — is one pad now instead of two sliders, with its Y the way up a pad
+  has it rather than the way down CSS writes it. A picture is a field at last:
+  Remotion's `asset` type was not in the pane's list at all, so an element made of
+  an image opened with the image missing and nothing saying why; it is a picker
+  over the project's own `public/` now, and changing it changes the preview. The
+  three numbers of a `spring()` are drawn as one response above them rather than
+  three unrelated dials, and the conventions ask the agent to name them so. And
+  the pane's sections fold, remembered between elements, because an element on a
+  real video opens with eight of them.
+- fea3077: Use Remocn Studio as the application and release display name. Add the publisher, video category, descriptions, project links, and MIT license metadata, and include the license in the application bundle. Preserve the existing bundle identifier and deep-link scheme for compatibility with installed apps, stored credentials, and sign-in callbacks.
+- ce91687: New projects scaffold on Remotion 4.0.520, so their text and type are editable.
+
+  Below 4.0.513 `Interactive.js` builds an element's schema from `baseSchema +
+transformSchema` alone — origin, translate, scale, rotate, opacity, hidden. There
+  is no string field type, so no primitive anywhere can carry a font size, a weight
+  or a colour, and no amount of work in the pane could have added one. That is why
+  clicking a line of text in a real 4.0.481 video opened a pane with a Text row that
+  could only be sent to the agent and nothing typographic beside it.
+
+  The six pins in `templates/remotion/package.json` move together, and
+  `sidecar/scaffold/template.test.ts` now asserts a floor of 4.0.513 next to the
+  existing one-version rule. The template's title becomes an `Interactive.H1`
+  carrying `name` and a matching `data-design-id`, the shape the conventions ask of
+  every agent-written text run; `RisingText` takes that name as a prop rather than
+  borrowing the one its `<Sequence>` already had. The text tags exist on 4.0.481
+  too, so that part typechecks on both versions — what 4.0.520 adds is the schema
+  behind them.
+
+  What was measured before moving, against a real 4.0.520 installed in a scratch
+  copy of the videos project: `textSchema` and `textContentSchema` are spread onto
+  every text tag; the controls object still carries exactly the four fields
+  `SequenceControls` declares, so `asControls` needed none of the optional fields it
+  was expected to grow; every override seam the runtime drives is present; and
+  `SUPPORTED` covers every field type 4.0.520 emits except `remotion-captions`,
+  which has no control behind it. The video template typechecks against those types
+  with a `tsc` run whose `node_modules` is that copy's.
+
+  What was not measured is the running app: that `controls` is non-null on an
+  `Interactive.Div`, that a `style.fontSize` drag moves pixels, that typing in
+  `Text` moves the frame, and that a snapshot still stays byte-identical to
+  `npx remotion still` from the same copy. The pin moved on the owner's call rather
+  than on that gate, and existing projects are untouched — moving one is still the
+  Upgrade button in the environment checklist, never silent.
+
+  A `text-content` field never takes its schema default. Remotion answers
+  `undefined` for `children` when the runtime value is not a string — a component
+  that split its line into word spans, which is what `WordPush` and every
+  staggered-text component in the corpus does — and that `undefined` _is_ the
+  signal. `textContentSchema` declares `default: ''`, so defaulting it turned the
+  signal into an empty string, which is a perfectly good `text-content` value: the
+  pane drew an editable, empty Text box over a line whose text it could never
+  write. It now reads _Text is built from parts — ask in words_, read-only, as it
+  was meant to. The test that covered this passed either way, because its fixture
+  declared the field with no `default` at all where the real schema has one.
+
+- fea3077: Use a static capture of the studio's violet shader as the macOS DMG background, with a matching window size and positioned application and Applications icons.
+- 4c1f55c: macOS builds are now signed with a Developer ID and notarized by Apple, so
+  the app opens on first install without the "developer cannot be verified"
+  dialog and the right-click workaround. The bundled bun runtime keeps the
+  five hardened-runtime entitlements it ships with, so the sidecar starts
+  under the new signature exactly as before, and the `.dmg` itself carries a
+  notarization ticket as well as the app inside it.
+- 7f1b929: Guide video generation through motion examples from all five remocn templates, with source-based adaptation and comparison of the resulting choreography.
+- fea3077: Replace the application icon with Violet shader artwork and add a matching light version. The running macOS Dock icon follows the Studio theme, including changes from the System setting. Packaged icons use the dark version by default.
+- b68eabf: Upgrade from the app. Settings › Account shows the plan as one surface — on a
+  trial, a bar of how much is spent between its two dates — and, below it, the
+  same Free and Pro cards the account page draws, with a Yearly / Monthly
+  toggle. Pro's button asks the account server for a checkout and opens it in
+  the browser; the trial card's Upgrade and the tooltip Inspect and Snapshot
+  carry on Free lead there. While the page is open the app asks the
+  server every five seconds, for ten minutes, then offers Check again; the
+  purchase ends on one line, _Subscription active_, with the plan already Pro
+  and no relaunch. A declined card's _Update card_ opens the billing portal.
+
+  Settings is a page now, not a dialog: it takes the window, with the rail on
+  the left and one readable column on the right, while the preview and any
+  running turn stay exactly where they were underneath. Escape is the way back.
+
+  Appearance gains a Title bar group: the band's shader can be turned off, or kept and
+  held still, with a sample of the field beside the switches.
+
+- fea3077: Show video design findings as visible review cards with improvements, cautions,
+  observations and coverage status. Keep technical tool failures separate, extract
+  useful diagnostic lines, shorten activity labels and consolidate consecutive
+  identical failed attempts while retaining their logs. Fix the generated registry
+  wrapper type and upgrade unchanged copies from earlier versions.
+- 9d5a15a: Snapshot and the design check work again on a video that uses footage. The warm
+  render page was told `proxyPort: 0`, so `OffthreadVideo` fetched every frame
+  from `http://localhost:0/proxy?…` — a port Chrome refuses outright — and the
+  capture hung until it failed with Remotion's guess about low disk space. The
+  session now starts the same offthread-video proxy `renderStill` prepares and
+  gives the page its real port, closing it with the session. The page also gets a
+  source map at last, so the browser's own log lines stop throwing on the way out.
+
 ## 0.7.0
 
 ### Minor Changes
