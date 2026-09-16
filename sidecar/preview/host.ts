@@ -27,6 +27,7 @@ import {
   compiled as buildCompiled,
   started as buildStarted,
   pinnable,
+  recovering,
   troubleIn,
 } from "./build-state";
 import { BUNDLE_FLAGS } from "./bundling";
@@ -443,13 +444,15 @@ function watch(
           return;
         }
 
-        Effect.runSync(
-          Ref.update(build, (state) => buildCompiled(state, { ok: true }))
+        const previous = Effect.runSync(
+          Ref.getAndUpdate(build, (state) => buildCompiled(state, { ok: true }))
         );
 
         if (ready) {
           notifyRebuilt();
-          return;
+          if (!recovering(previous)) {
+            return;
+          }
         }
 
         ready = true;

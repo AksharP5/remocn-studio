@@ -26,3 +26,7 @@ export function troubleIn(state: BuildState): string | null {
 
   return outcome === null || outcome.ok ? null : outcome.message;
 }
+
+export function recovering(state: BuildState): boolean {
+  return state.settled !== null && !state.settled.ok;
+}

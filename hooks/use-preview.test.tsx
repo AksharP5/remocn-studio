@@ -197,6 +197,27 @@ describe("usePreview", () => {
     });
   });
 
+  it("plays again once a broken rebuild is fixed", async () => {
+    const { host, rendered } = await served();
+
+    host.send({ message: "Unexpected token", type: "failed" });
+    host.send({ percent: 0, type: "building" });
+    host.send({ percent: 100, type: "building" });
+
+    expect(rendered.result.current.preview).toEqual({
+      percent: 100,
+      phase: "building",
+    });
+
+    host.send({ type: "ready", url: URL });
+
+    expect(rendered.result.current.preview).toEqual({
+      phase: "ready",
+      url: URL,
+    });
+    expect(rendered.result.current.isServing).toBe(true);
+  });
+
   // Killing the sidecar failed the preview's long-lived request and nothing
   // brought it back: every other pane healed itself, and the one that costs
   // seven seconds to rebuild sat dead behind an unlabelled Restart button.

@@ -1,279 +1,511 @@
-// A copy of the landing's composition, synced by hand until it is published to
-// the remocn registry. The original: remocn-studio-landing/remotion/welcome-early-member/index.tsx
-// (its components under components/remocn/, the glyph in components/landing/logo.tsx).
+// Synced from remocn-studio-landing/remotion/welcome-early-member/index.tsx.
+// Keep the composition and its remocn components in sync with the landing.
 
-import { loadFont as loadSans } from "@remotion/google-fonts/DMSans";
-import { loadFont as loadMono } from "@remotion/google-fonts/GeistMono";
 import { loadFont as loadHeading } from "@remotion/google-fonts/Manrope";
-import type { ReactNode } from "react";
-import { AbsoluteFill, interpolate, Sequence, useCurrentFrame } from "remotion";
+import type { CSSProperties, ReactNode } from "react";
+import {
+  AbsoluteFill,
+  Easing,
+  interpolate,
+  Sequence,
+  spring,
+  useCurrentFrame,
+  useVideoConfig,
+} from "remotion";
 import { GLYPH } from "./logo";
 import { Backdrop } from "./components/remocn/backdrop";
-import { Confetti } from "./components/remocn/confetti";
+import { KineticCenterBuild } from "./components/remocn/kinetic-center-build";
 import { NumberWheel } from "./components/remocn/number-wheel";
-import { ShaderNeuroNoise } from "./components/remocn/shader-neuro-noise";
-import { SoftBlurIn } from "./components/remocn/soft-blur-in";
+import { PerCharacterRise } from "./components/remocn/per-character-rise";
+import { StaggeredFadeUp } from "./components/remocn/staggered-fade-up";
 import {
-  daysWaited,
   firstWordOf,
   formatJoined,
   type WelcomeEarlyMemberProps,
 } from "./schema";
 
-// The site's own fonts, so the video and the page around it are the same
-// typeface rather than two that nearly match. Only the weights and the subset
-// this composition actually sets — the default pulls every variant, which is
-// dozens of requests the renderer waits on.
-const { fontFamily: heading } = loadHeading("normal", {
-  weights: ["600"],
-  subsets: ["latin"],
-});
-const { fontFamily: sans } = loadSans("normal", {
-  weights: ["400"],
-  subsets: ["latin"],
-});
-const { fontFamily: mono } = loadMono("normal", {
-  weights: ["400"],
-  subsets: ["latin"],
+const { fontFamily, waitUntilDone } = loadHeading("normal", {
+  weights: ["400", "500", "600", "700", "800"],
+  subsets: ["latin", "cyrillic"],
 });
 
-/**
- * The palette is `/welcome`'s, down to the shader: `NeuroBackground` on the
- * site runs the same three colours, so the video reads as part of the page.
- */
+const headingReady = waitUntilDone();
+
 const colors = {
-  background: "#0c0e14",
-  foreground: "#fafdfd",
-  muted: "#a2b0b3",
-  accent: "#e879f9",
-  shaderFront: "#f0abfc",
-  shaderMid: "#86198f",
+  paper: "#f2efe8",
+  ink: "#262329",
+  muted: "#79737c",
+  accent: "#893c91",
+  lilac: "#e2cde7",
 };
+const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
+const ease = { ...clamp, easing: Easing.bezier(0.22, 1, 0.36, 1) };
 
-export const welcomeEarlyMemberDuration = 300;
+export const welcomeEarlyMemberDuration = 570;
 
-/** Enter and leave on opacity, so scenes hand over instead of cutting. */
-function Fade({
-  durationInFrames,
-  enter = 12,
-  exit = 12,
+function Wordmark() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "baseline",
+        fontSize: 30,
+        fontWeight: 600,
+      }}
+    >
+      <svg
+        aria-hidden="true"
+        fill="none"
+        style={{ height: "1em", width: "auto" }}
+        viewBox="0 0 124.06 134.26"
+      >
+        <path d={GLYPH} fill="currentColor" />
+      </svg>
+      <span style={{ marginLeft: "0.04em" }}>emocn Studio</span>
+    </div>
+  );
+}
+
+function Scene({
   children,
+  duration,
+  last = false,
 }: {
-  durationInFrames: number;
-  enter?: number;
-  exit?: number;
   children: ReactNode;
+  duration: number;
+  last?: boolean;
 }) {
   const frame = useCurrentFrame();
-  const clamp = {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  } as const;
-  // Two ramps rather than one four-stop range: the last scene ends on the last
-  // frame and asks for no exit, which would collapse that range's final stops.
-  const opacity =
-    interpolate(frame, [0, enter], [0, 1], clamp) *
-    (exit > 0
-      ? interpolate(
-          frame,
-          [durationInFrames - exit, durationInFrames],
-          [1, 0],
-          clamp,
-        )
-      : 1);
-  return <AbsoluteFill style={{ opacity }}>{children}</AbsoluteFill>;
-}
-
-function EarlyMemberScene({
-  memberNumber,
-  joinedAt,
-  launchedAt,
-}: Pick<WelcomeEarlyMemberProps, "memberNumber" | "joinedAt" | "launchedAt">) {
-  const waited = daysWaited(joinedAt, launchedAt);
-
   return (
     <AbsoluteFill
       style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 28,
+        opacity: last
+          ? 1
+          : interpolate(frame, [duration - 12, duration], [1, 0], clamp),
+        translate: `0 ${last ? 0 : interpolate(frame, [duration - 12, duration], [0, -24], ease)}px`,
       }}
     >
-      <span
-        style={{
-          fontFamily: mono,
-          fontSize: 28,
-          letterSpacing: "0.18em",
-          textTransform: "uppercase",
-          color: colors.accent,
-        }}
-      >
-        Early member
-      </span>
-      {/* The wheel centres itself in whatever box it is given, so it gets one
-          of a fixed height rather than a place in the column. */}
-      <div style={{ position: "relative", width: "100%", height: 200 }}>
-        <NumberWheel
-          from={0}
-          to={memberNumber}
-          prefix="#"
-          fontSize={168}
-          color={colors.foreground}
-          speed={1.6}
-        />
-      </div>
-      <span
-        style={{
-          fontFamily: sans,
-          fontSize: 30,
-          color: colors.muted,
-        }}
-      >
-        joined {formatJoined(joinedAt)}
-        {waited > 0 && ` · ${waited} days before launch`}
-      </span>
+      {children}
     </AbsoluteFill>
   );
 }
 
-/** The wordmark, drawn from the site's own glyph rather than a second copy. */
-function Outro() {
+function TextArea({
+  children,
+  top,
+  height,
+  left = 100,
+  right = 100,
+}: {
+  children: ReactNode;
+  top: number;
+  height: number;
+  left?: number;
+  right?: number;
+}) {
   return (
-    <AbsoluteFill
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 24,
-      }}
-    >
+    <div style={{ position: "absolute", top, height, left, right }}>
+      {children}
+    </div>
+  );
+}
+
+function Intro({ name }: { name: string }) {
+  const frame = useCurrentFrame();
+  const firstName = firstWordOf(name);
+  const nameSize = Math.min(
+    210,
+    1400 / Math.max(5, Array.from(firstName).length * 0.72),
+  );
+  return (
+    <Scene duration={125}>
+      <TextArea top={290} height={110}>
+        <KineticCenterBuild
+          fontFamily={fontFamily}
+          fontLoadPromise={headingReady}
+          text="This one's for you."
+          fontSize={76}
+          fontWeight={500}
+          color={colors.ink}
+        />
+      </TextArea>
+      <Sequence from={24} layout="none">
+        <TextArea top={420} height={270}>
+          <PerCharacterRise
+            text={`${firstName}.`}
+            distance={80}
+            fontSize={nameSize}
+            fontWeight={700}
+            color={colors.accent}
+          />
+        </TextArea>
+      </Sequence>
       <div
         style={{
-          display: "flex",
-          alignItems: "baseline",
-          fontFamily: heading,
-          fontSize: 64,
-          fontWeight: 600,
-          letterSpacing: "-0.02em",
-          color: colors.foreground,
+          position: "absolute",
+          left: 760,
+          right: 760,
+          top: 735,
+          height: 4,
+          background: colors.accent,
+          transformOrigin: "left",
+          scale: `${interpolate(frame, [48, 76], [0, 1], ease)} 1`,
         }}
-      >
-        <svg
-          aria-hidden="true"
-          fill="none"
-          style={{ height: "1em", width: "auto" }}
-          viewBox="0 0 124.06 134.26"
-        >
-          <path d={GLYPH} fill="currentColor" />
-        </svg>
-        <span style={{ marginLeft: "0.04em" }}>emocn Studio</span>
-      </div>
-      <span
-        style={{
-          fontFamily: mono,
-          fontSize: 26,
-          letterSpacing: "0.08em",
-          color: colors.muted,
-        }}
-      >
-        remocn.studio
-      </span>
-    </AbsoluteFill>
+      />
+      <TextArea top={805} height={55}>
+        <Sequence from={48} layout="none">
+          <StaggeredFadeUp
+            text="A little thank-you, made just for you."
+            fontSize={34}
+            fontWeight={400}
+            color={colors.muted}
+          />
+        </Sequence>
+      </TextArea>
+    </Scene>
   );
 }
 
-export function WelcomeEarlyMember({
-  name,
+function Belief() {
+  const frame = useCurrentFrame();
+  return (
+    <Scene duration={135}>
+      <TextArea top={275} height={180}>
+        <KineticCenterBuild
+          fontFamily={fontFamily}
+          fontLoadPromise={headingReady}
+          text="You believed in us."
+          fontSize={126}
+          fontWeight={700}
+          color={colors.ink}
+          entryOffset={150}
+        />
+      </TextArea>
+      <Sequence from={28} layout="none">
+        <TextArea top={470} height={170}>
+          <PerCharacterRise
+            text="Before the beginning."
+            fontSize={112}
+            fontWeight={600}
+            color={colors.accent}
+            distance={64}
+          />
+        </TextArea>
+      </Sequence>
+      <div
+        style={{
+          position: "absolute",
+          left: 500,
+          right: 500,
+          top: 750,
+          height: 2,
+          background: "#d5cfd5",
+        }}
+      >
+        <div
+          style={{
+            height: "100%",
+            background: colors.accent,
+            transformOrigin: "left",
+            scale: `${interpolate(frame, [45, 92], [0, 1], ease)} 1`,
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: -9,
+            left: 0,
+            width: 20,
+            height: 20,
+            borderRadius: "50%",
+            background: colors.accent,
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: -9,
+            right: 0,
+            width: 20,
+            height: 20,
+            borderRadius: "50%",
+            background: colors.accent,
+            scale: interpolate(frame, [85, 96], [0, 1], ease),
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: 32,
+            left: 0,
+            fontSize: 28,
+            color: colors.muted,
+          }}
+        >
+          An idea
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            top: 32,
+            right: 0,
+            fontSize: 28,
+            color: colors.muted,
+          }}
+        >
+          A new beginning
+        </div>
+      </div>
+    </Scene>
+  );
+}
+
+function Member({
   memberNumber,
   joinedAt,
-  launchedAt,
-}: WelcomeEarlyMemberProps) {
+}: Pick<WelcomeEarlyMemberProps, "memberNumber" | "joinedAt">) {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const arrive = spring({
+    frame,
+    fps,
+    config: { damping: 22, stiffness: 100 },
+  });
+  return (
+    <Scene duration={145}>
+      <div
+        style={{
+          position: "absolute",
+          left: 145,
+          top: 235,
+          width: 650,
+          height: 610,
+          background: colors.lilac,
+          border: "2px solid #d6bddc",
+          borderRadius: 24,
+          rotate: `${interpolate(arrive, [0, 1], [-9, -3])}deg`,
+          translate: `0 ${interpolate(arrive, [0, 1], [150, 0])}px`,
+          opacity: interpolate(frame, [0, 12], [0, 1], clamp),
+          boxShadow: "0 24px 45px #26232912",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: 52,
+            left: 50,
+            fontSize: 34,
+            fontWeight: 500,
+          }}
+        >
+          Here from the start.
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            top: 154,
+            left: 30,
+            right: 30,
+            height: 235,
+          }}
+        >
+          <NumberWheel
+            from={0}
+            to={memberNumber}
+            prefix="#"
+            fontSize={Math.min(176, 740 / (String(memberNumber).length + 1))}
+            speed={1.7}
+            color={colors.ink}
+          />
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            top: 440,
+            left: 0,
+            right: 0,
+            borderTop: "2px dashed #b59cbd",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            bottom: 48,
+            left: 50,
+            fontSize: 28,
+            color: "#65516c",
+          }}
+        >
+          Early member · {formatJoined(joinedAt)}
+        </div>
+      </div>
+      <div style={{ position: "absolute", top: 305, left: 920, right: 130 }}>
+        <div style={{ fontSize: 90, fontWeight: 700, lineHeight: 1.15 }}>
+          Your support
+          <br />
+          means a lot.
+        </div>
+        <div style={{ position: "relative", height: 75, marginTop: 48 }}>
+          <Sequence from={26} layout="none">
+            <StaggeredFadeUp
+              align="left"
+              text="You gave us a reason"
+              fontSize={43}
+              fontWeight={400}
+              color={colors.muted}
+            />
+          </Sequence>
+        </div>
+        <div style={{ position: "relative", height: 65 }}>
+          <Sequence from={42} layout="none">
+            <StaggeredFadeUp
+              align="left"
+              text="to keep building."
+              fontSize={43}
+              fontWeight={400}
+              color={colors.muted}
+            />
+          </Sequence>
+        </div>
+      </div>
+    </Scene>
+  );
+}
+
+function Thanks() {
+  const frame = useCurrentFrame();
+  return (
+    <Scene duration={165} last>
+      <TextArea top={260} height={230}>
+        <PerCharacterRise
+          text="Thank you."
+          fontSize={208}
+          fontWeight={700}
+          color={colors.accent}
+          distance={90}
+        />
+      </TextArea>
+      <Sequence from={22} layout="none">
+        <TextArea top={535} height={80}>
+          <StaggeredFadeUp
+            text="For your trust. For being here early."
+            fontSize={48}
+            fontWeight={400}
+            color={colors.ink}
+            staggerDelay={5}
+          />
+        </TextArea>
+      </Sequence>
+      <div
+        style={{
+          position: "absolute",
+          left: 400,
+          right: 400,
+          top: 715,
+          textAlign: "center",
+          opacity: interpolate(frame, [70, 90], [0, 1], ease),
+          translate: `0 ${interpolate(frame, [70, 90], [20, 0], ease)}px`,
+        }}
+      >
+        <span
+          style={{
+            display: "inline-block",
+            padding: "24px 42px",
+            borderRadius: 60,
+            background: colors.lilac,
+            fontSize: 38,
+            fontWeight: 500,
+          }}
+        >
+          Now, let's make something great.
+        </span>
+      </div>
+    </Scene>
+  );
+}
+
+export function WelcomeEarlyMember(props: WelcomeEarlyMemberProps) {
+  const frame = useCurrentFrame();
   return (
     <Backdrop
-      fill={
-        <ShaderNeuroNoise
-          speed={0.5}
-          colorFront={colors.shaderFront}
-          colorMid={colors.shaderMid}
-          colorBack={colors.background}
-          brightness={0.08}
-          contrast={0.3}
-        />
-      }
+      fill={{ type: "color", value: colors.paper }}
       padding={0}
       radius={0}
       shadow=""
     >
-      {/* The same wash the page puts over its own shader, plus a pool of dark
-          in the middle: the filaments are bright enough to read as noise
-          through type, and every scene puts its type in the same place. */}
       <AbsoluteFill
-        style={{
-          background: `linear-gradient(to bottom, ${colors.background}b3, ${colors.background}66 45%, ${colors.background})`,
-        }}
-      />
-      <AbsoluteFill
-        style={{
-          background: `radial-gradient(60% 46% at 50% 50%, ${colors.background}d9, transparent)`,
-        }}
-      />
-
-      <Sequence from={15} durationInFrames={115}>
-        <Fade durationInFrames={115}>
-          <AbsoluteFill style={{ fontFamily: heading }}>
-            <SoftBlurIn
-              text={`Thank you, ${firstWordOf(name)}`}
-              blur={14}
-              fontSize={104}
-              fontWeight={600}
-              color={colors.foreground}
+        style={
+          {
+            fontFamily,
+            color: colors.ink,
+            "--font-geist-sans": fontFamily,
+          } as CSSProperties
+        }
+      >
+        <div style={{ position: "absolute", top: 64, left: 80 }}>
+          <Wordmark />
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            top: 68,
+            right: 80,
+            fontSize: 27,
+            color: colors.muted,
+          }}
+        >
+          A note to our early members
+        </div>
+        <Sequence durationInFrames={125}>
+          <Intro name={props.name} />
+        </Sequence>
+        <Sequence from={125} durationInFrames={135}>
+          <Belief />
+        </Sequence>
+        <Sequence from={260} durationInFrames={145}>
+          <Member memberNumber={props.memberNumber} joinedAt={props.joinedAt} />
+        </Sequence>
+        <Sequence from={405} durationInFrames={165}>
+          <Thanks />
+        </Sequence>
+        <div
+          style={{
+            position: "absolute",
+            bottom: 60,
+            left: 80,
+            fontSize: 26,
+            color: colors.muted,
+          }}
+        >
+          Made with Remocn. Made possible by you.
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            bottom: 72,
+            right: 80,
+            display: "flex",
+            gap: 12,
+          }}
+        >
+          {[0, 125, 260, 405].map((start, index, starts) => (
+            <div
+              key={start}
+              style={{
+                width: 44,
+                height: 4,
+                borderRadius: 2,
+                background: colors.ink,
+                opacity:
+                  frame >= start &&
+                  frame < (starts[index + 1] ?? welcomeEarlyMemberDuration)
+                    ? 0.75
+                    : 0.15,
+              }}
             />
-          </AbsoluteFill>
-        </Fade>
-      </Sequence>
-
-      <Sequence from={125} durationInFrames={130}>
-        <Fade durationInFrames={130}>
-          <EarlyMemberScene
-            memberNumber={memberNumber}
-            joinedAt={joinedAt}
-            launchedAt={launchedAt}
-          />
-        </Fade>
-      </Sequence>
-
-      {/* Fires on the frame the wheel settles on: at speed 1.6 the count
-          finishes 65 frames into a 130-frame scene that starts at 125. */}
-      <Sequence from={190} durationInFrames={110}>
-        <Confetti
-          startFrame={0}
-          lifetime={90}
-          particleCount={90}
-          size={11}
-          // Launched from under the frame rather than from the number: a
-          // radial burst spends its first few frames as a clump, and a clump
-          // on the centre is exactly the thing nobody should have to read
-          // through.
-          originY={0.95}
-          power={24}
-          colors={[
-            colors.accent,
-            colors.shaderFront,
-            colors.shaderMid,
-            colors.foreground,
-          ]}
-          seed={7}
-        />
-      </Sequence>
-
-      <Sequence from={245} durationInFrames={55}>
-        <Fade durationInFrames={55} exit={0}>
-          <Outro />
-        </Fade>
-      </Sequence>
+          ))}
+        </div>
+      </AbsoluteFill>
     </Backdrop>
   );
 }
