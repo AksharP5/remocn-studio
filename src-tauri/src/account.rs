@@ -80,7 +80,6 @@ pub struct PortalLink {
 #[serde(rename_all = "camelCase", tag = "status")]
 pub enum SignInPoll {
     Denied,
-    DeviceLimit { devices: Value, message: String },
     Expired,
     Pending,
     SignedIn,
@@ -241,10 +240,6 @@ pub async fn account_sign_in_poll(
         Some("slow_down") => SignInPoll::SlowDown,
         Some("expired_token") => SignInPoll::Expired,
         Some("access_denied") => SignInPoll::Denied,
-        Some("device_limit") => SignInPoll::DeviceLimit {
-            devices: body["devices"].clone(),
-            message: said(&body, status),
-        },
         _ => return Err(failure(FailureKind::Server, said(&body, status))),
     };
 

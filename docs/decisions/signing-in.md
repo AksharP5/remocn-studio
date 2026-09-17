@@ -50,6 +50,9 @@ polls until the person confirms there.
   card therefore shows the devices with their last-seen times, opens `/account` to sign
   one out, and *Try again* starts a fresh grant. Revoking from inside the card needs a
   backend endpoint that accepts something other than a session (REM-341 follow-up).
+  *History as of 2026-09-16*: the limit itself was removed by the `remove-device-limit`
+  change — the server no longer refuses the grant for the count, the card is gone, and
+  the follow-up is moot; the paragraph stays as the record of why the card was shaped so.
 - **The plan is read from the entitlement document, and only from it.**
   `shared/entitlement.ts` is the contract with the landing's `buildEntitlement` +
   `signEntitlement`: `{ payload, signature, algorithm }`, the payload base64 of the

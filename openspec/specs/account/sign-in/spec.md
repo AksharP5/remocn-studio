@@ -84,7 +84,7 @@ The studio SHALL wait before every poll, starting with the interval the server a
 
 ### Requirement: Every way a sign-in ends is said in words
 
-A sign-in that does not succeed SHALL end with a sentence rather than silence. A code the person did not confirm in time SHALL read as the code having expired, with an invitation to try again. A sign-in declined on the confirmation page SHALL read as declined. A failure to reach the server during polling SHALL end the attempt with the failure's own message.
+A sign-in that does not succeed SHALL end with a sentence rather than silence. A code the person did not confirm in time SHALL read as the code having expired, with an invitation to try again. A sign-in declined on the confirmation page SHALL read as declined. A failure to reach the server during polling SHALL end the attempt with the failure's own message. A refusal the studio has no wording of its own for SHALL end the attempt with the server's own sentence, and SHALL leave the Sign in button reading *Sign in*. The number of devices already signed in SHALL never be a reason the studio names for a sign-in ending.
 
 #### Scenario: The code expires
 
@@ -101,25 +101,11 @@ A sign-in that does not succeed SHALL end with a sentence rather than silence. A
 - **WHEN** a poll fails
 - **THEN** the attempt ends, the studio returns to signed out, and the failure's message is shown
 
-### Requirement: The device limit is answered on the account page
+#### Scenario: The server refuses for a reason the studio does not know
 
-When the server refuses the grant because the account already has as many devices as it allows, the studio SHALL show the server's own message together with every device it named and how long ago each was last seen, SHALL offer to open the account page in the browser so one can be signed out there, and SHALL turn its Sign in button into *Try again*. Pressing *Try again* SHALL start a new grant rather than reusing the spent code.
-
-#### Scenario: Hitting the limit
-
-- **WHEN** the server answers the poll with a device limit
-- **THEN** the studio shows the message, the named devices with their last-seen times, and a button that opens the account page
-- **AND** the studio reads as signed out
-
-#### Scenario: Trying again after freeing a device
-
-- **WHEN** the person presses *Try again*
-- **THEN** a fresh device code is requested and its confirmation page is opened
-
-#### Scenario: Revoking is not offered from this card
-
-- **WHEN** the device limit card is on screen
-- **THEN** the studio offers the account page, and does not offer to sign a device out from the card itself
+- **WHEN** the server answers the poll with a refusal that is none of *pending*, *slow down*, *expired* or *declined*
+- **THEN** the attempt ends, the studio returns to signed out, and the server's own sentence is shown as the failure
+- **AND** the Sign in button still reads *Sign in*
 
 ### Requirement: A refused request means this device was signed out
 
@@ -176,12 +162,18 @@ The account server's origin SHALL come from `REMOCN_STUDIO_ACCOUNT_URL`, read fr
 
 ### Requirement: A signed-in studio shows the account and its devices
 
-Signed in, Settings › Account SHALL show the account's name and email, the plan, and the devices signed in with how long ago each was last seen, and SHALL mark the row for this Mac. Every other device's row SHALL offer to sign that device out; this Mac's row SHALL NOT, this device being signed out from the Sign out button on the profile instead. Refresh SHALL re-read the account and the plan. A sign-out of another device SHALL be followed by re-reading the list.
+Signed in, Settings › Account SHALL show the account's name and email, the plan, and the devices signed in with how long ago each was last seen, and SHALL mark the row for this Mac. The Devices panel SHALL say how many are signed in and SHALL NOT name a ceiling, there being none. Every other device's row SHALL offer to sign that device out; this Mac's row SHALL NOT, this device being signed out from the Sign out button on the profile instead. Refresh SHALL re-read the account and the plan. A sign-out of another device SHALL be followed by re-reading the list.
 
 #### Scenario: Reading the account
 
 - **WHEN** the person opens Settings › Account while signed in
 - **THEN** the email, the plan and the device list are shown, with *This Mac* on this device's row
+
+#### Scenario: The count names no ceiling
+
+- **WHEN** three Macs are signed in to the account
+- **THEN** the Devices panel says three are signed in and lists all three
+- **AND** no line reads *of N*
 
 #### Scenario: Signing another device out
 

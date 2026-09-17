@@ -4,7 +4,6 @@ import { Cause, Data, Duration, Effect, Exit } from "effect";
 import { errorMessage } from "@/lib/error-message";
 import {
   ACCOUNT_PAGE_PATH,
-  type AccountDevice,
   type AccountFailure,
   type AccountMe,
   type AccountStatus,
@@ -38,11 +37,6 @@ export class AccountError extends Data.TaggedError("AccountError")<{
 
 export type SignInOutcome =
   | { status: "denied" }
-  | {
-      status: "deviceLimit";
-      devices: readonly AccountDevice[];
-      message: string;
-    }
   | { status: "expired" }
   | { status: "signedIn" };
 
@@ -169,12 +163,6 @@ export function awaitSignIn(
             return step(slowDowns);
           case "slowDown":
             return step(slowDowns + 1);
-          case "deviceLimit":
-            return Effect.succeed<SignInOutcome>({
-              devices: answer.devices,
-              message: answer.message,
-              status: "deviceLimit",
-            });
           default:
             return Effect.succeed<SignInOutcome>({ status: answer.status });
         }

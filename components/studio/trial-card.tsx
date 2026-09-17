@@ -88,7 +88,7 @@ function Body({
           the production pipeline. No card needed; the trial starts when you
           sign in.
         </p>
-        <SignInControls account={account} now={Date.now()} />
+        <SignInControls account={account} />
       </>
     );
   }
