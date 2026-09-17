@@ -1,5 +1,14 @@
 # remocn-studio
 
+## 0.8.2
+
+### Patch Changes
+
+- 05db2d6: The DMG no longer shows the MIT license agreement when it is opened. The LICENSE file still ships inside the app bundle.
+- 1911c8c: A sign-in is no longer refused for the number of Macs already signed in to the account, and the card that listed them is gone. Settings › Account counts the devices signed in without naming a ceiling.
+- 05db2d6: The preview plays again on its own once a compile error is fixed. It used to sit at "Compiling — 100%" until the studio was reloaded.
+- 05db2d6: Update the welcome video opened from the website to the new personalized 19-second thank-you, with a warm background, kinetic text and early-member card. Remove the old shader and confetti from newly created welcome projects.
+
 ## 0.8.1
 
 ### Patch Changes
