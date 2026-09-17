@@ -202,7 +202,7 @@ jobs:
           # into the `.app`.
           NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           REMOCN_STUDIO_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          REMOCN_STUDIO_ACCOUNT_URL: https://remocn.studio
+          REMOCN_STUDIO_ACCOUNT_URL: https://staging.remocn.studio
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
