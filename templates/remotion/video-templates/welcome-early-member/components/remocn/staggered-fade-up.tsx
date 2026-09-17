@@ -1,10 +1,12 @@
 "use client";
 
-import { Easing, interpolate, useCurrentFrame } from "remotion";
+import { interpolate, useCurrentFrame } from "remotion";
 
-export interface SoftBlurInProps {
+export interface StaggeredFadeUpProps {
   text: string;
-  blur?: number;
+  align?: "left" | "center";
+  staggerDelay?: number;
+  distance?: number;
   fontSize?: number;
   color?: string;
   fontWeight?: number;
@@ -12,21 +14,20 @@ export interface SoftBlurInProps {
   className?: string;
 }
 
-export function SoftBlurIn({
+export function StaggeredFadeUp({
   text,
-  blur = 12,
+  align = "center",
+  staggerDelay = 4,
+  distance = 20,
   fontSize = 72,
   color = "#171717",
   fontWeight = 600,
   speed = 1,
   className,
-}: SoftBlurInProps) {
+}: StaggeredFadeUpProps) {
   const frame = useCurrentFrame() * speed;
 
-  const chars = Array.from(text);
-  const charDurationFrames = 27;
-  const charTravelFrames = 9;
-  const staggerFrames = 1;
+  const words = text.split(" ");
 
   return (
     <div
@@ -35,7 +36,7 @@ export function SoftBlurIn({
         inset: 0,
         display: "flex",
         alignItems: "center",
-        justifyContent: "center",
+        justifyContent: align === "left" ? "flex-start" : "center",
         background: "transparent",
       }}
     >
@@ -45,44 +46,32 @@ export function SoftBlurIn({
           fontSize,
           fontWeight,
           color,
-          letterSpacing: "-0.05em",
+          letterSpacing: "-0.03em",
           fontFamily:
             "var(--font-geist-sans), -apple-system, BlinkMacSystemFont, sans-serif",
         }}
       >
-        {chars.map((char, i) => {
-          const local = frame - i * staggerFrames;
-          const easing = Easing.bezier(0.22, 1, 0.36, 1);
-          const opacity = interpolate(local, [0, charDurationFrames], [0, 1], {
+        {words.map((word, i) => {
+          const local = frame - i * staggerDelay;
+          const opacity = interpolate(local, [0, 12], [0, 1], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
-            easing,
           });
-          const y = interpolate(local, [0, charTravelFrames], [16, 0], {
+          const y = interpolate(local, [0, 12], [distance, 0], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
-            easing,
           });
-          const blurAmount = interpolate(
-            local,
-            [0, charDurationFrames],
-            [blur, 0],
-            { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing },
-          );
           return (
             <span
               key={i}
               style={{
                 display: "inline-block",
-                whiteSpace: "pre",
-                backfaceVisibility: "hidden",
-                transformOrigin: "50% 55%",
+                marginRight: "0.25em",
                 opacity,
                 translate: `0 ${y}px`,
-                filter: `blur(${blurAmount}px)`,
               }}
             >
-              {char}
+              {word}
             </span>
           );
         })}

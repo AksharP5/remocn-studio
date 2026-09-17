@@ -91,28 +91,18 @@ describe("awaitSignIn", () => {
     });
   });
 
-  it("carries the devices back when the limit is hit", () => {
-    const devices = [
-      {
-        id: "ses_1",
-        lastSeenAt: "2026-09-06T09:00:00.000Z",
-        name: "MacBook Pro",
-        platform: "macos" as const,
-      },
-    ];
-    expect(
-      scripted([
-        {
-          devices,
-          message: "Signed in on 2 devices already.",
-          status: "deviceLimit",
-        },
-      ]).run()
-    ).toEqual({
-      devices,
-      message: "Signed in on 2 devices already.",
-      status: "deviceLimit",
+  it("fails the flow with the server's own sentence on a refusal it does not know", () => {
+    const refusal = new AccountError({
+      kind: "server",
+      message: "Signed in on 2 devices already. Sign one out to continue.",
     });
+    const exit = Effect.runSyncExit(
+      awaitSignIn(START, Effect.fail(refusal), () => Effect.void)
+    );
+    expect(Exit.isFailure(exit)).toBe(true);
+    if (Exit.isFailure(exit)) {
+      expect(Cause.squash(exit.cause)).toBe(refusal);
+    }
   });
 
   it("fails the flow when a poll fails", () => {

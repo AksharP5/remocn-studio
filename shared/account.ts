@@ -43,21 +43,12 @@ export const SignInStart = Schema.Struct({
 
 export type SignInStart = (typeof SignInStart)["Type"];
 
-export const DeviceLimit = Schema.Struct({
-  devices: Schema.Array(AccountDevice),
-  message: Schema.String,
-  status: Schema.Literal("deviceLimit"),
-});
-
-export type DeviceLimit = (typeof DeviceLimit)["Type"];
-
 export const SignInPoll = Schema.Union([
   Schema.Struct({ status: Schema.Literal("pending") }),
   Schema.Struct({ status: Schema.Literal("slowDown") }),
   Schema.Struct({ status: Schema.Literal("signedIn") }),
   Schema.Struct({ status: Schema.Literal("expired") }),
   Schema.Struct({ status: Schema.Literal("denied") }),
-  DeviceLimit,
 ]);
 
 export type SignInPoll = (typeof SignInPoll)["Type"];

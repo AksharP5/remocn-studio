@@ -42,6 +42,8 @@ const SIDECAR_READY = {
   pid: 1234,
 };
 
+const CEILING = /\bof \d/;
+
 const ME = {
   devices: [
     {
@@ -92,6 +94,7 @@ const TRIAL_OVER = signed({
 
 interface Studio {
   checkouts?: string[];
+  devices?: (typeof ME)["devices"];
   document?: ReturnType<typeof signed>;
   settings?: [string, string][];
   signedIn: boolean;
@@ -122,7 +125,7 @@ function mockStudio(studio: Studio) {
         return { origin: ORIGIN, signedIn: studio.signedIn };
       }
       if (cmd === "account_me") {
-        return ME;
+        return { ...ME, devices: studio.devices ?? ME.devices };
       }
       if (cmd === "account_entitlement") {
         return studio.document ?? TRIAL;
@@ -317,6 +320,38 @@ describe("Settings › Account", () => {
     expect(screen.getAllByRole("button", { name: "Sign in" })).not.toHaveLength(
       0
     );
+  });
+
+  it("counts the devices signed in without naming a ceiling", async () => {
+    const studio: Studio = {
+      devices: [
+        ...ME.devices,
+        {
+          id: "ses_mini",
+          lastSeenAt: "2026-09-05T09:00:00.000Z",
+          name: "Mac mini",
+          platform: "macos",
+        },
+        {
+          id: "ses_studio",
+          lastSeenAt: "2026-09-04T09:00:00.000Z",
+          name: "Mac Studio",
+          platform: "macos",
+        },
+      ],
+      signedIn: true,
+      written: [],
+    };
+    mockStudio(studio);
+    await renderShell();
+    await openAccount();
+
+    const dialog = await screen.findByRole("region", { name: "Settings" });
+    expect(await within(dialog).findByText("3 signed in")).toBeVisible();
+    expect(within(dialog).getByText("MacBook Pro")).toBeVisible();
+    expect(within(dialog).getByText("Mac mini")).toBeVisible();
+    expect(within(dialog).getByText("Mac Studio")).toBeVisible();
+    expect(within(dialog).queryByText(CEILING)).toBeNull();
   });
 
   it("shows the email, the plan and the devices when signed in", async () => {

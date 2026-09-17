@@ -6,7 +6,7 @@ import type { MouseEvent } from "react";
 import { useAccount } from "@/hooks/use-account";
 import type { EntitlementCache } from "@/lib/studio/entitlement";
 import { signedBy, testPublicKey } from "@/lib/studio/entitlement.fixture";
-import type { SignInPoll } from "@/shared/account";
+import type { AccountFailure, SignInPoll } from "@/shared/account";
 import type { SignedEntitlement } from "@/shared/entitlement";
 
 const opened: string[] = [];
@@ -83,7 +83,7 @@ interface Core {
   document?: Record<string, unknown>;
   hasSubscription?: boolean;
   offline?: boolean;
-  polls: SignInPoll[];
+  polls: (SignInPoll | { failure: AccountFailure })[];
   signedIn: boolean;
 }
 
@@ -121,6 +121,9 @@ function mockCore(core: Core) {
         };
       case "account_sign_in_poll": {
         const answer = core.polls.shift() ?? { status: "pending" };
+        if ("failure" in answer) {
+          return Promise.reject(answer.failure);
+        }
         if (answer.status === "signedIn") {
           core.signedIn = true;
         }
@@ -311,14 +314,16 @@ describe("useAccount", () => {
     await waitFor(() => expect(result.current.error).toMatch(EXPIRED));
   });
 
-  it("keeps the devices when the limit is hit, so the person can pick", async () => {
+  it("words a refusal it does not know with the server's own sentence", async () => {
     const core: Core = {
       calls: [],
       polls: [
         {
-          devices: ME.devices,
-          message: "Signed in on 2 devices already.",
-          status: "deviceLimit",
+          failure: {
+            kind: "server",
+            message:
+              "Signed in on 2 devices already. Sign one out to continue.",
+          },
         },
       ],
       signedIn: false,
@@ -332,7 +337,9 @@ describe("useAccount", () => {
     await release();
 
     await waitFor(() =>
-      expect(result.current.deviceLimit?.devices).toHaveLength(2)
+      expect(result.current.error).toBe(
+        "Signed in on 2 devices already. Sign one out to continue."
+      )
     );
     expect(result.current.phase.kind).toBe("signedOut");
   });

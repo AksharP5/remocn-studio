@@ -32,7 +32,6 @@ import { SignInControls } from "./sign-in-controls";
 import { useStudio } from "./studio-provider";
 
 const CORE_PENDING = "Waiting for the Tauri core";
-const DEVICE_LIMIT = 2;
 const TRIAL_MS = TRIAL_DAYS * 24 * 60 * 60 * 1000;
 
 export function AccountSection() {
@@ -51,7 +50,7 @@ export function AccountSection() {
           Inspect, Snapshot, the skills bundle and the production pipeline
           &mdash; or to use a Pro subscription on this Mac. No card needed.
         </p>
-        <SignInControls account={account} now={now} />
+        <SignInControls account={account} />
         <AccountError message={account.error} />
       </SettingsPanel>
     );
@@ -249,7 +248,7 @@ function Devices({
       description={
         me === null
           ? "Which copies of the studio are signed in"
-          : `${me.devices.length} of ${DEVICE_LIMIT} signed in`
+          : `${me.devices.length} signed in`
       }
       title="Devices"
     >

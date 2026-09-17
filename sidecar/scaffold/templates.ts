@@ -27,11 +27,10 @@ interface TemplateSpec {
 // The pins the copied composition needs beyond what the project template
 // already installs. `@remotion/google-fonts` takes the template's own
 // `remotion` version, because Remotion refuses a mix of versions across its
-// packages; the shader library is the exact release the landing resolved.
+// packages.
 export const TEMPLATE_SPECS: Record<ProjectTemplate, TemplateSpec> = {
   "welcome-early-member": {
     dependencies: (remotionVersion) => ({
-      "@paper-design/shaders-react": "0.0.80",
       "@remotion/google-fonts": remotionVersion,
     }),
     folder: "welcome-early-member",

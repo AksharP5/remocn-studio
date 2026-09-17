@@ -44,7 +44,6 @@
     "longDescription": "Remocn Studio is a desktop app for creating videos with your coding agent. Describe a video, direct changes in a live preview, and export an MP4. Every video is a standard Remotion project stored on your device, with source code you can edit and keep.",
     "copyright": "Copyright (c) 2026 Remocn",
     "license": "MIT",
-    "licenseFile": "../LICENSE",
     "macOS": {
       "entitlements": "Entitlements.plist",
       "dmg": {

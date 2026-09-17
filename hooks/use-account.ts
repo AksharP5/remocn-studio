@@ -1,6 +1,6 @@
 "use client";
 
-import { type Duration, Effect, Exit, Fiber } from "effect";
+import { absurd, type Duration, Effect, Exit, Fiber } from "effect";
 import type { MouseEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { causeMessage } from "@/lib/error-message";
@@ -34,7 +34,7 @@ import {
   REFRESH_EVERY,
   readEntitlement,
 } from "@/lib/studio/entitlement";
-import type { AccountDevice, AccountMe, BillingPeriod } from "@/shared/account";
+import type { AccountMe, BillingPeriod } from "@/shared/account";
 import {
   type AccountPlan,
   type EntitlementDocument,
@@ -54,11 +54,6 @@ export type AccountPhase =
   | { kind: "signingIn"; userCode: string; verificationUri: string }
   | { kind: "unknown" };
 
-export interface DeviceLimitHit {
-  devices: readonly AccountDevice[];
-  message: string;
-}
-
 // `opening` asks the server for a page; `waiting` has it open in the browser
 // and polls; `timedOut` stopped polling and offers Check again; `active` is
 // the one line the purchase ends on.
@@ -74,7 +69,6 @@ export interface Account {
   cancelSignIn: () => void;
   checkAgain: () => void;
   checkout: CheckoutState | null;
-  deviceLimit: DeviceLimitHit | null;
   dismissCheckout: () => void;
   error: string | null;
   isBusy: boolean;
@@ -118,7 +112,6 @@ export function useAccount({
   const [phase, setPhase] = useState<AccountPhase>(UNKNOWN);
   const [origin, setOrigin] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [deviceLimit, setDeviceLimit] = useState<DeviceLimitHit | null>(null);
   const [isBusy, setBusy] = useState(false);
   const [checkout, setCheckout] = useState<CheckoutState | null>(null);
   const flow = useRef<Fiber.Fiber<unknown, unknown> | null>(null);
@@ -273,13 +266,7 @@ export function useAccount({
             setError(SIGN_IN_DECLINED);
           });
         default:
-          return Effect.sync(() => {
-            setPhase(SIGNED_OUT);
-            setDeviceLimit({
-              devices: outcome.devices,
-              message: outcome.message,
-            });
-          });
+          return absurd(outcome);
       }
     },
     [loadAccount, settle]
@@ -290,7 +277,6 @@ export function useAccount({
       return;
     }
     setError(null);
-    setDeviceLimit(null);
 
     flow.current = Effect.runFork(
       startSignIn.pipe(
@@ -362,7 +348,6 @@ export function useAccount({
         return;
       }
       signedOut(null);
-      setDeviceLimit(null);
     });
   }, [signedOut]);
 
@@ -598,7 +583,6 @@ export function useAccount({
       cancelSignIn: cancel,
       checkAgain,
       checkout,
-      deviceLimit,
       dismissCheckout,
       error,
       isBusy,
@@ -621,7 +605,6 @@ export function useAccount({
       cancel,
       checkAgain,
       checkout,
-      deviceLimit,
       dismissCheckout,
       error,
       isBusy,

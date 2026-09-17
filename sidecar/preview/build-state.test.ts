@@ -3,6 +3,7 @@ import {
   BUILDING,
   compiled,
   pinnable,
+  recovering,
   started,
   troubleIn,
 } from "./build-state";
@@ -56,6 +57,15 @@ describe("the build a render is pinned to", () => {
     );
 
     expect(troubleIn(healed)).toBeNull();
+  });
+
+  it("knows when the compile in flight would heal a failed one", () => {
+    const broken = compiled(BUILDING, { message: "broken", ok: false });
+
+    expect(recovering(BUILDING)).toBe(false);
+    expect(recovering(compiled(BUILDING, OK))).toBe(false);
+    expect(recovering(broken)).toBe(true);
+    expect(recovering(started(broken))).toBe(true);
   });
 
   it("hands the same state back when nothing moved", () => {

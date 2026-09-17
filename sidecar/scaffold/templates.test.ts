@@ -69,10 +69,10 @@ describe("the welcome template", () => {
     );
     expect(remocn.toSorted(byName)).toEqual([
       "backdrop.tsx",
-      "confetti.tsx",
+      "kinetic-center-build.tsx",
       "number-wheel.tsx",
-      "shader-neuro-noise.tsx",
-      "soft-blur-in.tsx",
+      "per-character-rise.tsx",
+      "staggered-fade-up.tsx",
     ]);
   });
 
@@ -125,7 +125,9 @@ describe("the welcome template", () => {
     expect(manifest.dependencies["@remotion/google-fonts"]).toBe(
       manifest.dependencies.remotion
     );
-    expect(manifest.dependencies["@paper-design/shaders-react"]).toBe("0.0.80");
+    expect(
+      manifest.dependencies["@paper-design/shaders-react"]
+    ).toBeUndefined();
     expect(manifest.dependencies.zod).toBeDefined();
   });
 
