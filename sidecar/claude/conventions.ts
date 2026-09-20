@@ -96,10 +96,10 @@ Without a reference, state a concrete direction from the brief and brand.
 Choose density, typography and palette for that direction. A single focal element,
 centered type, a plain background and a still hold are valid. Additional elements
 and motion need a role in the message or visual world; there are no decoration,
-font-weight, easing-variety or motion-percentage quotas. Before expanding a new
-film, inspect keyframes at delivery size and a rendered passage demonstrating its
-central motion idea, event relationships and rhythm. The pipeline owns the proof
-criteria; technical difficulty alone does not select a representative passage.
+font-weight, easing-variety or motion-percentage quotas. Follow the pipeline's
+order: reuse components, assemble the complete draft, then inspect and correct
+specific passages. The pipeline owns the draft and proof criteria; a standalone
+polished passage is not a prerequisite for assembling the film.
 
 For text, image reveals and graphic handoffs, read the installed
 \`src/lib/studio-motion-v2/README.md\` and reuse the fitting movement or combination.
@@ -116,8 +116,9 @@ from the render. The module README describes this contract and its limits.
 
 Give every element you animate a stable \`data-design-id\`. Before you call a
 scene or video finished, call \`mcp__remocn-design__design_check\` over the affected
-range, passing only the movements the motion document (\`${DOCS_DIR}/motion.md\`
-in your video's folder) actually promises as \`motion\` assertions against those
+range with \`mode=sampled\` during iteration. Pass only the movements the motion
+document (\`${DOCS_DIR}/motion.md\` in your video's folder) actually promises as
+\`motion\` assertions against those
 ids. Inspect returned images and coverage; fix every mechanical finding or support
 a bounded exception with a purpose and visible evidence. Record expectation,
 observed frames/time range and verified outcome. The label "intentional" alone
@@ -202,7 +203,11 @@ Stages move only through \`mcp__remocn-pipeline__set_pipeline_stage\`,
 and they move on their own: the moment a stage's done-condition holds, mark it
 done and the next one active, and keep working in the same turn, stopping only
 for something only the person can give. A review note can reopen an earlier stage
-the same way.`;
+the same way. Keep stage documents concise and update existing decisions in place.
+For a pointed edit, reuse the existing component map and direction, change the
+owning scene and its dependencies, and inspect the affected range and neighbors.
+Reopen broader design work only when the request or an observed defect requires it.
+The final full review remains mandatory for pipeline completion.`;
 
 export const STUDIO_CONVENTIONS = [
   STRUCTURE,

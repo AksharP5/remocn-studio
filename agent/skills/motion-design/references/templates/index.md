@@ -4,6 +4,9 @@ Use the whole remocn template catalog as a library of authored motion. Select by
 the viewer's task and the relationship between states. The brief, supplied
 references and brand determine the film; a template supplies a worked example.
 Catalog coverage means all templates are available, not all appear in each video.
+Use the index to shortlist candidates and stop source inspection once each planned
+shot has a suitable implementation. Inspect new candidates only for a remaining
+capability gap; an exhaustive source survey is not part of building a film.
 
 ## Find the relevant study
 
@@ -84,7 +87,8 @@ transforms, masks and camera motion. Give the main action a visible interval;
 captions and outer movement should support its focus. A transition can finish
 before an inner reveal or move with it when their combined movement stays clear.
 
-Use the existing proof and review loop. Compare the adaptation with the selected
+After the complete draft is assembled, use its proof and local correction loop.
+Compare the adaptation with the selected
 passage for hierarchy, intermediate poses, speed changes, attention handoff and
 time to understand the result. Record expected → observed → correction or a
 supported difference. A template name, copied curve or successful technical check

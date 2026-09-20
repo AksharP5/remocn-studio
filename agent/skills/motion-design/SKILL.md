@@ -42,9 +42,11 @@ product demonstration, graphic brand film, dimensional scene or footage edit.
 These are branches, not ingredients to combine automatically.
 
 Before selecting choreography for a new film or a change of direction, read the
-[template motion examples](references/templates/index.md). Consider the full
-catalog, then inspect only the studies and actual source passages relevant to
-this video's tasks. Use them to make concrete motion choices under the brief
+[template motion examples](references/templates/index.md). Use the catalog index
+to shortlist candidates, then inspect only relevant APIs and source passages.
+Prefer installed templates, components and supplied motion primitives; stop
+searching once the shots have suitable implementations. Record a concrete
+capability gap when custom code is needed. Use these choices under the brief
 and primary reference. Record the chosen passage, what its choreography must
 preserve and what the new content changes; a pointed technical fix needs only
 its relevant guide.
@@ -54,12 +56,17 @@ footage, fonts and dimensional materials. A physical device or glass object need
 an asset or rendering method that can carry its lighting and geometry. Choose a
 coherent simpler staging when the available material cannot support the shot.
 
-## Prove the composition before expanding
+## Assemble the draft, then inspect and correct
 
-Inspect keyframes for the starting state, central action/transformation and result
-at delivery aspect ratio and realistic viewing size. For a shorter piece, inspect
-its distinct states. Fix weak framing, competing emphasis, unreadable content and
-missing assets before building the full timeline.
+Map each scripted shot to a reusable implementation with actual copy, assets and
+derived timing. Assemble the full editable timeline and make it compile at the
+target duration before polishing individual passages. Keep the chosen direction
+stable; the Studio pipeline owns artifact paths, stages and completion criteria.
+
+From the complete draft, inspect keyframes for the starting state, central
+action/transformation and result at delivery aspect ratio and realistic viewing
+size. Record weak framing, competing emphasis or unreadable content as concrete
+findings, naming the owning scene and affected range.
 
 One focal element can carry a frame. Choose font weight, size, palette and density
 from the direction; plain backgrounds, centered type, gradients and still images
@@ -67,15 +74,17 @@ are available choices. Every addition should help the message, hierarchy or visu
 world. Element counts, decorative opacity and motion percentages are not quality
 criteria. Inspect actual encoding when fine detail or subtle color matters.
 
-Build a short rendered proof that demonstrates the film's central motion idea,
+Render a short proof from the draft that demonstrates the film's central motion idea,
 relationship between events and rhythm. Choose its range for those decisions:
 case → next case → overview, phrase → replacement, or the relevant footage sequence.
 An isolated reveal proves only that reveal. Include a difficult gesture when the
 direction depends on it. Use the actual copy and assets. Inspect playback through
 the result at normal speed when available; otherwise inspect consecutive frames
-and state what remains unverified. Record what worked and what needs correction
-before expanding. The Studio pipeline owns artifact paths and stages;
-continue autonomously when the brief resolves the direction.
+and state what remains unverified. Record expectation, observation and needed
+correction. Make one focused polish pass through these findings, rechecking changed
+passages and dependent neighbors. Continue only for unresolved findings or user
+feedback; preserve unaffected scenes and settled choices. In Studio, use sampled
+checks during iteration and the pipeline's full check for final Review.
 
 ## Choreograph events and attention
 

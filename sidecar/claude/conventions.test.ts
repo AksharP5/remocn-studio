@@ -324,3 +324,54 @@ describe("the choreography stage", () => {
     }
   });
 });
+
+describe("draft-first production instructions", () => {
+  it("delivers reuse, a complete draft and local correction in the active briefs", () => {
+    const motion = pipelineBrief(
+      [{ stage: "motion", status: "active" }],
+      "intro"
+    );
+    const build =
+      pipelineBrief([{ stage: "build", status: "active" }], "intro") ?? "";
+
+    expect(motion).toContain("mcp__remocn-library__list_assets");
+    expect(motion).toContain("shot-to-component map");
+    expect(motion).toContain(
+      "Stop searching when each shot has a suitable implementation"
+    );
+    const draft = build.indexOf("Complete draft.");
+    const inspect = build.indexOf("Inspect the draft.");
+    const correct = build.indexOf("Local corrections.");
+    expect(draft).toBeGreaterThanOrEqual(0);
+    expect(inspect).toBeGreaterThan(draft);
+    expect(correct).toBeGreaterThan(inspect);
+    expect(build).toContain("src/videos/intro/assets/keyframes/");
+    expect(build).toContain("src/videos/intro/assets/proof/");
+    expect(build).toContain("dependent neighbors");
+  });
+
+  it("keeps iteration sampled while preserving the full review gate", () => {
+    for (const stage of ["build", "choreography"] as const) {
+      expect(pipelineBrief([{ stage, status: "active" }])).toContain(
+        "mode=sampled"
+      );
+    }
+    const review = pipelineBrief([{ stage: "review", status: "active" }]);
+    expect(review).toContain("mode=full");
+    expect(review).toContain("reviewReportId");
+    expect(review).toContain(
+      "changed sources or settings require a new full check"
+    );
+  });
+
+  it("preserves draft-first order with or without bundled skills", () => {
+    for (const hasSkills of [true, false]) {
+      const text = conventionsFor(hasSkills).replaceAll("\n", " ");
+      expect(text).toContain("reuse components, assemble the complete draft");
+      expect(text).toContain(
+        "For a pointed edit, reuse the existing component map"
+      );
+      expect(text).not.toContain("Before expanding a new film");
+    }
+  });
+});

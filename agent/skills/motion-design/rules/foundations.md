@@ -39,10 +39,12 @@ inspect the final passage. If the target duration cannot contain the message and
 its movement, shorten or regroup content, improve its layout, or reallocate time.
 A reading estimate is a planning aid, not a measurement of comprehension.
 
-Run `design_check` in full mode. It discovers event boundaries from rendered v2
-contracts and compares targets with their promised intervals. Inspect the returned
+During draft corrections, use `design_check` in sampled mode on the changed
+passage and dependent neighbors. Reserve full mode for final pipeline Review,
+after local findings are closed. The full check discovers event boundaries from
+rendered v2 contracts and compares targets with their promised intervals. Inspect
 transition frames and the moving result against the chosen direction. Fix measured
-defects and review missing contracts, unvisited frames and stale reports; the
-pipeline revalidates the report when completing review. This verifies bounded
-mechanics, not creative success. Canvas/footage and unusual visual effects still
-need review of their actual pixels.
+defects and review missing contracts, unvisited frames and stale reports; source
+changes require a fresh full report, revalidated when completing Review. This
+verifies bounded mechanics, not creative success. Canvas/footage and unusual visual
+effects still need review of their actual pixels.
