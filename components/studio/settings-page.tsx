@@ -242,7 +242,7 @@ function SectionRail({
       <div className="mb-3" data-tauri-drag-region>
         <Button
           aria-label="Back"
-          className="text-foreground"
+          className="w-full justify-start text-foreground"
           onClick={onBack}
           size="sm"
           variant="ghost"

@@ -1,6 +1,6 @@
 "use client";
 
-import { PanelLeftOpenIcon, PanelRightOpenIcon } from "lucide-react";
+import { PanelLeftOpenIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -49,7 +49,7 @@ import { MarkdownProvider } from "./markdown";
 import { NewProjectWizard } from "./new-project-wizard";
 import { NewVideoWizard } from "./new-video-wizard";
 import { AboveComposer, NoticeCard } from "./notice-card";
-import { Pane, PaneActions, PaneBody, PaneHeader, PaneTitle } from "./pane";
+import { Pane, PaneBody, PaneHeader, PaneTitle } from "./pane";
 import { PermissionCard } from "./permission-card";
 import { QueueDock } from "./queue-dock";
 import { SoundPrompt } from "./sound-prompt";
@@ -84,7 +84,6 @@ export function ChatPane() {
     relocateProject,
     reloadProjects,
     settings,
-    togglePreview,
     toggleProjects,
     turn,
   } = useStudio();
@@ -102,7 +101,12 @@ export function ChatPane() {
         )}
         data-tauri-drag-region
       >
-        <div className="flex min-w-0 items-center gap-1">
+        <div
+          className={cn(
+            "flex min-w-0 items-center gap-1",
+            !isPreviewShown && "pr-28"
+          )}
+        >
           <div
             className={cn(
               "flex shrink-0 items-center overflow-hidden transition-[width,margin,opacity,scale] duration-250 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none",
@@ -133,26 +137,6 @@ export function ChatPane() {
           </div>
           <PaneTitle>{titleOf(openedProject, activeSession)}</PaneTitle>
         </div>
-        {isPreviewShown ? null : (
-          <PaneActions>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    aria-label="Show the preview"
-                    className="text-muted-foreground"
-                    onClick={togglePreview}
-                    size="icon-sm"
-                    variant="ghost"
-                  />
-                }
-              >
-                <PanelRightOpenIcon />
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Show the preview</TooltipContent>
-            </Tooltip>
-          </PaneActions>
-        )}
       </PaneHeader>
 
       {turn.isLoadingTranscript ? (

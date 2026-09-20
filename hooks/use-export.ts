@@ -33,6 +33,7 @@ import {
   FORMAT_SPECS,
   presetSettings,
   reviewExport,
+  stemFrom,
   stemOf,
   typedName,
 } from "@/shared/export";
@@ -236,9 +237,12 @@ export function useExport({
     setIsOpen(true);
   }, [projectId, unavailable]);
 
-  const rename = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    setStem(typedName(event.currentTarget.value));
-  }, []);
+  const rename = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setStem(stemFrom(typedName(event.currentTarget.value), settings.format));
+    },
+    [settings.format]
+  );
 
   const chooseFolder = useCallback(() => {
     Effect.runFork(

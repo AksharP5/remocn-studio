@@ -1,7 +1,9 @@
 "use client";
+import { PanelRightOpenIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { memo } from "react";
 import { useDefaultLayout } from "react-resizable-panels";
+import { Button } from "@/components/ui/button";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -249,7 +251,7 @@ function ShellLayout({ isBooting }: { isBooting: boolean }) {
 
         <div
           className={cn(
-            "studio-boot-transition my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-xl border border-pane-border bg-background transition-[margin] duration-250 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none",
+            "studio-boot-transition relative my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-xl border border-pane-border bg-background transition-[margin] duration-250 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none",
             isProjectsShown ? "ml-0" : "ml-2"
           )}
         >
@@ -258,8 +260,34 @@ function ShellLayout({ isBooting }: { isBooting: boolean }) {
             isBooting={isBooting}
             isSliding={collapse.isAnimating}
           />
+          <ShowPreviewButton />
         </div>
       </div>
+    </div>
+  );
+}
+
+function ShowPreviewButton() {
+  const { isPreviewShown, togglePreview } = useStudio();
+
+  return (
+    <div
+      aria-hidden={isPreviewShown}
+      className={cn(
+        "studio-boot-transition absolute top-0 right-2 flex h-10 items-center transition-opacity duration-150 ease-out",
+        isPreviewShown ? "pointer-events-none opacity-0" : "opacity-100"
+      )}
+      inert={isPreviewShown}
+    >
+      <Button
+        aria-expanded={isPreviewShown}
+        aria-label="Show the preview"
+        onClick={togglePreview}
+        size="sm"
+      >
+        <PanelRightOpenIcon data-icon="inline-start" />
+        Preview
+      </Button>
     </div>
   );
 }
