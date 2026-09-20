@@ -1,7 +1,11 @@
 import { load } from "@tauri-apps/plugin-store";
-import { Effect } from "effect";
+import { Effect, Semaphore } from "effect";
 import type { LayoutStorage } from "react-resizable-panels";
 import type { NotifyEvent } from "@/lib/studio/attention";
+import {
+  type OnboardingProgress,
+  onboardingProgress,
+} from "@/lib/studio/onboarding";
 import { isPaneView, type PaneView } from "@/lib/studio/pane-view";
 import { crashConsentValue } from "@/shared/crash";
 import {
@@ -13,6 +17,9 @@ import {
 } from "@/shared/export";
 import { type EffortLevel, isEffortLevel } from "@/shared/ipc";
 import type { AgentProvider } from "@/shared/providers";
+
+const ONBOARDING_KEY = "onboarding";
+const onboardingWrites = Semaphore.makeUnsafe(1);
 
 const SETTINGS_FILE = "settings.json";
 const PROJECT_FOLDER_KEY = "projectFolder";
@@ -38,7 +45,6 @@ const PROP_GROUPS_KEY = "collapsedPropGroups";
 const TITLEBAR_SHADER_KEY = "titlebarShader";
 const TITLEBAR_MOTION_KEY = "titlebarMotion";
 const PANE_VIEW_KEY = "paneView";
-const TOURS_SEEN_KEY = "toursSeen";
 const TRIAL_CARDS_KEY = "trialCardsDismissed";
 const LAYOUT_KEY_PREFIX = "layout:";
 
@@ -63,13 +69,13 @@ export interface StudioSettings {
   legacyProjectFolder: string | null;
   notifications: boolean | null;
   notifyEvents: Readonly<Record<NotifyEvent, boolean | null>>;
+  onboarding: OnboardingProgress;
   paneView: PaneView | null;
   previewPane: boolean | null;
   projectsPane: boolean | null;
   taskDock: boolean | null;
   titlebarMotion: boolean | null;
   titlebarShader: boolean | null;
-  toursSeen: readonly string[];
   trialCardsDismissed: readonly string[];
 }
 
@@ -101,13 +107,13 @@ export const hydrateSettings: Effect.Effect<StudioSettings> = openStore.pipe(
         turnEnded: enabledOf(cache.get(NOTIFY_EVENT_KEYS.turnEnded)),
         waiting: enabledOf(cache.get(NOTIFY_EVENT_KEYS.waiting)),
       },
+      onboarding: onboardingProgress(cache.get(ONBOARDING_KEY)),
       paneView: paneViewOf(cache.get(PANE_VIEW_KEY)),
       previewPane: shownOf(cache.get(PREVIEW_PANE_KEY)),
       projectsPane: shownOf(cache.get(PROJECTS_PANE_KEY)),
       taskDock: shownOf(cache.get(TASK_DOCK_KEY)),
       titlebarMotion: enabledOf(cache.get(TITLEBAR_MOTION_KEY)),
       titlebarShader: shownOf(cache.get(TITLEBAR_SHADER_KEY)),
-      toursSeen: idsOf(cache.get(TOURS_SEEN_KEY)),
       trialCardsDismissed: idsOf(cache.get(TRIAL_CARDS_KEY)),
     };
   })
@@ -216,10 +222,19 @@ export function saveCollapsedPropGroups(
   return remember(PROP_GROUPS_KEY, JSON.stringify(groups));
 }
 
-// The tips a person has answered. Replaying them is this list going empty,
-// which is why it is written whole rather than appended to.
-export function saveToursSeen(ids: readonly string[]): Effect.Effect<void> {
-  return remember(TOURS_SEEN_KEY, JSON.stringify(ids));
+export function saveOnboarding(progress: OnboardingProgress) {
+  const value = JSON.stringify(progress);
+  return onboardingWrites.withPermit(
+    openStore.pipe(
+      Effect.flatMap((store) =>
+        Effect.tryPromise(async () => {
+          await store.set(ONBOARDING_KEY, value);
+          await store.save();
+          cache.set(ONBOARDING_KEY, value);
+        })
+      )
+    )
+  );
 }
 
 export function saveTrialCardsDismissed(

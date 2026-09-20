@@ -18,13 +18,13 @@ const SETTINGS: StudioSettings = {
   legacyProjectFolder: null,
   notifications: null,
   notifyEvents: { export: null, sidecar: null, turnEnded: null, waiting: null },
+  onboarding: { chapter: "inspect", dismissed: false },
   paneView: null,
   previewPane: null,
   projectsPane: null,
   taskDock: null,
   titlebarMotion: null,
   titlebarShader: null,
-  toursSeen: [],
   trialCardsDismissed: [],
 };
 

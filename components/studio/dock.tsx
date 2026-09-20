@@ -2,7 +2,6 @@
 
 import { ChevronUpIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import type { TourId } from "@/lib/studio/tours";
 import { cn } from "@/lib/utils";
 
 export function DockStack({ children }: { children: ReactNode }) {
@@ -41,7 +40,6 @@ export function DockSection({
   label,
   onToggle,
   summary,
-  tour,
 }: {
   children: ReactNode;
   count: string;
@@ -50,9 +48,6 @@ export function DockSection({
   label: ReactNode;
   onToggle: () => void;
   summary: string;
-  // The strip is what a tip points at, and only the strip: the drawer above
-  // it is not on screen until someone opens it.
-  tour?: TourId;
 }) {
   return (
     <div>
@@ -70,7 +65,6 @@ export function DockSection({
         aria-expanded={isExpanded}
         aria-label={summary}
         className="flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left text-sm outline-none transition-colors hover:bg-foreground/5 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset active:bg-foreground/10"
-        data-tour={tour}
         onClick={onToggle}
         type="button"
       >

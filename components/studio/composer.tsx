@@ -176,10 +176,7 @@ function ComposerBlock({
 
   return (
     <div className="relative z-10 shrink-0 px-4 pb-4">
-      <div
-        className="relative mx-auto flex w-full max-w-2xl flex-col gap-1"
-        data-tour="composer"
-      >
+      <div className="relative mx-auto flex w-full max-w-2xl flex-col gap-1">
         <MentionPopup mentions={composer.mentions} />
 
         {/* In dark the surface is a tonal fill (`dark:bg-input/30` on the
