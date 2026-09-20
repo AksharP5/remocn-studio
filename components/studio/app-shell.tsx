@@ -24,6 +24,7 @@ import { isStudioBootReady } from "@/lib/studio/splash";
 import { cn } from "@/lib/utils";
 import { ChatPane } from "./chat-pane";
 import { CrashBoundary } from "./crash-boundary";
+import { OnboardingDialog } from "./onboarding-dialog";
 import { PreviewPane } from "./preview-pane";
 import { ProjectsPane } from "./projects-pane";
 import { QuitGuard } from "./quit-guard";
@@ -31,7 +32,6 @@ import { SettingsPage } from "./settings-page";
 import { Splash } from "./splash";
 import { StudioProvider, useStudio } from "./studio-provider";
 import { Titlebar } from "./titlebar";
-import { TourTip } from "./tour-tip";
 
 const SHELL_LAYOUT_ID = "shell";
 
@@ -66,7 +66,7 @@ function StudioBoot() {
             <AnchoredToastProvider>
               <ShellLayout isBooting={isBooting} />
               <SettingsPage />
-              <TourTip />
+              <OnboardingDialog suspended={isBooting} />
               <QuitGuard />
             </AnchoredToastProvider>
           </ToastProvider>

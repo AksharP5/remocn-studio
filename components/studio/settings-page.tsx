@@ -515,7 +515,7 @@ function TitlebarGroup() {
 }
 
 function BehaviorSection() {
-  const { preferences, tours, updates } = useStudio();
+  const { preferences, onboarding, updates } = useStudio();
 
   return (
     <>
@@ -536,21 +536,13 @@ function BehaviorSection() {
             />
           </Row>
 
-          {/* Replaying forgets every "Got it". Nothing appears while this
-              page is open — a tip never competes with something already on
-              screen — so the first one arrives after it is closed. */}
           <Row
-            description="A short pointer the first time a part of the studio becomes usable, one at a time, never twice"
-            title="Tips"
+            description="Short video walkthroughs of Inspect, Snapshot, assets, components, brand and export"
+            title="Explore Studio"
           >
-            <Button
-              disabled={!tours.hasSeenAny}
-              onClick={tours.replay}
-              size="sm"
-              variant="outline"
-            >
+            <Button onClick={onboarding.open} size="sm" variant="outline">
               <LightbulbIcon data-icon="inline-start" />
-              Replay tips
+              Explore Studio
             </Button>
           </Row>
         </div>

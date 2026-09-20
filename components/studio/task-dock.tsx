@@ -110,7 +110,6 @@ function DockShell({
       label={label}
       onToggle={dock.toggle}
       summary={`${name}, ${count} done`}
-      tour="plan"
     >
       {expanded}
     </DockSection>

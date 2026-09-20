@@ -21,6 +21,7 @@ import {
   type NotificationConsent,
   useNotificationConsent,
 } from "@/hooks/use-notification-consent";
+import { type Onboarding, useOnboarding } from "@/hooks/use-onboarding";
 import { type OpenTurn, useOpenTurn } from "@/hooks/use-open-turn";
 import { type Panes, usePanes } from "@/hooks/use-panes";
 import {
@@ -49,14 +50,11 @@ import {
   type Tools,
   useTools,
 } from "@/hooks/use-tools";
-import { type Tours, useTours } from "@/hooks/use-tours";
 import { type TrialCardState, useTrialCard } from "@/hooks/use-trial-card";
 import { type Updates, useUpdates } from "@/hooks/use-updates";
 import { useWorkspace, type Workspace } from "@/hooks/use-workspace";
 import type { VideoFormat } from "@/lib/studio/formats";
 import type { StudioSettings } from "@/lib/studio/settings";
-import { currentTasks } from "@/lib/studio/tasks";
-import type { TourReveal } from "@/lib/studio/tours";
 import type { PlanTier } from "@/shared/entitlement";
 import type { ProjectDraft } from "@/shared/ipc";
 import { PROVIDER_INFO } from "@/shared/providers";
@@ -83,7 +81,7 @@ export type Studio = ClaudeEffort &
     settings: StudioSettings | null;
     settingsView: SettingsView;
     tools: Tools;
-    tours: Tours;
+    onboarding: Onboarding;
     trialCard: TrialCardState;
     turn: OpenTurn;
     updates: Updates;
@@ -388,40 +386,27 @@ function StudioStateProvider({
     showPane,
   });
 
-  // The tips are told what is on screen, not who is on screen: every field is
-  // a state the studio already keeps, so the catalog's conditions stay a pure
-  // function over them.
-  const onReveal = useCallback(
-    (reveal: TourReveal) => {
-      if (reveal === "assets" || reveal === "components") {
-        showPane(reveal);
-      }
-    },
-    [showPane]
-  );
-
-  const tours = useTours({
-    onReveal,
+  const onboarding = useOnboarding({
+    blocked:
+      turn.permission !== null ||
+      turn.source !== null ||
+      environment.isBlocking ||
+      environment.isChecking ||
+      environment.isInstalling ||
+      environment.isInstallingNode ||
+      environment.isUpgrading ||
+      environment.error !== null ||
+      newProject.isOpen ||
+      newVideo.isOpen ||
+      trialCard.card !== null,
+    hasProject:
+      openedId !== null &&
+      !openedMissing &&
+      previewTarget(workspace) !== null &&
+      environment.checks.length > 0,
+    isRunning: workspace.hasRunningTurns,
+    isSettingsOpen: settingsView.isOpen,
     settings,
-    stage: {
-      hasMedia:
-        composer.attachments.items.length > 0 ||
-        composer.media.items.length > 0,
-      hasPlan: currentTasks(turn.entries).length > 0,
-      hasPreviewTools: tools.inspect.canInspect,
-      hasProject: openedId !== null && !openedMissing,
-      isBlocked:
-        turn.permission !== null ||
-        turn.source !== null ||
-        environment.isBlocking ||
-        newProject.isOpen ||
-        newVideo.isOpen ||
-        settingsView.isOpen ||
-        trialCard.card !== null,
-      isPaneShown: panes.isProjectsShown,
-
-      isRunning: workspace.hasRunningTurns,
-    },
   });
 
   const studio = useMemo(
@@ -441,12 +426,12 @@ function StudioStateProvider({
       newProject,
       newVideo,
       notifications,
+      onboarding,
       preferences,
       queue,
       settings,
       settingsView,
       tools,
-      tours,
       trialCard,
       turn,
       updates,
@@ -471,7 +456,7 @@ function StudioStateProvider({
       settings,
       settingsView,
       tools,
-      tours,
+      onboarding,
       trialCard,
       turn,
       updates,

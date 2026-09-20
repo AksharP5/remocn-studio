@@ -148,7 +148,6 @@ function PreviewActions({ isDocs, tools }: { isDocs: boolean; tools: Tools }) {
         aria-disabled={!inspect.canInspect}
         aria-pressed={inspect.isArmed}
         className="aria-disabled:opacity-50"
-        data-tour="preview-tools"
         onClick={inspect.toggle}
         size="sm"
         title={inspect.unavailable ?? "Pick an element to comment on"}
@@ -161,7 +160,6 @@ function PreviewActions({ isDocs, tools }: { isDocs: boolean; tools: Tools }) {
         aria-disabled={!snapshot.canSnapshot}
         aria-pressed={snapshot.isArmed}
         className="aria-disabled:opacity-50"
-        data-tour="snapshot"
         onClick={snapshot.toggle}
         size="sm"
         title={snapshot.unavailable ?? "Capture the frame, or part of it"}
@@ -304,10 +302,7 @@ function ModeSwitch({
   onPick: Docs["onPickMode"];
 }) {
   return (
-    <div
-      className="flex h-8 shrink-0 items-stretch rounded-md bg-input/30 p-0.5 ring-1 ring-border ring-inset sm:h-7"
-      data-tour="preview-mode"
-    >
+    <div className="flex h-8 shrink-0 items-stretch rounded-md bg-input/30 p-0.5 ring-1 ring-border ring-inset sm:h-7">
       {MODES.map(({ icon: Icon, label, mode: value }) => (
         <button
           aria-pressed={mode === value}

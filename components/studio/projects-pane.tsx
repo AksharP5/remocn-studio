@@ -42,7 +42,6 @@ import type { ScaffoldState } from "@/hooks/use-scaffold";
 import type { VideoCommands } from "@/hooks/use-video-menu";
 import { type PaneGroup, paneSections } from "@/lib/studio/groups";
 import { isPaneView, type PaneView } from "@/lib/studio/pane-view";
-import type { TourId } from "@/lib/studio/tours";
 import { cn } from "@/lib/utils";
 import { isMediaAsset } from "@/shared/library";
 import { AccountStatus } from "./account-status";
@@ -58,25 +57,20 @@ import { VideoGroup } from "./video-group";
 
 const PLACEHOLDERS = ["one", "two", "three", "four"];
 
-// `tour` names the tip that points at the row — the videos row is where a
-// chat running in the background is read, and the assets row is the library.
 const VIEW_ITEMS: readonly {
   icon: typeof ComponentIcon;
   label: string;
-  tour?: TourId;
   view: PaneView;
 }[] = [
   {
     icon: ClapperboardIcon,
     label: "Videos",
-    tour: "sessions",
     view: "videos",
   },
-  { icon: LibraryBigIcon, label: "Assets", tour: "assets", view: "assets" },
+  { icon: LibraryBigIcon, label: "Assets", view: "assets" },
   {
     icon: ComponentIcon,
     label: "Components",
-    tour: "components",
     view: "components",
   },
 ];
@@ -335,7 +329,6 @@ function PaneViewMenu({
           <SidebarMenuItem key={item.view}>
             <SidebarMenuButton
               className="relative pl-3 text-sidebar-foreground/70 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground active:bg-sidebar-accent/40 active:text-sidebar-foreground data-active:bg-transparent data-active:font-normal data-active:text-sidebar-foreground"
-              data-tour={item.tour}
               isActive={view === item.view}
               onClick={onSelect}
               value={item.view}

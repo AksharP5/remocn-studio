@@ -62,6 +62,9 @@ function mockStudio(
       if (cmd === "plugin:store|entries") {
         return entries;
       }
+      if (cmd === "plugin:store|save") {
+        return null;
+      }
       if (cmd === "plugin:store|set") {
         const { key, value } = payload as { key: string; value: unknown };
         written.push([key, value]);
@@ -349,5 +352,44 @@ describe("the settings page", () => {
     await waitFor(() => {
       expect(document.documentElement.classList.contains("light")).toBe(true);
     });
+  });
+});
+
+describe("feature overview entry", () => {
+  it("opens from Settings without a project and returns there after closing", async () => {
+    const written: [string, unknown][] = [];
+    mockStudio(written);
+    await renderShell();
+    const splash = document.querySelector("[data-splash]");
+    if (!splash) {
+      throw new Error("No splash");
+    }
+    await waitFor(() =>
+      expect(splash.getAttribute("data-splash")).toBe("leaving")
+    );
+    const finished = new Event("animationend", { bubbles: true });
+    Object.defineProperty(finished, "animationName", { value: "splash-out" });
+    fireEvent(splash, finished);
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Behavior" }));
+    const open = screen.getByRole("button", {
+      name: "Explore Studio",
+    });
+    expect(open).toBeEnabled();
+    fireEvent.click(open);
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByRole("heading", { name: "Explore Studio" })
+    ).toBeInTheDocument();
+    fireEvent.keyDown(dialog, { code: "Escape", key: "Escape" });
+    await waitFor(() =>
+      expect(document.querySelector("[role=dialog]") === null).toBe(true)
+    );
+    expect(
+      screen.getByRole("button", { name: "Explore Studio" })
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(written.some(([key]) => key === "onboarding")).toBe(true)
+    );
   });
 });
