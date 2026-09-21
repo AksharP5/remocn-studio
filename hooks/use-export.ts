@@ -102,6 +102,7 @@ export interface Exporting {
 export interface ExportOptions {
   composition: string | null;
   isServing: boolean;
+  managedPending?: number;
   metadata?: PreviewMetadata | null;
   openedProjectId: string | null;
   pick?: typeof pickFolder;
@@ -115,6 +116,7 @@ const IDLE: ExportState = { phase: "idle" };
 const NO_SIZE: CompositionSize = { height: 0, width: 0 };
 
 export function useExport({
+  managedPending = 0,
   composition,
   isServing,
   metadata = null,
@@ -183,14 +185,17 @@ export function useExport({
 
   const pending = useMemo(() => pendingEdits(selections), [selections]);
 
-  const unavailable = unavailableOf({
-    busyElsewhere: state.phase === "running" && mine === null,
-    composition,
-    isServing,
-    openedProjectId,
-    pending,
-    projectId,
-  });
+  const unavailable =
+    managedPending > 0
+      ? "Finish saving or discard the pending object changes before exporting."
+      : unavailableOf({
+          busyElsewhere: state.phase === "running" && mine === null,
+          composition,
+          isServing,
+          openedProjectId,
+          pending,
+          projectId,
+        });
 
   const review = useMemo(() => reviewExport(settings, size), [settings, size]);
 

@@ -57,7 +57,12 @@ async function install(source: string, root: string): Promise<Registered> {
   // Versioned, owned resources also reach projects opened before this release.
   // copyInto preserves authored copies, so opening a project cannot change its film.
   await Promise.all(
-    ["studio-motion-v1", "studio-motion-v2"].map((version) => {
+    [
+      "studio-motion-v1",
+      "studio-motion-v2",
+      "studio-objects-v1",
+      "studio-objects-v2",
+    ].map((version) => {
       const motion = join("src", "lib", version);
       return copyInto(
         join(source, motion),

@@ -497,7 +497,7 @@ describe("app shell", () => {
 
     fireEvent.click(screen.getByRole("button", { name: PRODUCT_DEMO_ROW }));
 
-    const field = screen.getByRole("textbox", { name: "Message Claude" });
+    const field = screen.getByRole("textbox", { name: "Message" });
     expect((field as HTMLTextAreaElement).value).toContain("[product name]");
     expect(screen.getByText("What should we make?")).toBeVisible();
     expect(

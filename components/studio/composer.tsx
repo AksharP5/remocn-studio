@@ -243,7 +243,7 @@ function ComposerBlock({
 
             <textarea
               {...VERBATIM_INPUT}
-              aria-label="Message Claude"
+              aria-label="Message"
               className="field-sizing-content relative max-h-64 w-full rounded-none border-0 bg-transparent px-[calc(--spacing(3)-1px)] py-[calc(--spacing(3)-1px)] text-base text-transparent caret-foreground shadow-none outline-none [scrollbar-gutter:stable] selection:bg-primary/30 placeholder:text-muted-foreground/72 sm:text-sm"
               data-slot="textarea"
               disabled={isLocked}

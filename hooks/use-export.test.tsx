@@ -301,6 +301,13 @@ describe("the destination the dialog shows", () => {
 });
 
 describe("useExport", () => {
+  it("blocks export until managed edits have been saved or discarded", () => {
+    const { result } = renderHook(() =>
+      useExport({ ...SERVING, managedPending: 1 })
+    );
+    expect(result.current.unavailable).toContain("saving or discard");
+  });
+
   it("refuses to export a preview that is not serving", () => {
     const { result } = renderHook(() =>
       useExport({ ...SERVING, isServing: false })

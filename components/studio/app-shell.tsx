@@ -127,7 +127,9 @@ function ShellPanes({
   // The pane exists while there is something to tune in it. A rail that is
   // usually empty is the thing a properties panel must not be.
   const isPropsShown =
-    isPreviewShown && (tools.inspect.card?.tuning ?? null) !== null;
+    isPreviewShown &&
+    ((tools.inspect.card?.tuning ?? null) !== null ||
+      tools.managed?.isOpen === true);
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: SHELL_LAYOUT_ID,
     onlySaveAfterUserInteractions: true,

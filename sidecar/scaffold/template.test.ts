@@ -64,21 +64,26 @@ describe("the vendored template", () => {
     expect(sized(video, VERTICAL)).toContain("height: 1920");
   });
 
-  it("hands the pane the typography it is meant to edit", async () => {
+  it("declares independent properties and binds existing semantic roots", async () => {
     const video = await readFile(VIDEO_MODULE, "utf8");
-
-    expect(video).toContain('"style.fontWeight"');
-    expect(video).toContain('"style.lineHeight"');
-    expect(video).toContain('"style.letterSpacing"');
-    expect(video).toContain("newItemDefault: 0,");
-  });
-
-  it("exposes its spring's damping rather than nailing it shut", async () => {
-    const video = await readFile(VIDEO_MODULE, "utf8");
-
-    expect(video).toContain("damping: {");
-    expect(video).toContain("config: { damping },");
-    expect(video).toContain("damping = 200,");
+    const data = JSON.parse(
+      await readFile(join(TEMPLATE, VIDEO_TEMPLATE, "studio.json"), "utf8")
+    );
+    expect(video).toContain("<StudioObjects document={document}>");
+    expect(video).toContain("{...object.bind}");
+    expect(data.objects.map((object: { id: string }) => object.id)).toEqual([
+      "backdrop",
+      "heading",
+      "subtitle",
+    ]);
+    expect(data.objects[1].values.fontSize).not.toBe(
+      data.objects[2].values.fontSize
+    );
+    expect(
+      data.definitions[0].fields.some(
+        (field: { id: string }) => field.id === "entryDuration"
+      )
+    ).toBe(true);
   });
 
   it("pins remotion and every @remotion package to one version", async () => {
@@ -212,7 +217,11 @@ describe("expandVideo", () => {
 
     expect(module).toContain("width: 1080");
     expect(module).toContain("height: 1920");
-    expect(module).toContain("Интро");
+    const data = JSON.parse(
+      await readFile(join(written, "studio.json"), "utf8")
+    );
+    expect(data.video).toBe("intro");
+    expect(data.objects[1].values.text).toBe("Интро");
     expect(module).not.toContain("__VIDEO_NAME__");
   });
 

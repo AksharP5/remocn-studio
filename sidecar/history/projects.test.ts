@@ -5,7 +5,11 @@ import { join } from "node:path";
 import { Effect, Exit } from "effect";
 import type { SqlDriver } from "@/sidecar/history/driver";
 import { MIGRATIONS, migrate, prepare } from "@/sidecar/history/migrations";
-import { make, type ProjectStore } from "@/sidecar/history/projects";
+import {
+  make,
+  openStudioProject,
+  type ProjectStore,
+} from "@/sidecar/history/projects";
 import { driverFor } from "@/sidecar/history/sqlite";
 import { make as makeHistory } from "@/sidecar/history/store";
 import { make as makeVideos } from "@/sidecar/history/videos";
@@ -26,6 +30,27 @@ const run = <A, E>(effect: Effect.Effect<A, E>) => Effect.runPromise(effect);
 const temporary = () => mkdtemp(join(tmpdir(), "remocn-project-"));
 
 describe("ProjectStore", () => {
+  it("refuses new external folders but preserves registered legacy Studio projects", async () => {
+    const projects = store();
+    const folder = await temporary();
+    try {
+      await expect(run(openStudioProject(projects, folder))).rejects.toThrow(
+        "External Remotion"
+      );
+      expect(await run(projects.list)).toHaveLength(0);
+      const created = await run(projects.open(folder));
+      expect((await run(openStudioProject(projects, folder))).id).toBe(
+        created.id
+      );
+      await run(projects.rename(created.id, "Studio project"));
+      const anotherRegistry = store();
+      expect((await run(openStudioProject(anotherRegistry, folder))).id).toBe(
+        created.id
+      );
+    } finally {
+      await rm(folder, { force: true, recursive: true });
+    }
+  });
   it("names a project after its folder and finds it again", async () => {
     const projects = store();
 

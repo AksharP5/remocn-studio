@@ -91,7 +91,8 @@ export function PreviewPane({ isBooting = false }: { isBooting?: boolean }) {
               <Stage isBooting={isBooting} preview={preview} stage={stage} />
             )}
 
-            {inspect.card === null && inspect.markers.length === 0 ? null : (
+            {tools.managed?.isOpen ||
+            (inspect.card === null && inspect.markers.length === 0) ? null : (
               <InspectOverlay
                 card={inspect.card}
                 cwd={openedProject?.path ?? null}

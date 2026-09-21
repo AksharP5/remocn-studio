@@ -209,14 +209,33 @@ owning scene and its dependencies, and inspect the affected range and neighbors.
 Reopen broader design work only when the request or an observed defect requires it.
 The final full review remains mandatory for pipeline completion.`;
 
+export const MANAGED_OBJECTS = `New Studio videos use the managed object format. Read src/lib/studio-objects-v2/README.md
+and the video's studio.json before writing its components. Keep scene structure and animation in React.
+Keep editable values and definitions in src/videos/<video-slug>/studio.json (version 1, matching video slug).
+Wrap the video in StudioObjects and use useStudioObject(stableId); spread its bind onto the existing semantic root.
+Import the provider and hook from src/lib/studio-objects-v2. Use its text/number/flag/easing readers for every declared editable value. Split letters remain internal to one object.
+Every independent repeated object has a stable ID and its own values; never use array indices, display text or random render-time IDs.
+Changing a label or reordering a list must preserve IDs. Multiple occurrences of one object intentionally share values.
+All values are explicit; definitions list supported number/text/color/boolean/enum/easing fields with defaults and constraints.
+Give fields useful group names such as Typography, Fill, Layout and Motion, and declare numeric min/max/step/unit where meaningful for the controls. Use human-readable English labels such as "Font size", "Background color", "Entry duration" and "Animate by word", never camelCase variable names as UI labels. Group animation controls under Motion, Entry, Exit or Timing, and preserve stable field IDs when improving labels.
+Expose animation durations and delays in seconds (unit "s"); convert to frames using the actual composition fps in code. Declare curves as type "easing" with four coordinates [x1,y1,x2,y2], X between 0 and 1 and finite Y allowing overshoot. Consume them with Easing.bezier(...object.easing("entryEasing")) so custom handles affect both preview and export. Preserve the current curve when migrating an existing enum: update its definition version, all affected object values, and the consuming code together, and import studio-objects-v2. Do not overwrite an authored studio-objects-v1 runtime. Named enums remain supported but cannot accept custom curves.
+Unsupported asset, rich-text, expression and keyframe controls are not represented as ordinary editable scalars.
+Do not edit the operations history. Existing legacy Studio videos keep their shape until explicitly converted.
+For managed videos this contract takes precedence over the legacy Interactive.withSchema/Interactive text rules below:
+plain semantic DOM roots with object.bind are correct and per-instance edits must not use shared JSX call sites.
+The properties panel saves directly. Keep ordinary property changes independent of chat Add/Send.`;
+
 export const STUDIO_CONVENTIONS = [
   STRUCTURE,
+  MANAGED_OBJECTS,
   CRAFT,
   REFERENCES,
   PRODUCTION,
 ].join("\n\n");
 
-export const FREE_CONVENTIONS = [STRUCTURE, REFERENCES].join("\n\n");
+export const FREE_CONVENTIONS = [STRUCTURE, MANAGED_OBJECTS, REFERENCES].join(
+  "\n\n"
+);
 
 const BUNDLE = `The studio ships its knowledge as a skill bundle named \`${BUNDLE_NAME}\`:
 \`${SHIPPED.join("`, `")}\`. Your runtime has already loaded it into its own skill

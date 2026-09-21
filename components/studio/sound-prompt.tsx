@@ -21,12 +21,11 @@ export function SoundPrompt({ disabled }: { disabled: boolean }) {
     return null;
   }
   return (
-    <div className="shrink-0 px-4 pb-2">
-      <div className="mx-auto flex w-full max-w-2xl flex-col items-start gap-1 px-3">
+    <div className="shrink-0 pb-2">
+      <div className="flex w-full flex-col items-start gap-1">
         <div className="flex flex-wrap gap-2">
           <Button
             aria-label="Generate sound"
-            className="rounded-full"
             disabled={prompt.pending}
             onClick={onSound}
             size="sm"
@@ -38,7 +37,6 @@ export function SoundPrompt({ disabled }: { disabled: boolean }) {
           </Button>
           <Button
             aria-label="Generate music"
-            className="rounded-full"
             disabled={prompt.pending}
             onClick={onMusic}
             size="sm"

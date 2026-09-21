@@ -654,3 +654,23 @@ describe("pickAt over the shapes the corpus really has", () => {
     expect(pickAt(250, 120, stage, true)).toBe(pick("#revealed"));
   });
 });
+
+describe("managed semantic picking", () => {
+  it("selects the object root instead of an animated letter or SVG part", () => {
+    const stage = stageFor(
+      '<div data-studio-object="card" id="card"><span id="letter">H</span></div>'
+    );
+    under(pick("#letter"), pick("#card"), stage);
+    expect(pickAt(10, 10, stage, false)).toBe(pick("#card"));
+    expect(pickAt(10, 10, stage, true)).toBe(pick("#card"));
+  });
+  it("selects the nested object and respects hidden ancestor opacity", () => {
+    const stage = stageFor(
+      '<div data-studio-object="parent" id="parent"><div data-studio-object="child" id="child"><span id="letter">H</span></div></div>'
+    );
+    under(pick("#letter"), pick("#child"), pick("#parent"), stage);
+    expect(pickAt(10, 10, stage, false)).toBe(pick("#child"));
+    pick("#child").setAttribute("style", "opacity:0");
+    expect(pickAt(10, 10, stage, false)).toBe(pick("#parent"));
+  });
+});

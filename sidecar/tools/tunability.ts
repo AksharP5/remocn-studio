@@ -1,3 +1,5 @@
+import { Exit, Schema } from "effect";
+import { StudioDocument } from "@/shared/studio-document";
 import type {
   DesignFinding,
   DesignFindingCode,
@@ -17,7 +19,8 @@ export type TunabilityRule =
   | "inert-easing"
   | "mapped-primitive-name"
   | "plain-text-element"
-  | "raw-export";
+  | "raw-export"
+  | "managed-document";
 
 export interface TunabilityFinding {
   readonly file: string;
@@ -36,6 +39,7 @@ const CODE: Record<TunabilityRule, DesignFindingCode> = {
   "constant-spring": "tunability_constant_spring",
   "controls-not-forwarded": "tunability_controls_not_forwarded",
   "inert-easing": "tunability_inert_easing",
+  "managed-document": "tunability_managed_document",
   "mapped-primitive-name": "tunability_mapped_primitive_name",
   "plain-text-element": "tunability_plain_text_element",
   "raw-export": "tunability_raw_export",
@@ -46,6 +50,7 @@ const SEVERITY: Record<TunabilityRule, DesignSeverity> = {
   "constant-spring": "info",
   "controls-not-forwarded": "error",
   "inert-easing": "info",
+  "managed-document": "error",
   "mapped-primitive-name": "error",
   "plain-text-element": "warning",
   "raw-export": "error",
@@ -59,6 +64,8 @@ const EXPECTED: Record<TunabilityRule, string> = {
   "controls-not-forwarded":
     "a schema component passes its generated `controls` to its own `<Sequence controls={controls}>`",
   "inert-easing": "a curve exists only where it is sampled",
+  "managed-document":
+    "a valid studio.json with independent IDs, explicit values and supported versioned definitions",
   "mapped-primitive-name":
     "a `name` inside a `.map()` carries the index or the content, so it is unique in the frame",
   "plain-text-element":
@@ -75,6 +82,8 @@ const FIX: Record<TunabilityRule, string> = {
     "Accept the generated `controls` prop and pass it to the component's owning `<Sequence controls={controls} outlineRef={outlineRef}>` — without it the preview has no schema to open on.",
   "inert-easing":
     "Is this curve ever sampled with the values you pass? Scope it under an enum variant — `exit: { none: {}, fade: { exitAt, exitFrames, exitEasing } }` — so the pane offers it only when it runs.",
+  "managed-document":
+    "Read src/lib/studio-objects-v1/README.md, repair the document, and preserve object IDs and edit history.",
   "mapped-primitive-name":
     "Give each rendered instance a `name` that is unique in the frame and equals its `data-design-id`: inside a `.map()` the name carries the index or the content.",
   "plain-text-element":
@@ -90,6 +99,8 @@ const MESSAGE: Record<TunabilityRule, string> = {
   "controls-not-forwarded":
     "This component declares a schema and never forwards its `controls`.",
   "inert-easing": "This curve may never be sampled with the values you pass.",
+  "managed-document":
+    "The managed object document is missing or invalid, so its properties cannot be edited.",
   "mapped-primitive-name":
     "Every instance this `.map()` renders carries the same `name`.",
   "plain-text-element":
@@ -97,6 +108,10 @@ const MESSAGE: Record<TunabilityRule, string> = {
   "raw-export":
     "This file exports the unwrapped component beside the wrapped one.",
 };
+
+const MANAGED_BIND = /\{\s*\.\.\.\s*[A-Za-z_$][\w$]*\.bind\s*\}/;
+const MANAGED_USE = /\buseStudioObject\s*\(/;
+const decodeDocument = Schema.decodeUnknownExit(StudioDocument);
 
 const PLAIN_TAGS = new Set([
   "div",
@@ -185,7 +200,44 @@ export function hardcodedEasings(
 export function tunabilityFindings(
   files: readonly TunabilitySource[]
 ): TunabilityFinding[] {
-  return files.flatMap((file) => scan(file.path, file.source));
+  return [
+    ...managedDocumentFindings(files),
+    ...files
+      .filter((file) => file.path !== "studio.json")
+      .flatMap((file) => scan(file.path, file.source)),
+  ];
+}
+
+function managedDocumentFindings(
+  files: readonly TunabilitySource[]
+): TunabilityFinding[] {
+  const file = files.find((item) => item.path === "studio.json");
+  if (!(file || files.some((item) => MANAGED_USE.test(item.source)))) {
+    return [];
+  }
+  let problem = "studio.json is missing.";
+  if (file) {
+    try {
+      const decoded = decodeDocument(JSON.parse(file.source), {
+        onExcessProperty: "error",
+      });
+      if (Exit.isSuccess(decoded)) {
+        return [];
+      }
+      problem =
+        "studio.json has an unsupported schema, duplicate IDs, invalid parents or property values.";
+    } catch {
+      problem = "studio.json is not valid JSON.";
+    }
+  }
+  return [
+    {
+      file: "studio.json",
+      line: 1,
+      rule: "managed-document",
+      snippet: problem,
+    },
+  ];
 }
 
 export function tunabilityDesignFindings(
@@ -443,6 +495,9 @@ function plainTextElements(
   const found: TunabilityFinding[] = [];
 
   for (const tag of tags) {
+    if (MANAGED_USE.test(code) && MANAGED_BIND.test(tag.tag)) {
+      continue;
+    }
     if (!PLAIN_TAGS.has(tag.name)) {
       continue;
     }

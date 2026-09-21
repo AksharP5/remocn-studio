@@ -38,7 +38,7 @@ import { applyCrashConsent, isReporting } from "./crash";
 import { readProjectDocument, videoDocuments } from "./documents";
 import { checksFor } from "./environment";
 import { type FilesError, listFolder, projectFiles } from "./files";
-import { ProjectStore } from "./history/projects";
+import { openStudioProject, ProjectStore } from "./history/projects";
 import { recording } from "./history/recorder";
 import { type HistoryError, HistoryStore } from "./history/store";
 import { VideoStore } from "./history/videos";
@@ -111,6 +111,10 @@ import {
   moveProjectFiles,
   prepareMove,
 } from "./projects/move";
+import {
+  readStudioDocument,
+  writeStudioDocument,
+} from "./projects/studio-document";
 import {
   installDependencies,
   installScaffold,
@@ -757,7 +761,6 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
       Effect.as({ warmed: true }),
       Effect.catch(() => Effect.succeed({ warmed: false }))
     ),
-
   // Two containment checks, not one: the first covers the files the host is
   // about to read, the second the paths it names in its answer. The host only
   // ever produces text — the write is here, where the project's boundary is
@@ -994,9 +997,9 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
     }),
 
   "project.open": ({ params }) =>
-    Effect.flatMap(ProjectStore, (projects) => projects.open(params.path)).pipe(
-      Effect.mapError(unstored)
-    ),
+    Effect.flatMap(ProjectStore, (projects) =>
+      openStudioProject(projects, params.path)
+    ).pipe(Effect.mapError(unstored)),
 
   // The pane never joins a path itself, and never reaches outside the folder
   // it was given: the read resolves symlinks and `..` and refuses anything
@@ -1116,6 +1119,30 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
       protocol: SIDECAR_PROTOCOL,
       uptimeMs: Math.round(process.uptime() * 1000),
     })),
+  "studio.patch": ({ params }) =>
+    Effect.gen(function* () {
+      if (!writesAllowed(params.plan)) {
+        return yield* Effect.fail(
+          new HandlerError({ message: WRITES_ARE_PRO })
+        );
+      }
+      const project = yield* located(params.projectId);
+      return yield* writeStudioDocument(
+        project.path,
+        params.video,
+        params.operation
+      ).pipe(
+        Effect.mapError((error) => new HandlerError({ message: error.message }))
+      );
+    }),
+
+  "studio.read": ({ params }) =>
+    Effect.gen(function* () {
+      const project = yield* located(params.projectId);
+      return yield* readStudioDocument(project.path, params.video).pipe(
+        Effect.mapError((error) => new HandlerError({ message: error.message }))
+      );
+    }),
   "video.brandConfirm": ({ params }) =>
     Effect.gen(function* () {
       const videos = yield* VideoStore;
@@ -1308,7 +1335,10 @@ async function videoSources(
     });
 
     const files = entries.filter(
-      (entry) => entry.isFile() && SOURCE_FILE.test(entry.name)
+      (entry) =>
+        entry.isFile() &&
+        (SOURCE_FILE.test(entry.name) ||
+          (entry.name === "studio.json" && entry.parentPath === root))
     );
 
     return await Promise.all(

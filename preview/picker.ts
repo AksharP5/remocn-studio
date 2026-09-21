@@ -1,3 +1,5 @@
+import { managedRoot } from "./managed-objects";
+
 const CLIMB_LIMIT = 8;
 const OVERLAY_ATTR = "data-remocn-inspect";
 
@@ -301,6 +303,12 @@ export function pickAt(
 
   if (topmost === undefined) {
     return null;
+  }
+  for (const element of under) {
+    const root = managedRoot(element, container);
+    if (root !== null && shown(element, container)) {
+      return root;
+    }
   }
   if (exact) {
     return topmost;

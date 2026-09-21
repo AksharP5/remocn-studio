@@ -41,6 +41,7 @@ import { cn } from "@/lib/utils";
 import type { HistorySession, Project } from "@/shared/ipc";
 import { AssetOfferCard } from "./asset-offer-card";
 import { AssetSourceCard } from "./asset-source-card";
+import { ChatResult } from "./chat-result";
 import { Composer } from "./composer";
 import { DockStack } from "./dock";
 import { EnvironmentChecklist } from "./environment-checklist";
@@ -237,7 +238,9 @@ function Conversation({
     hasTranscript ||
     isListFailed
   );
-  const composerDisabled = !hasProject || missing || environment.isBlocking;
+  const composerDisabled = [!hasProject, missing, environment.isBlocking].some(
+    Boolean
+  );
   const now = useNow(turn.isRunning ? TICK : null);
   const offer = useAssetOffer({
     enabled: offersEnabled,
@@ -263,7 +266,7 @@ function Conversation({
               aria-label={isCreating ? "New video" : "Conversation"}
             >
               <MessageScrollerContent
-                className="mx-auto w-full max-w-2xl gap-3 px-4 py-6"
+                className="mx-auto w-full max-w-2xl gap-3 px-4 py-4"
                 data-selectable
               >
                 <ConversationBody
@@ -280,6 +283,14 @@ function Conversation({
                   projectName={projectName}
                   turn={turn}
                 />
+                {isCreating ? null : (
+                  <>
+                    <ChatResult key={turn.openId} />
+                    <TrialCard />
+                    <AssetOfferCard offer={offer} />
+                    <SoundPrompt disabled={composerDisabled} />
+                  </>
+                )}
               </MessageScrollerContent>
             </MessageScrollerViewport>
             <MessageScrollerButton />
@@ -289,56 +300,54 @@ function Conversation({
 
       {isCreating ? null : (
         <>
-          {missing ? (
-            <AboveComposer>
-              <NoticeCard className="flex-row items-center justify-between gap-3">
-                <p className="min-w-0 break-all text-muted-foreground text-xs">
-                  {cwd} is not on disk anymore.
-                </p>
-                <Button onClick={onLocate} size="sm" variant="outline">
-                  Locate…
-                </Button>
-              </NoticeCard>
-            </AboveComposer>
-          ) : null}
+          <section
+            aria-label="Action required"
+            className="max-h-[min(35%,18rem)] shrink-0 overflow-y-auto"
+          >
+            {turn.permission === null ? null : (
+              <AboveComposer>
+                <PermissionCard
+                  cwd={cwd}
+                  key={turn.permission.id}
+                  onAnswer={turn.answer}
+                  permission={turn.permission}
+                />
+              </AboveComposer>
+            )}
+            {missing ? (
+              <AboveComposer>
+                <NoticeCard className="flex-row items-center justify-between gap-3">
+                  <p className="min-w-0 break-all text-muted-foreground text-xs">
+                    {cwd} is not on disk anymore.
+                  </p>
+                  <Button onClick={onLocate} size="sm" variant="outline">
+                    Locate…
+                  </Button>
+                </NoticeCard>
+              </AboveComposer>
+            ) : null}
 
-          <EnvironmentChecklist environment={environment} />
+            <EnvironmentChecklist environment={environment} />
 
-          <TrialCard />
+            {turn.source === null ? null : (
+              <AboveComposer>
+                <AssetSourceCard
+                  key={turn.source.id}
+                  onAnswer={turn.answerSource}
+                  source={turn.source}
+                />
+              </AboveComposer>
+            )}
 
-          <AssetOfferCard offer={offer} />
-
-          {turn.source === null ? null : (
-            <AboveComposer>
-              <AssetSourceCard
-                key={turn.source.id}
-                onAnswer={turn.answerSource}
-                source={turn.source}
-              />
-            </AboveComposer>
-          )}
-
-          {turn.writes.card === null ? null : (
-            <AboveComposer>
-              <WriteFailureCard
-                failure={turn.writes.card}
-                onAnswer={turn.writes.answer}
-              />
-            </AboveComposer>
-          )}
-
-          {turn.permission === null ? null : (
-            <AboveComposer>
-              <PermissionCard
-                cwd={cwd}
-                key={turn.permission.id}
-                onAnswer={turn.answer}
-                permission={turn.permission}
-              />
-            </AboveComposer>
-          )}
-
-          <SoundPrompt disabled={composerDisabled} />
+            {turn.writes.card === null ? null : (
+              <AboveComposer>
+                <WriteFailureCard
+                  failure={turn.writes.card}
+                  onAnswer={turn.writes.answer}
+                />
+              </AboveComposer>
+            )}
+          </section>
 
           {/* Both drawers sit on top of the composer, collapsed to one line
               each and opening upwards. The plan reads the same `currentTasks`
@@ -363,7 +372,7 @@ function Conversation({
             cwd={cwd}
             disabled={composerDisabled}
             isRunning={turn.isRunning}
-            isWaiting={turn.permission !== null || turn.source !== null}
+            isWaiting={Boolean(turn.permission ?? turn.source)}
             mode={turn.mode}
             onModeChange={turn.onModeChange}
             onProviderChange={turn.onProviderChange}
@@ -427,7 +436,7 @@ function ConversationBody({
         entries={turn.entries}
         error={turn.turnError}
         isRunning={turn.isRunning}
-        isWaiting={turn.permission !== null}
+        isWaiting={Boolean(turn.permission ?? turn.source)}
         now={now}
         startedAt={turn.startedAt}
       />
@@ -517,8 +526,7 @@ function ChatEmptyState({
             that reflows to arbitrary widths — `pretty` is what keeps a lone
             word off the last line as the divider moves. */}
         <EmptyDescription className="text-pretty">
-          Describe the video you want and Claude builds it as real Remotion
-          components in your project.
+          Describe the video you want to create, or what you want to change.
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent className="max-w-full items-start">

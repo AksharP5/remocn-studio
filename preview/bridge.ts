@@ -36,6 +36,24 @@ export interface TargetStatuses {
 }
 
 export type PreviewCommand =
+  | { type: "studio.request" }
+  | {
+      type: "studio.draft";
+      generation: string;
+      objectId: string;
+      field: string;
+      value:
+        | string
+        | number
+        | boolean
+        | readonly [number, number, number, number];
+    }
+  | {
+      type: "studio.highlight";
+      objectId: string | null;
+      generation: string;
+      video: string;
+    }
   | { armed: boolean; type: "inspect" }
   | { armed: boolean; type: "snapshot" }
   | { frame: number; type: "seek" }

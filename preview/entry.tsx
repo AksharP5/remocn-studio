@@ -15,20 +15,28 @@ import { connectHotReload } from "./hot";
 import {
   armInspect,
   clearSelection,
+  highlightManaged,
   highlightTarget,
   repaint,
   type Stage as Spot,
 } from "./inspect";
 import { InteractivityRuntime } from "./interactivity";
 import { releaseDetachedMedia } from "./media-release";
+import { playbackPositions } from "./playback-position";
 import { armSnapshot, type Frame } from "./snapshot";
 import { applyStatuses, clearTuning, tune } from "./tuning-runtime";
 
 const MAIN_ID = "Main";
 
+const positions = playbackPositions(
+  window.sessionStorage,
+  (window as unknown as { remocn_root: string }).remocn_root
+);
+
 connectHotReload(forget);
 
 function forget(): void {
+  positions.persist();
   clearSelection();
   clearTuning();
 }
@@ -94,7 +102,14 @@ function Stage() {
     return null;
   }
 
-  return <InteractivePlayer metadata={resolved.metadata} player={player} />;
+  return (
+    <InteractivePlayer
+      composition={picked.id}
+      key={picked.id}
+      metadata={resolved.metadata}
+      player={player}
+    />
+  );
 }
 
 function playingOf(
@@ -272,13 +287,18 @@ function staticOf(composition: AnyComposition): ResolvedMetadata | null {
 }
 
 function InteractivePlayer({
+  composition,
   metadata,
   player,
 }: {
+  readonly composition: string;
   readonly metadata: ResolvedMetadata;
   readonly player: React.RefObject<PlayerRef | null>;
 }) {
   const { component, durationInFrames, fps, height, width } = metadata;
+  const [position] = useState(() =>
+    positions.restore(composition, durationInFrames)
+  );
   const inputProps = metadata.props;
   const frame = useCallback(
     () => player.current?.getCurrentFrame() ?? 0,
@@ -299,12 +319,14 @@ function InteractivePlayer({
   return (
     <Player
       acknowledgeRemotionLicense
+      autoPlay={position.playing}
       component={interactiveComponent}
       compositionHeight={height}
       compositionWidth={width}
       controls
       durationInFrames={durationInFrames}
       fps={fps}
+      initialFrame={Math.min(position.frame, durationInFrames - 1)}
       inputProps={inputProps}
       loop
       ref={player}
@@ -335,10 +357,16 @@ function usePlayhead(
     let queued = 0;
 
     const announce = (playing: boolean) => {
-      post({ frame: ref.getCurrentFrame(), playing, type: "playhead" });
+      const position = { frame: ref.getCurrentFrame(), playing };
+      positions.remember(mounted, position);
+      post({ ...position, type: "playhead" });
     };
 
     const onFrame = () => {
+      positions.remember(mounted, {
+        frame: ref.getCurrentFrame(),
+        playing: ref.isPlaying(),
+      });
       repaint();
 
       if (queued !== 0) {
@@ -402,6 +430,16 @@ function usePreviewCommands(
   useEffect(
     () =>
       onCommand((command) => {
+        if (command.type === "studio.highlight") {
+          highlightManaged(command.objectId, command.video, command.generation);
+          return;
+        }
+        if (
+          command.type === "studio.draft" ||
+          command.type === "studio.request"
+        ) {
+          return;
+        }
         if (inspectOrSnapshot(command, player, spot.current, frame.current)) {
           return;
         }
