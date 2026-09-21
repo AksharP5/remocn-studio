@@ -2,6 +2,7 @@ import { anchorOf, CANVAS_SELECTOR } from "./anchor";
 import { assetBase, assetNames, forgetAssets, staticBase } from "./assets";
 import { post } from "./bridge";
 import { displayName, fiberOf, nearestInFibers } from "./fiber";
+import { managedIdentity, managedRoots } from "./managed-objects";
 import { covers, OVERLAY_ATTR, pickAt } from "./picker";
 import {
   absolutise,
@@ -115,6 +116,8 @@ let painting = 0;
 let chain = new Map<string, Element>();
 let picked: Element | null = null;
 let selected: Element | null = null;
+let managedSelected: { id: string; video: string; generation: string } | null =
+  null;
 let selection: { box: HTMLElement; tag: HTMLElement } | null = null;
 
 export function canvas(): HTMLElement | null {
@@ -136,7 +139,10 @@ export function armInspect(armed: boolean, stage: Stage): InspectStatus {
   close();
   session = start(container, stage);
 
-  return grab() === null ? "no-grab" : "armed";
+  return document.querySelector("[data-studio-object]") !== null ||
+    grab() !== null
+    ? "armed"
+    : "no-grab";
 }
 
 /**
@@ -153,6 +159,9 @@ export function armInspect(armed: boolean, stage: Stage): InspectStatus {
 // leaving it there burns a rectangle and a component name into a frame the
 // person is judging by eye, with no mode on and nothing to click to remove it.
 export function highlightTarget(targetId: string | null, open: boolean): void {
+  if (managedSelected !== null) {
+    return;
+  }
   if (!open) {
     selected = null;
     paint();
@@ -160,6 +169,17 @@ export function highlightTarget(targetId: string | null, open: boolean): void {
   }
 
   selected = targetId === null ? picked : (chain.get(targetId) ?? picked);
+  paint();
+}
+
+export function highlightManaged(
+  objectId: string | null,
+  video: string,
+  generation: string
+): void {
+  managedSelected =
+    objectId === null ? null : { generation, id: objectId, video };
+  selected = null;
   paint();
 }
 
@@ -449,8 +469,18 @@ function paint(): void {
 
 function paintSelection(): void {
   const { box, tag } = selectionPair();
-
-  place(box, tag, selected);
+  const roots =
+    managedSelected === null
+      ? []
+      : managedRoots(managedSelected.id).filter(
+          (node) =>
+            node.getAttribute("data-studio-video") === managedSelected?.video &&
+            node.getAttribute("data-studio-generation") ===
+              managedSelected?.generation
+        );
+  const root =
+    roots.find((node) => node.getBoundingClientRect().width > 0) ?? null;
+  place(box, tag, managedSelected === null ? selected : root);
 }
 
 function paintHover(): void {
@@ -488,6 +518,10 @@ function place(
 }
 
 export function nameOf(element: Element): string {
+  const managedLabel = element.getAttribute("data-studio-label");
+  if (managedLabel !== null) {
+    return managedLabel;
+  }
   const tag = element.tagName.toLowerCase();
   const controls = controlsAt(element);
   const label =
@@ -528,6 +562,11 @@ async function report(
   stage: Stage,
   repeat: boolean
 ): Promise<void> {
+  const managed = managedIdentity(element);
+  if (managed !== null) {
+    post({ type: "studio.select", ...managed });
+    return;
+  }
   const module = grabModule();
   const found = grab();
   const root = rootPath();

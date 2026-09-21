@@ -1,7 +1,7 @@
 # agent/pipeline Specification
 
 ## Purpose
-Making a video here runs through a fixed seven-stage production pipeline rather than a single prompt: each stage has a goal, a way of finding out what is already known, a done-condition and a document it writes into the video's own folder. The Docs pane is where those documents are read, so the first four stages produce something the person can correct before any frame exists.
+Making a video here runs through a fixed seven-stage production pipeline: each stage has a goal, discovery steps, a done-condition and artifacts in the video's own folder. The first four stages record the brief, brand, script and reusable component plan. Build assembles a complete draft before inspecting and correcting specific passages. The Docs pane exposes these decisions throughout production.
 
 ## Requirements
 
@@ -12,7 +12,7 @@ The studio SHALL define exactly seven stages in this order — Analysis, Brand, 
 #### Scenario: What each stage is for
 
 - **WHEN** a stage becomes active
-- **THEN** its goal is one of: work out what is given (Analysis); collect the visual language (Brand); plan how the material develops within the target duration (Script); prove the direction in keyframes and plan the central action (Motion); verify a representative passage and then build the full editable video (Build); review the film end to end for readable actions, transitions and framing (Choreography); review the result against the script and close every note (Review)
+- **THEN** its goal is one of: work out what is given (Analysis); collect the visual language (Brand); plan how the material develops within the target duration (Script); map shots to reusable components and plan verification (Motion); assemble the full editable draft, inspect it and correct specific scenes (Build); review the film end to end for readable actions, transitions and framing (Choreography); review the result against the script and close every note (Review)
 
 #### Scenario: What a stage writes
 
@@ -25,6 +25,42 @@ The studio SHALL define exactly seven stages in this order — Analysis, Brand, 
 - **WHEN** a stage starts
 - **THEN** it first reads its own document and the project for what is already known, treats what it infers as a working assumption it writes down and says plainly, and asks the person only when neither source answers
 - **AND** asking and ending the turn is a normal way to finish, with the stage left open for the answer
+
+### Requirement: Reuse before custom implementation
+
+Motion SHALL inventory installed components and saved library assets, use the template index to shortlist relevant candidates, and record a shot-to-component map in `motion.md`. Each entry SHALL identify its source/import, actual content, adaptations and dependent timing. Custom implementation SHALL name a concrete missing capability.
+
+#### Scenario: Suitable components are available
+
+- **WHEN** each planned shot has a suitable reusable implementation
+- **THEN** source discovery stops and missing dependencies are resolved together before Build
+- **AND** settled direction and existing documents are reused rather than researched again
+
+### Requirement: Complete draft before passage polish
+
+Build SHALL first assemble every scripted shot into the registered editable composition with actual copy/assets, required audio and derived timing. The full timeline SHALL compile and match the target duration before passage polish begins. Motion SHALL plan verification without requiring a separate polished proof to enter Build.
+
+#### Scenario: The draft is ready to inspect
+
+- **WHEN** all shots exist and the composition compiles at the target duration
+- **THEN** Build captures keyframes and the representative proof from that draft
+- **AND** findings name the owning scene/file, affected range, expected behavior and observation
+
+### Requirement: Local corrections and staged verification
+
+Build SHALL make one focused polish pass through recorded findings, with further passes limited to unresolved findings or user feedback. Corrections SHALL preserve unaffected scenes and settled direction, and recheck changed passages and dependent neighbors. Build and Choreography SHALL use sampled checks during iteration; Review SHALL retain the full revalidated report requirement.
+
+#### Scenario: One scene needs a correction
+
+- **WHEN** a finding affects a scene or its shared dependencies
+- **THEN** the agent edits that scope and samples the affected passage and dependent neighbors
+- **AND** broader design work reopens only for a requested change or observed defect that requires it
+
+#### Scenario: Final verification
+
+- **WHEN** known local findings are closed
+- **THEN** Review runs the full check, or reuses a full report only when it revalidates against current sources/settings with completed coverage and no unresolved errors
+- **AND** changes after a full check require a fresh full report after local fixes
 
 ### Requirement: Stage status belongs to the chat and is moved by the agent
 

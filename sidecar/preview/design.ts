@@ -39,6 +39,7 @@ export const DesignFindingCode = Schema.Literals([
   "tunability_mapped_primitive_name",
   "tunability_plain_text_element",
   "tunability_raw_export",
+  "tunability_managed_document",
   "video_boundary_dead",
   "video_frozen_run",
   "video_no_accent",

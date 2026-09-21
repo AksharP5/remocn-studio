@@ -10,6 +10,7 @@ import type { PreviewEvent, SidecarPhase } from "@/shared/ipc";
 
 const FOLDER = "/Users/me/projects/my-video";
 const URL = "http://127.0.0.1:51749";
+let previewWindow: Window | null = null;
 
 interface Internals {
   runCallback: (id: number, data: unknown) => void;
@@ -54,7 +55,9 @@ function mockPreview() {
 
 function post(data: unknown, origin = URL) {
   act(() => {
-    window.dispatchEvent(new MessageEvent("message", { data, origin }));
+    window.dispatchEvent(
+      new MessageEvent("message", { data, origin, source: previewWindow })
+    );
   });
 }
 
@@ -124,6 +127,10 @@ async function served(
     expect(rendered.result.current.preview.phase).toBe("building");
   });
 
+  const stage = document.createElement("iframe");
+  document.body.append(stage);
+  rendered.result.current.stage.current = stage;
+  previewWindow = stage.contentWindow;
   host.send({ type: "ready", url: URL });
 
   return { host, rendered };
@@ -430,6 +437,19 @@ describe("usePreview", () => {
     expect(listen).toHaveBeenCalledWith(
       expect.objectContaining({ frame: 42, type: "capture" })
     );
+  });
+
+  it("keeps the current time when properties trigger a rebuild", async () => {
+    const { rendered } = await served();
+    post({
+      frame: 390,
+      playing: false,
+      source: "remocn-preview",
+      type: "playhead",
+    });
+    expect(rendered.result.current.frameOf()).toBe(390);
+    post({ source: "remocn-preview", type: "rebuilt" });
+    expect(rendered.result.current.frameOf()).toBe(390);
   });
 
   it("says when the project recompiled, so the markers can go", async () => {

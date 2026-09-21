@@ -501,8 +501,10 @@ function DialControl({
  * that pointer lock swallowed). Arrows step, shift by ten, alt finely. A
  * bounded value paints how far along it is as a fill behind the number.
  */
-function Scrubber({
+export function Scrubber({
   ariaLabel,
+  format,
+  onEditEnd,
   fill,
   handle,
   max,
@@ -512,6 +514,8 @@ function Scrubber({
   value,
 }: {
   ariaLabel: string;
+  format?: Intl.NumberFormatOptions;
+  onEditEnd?: () => void;
   fill?: number;
   handle: string;
   max?: number;
@@ -526,6 +530,7 @@ function Scrubber({
   return (
     <NumberField
       className={cn(FIELD, "relative w-full")}
+      format={format}
       largeStep={grain * 10}
       max={max}
       min={min}
@@ -534,6 +539,7 @@ function Scrubber({
           onCommit(next);
         }
       }}
+      onValueCommitted={onEditEnd}
       smallStep={grain / 10}
       step={grain}
       value={value}

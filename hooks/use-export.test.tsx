@@ -1,7 +1,15 @@
 import { describe, expect, it } from "bun:test";
 import { mockIPC } from "@tauri-apps/api/mocks";
-import { act, renderHook, waitFor } from "@testing-library/react";
+import {
+  act,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Effect } from "effect";
+import { ExportDialog } from "@/components/studio/export-dialog";
 import { type ExportOptions, useExport } from "@/hooks/use-export";
 import type { ExportEvent, Exported } from "@/shared/ipc";
 
@@ -24,6 +32,64 @@ const EXPORTED: Exported = {
   path: OUTPUT,
   width: 1920,
 };
+
+function EditableExport() {
+  const exporting = useExport({ ...SERVING, projectPath: "/Users/me/scenes" });
+
+  return (
+    <>
+      <button onClick={exporting.open} type="button">
+        Open export
+      </button>
+      <ExportDialog composition="Main" exporting={exporting} />
+      <output data-testid="export-target">{exporting.target}</output>
+    </>
+  );
+}
+
+describe("editing the export file name", () => {
+  it("allows clearing and typing a name without reinserting the extension", async () => {
+    mockExport();
+    const user = userEvent.setup();
+    render(<EditableExport />);
+    await user.click(screen.getByRole("button", { name: "Open export" }));
+    const input = screen.getByRole("textbox", { name: "File name" });
+
+    await user.clear(input);
+    expect(input).toHaveValue("");
+    await user.type(input, "Opening title");
+    expect(input).toHaveValue("Opening title");
+    await user.tab();
+    expect(input).toHaveValue("Opening title.mp4");
+    expect(screen.getByTestId("export-target").textContent).toBe(
+      "/Users/me/scenes/out/Opening title.mp4"
+    );
+  });
+
+  it("edits an existing name and pastes a full filename without duplicate extensions", async () => {
+    mockExport();
+    const user = userEvent.setup();
+    render(<EditableExport />);
+    await user.click(screen.getByRole("button", { name: "Open export" }));
+    const input = screen.getByRole("textbox", { name: "File name" });
+
+    await user.click(input);
+    await user.keyboard("{Home}New ");
+    expect(input).toHaveValue("New Main.mp4");
+    await user.tab();
+    expect(input).toHaveValue("New Main.mp4");
+
+    await user.clear(input);
+    await user.paste("Final cut.mp4");
+    await user.tab();
+    expect(input).toHaveValue("Final cut.mp4");
+    expect(screen.getByTestId("export-target").textContent).toBe(
+      "/Users/me/scenes/out/Final cut.mp4"
+    );
+    await user.click(screen.getByRole("radio", { name: "WebM · VP9" }));
+    expect(input).toHaveValue("Final cut.webm");
+  });
+});
 
 interface Internals {
   runCallback: (id: number, data: unknown) => void;
@@ -235,6 +301,13 @@ describe("the destination the dialog shows", () => {
 });
 
 describe("useExport", () => {
+  it("blocks export until managed edits have been saved or discarded", () => {
+    const { result } = renderHook(() =>
+      useExport({ ...SERVING, managedPending: 1 })
+    );
+    expect(result.current.unavailable).toContain("saving or discard");
+  });
+
   it("refuses to export a preview that is not serving", () => {
     const { result } = renderHook(() =>
       useExport({ ...SERVING, isServing: false })

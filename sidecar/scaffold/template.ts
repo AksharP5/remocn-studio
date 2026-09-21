@@ -54,7 +54,12 @@ export function expandVideo(
     await copyInto(
       join(source, VIDEO_TEMPLATE),
       folder,
-      () => (content) => stamped(content, draft),
+      (entry) => (content) =>
+        entry === "studio.json"
+          ? content
+              .replace(/"__VIDEO_NAME__"/g, JSON.stringify(draft.name))
+              .replace(/"__VIDEO_ID__"/g, JSON.stringify(draft.slug))
+          : stamped(content, draft),
       () => false
     );
 

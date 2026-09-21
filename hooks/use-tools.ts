@@ -4,6 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Composer } from "@/hooks/use-composer";
 import { type Exporting, useExport } from "@/hooks/use-export";
 import { type Inspection, useInspect } from "@/hooks/use-inspect";
+import {
+  type ManagedObjects,
+  useManagedObjects,
+} from "@/hooks/use-managed-objects";
 import { type PreviewControl, useOnPreview } from "@/hooks/use-preview";
 import { type Snapshot, useSnapshot } from "@/hooks/use-snapshot";
 import type { PreviewMessage } from "@/lib/studio/preview";
@@ -13,6 +17,7 @@ type Tool = "inspect" | "snapshot" | null;
 export interface Tools {
   exporting: Exporting;
   inspect: Inspection;
+  managed?: ManagedObjects;
   preview: PreviewControl;
   snapshot: Snapshot;
 }
@@ -141,9 +146,18 @@ export function useTools({
     unavailable,
   });
 
+  const managed = useManagedObjects({
+    armed: tool === "inspect",
+    enabled: !isLocked && openedProjectId === previewProjectId,
+    preview,
+    projectId: writeProjectId,
+  });
+
   const exporting = useExport({
     composition: preview.composition,
     isServing: preview.isServing,
+    managedPending:
+      managed.pending + (managed.busy || managed.awaitingPreview ? 1 : 0),
     metadata: preview.pick?.metadata ?? null,
     openedProjectId,
     projectId: previewProjectId,
@@ -152,8 +166,8 @@ export function useTools({
   });
 
   return useMemo(
-    () => ({ exporting, inspect, preview, snapshot }),
-    [exporting, inspect, preview, snapshot]
+    () => ({ exporting, inspect, managed, preview, snapshot }),
+    [exporting, inspect, preview, snapshot, managed]
   );
 }
 

@@ -33,6 +33,26 @@ export const ProjectStore = Context.Service<ProjectStore>(
   "sidecar/ProjectStore"
 );
 
+export function openStudioProject(projects: ProjectStore, path: string) {
+  return Effect.gen(function* () {
+    const canonical = canonicalPath(path);
+    const registered = yield* projects.list;
+    const known = registered.some((project) => project.path === canonical);
+    const manifest = yield* configEffect(() => readManifest(canonical)).pipe(
+      Effect.mapError(failed)
+    );
+    if (!known && manifest === null) {
+      return yield* Effect.fail(
+        new HistoryError({
+          message:
+            "Open a project created by Remocn Studio, or create a new project in Studio. External Remotion folders are not supported.",
+        })
+      );
+    }
+    return yield* projects.open(canonical);
+  });
+}
+
 const COLUMNS = "id, path, name, created_at, updated_at" as const;
 
 const BY_LAST_SESSION = `SELECT ${COLUMNS} FROM project

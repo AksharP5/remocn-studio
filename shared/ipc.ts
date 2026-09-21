@@ -33,9 +33,14 @@ import {
   ToolVerb,
 } from "./providers";
 import { AudioRequest, SoundOperation, SoundRef } from "./sound-effects";
+import {
+  StudioDocumentRef,
+  StudioOperation,
+  StudioSnapshot,
+} from "./studio-document";
 import { TemplateDraft } from "./templates";
 
-export const SIDECAR_PROTOCOL = 33;
+export const SIDECAR_PROTOCOL = 35;
 
 export const SIDECAR_STATUS_EVENT = "sidecar://status";
 export const SIDECAR_NOTIFY_EVENT = "sidecar://notify";
@@ -97,6 +102,8 @@ export const METHOD_NAMES = [
   "preview.still",
   "preview.warm",
   "preview.write",
+  "studio.read",
+  "studio.patch",
   "project.check",
   "project.create",
   "project.move",
@@ -1469,6 +1476,20 @@ export const SIDECAR_METHODS = {
   "sidecar.info": {
     params: Schema.Null,
     result: SidecarInfo,
+    stream: Schema.Never,
+  },
+  "studio.patch": {
+    params: Schema.Struct({
+      ...StudioDocumentRef.fields,
+      operation: StudioOperation,
+      plan: PlanTier,
+    }),
+    result: StudioSnapshot,
+    stream: Schema.Never,
+  },
+  "studio.read": {
+    params: StudioDocumentRef,
+    result: StudioSnapshot,
     stream: Schema.Never,
   },
   "video.brandConfirm": {

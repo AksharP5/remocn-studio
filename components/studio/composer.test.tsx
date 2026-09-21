@@ -345,7 +345,7 @@ async function renderComposer(
   );
 
   const textarea = await screen.findByRole("textbox", {
-    name: "Message Claude",
+    name: "Message",
   });
 
   // `turn.send` refuses every message until the project and the video have

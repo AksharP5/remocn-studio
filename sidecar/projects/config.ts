@@ -305,7 +305,7 @@ async function acquireConfigLock(root: string, retry = true): Promise<string> {
   }
   return path;
 }
-async function withConfigLock<A>(
+export async function withConfigLock<A>(
   root: string,
   work: () => Promise<A>
 ): Promise<A> {

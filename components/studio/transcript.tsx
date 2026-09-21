@@ -1,6 +1,7 @@
 "use client";
 
-import { memo, useMemo } from "react";
+import { ChevronRightIcon } from "lucide-react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Message, MessageContent } from "@/components/ui/message";
 import { MessageScrollerItem } from "@/components/ui/message-scroller";
@@ -35,9 +36,38 @@ export function Transcript({
   startedAt: number | null;
 }) {
   const items = useMemo(() => groupActivity(entries), [entries]);
+  const [expanded, setExpanded] = useState(false);
+  const toggleExpanded = useCallback(() => setExpanded((value) => !value), []);
+  const latestUser = entries.findLastIndex((entry) => entry.kind === "user");
+  const quiet = latestUser >= 0;
+  const { technical, shown } = useMemo(() => {
+    const technicalIds = new Set(
+      entries
+        .slice(latestUser + 1)
+        .filter(
+          (entry) => entry.kind === "activity" && entry.state !== "failed"
+        )
+        .map((entry) => entry.id)
+    );
+    return {
+      shown: quiet ? items.filter((item) => !technicalIds.has(item.id)) : items,
+      technical: items
+        .filter((item) => technicalIds.has(item.id))
+        .flatMap((item): TranscriptItem[] =>
+          item.kind === "run"
+            ? item.entries.map((entry) => ({
+                entry,
+                id: entry.id,
+                kind: "entry",
+              }))
+            : [item]
+        ),
+    };
+  }, [entries, items, latestUser, quiet]);
   const last = entries.at(-1) ?? null;
   const isThinking = isRunning && !isWaiting && last?.kind !== "assistant";
-  const lastId = items.at(-1)?.id ?? null;
+  const lastItem = items.at(-1);
+  const lastId = lastItem ? lastItem.id : null;
   const label = activeForm(currentTasks(entries));
 
   // The pane re-renders every second for the Thinking timer; the transcript
@@ -45,7 +75,7 @@ export function Transcript({
   // ticks rather than reconciling hundreds of items per second.
   const rows = useMemo(
     () =>
-      items.map((item) => (
+      shown.map((item) => (
         <MessageScrollerItem key={item.id} messageId={item.id}>
           <Row
             cwd={cwd}
@@ -54,16 +84,50 @@ export function Transcript({
           />
         </MessageScrollerItem>
       )),
-    [cwd, isRunning, items, lastId]
+    [cwd, isRunning, shown, lastId]
   );
 
   return (
     <>
       {rows}
 
-      {isThinking ? (
+      {isThinking || (quiet && technical.length > 0) ? (
         <MessageScrollerItem>
-          <Thinking label={label} now={now} startedAt={startedAt} />
+          <div className="flex min-w-0 flex-col gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              {isThinking ? (
+                <Thinking label={label} now={now} startedAt={startedAt} />
+              ) : (
+                <span className="text-muted-foreground text-xs">
+                  Work details
+                </span>
+              )}
+              {technical.length > 0 ? (
+                <button
+                  aria-expanded={expanded}
+                  aria-label="Show work details"
+                  className="rounded p-1 text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={toggleExpanded}
+                  type="button"
+                >
+                  <ChevronRightIcon
+                    aria-hidden
+                    className={expanded ? "size-3.5 rotate-90" : "size-3.5"}
+                  />
+                </button>
+              ) : null}
+            </div>
+            {expanded
+              ? technical.map((item) => (
+                  <Row
+                    cwd={cwd}
+                    isStreaming={false}
+                    item={item}
+                    key={item.id}
+                  />
+                ))
+              : null}
+          </div>
         </MessageScrollerItem>
       ) : null}
 
@@ -140,7 +204,7 @@ function EntryBlock({
       <Message>
         <MessageContent>
           <Bubble variant="ghost">
-            <BubbleContent>
+            <BubbleContent className="leading-relaxed">
               <Markdown isStreaming={isStreaming}>{entry.text}</Markdown>
             </BubbleContent>
           </Bubble>

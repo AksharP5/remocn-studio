@@ -23,6 +23,7 @@ import {
   type WriteParams,
   type WriteResult,
 } from "@/shared/ipc";
+import { StudioValue } from "@/shared/studio-document";
 
 export const PREVIEW_MESSAGE_SOURCE = "remocn-preview";
 export const PREVIEW_COMMAND_SOURCE = "remocn-studio";
@@ -166,6 +167,20 @@ export const PreviewMetadata = Schema.Struct({
 
 export const PreviewMessage = Schema.Union([
   Schema.Struct({
+    generation: Schema.NonEmptyString,
+    lastOperationId: Schema.NullOr(Schema.NonEmptyString),
+    source: from,
+    type: Schema.Literal("studio.ready"),
+    video: Schema.NonEmptyString,
+  }),
+  Schema.Struct({
+    generation: Schema.NonEmptyString,
+    objectId: Schema.NonEmptyString,
+    source: from,
+    type: Schema.Literal("studio.select"),
+    video: Schema.NonEmptyString,
+  }),
+  Schema.Struct({
     compositionId: Schema.NullOr(Schema.String),
     compositions: Schema.Array(Schema.NonEmptyString),
     // What the Player is really mounted with, calculateMetadata resolved. A
@@ -257,6 +272,22 @@ export const PreviewMessage = Schema.Union([
 const to = Schema.Literal(PREVIEW_COMMAND_SOURCE);
 
 export const PreviewCommand = Schema.Union([
+  Schema.Struct({ source: to, type: Schema.Literal("studio.request") }),
+  Schema.Struct({
+    field: Schema.NonEmptyString,
+    generation: Schema.NonEmptyString,
+    objectId: Schema.NonEmptyString,
+    source: to,
+    type: Schema.Literal("studio.draft"),
+    value: StudioValue,
+  }),
+  Schema.Struct({
+    generation: Schema.NonEmptyString,
+    objectId: Schema.NullOr(Schema.NonEmptyString),
+    source: to,
+    type: Schema.Literal("studio.highlight"),
+    video: Schema.NonEmptyString,
+  }),
   Schema.Struct({
     armed: Schema.Boolean,
     source: to,

@@ -7,6 +7,7 @@ import {
   tunabilityDesignFindings,
   tunabilityFindings,
 } from "@/sidecar/tools/tunability";
+import { documentFixture } from "@/test/fixtures/studio-document";
 
 const WORKED = join(
   process.cwd(),
@@ -437,3 +438,30 @@ describe("tunabilityDesignFindings", () => {
 function rulesOf(source: string) {
   return tunabilityFindings([{ path: "Scene.tsx", source }]);
 }
+
+describe("managed object sources", () => {
+  const source =
+    'const object = useStudioObject("title"); return <h1 {...object.bind}>{text}</h1>;';
+  it("accepts a declared semantic text root and validates its document", () => {
+    expect(
+      tunabilityFindings([
+        { path: "index.tsx", source },
+        { path: "studio.json", source: JSON.stringify(documentFixture) },
+      ])
+    ).toEqual([]);
+  });
+  it("reports missing and malformed documents", () => {
+    expect(rules(source)).toEqual(["managed-document"]);
+    expect(
+      tunabilityFindings([{ path: "studio.json", source: "{" }])[0]?.snippet
+    ).toContain("not valid JSON");
+    expect(
+      tunabilityFindings([
+        {
+          path: "studio.json",
+          source: JSON.stringify({ ...documentFixture, version: 99 }),
+        },
+      ])[0]?.rule
+    ).toBe("managed-document");
+  });
+});

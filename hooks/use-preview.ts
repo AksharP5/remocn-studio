@@ -218,7 +218,10 @@ export function usePreview(
     };
 
     const onMessage = (event: MessageEvent) => {
-      if (event.origin !== origin) {
+      if (
+        event.origin !== origin ||
+        event.source !== stage.current?.contentWindow
+      ) {
         return;
       }
 
@@ -364,7 +367,7 @@ function frameIn(message: PreviewMessage): number | null {
   if (message.type === "capture" || message.type === "playhead") {
     return message.frame;
   }
-  return message.type === "rebuilt" ? 0 : null;
+  return null;
 }
 
 function hintOf(message: PreviewComposition | null): string | null {

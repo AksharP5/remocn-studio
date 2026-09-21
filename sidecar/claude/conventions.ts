@@ -96,10 +96,10 @@ Without a reference, state a concrete direction from the brief and brand.
 Choose density, typography and palette for that direction. A single focal element,
 centered type, a plain background and a still hold are valid. Additional elements
 and motion need a role in the message or visual world; there are no decoration,
-font-weight, easing-variety or motion-percentage quotas. Before expanding a new
-film, inspect keyframes at delivery size and a rendered passage demonstrating its
-central motion idea, event relationships and rhythm. The pipeline owns the proof
-criteria; technical difficulty alone does not select a representative passage.
+font-weight, easing-variety or motion-percentage quotas. Follow the pipeline's
+order: reuse components, assemble the complete draft, then inspect and correct
+specific passages. The pipeline owns the draft and proof criteria; a standalone
+polished passage is not a prerequisite for assembling the film.
 
 For text, image reveals and graphic handoffs, read the installed
 \`src/lib/studio-motion-v2/README.md\` and reuse the fitting movement or combination.
@@ -116,8 +116,9 @@ from the render. The module README describes this contract and its limits.
 
 Give every element you animate a stable \`data-design-id\`. Before you call a
 scene or video finished, call \`mcp__remocn-design__design_check\` over the affected
-range, passing only the movements the motion document (\`${DOCS_DIR}/motion.md\`
-in your video's folder) actually promises as \`motion\` assertions against those
+range with \`mode=sampled\` during iteration. Pass only the movements the motion
+document (\`${DOCS_DIR}/motion.md\` in your video's folder) actually promises as
+\`motion\` assertions against those
 ids. Inspect returned images and coverage; fix every mechanical finding or support
 a bounded exception with a purpose and visible evidence. Record expectation,
 observed frames/time range and verified outcome. The label "intentional" alone
@@ -202,16 +203,39 @@ Stages move only through \`mcp__remocn-pipeline__set_pipeline_stage\`,
 and they move on their own: the moment a stage's done-condition holds, mark it
 done and the next one active, and keep working in the same turn, stopping only
 for something only the person can give. A review note can reopen an earlier stage
-the same way.`;
+the same way. Keep stage documents concise and update existing decisions in place.
+For a pointed edit, reuse the existing component map and direction, change the
+owning scene and its dependencies, and inspect the affected range and neighbors.
+Reopen broader design work only when the request or an observed defect requires it.
+The final full review remains mandatory for pipeline completion.`;
+
+export const MANAGED_OBJECTS = `New Studio videos use the managed object format. Read src/lib/studio-objects-v2/README.md
+and the video's studio.json before writing its components. Keep scene structure and animation in React.
+Keep editable values and definitions in src/videos/<video-slug>/studio.json (version 1, matching video slug).
+Wrap the video in StudioObjects and use useStudioObject(stableId); spread its bind onto the existing semantic root.
+Import the provider and hook from src/lib/studio-objects-v2. Use its text/number/flag/easing readers for every declared editable value. Split letters remain internal to one object.
+Every independent repeated object has a stable ID and its own values; never use array indices, display text or random render-time IDs.
+Changing a label or reordering a list must preserve IDs. Multiple occurrences of one object intentionally share values.
+All values are explicit; definitions list supported number/text/color/boolean/enum/easing fields with defaults and constraints.
+Give fields useful group names such as Typography, Fill, Layout and Motion, and declare numeric min/max/step/unit where meaningful for the controls. Use human-readable English labels such as "Font size", "Background color", "Entry duration" and "Animate by word", never camelCase variable names as UI labels. Group animation controls under Motion, Entry, Exit or Timing, and preserve stable field IDs when improving labels.
+Expose animation durations and delays in seconds (unit "s"); convert to frames using the actual composition fps in code. Declare curves as type "easing" with four coordinates [x1,y1,x2,y2], X between 0 and 1 and finite Y allowing overshoot. Consume them with Easing.bezier(...object.easing("entryEasing")) so custom handles affect both preview and export. Preserve the current curve when migrating an existing enum: update its definition version, all affected object values, and the consuming code together, and import studio-objects-v2. Do not overwrite an authored studio-objects-v1 runtime. Named enums remain supported but cannot accept custom curves.
+Unsupported asset, rich-text, expression and keyframe controls are not represented as ordinary editable scalars.
+Do not edit the operations history. Existing legacy Studio videos keep their shape until explicitly converted.
+For managed videos this contract takes precedence over the legacy Interactive.withSchema/Interactive text rules below:
+plain semantic DOM roots with object.bind are correct and per-instance edits must not use shared JSX call sites.
+The properties panel saves directly. Keep ordinary property changes independent of chat Add/Send.`;
 
 export const STUDIO_CONVENTIONS = [
   STRUCTURE,
+  MANAGED_OBJECTS,
   CRAFT,
   REFERENCES,
   PRODUCTION,
 ].join("\n\n");
 
-export const FREE_CONVENTIONS = [STRUCTURE, REFERENCES].join("\n\n");
+export const FREE_CONVENTIONS = [STRUCTURE, MANAGED_OBJECTS, REFERENCES].join(
+  "\n\n"
+);
 
 const BUNDLE = `The studio ships its knowledge as a skill bundle named \`${BUNDLE_NAME}\`:
 \`${SHIPPED.join("`, `")}\`. Your runtime has already loaded it into its own skill

@@ -128,8 +128,15 @@ describe("ensureRegistry", () => {
 
   it("installs motion foundations in an existing project and preserves authored copies", async () => {
     const root = await project();
+    const objects = join(root, "src/lib/studio-objects-v1/index.tsx");
+    const curves = join(root, "src/lib/studio-objects-v2/index.tsx");
     const timing = join(root, "src/lib/studio-motion-v1/timing.ts");
     await run(ensureRegistry(root));
+    expect(await readFile(objects, "utf8")).toContain("useStudioObject");
+    expect(await readFile(curves, "utf8")).toContain("easing:");
+    await writeFile(objects, "// authored objects v1");
+    await run(ensureRegistry(root));
+    expect(await readFile(objects, "utf8")).toBe("// authored objects v1");
     expect(await readFile(timing, "utf8")).toBe(
       await readFile(
         join(TEMPLATE, "src/lib/studio-motion-v1/timing.ts"),

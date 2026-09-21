@@ -1,6 +1,15 @@
 "use client";
 
-import { FolderOpenIcon, TriangleAlertIcon } from "lucide-react";
+import SiInstagram from "@icons-pack/react-simple-icons/icons/SiInstagram";
+import SiTiktok from "@icons-pack/react-simple-icons/icons/SiTiktok";
+import SiYoutube from "@icons-pack/react-simple-icons/icons/SiYoutube";
+import SiYoutubeshorts from "@icons-pack/react-simple-icons/icons/SiYoutubeshorts";
+import {
+  FolderOpenIcon,
+  SlidersHorizontalIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
+import { type ChangeEvent, useCallback, useState } from "react";
 import { MiddleTruncation } from "@/components/middle-truncation";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,9 +40,10 @@ import {
   RESOLUTION_LABELS,
 } from "@/shared/export";
 
-import { SettingsGroup, SettingsPanel } from "./settings-group";
-
 const NAME_FIELD = "export-file-name";
+
+const CHOICE_STYLE =
+  "min-w-0 cursor-pointer justify-center rounded-lg border border-input bg-background text-center font-normal text-sm hover:bg-accent has-[[data-checked]]:border-primary has-[[data-checked]]:bg-primary/8 has-[[data-checked]]:text-foreground has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-foreground/60 has-[:focus-visible]:outline-offset-2";
 
 export function ExportDialog({
   composition,
@@ -49,35 +59,41 @@ export function ExportDialog({
     <Dialog onOpenChange={exporting.close} open={exporting.isOpen}>
       <DialogPopup
         bottomStickOnMobile={false}
-        className="max-h-[calc(100dvh-2rem)] max-w-4xl"
+        className="max-h-[calc(100dvh-2rem)] max-w-2xl"
         closeProps={{ className: "absolute end-2 top-2 size-10" }}
       >
-        <DialogHeader className="shrink-0 pr-14">
-          <DialogTitle>Export video</DialogTitle>
-          <DialogDescription className="break-words">
-            {composition === null
-              ? "Rendered by this project’s own Remotion."
-              : `${composition}, rendered by this project’s own Remotion.`}
+        <DialogHeader className="shrink-0 gap-1 p-5 pr-14">
+          <DialogTitle className="text-balance font-medium text-lg">
+            Export video
+          </DialogTitle>
+          <DialogDescription
+            className="truncate"
+            title={composition ?? undefined}
+          >
+            {composition ?? "Choose how to save your video."}
           </DialogDescription>
         </DialogHeader>
 
-        <DialogPanel className="grid min-w-0 gap-6" scrollFade={false}>
-          <SettingsPanel
-            description="Presets keep the video’s shape. Changing a setting switches to Custom."
-            title="Start from"
-          >
-            <Choice
-              label="Start from"
+        <DialogPanel className="grid min-w-0 gap-4 p-5" scrollFade={false}>
+          <section aria-labelledby="export-preset-label" className="grid gap-2">
+            <h3 className="font-medium text-sm" id="export-preset-label">
+              Preset
+            </h3>
+            <PresetChoice
               onChange={exporting.choosePreset}
-              options={EXPORT_PRESETS.map((preset) => ({
-                label: presetLabel(preset),
-                value: preset,
-              }))}
               value={settings.preset}
             />
-          </SettingsPanel>
+            <p className="text-pretty text-muted-foreground text-xs">
+              {settings.preset === "shorts"
+                ? "For Shorts, Reels and TikTok. Your video keeps its original shape."
+                : "Presets keep your video’s original shape."}
+            </p>
+          </section>
 
-          <SettingsGroup title="Video">
+          <section
+            aria-label="Video settings"
+            className="grid gap-2 border-y py-4"
+          >
             <Setting
               label="Format"
               name="export-format"
@@ -112,37 +128,42 @@ export function ExportDialog({
                 value={settings.quality}
               />
             )}
-          </SettingsGroup>
+          </section>
 
-          <SettingsPanel
-            description="Exporting again replaces the file at this location."
-            title="Save to"
+          <section
+            aria-labelledby="export-destination-label"
+            className="grid min-w-0 gap-2"
           >
-            <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-              <div className="grid min-w-0 gap-2">
-                <Label htmlFor={NAME_FIELD}>File name</Label>
+            <h3 className="font-medium text-sm" id="export-destination-label">
+              Save to
+            </h3>
+            <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+              <div className="grid min-w-0 gap-1.5">
+                <Label
+                  className="font-normal text-muted-foreground text-xs"
+                  htmlFor={NAME_FIELD}
+                >
+                  File name
+                </Label>
                 <InputGroup>
-                  <Input
-                    autoComplete="off"
-                    className="h-11 sm:h-10"
-                    data-1p-ignore
-                    data-lpignore="true"
-                    id={NAME_FIELD}
-                    onChange={exporting.rename}
-                    spellCheck="false"
-                    value={exporting.fileName}
-                    {...VERBATIM_INPUT}
+                  <FileNameInput
+                    fileName={exporting.fileName}
+                    onRename={exporting.rename}
                   />
                 </InputGroup>
               </div>
 
-              <div className="grid min-w-0 gap-2">
-                <Label id="export-folder-label" render={<span />}>
+              <div className="grid min-w-0 gap-1.5">
+                <Label
+                  className="font-normal text-muted-foreground text-xs"
+                  id="export-folder-label"
+                  render={<span />}
+                >
                   Folder
                 </Label>
                 <Button
                   aria-labelledby="export-folder-label export-folder-path"
-                  className="h-11 w-full min-w-0 justify-start font-normal text-muted-foreground sm:h-10"
+                  className="h-11 w-full min-w-0 justify-start font-normal sm:h-10"
                   id="export-folder"
                   onClick={exporting.chooseFolder}
                   type="button"
@@ -153,16 +174,20 @@ export function ExportDialog({
                     className="min-w-0 flex-1 text-left"
                     ellipsis="…"
                     id="export-folder-path"
+                    title={exporting.folder}
                   >
                     {exporting.folder}
                   </MiddleTruncation>
                 </Button>
               </div>
             </div>
-          </SettingsPanel>
+            <p className="text-pretty text-muted-foreground text-xs">
+              An existing file with this name will be replaced.
+            </p>
+          </section>
 
           {review.problems.length > 0 || review.warnings.length > 0 ? (
-            <div className="grid min-w-0 gap-2 px-4" role="status">
+            <div className="grid min-w-0 gap-2" role="status">
               {review.problems.map((problem) => (
                 <Notice key={problem} tone="problem">
                   {problem}
@@ -177,20 +202,17 @@ export function ExportDialog({
           ) : null}
         </DialogPanel>
 
-        <DialogFooter className="shrink-0 flex-col gap-3 sm:items-center sm:justify-between">
+        <DialogFooter className="shrink-0 flex-col gap-3 px-5 py-3 sm:items-center sm:justify-between">
           <Summary exporting={exporting} />
           <div className="flex shrink-0 justify-end gap-2">
-            <Button
-              className="h-11 sm:h-10"
-              onClick={exporting.close}
-              variant="outline"
-            >
+            <Button onClick={exporting.close} size="sm" variant="outline">
               Cancel
             </Button>
             <Button
               aria-disabled={review.problems.length > 0}
-              className="h-11 aria-disabled:opacity-50 sm:h-10"
+              className="aria-disabled:opacity-50"
               onClick={exporting.render}
+              size="sm"
             >
               Export
             </Button>
@@ -198,6 +220,41 @@ export function ExportDialog({
         </DialogFooter>
       </DialogPopup>
     </Dialog>
+  );
+}
+
+function FileNameInput({
+  fileName,
+  onRename,
+}: {
+  fileName: string;
+  onRename: Exporting["rename"];
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const onChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setDraft(event.currentTarget.value);
+      onRename(event);
+    },
+    [onRename]
+  );
+  const onBlur = useCallback(() => setDraft(null), []);
+
+  return (
+    <Input
+      autoComplete="off"
+      className="h-11 sm:h-10"
+      data-1p-ignore
+      data-lpignore="true"
+      id={NAME_FIELD}
+      name="fileName"
+      onBlur={onBlur}
+      onChange={onChange}
+      spellCheck="false"
+      value={draft ?? fileName}
+      {...VERBATIM_INPUT}
+    />
   );
 }
 
@@ -210,15 +267,25 @@ function Summary({ exporting }: { readonly exporting: Exporting }) {
       : null;
 
   return (
-    <p className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+    <p className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-sm tabular-nums">
       {sized === null ? null : (
         <span className="font-medium tabular-nums">{sized}</span>
       )}
+      {sized === null ? null : (
+        <span aria-hidden="true" className="text-muted-foreground">
+          ·
+        </span>
+      )}
       <span className="text-muted-foreground">{spec.container}</span>
       {exporting.duration === null ? null : (
-        <span className="text-muted-foreground tabular-nums">
-          {exporting.duration}
-        </span>
+        <>
+          <span aria-hidden="true" className="text-muted-foreground">
+            ·
+          </span>
+          <span className="text-muted-foreground tabular-nums">
+            {exporting.duration}
+          </span>
+        </>
       )}
     </p>
   );
@@ -226,6 +293,67 @@ function Summary({ exporting }: { readonly exporting: Exporting }) {
 
 function presetLabel(preset: ExportPreset): string {
   return preset === "custom" ? "Custom" : PRESET_SPECS[preset].label;
+}
+
+function PresetIcons({ preset }: { preset: ExportPreset }) {
+  if (preset === "youtube") {
+    return <SiYoutube className="size-4 shrink-0" />;
+  }
+  if (preset === "instagram") {
+    return <SiInstagram className="size-4 shrink-0" />;
+  }
+  if (preset === "shorts") {
+    return (
+      <>
+        <SiYoutubeshorts className="size-4 shrink-0" />
+        <SiInstagram className="size-4 shrink-0" />
+        <SiTiktok className="size-4 shrink-0" />
+      </>
+    );
+  }
+  return <SlidersHorizontalIcon className="size-4 shrink-0" />;
+}
+
+function PresetChoice({
+  onChange,
+  value,
+}: {
+  onChange: Exporting["choosePreset"];
+  value: ExportPreset;
+}) {
+  return (
+    <RadioGroup
+      aria-labelledby="export-preset-label"
+      className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+      onValueChange={onChange}
+      value={value}
+    >
+      {EXPORT_PRESETS.map((preset) => (
+        <Label
+          className={cn(CHOICE_STYLE, "min-h-16 flex-col gap-2 px-2 py-2.5")}
+          key={preset}
+        >
+          <span className="sr-only">
+            <RadioGroupItem value={preset} />
+          </span>
+          <span
+            aria-hidden="true"
+            className="pointer-events-none flex h-4 items-center gap-2 text-muted-foreground"
+          >
+            <PresetIcons preset={preset} />
+          </span>
+          {preset === "shorts" ? (
+            <>
+              <span aria-hidden="true">Short video</span>
+              <span className="sr-only">{presetLabel(preset)}</span>
+            </>
+          ) : (
+            presetLabel(preset)
+          )}
+        </Label>
+      ))}
+    </RadioGroup>
+  );
 }
 
 function Notice({
@@ -265,10 +393,13 @@ function Setting({
   readonly value: string;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-3 py-3 sm:flex-row sm:items-center sm:gap-4">
-      <span className="text-sm leading-none sm:w-24 sm:shrink-0" id={name}>
+    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+      <p
+        className="text-muted-foreground text-sm sm:w-20 sm:shrink-0"
+        id={name}
+      >
         {label}
-      </span>
+      </p>
       <Choice
         label={label}
         onChange={onChange}
@@ -293,13 +424,13 @@ function Choice({
   return (
     <RadioGroup
       aria-label={label}
-      className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:flex sm:flex-row sm:flex-wrap"
+      className="grid min-w-0 flex-1 grid-cols-2 gap-1.5 sm:grid-cols-4"
       onValueChange={onChange}
       value={value}
     >
       {options.map((option) => (
         <Label
-          className="min-h-11 min-w-0 cursor-pointer justify-center rounded-md border bg-card px-3 py-2 text-center font-normal text-sm leading-snug transition-colors hover:bg-accent has-[[data-checked]]:border-primary has-[[data-checked]]:bg-primary/8 has-[[data-checked]]:text-foreground has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-foreground/60 has-[:focus-visible]:outline-offset-2 sm:min-h-10 sm:flex-1"
+          className={cn(CHOICE_STYLE, "min-h-11 px-2 py-2 sm:min-h-10")}
           key={option.value}
         >
           <span className="sr-only">

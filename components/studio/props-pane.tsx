@@ -2,7 +2,6 @@
 
 import { SpringVisualization } from "dialkit";
 import {
-  ChevronDownIcon,
   ChevronRightIcon,
   CornerDownLeftIcon,
   LibraryBigIcon,
@@ -39,7 +38,9 @@ import { changedFields, subtitleOf, titleOf } from "@/lib/studio/tuning";
 import { cn } from "@/lib/utils";
 import type { TuningValue } from "@/shared/ipc";
 import { DialKitSurface } from "./dialkit-surface";
+import { ManagedPropsPane } from "./managed-props-pane";
 import { Pane, PaneActions, PaneBody, PaneHeader, PaneTitle } from "./pane";
+import { GroupHeading } from "./prop-group-heading";
 import { useStudio } from "./studio-provider";
 import { TuningRow } from "./tuning-controls";
 
@@ -65,6 +66,16 @@ export function PropsPane() {
   const frame = usePreviewFrame(tools.preview);
   // Outside the keyed panel below, so a fold survives picking another element.
   const groups = usePropGroups(settings);
+
+  if (tools.managed?.isOpen) {
+    return (
+      <ManagedPropsPane
+        fps={tools.preview.pick?.metadata?.fps}
+        groups={groups}
+        objects={tools.managed}
+      />
+    );
+  }
 
   if (card === null || card.tuning === null) {
     return null;
@@ -312,60 +323,6 @@ export function PropsPanel({
         </div>
       </PaneBody>
     </Pane>
-  );
-}
-
-/**
- * A section's name, and the click that folds it.
- *
- * An element on a real video opens with eight of these, and Remotion puts
- * Transform on every one of them — so the section a person came for is
- * routinely below the fold of a 340px pane. The count is what a folded
- * section says instead of its rows, so a fold never hides that there is
- * something in there.
- */
-function GroupHeading({
-  count,
-  group,
-  isOpen,
-  onToggle,
-}: {
-  count: number;
-  group: string;
-  isOpen: boolean;
-  onToggle?: (group: string) => void;
-}) {
-  // The name rides on the button rather than in a closure, so a pane of eight
-  // sections does not remint eight handlers on every render.
-  const toggle = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      onToggle?.(event.currentTarget.value);
-    },
-    [onToggle]
-  );
-
-  return (
-    <h3 className="pb-2 font-medium text-foreground text-sm">
-      <button
-        aria-expanded={isOpen}
-        className="-mx-1 flex w-[calc(100%+0.5rem)] items-center gap-1 rounded-sm px-1 py-0.5 text-left hover:bg-muted/50"
-        onClick={toggle}
-        type="button"
-        value={group}
-      >
-        {isOpen ? (
-          <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground" />
-        ) : (
-          <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground" />
-        )}
-        <span className="min-w-0 flex-1 truncate">{group}</span>
-        {isOpen ? null : (
-          <span className="shrink-0 text-muted-foreground text-xs tabular-nums">
-            {count}
-          </span>
-        )}
-      </button>
-    </h3>
   );
 }
 

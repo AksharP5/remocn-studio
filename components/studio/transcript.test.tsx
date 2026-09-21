@@ -122,11 +122,11 @@ function renderTranscript(
 }
 
 describe("Transcript", () => {
-  it("spends one row on a run of calls, and shows the last of them", () => {
+  it("keeps completed work behind one disclosure", () => {
     renderTranscript(ENTRIES);
 
     expect(
-      screen.getByRole("button", { name: "Edit src/Scene3.tsx, 2 more" })
+      screen.getByRole("button", { name: "Show work details" })
     ).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "Edit src/Scene1.tsx" })
@@ -145,9 +145,7 @@ describe("Transcript", () => {
   it("expands one of those lines into a readable diff", () => {
     renderTranscript(ENTRIES);
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Edit src/Scene3.tsx, 2 more" })
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Show work details" }));
     fireEvent.click(
       screen.getByRole("button", { name: "Edit src/Scene2.tsx" })
     );

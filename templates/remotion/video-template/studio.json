@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "video": "__VIDEO_ID__",
+  "definitions": [
+    {
+      "id": "heading",
+      "version": 1,
+      "fields": [
+        {
+          "id": "text",
+          "label": "Text",
+          "type": "text",
+          "default": "",
+          "group": "Typography"
+        },
+        {
+          "id": "color",
+          "label": "Color",
+          "type": "color",
+          "default": "#ffffff",
+          "group": "Fill"
+        },
+        {
+          "id": "fontSize",
+          "label": "Font size",
+          "type": "number",
+          "default": 96,
+          "min": 1,
+          "max": 500,
+          "step": 1,
+          "unit": "px",
+          "group": "Typography"
+        },
+        {
+          "id": "fontWeight",
+          "label": "Weight",
+          "type": "number",
+          "default": 600,
+          "min": 100,
+          "max": 900,
+          "step": 100,
+          "group": "Typography"
+        },
+        {
+          "id": "letterSpacing",
+          "label": "Letter spacing",
+          "type": "number",
+          "default": 0,
+          "min": -20,
+          "max": 100,
+          "step": 0.1,
+          "unit": "px",
+          "group": "Typography"
+        },
+        {
+          "id": "lineHeight",
+          "label": "Line height",
+          "type": "number",
+          "default": 1.1,
+          "min": 0.5,
+          "max": 4,
+          "step": 0.1,
+          "group": "Typography"
+        },
+        {
+          "id": "entryDuration",
+          "label": "Entry duration",
+          "type": "number",
+          "default": 0.6,
+          "min": 0.05,
+          "max": 5,
+          "step": 0.01,
+          "unit": "s",
+          "group": "Motion"
+        },
+        {
+          "id": "entryDistance",
+          "label": "Entry distance",
+          "type": "number",
+          "default": 24,
+          "min": 0,
+          "max": 500,
+          "step": 1,
+          "unit": "px",
+          "group": "Motion"
+        },
+        {
+          "id": "entryEasing",
+          "label": "Entry easing",
+          "type": "easing",
+          "default": [0, 0, 0.58, 1],
+          "group": "Motion"
+        }
+      ]
+    },
+    {
+      "id": "backdrop",
+      "version": 1,
+      "fields": [
+        {
+          "id": "color",
+          "label": "Color",
+          "type": "color",
+          "default": "#141318",
+          "group": "Fill"
+        }
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "id": "backdrop",
+      "definition": "backdrop",
+      "label": "Background",
+      "parentId": null,
+      "values": {
+        "color": "#141318"
+      }
+    },
+    {
+      "id": "heading",
+      "definition": "heading",
+      "label": "Heading",
+      "parentId": null,
+      "values": {
+        "text": "__VIDEO_NAME__",
+        "color": "#ffffff",
+        "fontSize": 96,
+        "fontWeight": 600,
+        "letterSpacing": 0,
+        "lineHeight": 1.1,
+        "entryDistance": 24,
+        "entryDuration": 0.6,
+        "entryEasing": [0, 0, 0.58, 1]
+      }
+    },
+    {
+      "id": "subtitle",
+      "definition": "heading",
+      "label": "Subtitle",
+      "parentId": null,
+      "values": {
+        "text": "Pick an object and make it yours",
+        "color": "#9a94b8",
+        "fontSize": 40,
+        "fontWeight": 500,
+        "letterSpacing": 0,
+        "lineHeight": 1.1,
+        "entryDistance": 24,
+        "entryDuration": 0.6,
+        "entryEasing": [0, 0, 0.58, 1]
+      }
+    }
+  ],
+  "operations": []
+}

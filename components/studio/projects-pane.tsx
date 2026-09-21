@@ -52,7 +52,6 @@ import { LogoWordmark } from "./logo-mark";
 import { PaneScreen } from "./pane-screen";
 import { StockPane } from "./stock-pane";
 import { useStudio } from "./studio-provider";
-import { UpdateStatus } from "./update-status";
 import { VideoGroup } from "./video-group";
 
 const PLACEHOLDERS = ["one", "two", "three", "four"];
@@ -225,9 +224,6 @@ export function ProjectsPane() {
       )}
       <SidebarFooter>
         <SidebarMenu>
-          <SidebarMenuItem>
-            <UpdateStatus />
-          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               className="text-muted-foreground"
