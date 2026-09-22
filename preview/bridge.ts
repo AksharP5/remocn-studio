@@ -36,6 +36,43 @@ export interface TargetStatuses {
 }
 
 export type PreviewCommand =
+  | {
+      type: "studio.geometry.config";
+      enabled: boolean;
+      generation: string;
+      objectId: string | null;
+      video: string;
+      fields: readonly {
+        id: string;
+        value: number;
+        min: number | null;
+        max: number | null;
+      }[];
+    }
+  | { type: "studio.geometry.result"; requestId: string; error: string | null }
+  | {
+      type: "studio.batch";
+      generation: string;
+      objectId: string;
+      values: Readonly<
+        Record<
+          string,
+          string | number | boolean | readonly [number, number, number, number]
+        >
+      >;
+    }
+  | {
+      type: "studio.text.open";
+      requestId: string;
+      candidate: number;
+      label: string;
+      value: string;
+    }
+  | { type: "studio.text.close"; requestId: string; error: string | null }
+  | { type: "transport.request" }
+  | { type: "transport.toggle" }
+  | { type: "transport.step"; direction: -1 | 1 }
+  | { type: "transport.audio"; muted: boolean; volume: number }
   | { type: "studio.request" }
   | {
       type: "studio.draft";
@@ -55,6 +92,7 @@ export type PreviewCommand =
       video: string;
     }
   | { armed: boolean; type: "inspect" }
+  | { type: "inspect.clear" }
   | { armed: boolean; type: "snapshot" }
   | { frame: number; type: "seek" }
   | { from: number; type: "replay"; until: number }

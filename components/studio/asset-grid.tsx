@@ -42,14 +42,18 @@ export function AssetGrid({
   onRemove?: (event: MouseEvent<HTMLButtonElement>) => void;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2 px-1 pb-1">
+    <div className="columns-2 gap-2 px-1 pb-1">
       {assets.map((asset) => (
-        <AssetItem
-          asset={asset}
+        <div
+          className="mb-2 break-inside-avoid"
           key={asset.slug}
-          onPick={onPick}
-          onRemove={isBundledSlug(asset.slug) ? undefined : onRemove}
-        />
+        >
+          <AssetItem
+            asset={asset}
+            onPick={onPick}
+            onRemove={isBundledSlug(asset.slug) ? undefined : onRemove}
+          />
+        </div>
       ))}
     </div>
   );

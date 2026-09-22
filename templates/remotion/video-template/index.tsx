@@ -5,7 +5,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import { StudioObjects, useStudioObject } from "../../lib/studio-objects-v2";
+import { StudioObjects, useStudioObject } from "../../lib/studio-objects-v5";
 import document from "./studio.json";
 
 export const meta = {
@@ -17,6 +17,13 @@ export const meta = {
 
 function Heading({ id }: { id: string }) {
   const object = useStudioObject(id);
+  const geometry = object.geometry({
+    x: "x",
+    y: "y",
+    width: "width",
+    height: "height",
+    rotation: "rotation",
+  });
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const easing = Easing.bezier(...object.easing("entryEasing"));
@@ -33,7 +40,10 @@ function Heading({ id }: { id: string }) {
   return (
     <h1
       {...object.bind}
+      {...geometry.bind}
+      {...object.bindText("text")}
       style={{
+        ...geometry.style,
         color: object.text("color"),
         fontSize: object.number("fontSize"),
         fontWeight: object.number("fontWeight"),
@@ -41,7 +51,7 @@ function Heading({ id }: { id: string }) {
         lineHeight: object.number("lineHeight"),
         margin: 0,
         opacity: progress,
-        position: "relative",
+        textAlign: "center",
         translate: `${(1 - progress) * -object.number("entryDistance")}px 0px`,
       }}
     >
@@ -65,10 +75,7 @@ export default function Video() {
     <StudioObjects document={document}>
       <AbsoluteFill
         style={{
-          alignItems: "center",
           fontFamily: "sans-serif",
-          gap: 24,
-          justifyContent: "center",
         }}
       >
         <Backdrop />

@@ -63,15 +63,32 @@ export const StudioObject = Schema.Struct({
 });
 export type StudioObject = typeof StudioObject.Type;
 
-export const StudioOperation = Schema.Struct({
+export const StudioFieldChange = Schema.Struct({
   after: StudioValue,
   before: StudioValue,
-  definition: StudioDefinition,
   field: Identifier,
+});
+export type StudioFieldChange = typeof StudioFieldChange.Type;
+
+export const StudioOperation = Schema.Struct({
+  ...StudioFieldChange.fields,
+  changes: Schema.optionalKey(Schema.Array(StudioFieldChange)),
+  definition: StudioDefinition,
   id: Schema.NonEmptyString,
   objectId: Identifier,
   undoOf: Schema.optionalKey(Schema.NonEmptyString),
-});
+}).check(
+  Schema.makeFilter((operation) => {
+    const fields = [
+      operation.field,
+      ...(operation.changes ?? []).map((item) => item.field),
+    ];
+    return (
+      new Set(fields).size === fields.length ||
+      "An edit cannot change the same field twice."
+    );
+  })
+);
 export type StudioOperation = typeof StudioOperation.Type;
 
 export const StudioDocument = Schema.Struct({
@@ -265,6 +282,7 @@ export function applyStudioOperation(
       previous.field !== operation.field ||
       !sameStudioValue(previous.before, operation.before) ||
       !sameStudioValue(previous.after, operation.after) ||
+      !sameChanges(previous, operation) ||
       previous.undoOf !== operation.undoOf ||
       !sameDefinition(previous.definition, operation.definition)
     ) {
@@ -293,24 +311,38 @@ export function applyStudioOperation(
       "The component properties changed. Reload them before saving this edit."
     );
   }
-  const field = definition.fields.find((item) => item.id === operation.field);
-  if (field === undefined || !Object.hasOwn(object.values, field.id)) {
-    throw new Error("This property no longer exists.");
+  const changes = studioOperationChanges(operation);
+  if (new Set(changes.map((change) => change.field)).size !== changes.length) {
+    throw new Error("An edit cannot change the same field twice.");
   }
-  if (!sameStudioValue(object.values[field.id], operation.before)) {
-    throw new Error(
-      `${object.label}: ${field.label} changed elsewhere. Reload before trying again.`
-    );
-  }
-  const problem = fieldProblem(field, operation.after);
-  if (problem !== null) {
-    throw new Error(problem);
+  for (const change of changes) {
+    const field = definition.fields.find((item) => item.id === change.field);
+    if (field === undefined || !Object.hasOwn(object.values, field.id)) {
+      throw new Error("This property no longer exists.");
+    }
+    if (!sameStudioValue(object.values[field.id], change.before)) {
+      throw new Error(
+        `${object.label}: ${field.label} changed elsewhere. Reload before trying again.`
+      );
+    }
+    const problem = fieldProblem(field, change.after);
+    if (problem !== null) {
+      throw new Error(problem);
+    }
   }
   return {
     ...document,
     objects: document.objects.map((item) =>
       item.id === object.id
-        ? { ...item, values: { ...item.values, [field.id]: operation.after } }
+        ? {
+            ...item,
+            values: {
+              ...item.values,
+              ...Object.fromEntries(
+                changes.map((change) => [change.field, change.after])
+              ),
+            },
+          }
         : item
     ),
     operations: [...document.operations, operation],
@@ -325,9 +357,47 @@ export function inverseStudioOperation(
     ...operation,
     after: operation.before,
     before: operation.after,
+    ...(operation.changes === undefined
+      ? {}
+      : {
+          changes: operation.changes.map((change) => ({
+            ...change,
+            after: change.before,
+            before: change.after,
+          })),
+        }),
     id,
     undoOf: operation.id,
   };
+}
+
+export function studioOperationChanges(
+  operation: Pick<StudioOperation, "field" | "before" | "after" | "changes">
+): readonly StudioFieldChange[] {
+  return [
+    {
+      field: operation.field,
+      before: operation.before,
+      after: operation.after,
+    },
+    ...(operation.changes ?? []),
+  ];
+}
+
+function sameChanges(left: StudioOperation, right: StudioOperation): boolean {
+  const a = left.changes ?? [];
+  const b = right.changes ?? [];
+  return (
+    a.length === b.length &&
+    a.every((change, index) => {
+      const other = b[index];
+      return (
+        change.field === other.field &&
+        sameStudioValue(change.before, other.before) &&
+        sameStudioValue(change.after, other.after)
+      );
+    })
+  );
 }
 
 export function sameStudioValue(

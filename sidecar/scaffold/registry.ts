@@ -62,6 +62,9 @@ async function install(source: string, root: string): Promise<Registered> {
       "studio-motion-v2",
       "studio-objects-v1",
       "studio-objects-v2",
+      "studio-objects-v3",
+      "studio-objects-v4",
+      "studio-objects-v5",
     ].map((version) => {
       const motion = join("src", "lib", version);
       return copyInto(

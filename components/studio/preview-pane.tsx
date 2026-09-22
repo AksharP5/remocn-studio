@@ -8,7 +8,6 @@ import {
   MonitorPlayIcon,
   PanelRightCloseIcon,
   RotateCwIcon,
-  SquareDashedMousePointerIcon,
 } from "lucide-react";
 import { type RefObject, useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -26,11 +25,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { Docs, PreviewMode } from "@/hooks/use-docs";
-import {
-  type Preview,
-  type PreviewControl,
-  usePreviewFrame,
-} from "@/hooks/use-preview";
+import type { Preview } from "@/hooks/use-preview";
 import type { Snapshot } from "@/hooks/use-snapshot";
 import type { Tools } from "@/hooks/use-tools";
 import { exportLabel } from "@/lib/studio/export";
@@ -40,6 +35,7 @@ import { DocsView } from "./docs-view";
 import { ExportButton } from "./export-button";
 import { InspectOverlay } from "./inspect-overlay";
 import { Pane, PaneActions, PaneBody, PaneHeader } from "./pane";
+import { PreviewSurface } from "./preview-controls";
 import { useStudio } from "./studio-provider";
 
 export function PreviewPane({ isBooting = false }: { isBooting?: boolean }) {
@@ -52,9 +48,6 @@ export function PreviewPane({ isBooting = false }: { isBooting?: boolean }) {
   return (
     <Pane>
       <PaneHeader data-tauri-drag-region>
-        {/* The title is gone because the switch says the same word, and the
-            header has no room for both: four actions already crowd a pane
-            whose `minSize` is 360px. */}
         <ModeSwitch mode={docs.mode} onPick={docs.onPickMode} />
         <PaneActions>
           <PreviewActions isDocs={isDocs} tools={tools} />
@@ -83,26 +76,27 @@ export function PreviewPane({ isBooting = false }: { isBooting?: boolean }) {
           cost a page load and the frame the person was looking at every time
           they read a document. */}
       <PaneBody className={cn("gap-2 p-4", isDocs && "hidden")}>
-        <div className="flex min-h-0 flex-1 items-center justify-center [container-type:size]">
-          <div className="relative aspect-(--preview-aspect) w-full max-w-[calc(100cqh*var(--preview-w)/var(--preview-h))] overflow-hidden rounded-xl border bg-black/30 [--preview-aspect:calc(var(--preview-w)/var(--preview-h))] [--preview-h:9] [--preview-w:16]">
-            {activeProject === null ? (
-              <NoFolder />
-            ) : (
-              <Stage isBooting={isBooting} preview={preview} stage={stage} />
-            )}
+        <PreviewSurface
+          enabled={!isDocs && activeProject !== null}
+          preview={tools.preview}
+        >
+          {activeProject === null ? (
+            <NoFolder />
+          ) : (
+            <Stage isBooting={isBooting} preview={preview} stage={stage} />
+          )}
 
-            {tools.managed?.isOpen ||
-            (inspect.card === null && inspect.markers.length === 0) ? null : (
-              <InspectOverlay
-                card={inspect.card}
-                cwd={openedProject?.path ?? null}
-                markers={inspect.markers}
-                onCancel={inspect.cancelComment}
-                onSubmit={inspect.submitComment}
-              />
-            )}
-          </div>
-        </div>
+          {tools.managed?.isOpen ||
+          (inspect.card === null && inspect.markers.length === 0) ? null : (
+            <InspectOverlay
+              card={inspect.card}
+              cwd={openedProject?.path ?? null}
+              markers={inspect.markers}
+              onCancel={inspect.cancelComment}
+              onSubmit={inspect.submitComment}
+            />
+          )}
+        </PreviewSurface>
 
         <StatusSlot
           projectPath={activeProject?.path ?? null}
@@ -115,7 +109,7 @@ export function PreviewPane({ isBooting = false }: { isBooting?: boolean }) {
 }
 
 /**
- * Inspect and Snapshot leave the header entirely in Docs — they point at
+ * Snapshot leaves the header entirely in Docs — it points at
  * pixels that are not on screen — while Export stays, because a render already
  * running must not be hidden by looking at a document.
  *
@@ -125,7 +119,7 @@ export function PreviewPane({ isBooting = false }: { isBooting?: boolean }) {
  * unavailable.
  */
 function PreviewActions({ isDocs, tools }: { isDocs: boolean; tools: Tools }) {
-  const { exporting, inspect, snapshot } = tools;
+  const { exporting, snapshot } = tools;
   const { preview, restart } = tools.preview;
 
   if (isDocs) {
@@ -145,18 +139,6 @@ function PreviewActions({ isDocs, tools }: { isDocs: boolean; tools: Tools }) {
           Restart
         </Button>
       ) : null}
-      <Button
-        aria-disabled={!inspect.canInspect}
-        aria-pressed={inspect.isArmed}
-        className="aria-disabled:opacity-50"
-        onClick={inspect.toggle}
-        size="sm"
-        title={inspect.unavailable ?? "Pick an element to comment on"}
-        variant={inspect.isArmed ? "default" : "outline"}
-      >
-        <SquareDashedMousePointerIcon data-icon="inline-start" />
-        Inspect
-      </Button>
       <Button
         aria-disabled={!snapshot.canSnapshot}
         aria-pressed={snapshot.isArmed}
@@ -276,7 +258,16 @@ function StatusSlot({
         </p>
       )}
 
-      {inspect.isArmed && quiet ? <ArmedFrame preview={tools.preview} /> : null}
+      {quiet && tools.preview.isServing && !snapshot.isArmed ? (
+        <p className="text-center text-muted-foreground text-xs">
+          {inspect.unavailable ??
+            (tools.managed?.editingText
+              ? "Click outside to save · Esc to cancel"
+              : inspect.card !== null || tools.managed?.isOpen
+                ? "Double-click text to edit · Esc to clear selection"
+                : "Click to select · Double-click text to edit")}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -324,16 +315,6 @@ function ModeSwitch({
         </button>
       ))}
     </div>
-  );
-}
-
-function ArmedFrame({ preview }: { readonly preview: PreviewControl }) {
-  const frame = usePreviewFrame(preview);
-
-  return (
-    <p className="shrink-0 text-center font-mono text-muted-foreground text-xs tabular-nums">
-      Inspect on · f {frame}
-    </p>
   );
 }
 

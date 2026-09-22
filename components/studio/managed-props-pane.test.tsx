@@ -15,6 +15,7 @@ function fixture(): ManagedObjects {
     commit: mock(),
     definition: documentFixture.definitions[0],
     discard: mock(),
+    editingText: false,
     error: null,
     fields: [
       {
@@ -27,6 +28,7 @@ function fixture(): ManagedObjects {
     isOpen: true,
     loading: false,
     objects: documentFixture.objects,
+    open: mock(),
     pending: 0,
     reload: mock(),
     retry: mock(),

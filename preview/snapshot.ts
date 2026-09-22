@@ -159,10 +159,14 @@ function start(container: HTMLElement, frame: Frame): Session {
   };
 
   const onKey = (event: KeyboardEvent) => {
-    if (event.key === "Escape" && dragging !== null) {
+    if (event.key === "Escape" && !event.defaultPrevented) {
       event.preventDefault();
       event.stopPropagation();
-      onCancel();
+      if (dragging !== null) {
+        onCancel();
+      } else {
+        post({ type: "inspect.clear" });
+      }
     }
   };
 

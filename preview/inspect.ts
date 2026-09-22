@@ -2,8 +2,10 @@ import { anchorOf, CANVAS_SELECTOR } from "./anchor";
 import { assetBase, assetNames, forgetAssets, staticBase } from "./assets";
 import { post } from "./bridge";
 import { displayName, fiberOf, nearestInFibers } from "./fiber";
+import { createInlineTextEditor } from "./inline-text";
+import { createGeometryEditor } from "./geometry";
 import { managedIdentity, managedRoots } from "./managed-objects";
-import { covers, OVERLAY_ATTR, pickAt } from "./picker";
+import { covers, nearText, OVERLAY_ATTR, pickAt } from "./picker";
 import {
   absolutise,
   formatFrame,
@@ -28,6 +30,9 @@ const MARKUP_LIMIT = 4000;
 const PARENTS = 3;
 const SELECTION_ATTR = "data-remocn-selection";
 const PULSE_CLASS = "remocn-selection-pulse";
+const CURSOR = "--remocn-inspect-cursor";
+const EDITING =
+  "input, textarea, select, [contenteditable]:not([contenteditable='false'])";
 // Hand-copied from --reference's dark value in app/globals.css — this file is
 // compiled by the project's webpack and cannot import the app's theme.
 export const ACCENT = "oklch(0.715 0.143 215.221)";
@@ -91,6 +96,7 @@ export interface Stage {
   composition: () => string;
   fps: () => number;
   frame: () => number;
+  pause?: () => void;
   // What the codemod resolves `fps`, `width`, `height` and `durationInFrames`
   // to when a prop is written as an expression over them. Only the page knows
   // it, so it rides with the selection rather than being asked for later.
@@ -100,7 +106,10 @@ export interface Stage {
 interface Session {
   readonly box: HTMLElement;
   readonly container: HTMLElement;
+  readonly inline: ReturnType<typeof createInlineTextEditor>;
+  readonly geometry: ReturnType<typeof createGeometryEditor>;
   readonly label: HTMLElement;
+  readonly stage: Stage;
   readonly stop: () => void;
 }
 
@@ -110,6 +119,7 @@ let hovered: Element | null = null;
 let exact = false;
 let point: { x: number; y: number } | null = null;
 let painting = 0;
+let pickVersion = 0;
 // Where each `Interactive` of the last selection sits, so switching in the
 // pane can point back at it. Captured at pick time, which is the only moment
 // the whole chain is known.
@@ -136,8 +146,10 @@ export function armInspect(armed: boolean, stage: Stage): InspectStatus {
     return "no-canvas";
   }
 
-  close();
-  session = start(container, stage);
+  if (session?.container !== container) {
+    close();
+    session = start(container, stage);
+  }
 
   return document.querySelector("[data-studio-object]") !== null ||
     grab() !== null
@@ -184,6 +196,9 @@ export function highlightManaged(
 }
 
 export function clearSelection(): void {
+  session?.inline.cancel();
+  session?.geometry.cancel();
+  pickVersion += 1;
   chain = new Map();
   picked = null;
   selected = null;
@@ -194,7 +209,25 @@ export function clearSelection(): void {
 }
 
 export function repaint(): void {
+  if (session !== null && session.container !== canvas()) {
+    armInspect(true, session.stage);
+  }
   paint();
+}
+
+export function dismissSelection(notify = true): void {
+  session?.inline.cancel();
+  session?.geometry.cancel();
+  pickVersion += 1;
+  chain = new Map();
+  picked = null;
+  selected = null;
+  managedSelected = null;
+  hovered = null;
+  paint();
+  if (notify) {
+    post({ type: "inspect.clear" });
+  }
 }
 
 function grab(): GrabApi | null {
@@ -235,7 +268,10 @@ function grab(): GrabApi | null {
 function forceHitTesting(): HTMLStyleElement {
   const style = document.createElement("style");
   style.setAttribute(OVERLAY_ATTR, "");
-  style.textContent = `${CANVAS}, ${CANVAS} * { pointer-events: auto !important; }`;
+  style.textContent = `${CANVAS}, ${CANVAS} * {
+    pointer-events: auto !important;
+    cursor: var(${CURSOR}, default) !important;
+  }`;
   document.head.append(style);
   return style;
 }
@@ -253,11 +289,21 @@ function overCanvas(container: HTMLElement, x: number, y: number): boolean {
 function start(container: HTMLElement, stage: Stage): Session {
   const { box, label } = overlay();
   const hitTesting = forceHitTesting();
-  const { cursor } = container.style;
+  const cursor = container.style.getPropertyValue(CURSOR);
+  const inline = createInlineTextEditor(container, ACCENT, TOP + 3, paint);
+  const geometry = createGeometryEditor(
+    container,
+    ACCENT,
+    TOP + 2,
+    () => stage.pause?.(),
+    () => stage.frame(),
+    paint
+  );
 
-  container.style.cursor = "crosshair";
+  container.style.setProperty(CURSOR, "default");
 
   const onMove = (event: PointerEvent) => {
+    if (geometry.active()) return;
     point = { x: event.clientX, y: event.clientY };
     exact = event.altKey;
     schedule(container);
@@ -266,6 +312,7 @@ function start(container: HTMLElement, stage: Stage): Session {
   const onLeave = () => {
     point = null;
     hovered = null;
+    container.style.setProperty(CURSOR, "default");
     paint();
   };
 
@@ -274,9 +321,29 @@ function start(container: HTMLElement, stage: Stage): Session {
       exact = event.type === "keydown";
       schedule(container);
     }
+    if (
+      event.type === "keydown" &&
+      event.key === "Escape" &&
+      !event.defaultPrevented &&
+      !(event.target instanceof Element && event.target.closest(EDITING))
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (geometry.escape()) return;
+      dismissSelection();
+    }
   };
 
   const onDown = (event: PointerEvent) => {
+    if (inline.contains(event.target)) {
+      return;
+    }
+    if (inline.beforePick()) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (geometry.pointerDown(event)) return;
     if (
       event.button !== 0 ||
       !overCanvas(container, event.clientX, event.clientY)
@@ -290,9 +357,13 @@ function start(container: HTMLElement, stage: Stage): Session {
     const found =
       pickAt(event.clientX, event.clientY, container, event.altKey) ?? hovered;
 
-    if (found === null) {
+    if (found === null || found === container) {
+      dismissSelection();
       return;
     }
+
+    stage.pause?.();
+    window.focus();
 
     const repeat =
       picked !== null &&
@@ -300,18 +371,23 @@ function start(container: HTMLElement, stage: Stage): Session {
 
     picked = found;
     selected = found;
+    managedSelected = null;
+    pickVersion += 1;
     paint();
 
     if (repeat) {
       pulse();
     }
 
-    report(found, stage, repeat).catch(nothing);
+    report(found, stage, repeat, pickVersion).catch(nothing);
   };
 
   // A click that picks must never also reach Remotion's `clickToPlay`
   // underneath it.
   const swallow = (event: MouseEvent) => {
+    if (inline.contains(event.target) || geometry.contains(event.target)) {
+      return;
+    }
     if (overCanvas(container, event.clientX, event.clientY)) {
       event.preventDefault();
       event.stopPropagation();
@@ -322,6 +398,7 @@ function start(container: HTMLElement, stage: Stage): Session {
   window.addEventListener("pointerdown", onDown, true);
   window.addEventListener("pointerup", swallow, true);
   window.addEventListener("click", swallow, true);
+  window.addEventListener("dblclick", inline.doubleClick, true);
   window.addEventListener("keydown", onKey, true);
   window.addEventListener("keyup", onKey, true);
   container.addEventListener("pointerleave", onLeave);
@@ -329,24 +406,35 @@ function start(container: HTMLElement, stage: Stage): Session {
   return {
     box,
     container,
+    inline,
+    geometry,
     label,
+    stage,
     stop: () => {
       window.removeEventListener("pointermove", onMove, true);
       window.removeEventListener("pointerdown", onDown, true);
       window.removeEventListener("pointerup", swallow, true);
       window.removeEventListener("click", swallow, true);
+      window.removeEventListener("dblclick", inline.doubleClick, true);
       window.removeEventListener("keydown", onKey, true);
       window.removeEventListener("keyup", onKey, true);
       container.removeEventListener("pointerleave", onLeave);
-      container.style.cursor = cursor;
+      if (cursor) {
+        container.style.setProperty(CURSOR, cursor);
+      } else {
+        container.style.removeProperty(CURSOR);
+      }
       box.remove();
       label.remove();
       hitTesting.remove();
+      inline.stop();
+      geometry.stop();
     },
   };
 }
 
 function close(): void {
+  pickVersion += 1;
   session?.stop();
   session = null;
   hovered = null;
@@ -368,6 +456,17 @@ function schedule(container: HTMLElement): void {
     }
 
     hovered = pickAt(point.x, point.y, container, exact);
+    if (hovered === container) {
+      hovered = null;
+    }
+    container.style.setProperty(
+      CURSOR,
+      hovered !== null && nearText(hovered, point.x, point.y)
+        ? "text"
+        : session.geometry.movable(hovered)
+          ? "move"
+          : "default"
+    );
     paint();
   });
 }
@@ -377,7 +476,7 @@ function overlay(): { box: HTMLElement; label: HTMLElement } {
   const label = tagged(TOP + 1);
 
   box.style.border = `1px solid ${ACCENT}`;
-  box.style.background = ACCENT_SOFT;
+  box.style.opacity = "0.55";
 
   document.body.append(box, label);
 
@@ -407,7 +506,7 @@ function pulseStyle(): HTMLStyleElement {
   style.setAttribute(SELECTION_ATTR, "");
   style.textContent = `@keyframes ${PULSE_CLASS} {
   0% { outline: 0 solid ${ACCENT_SOFT}; }
-  40% { outline: 6px solid ${ACCENT_SOFT}; }
+  40% { outline: 2px solid ${ACCENT_SOFT}; }
   100% { outline: 0 solid ${ACCENT_SOFT}; }
 }
 [${SELECTION_ATTR}].${PULSE_CLASS} { animation: ${PULSE_CLASS} 250ms ease-out; }
@@ -469,6 +568,11 @@ function paint(): void {
 
 function paintSelection(): void {
   const { box, tag } = selectionPair();
+  if (session?.inline.active()) {
+    session.geometry.paint(null);
+    place(box, tag, null);
+    return;
+  }
   const roots =
     managedSelected === null
       ? []
@@ -479,8 +583,11 @@ function paintSelection(): void {
               managedSelected?.generation
         );
   const root =
-    roots.find((node) => node.getBoundingClientRect().width > 0) ?? null;
-  place(box, tag, managedSelected === null ? selected : root);
+    (picked !== null && roots.includes(picked) ? picked : null) ??
+    roots.find((node) => node.getBoundingClientRect().width > 0) ??
+    null;
+  const showing = managedSelected === null ? selected : root;
+  place(box, tag, session?.geometry.paint(showing) ? null : showing);
 }
 
 function paintHover(): void {
@@ -488,7 +595,19 @@ function paintHover(): void {
     return;
   }
 
-  place(session.box, session.label, hovered);
+  const isSelected =
+    hovered !== null &&
+    (hovered === selected ||
+      (managedSelected !== null &&
+        managedIdentity(hovered)?.objectId === managedSelected.id));
+  place(
+    session.box,
+    session.label,
+    isSelected || session.inline.active() || session.geometry.active()
+      ? null
+      : hovered
+  );
+  session.label.style.display = "none";
 }
 
 function place(
@@ -560,8 +679,14 @@ export function componentAt(element: Element): string | null {
 async function report(
   element: Element,
   stage: Stage,
-  repeat: boolean
+  repeat: boolean,
+  version: number
 ): Promise<void> {
+  const frame = stage.frame();
+  const composition = stage.composition();
+  const fps = stage.fps();
+  const video = stage.video();
+  const rect = normalise(element.getBoundingClientRect());
   const managed = managedIdentity(element);
   if (managed !== null) {
     post({ type: "studio.select", ...managed });
@@ -584,6 +709,10 @@ async function report(
       )
     ),
   ]);
+
+  if (version !== pickVersion || !element.isConnected) {
+    return;
+  }
 
   chain = new Map();
 
@@ -613,9 +742,11 @@ async function report(
 
   const stack = projectFrames(root, frames);
   const target = resolved(root, spot) ?? stack.at(0) ?? null;
-  const frame = stage.frame();
-
   const assets = await assetNames();
+
+  if (version !== pickVersion || !element.isConnected) {
+    return;
+  }
 
   post({
     assetBase: assetBase(staticBase(), window.location.href),
@@ -623,9 +754,9 @@ async function report(
     element: {
       column: target?.column ?? null,
       component: spot?.componentName ?? target?.name ?? null,
-      composition: stage.composition(),
+      composition,
       file: target?.file ?? null,
-      fps: stage.fps(),
+      fps,
       frame,
       html: truncateMarkup(element.outerHTML, MARKUP_LIMIT),
       line: target?.line ?? null,
@@ -633,12 +764,12 @@ async function report(
       stack: parentsOf(stack, target).map(formatFrame),
     },
     fonts: loadedFonts(),
-    rect: normalise(element.getBoundingClientRect()),
+    rect,
     repeat,
     text: directText(links.at(0)?.node ?? element),
     tuning: located(targetsOf(element), wheres),
     type: "selection",
-    video: stage.video(),
+    video,
     window: windowOf(element),
   });
 }

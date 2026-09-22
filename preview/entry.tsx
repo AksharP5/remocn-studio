@@ -15,6 +15,7 @@ import { connectHotReload } from "./hot";
 import {
   armInspect,
   clearSelection,
+  dismissSelection,
   highlightManaged,
   highlightTarget,
   repaint,
@@ -24,6 +25,7 @@ import { InteractivityRuntime } from "./interactivity";
 import { releaseDetachedMedia } from "./media-release";
 import { playbackPositions } from "./playback-position";
 import { armSnapshot, type Frame } from "./snapshot";
+import { usePlayerTransport } from "./transport";
 import { applyStatuses, clearTuning, tune } from "./tuning-runtime";
 
 const MAIN_ID = "Main";
@@ -323,13 +325,16 @@ function InteractivePlayer({
       component={interactiveComponent}
       compositionHeight={height}
       compositionWidth={width}
-      controls
+      clickToPlay={false}
+      controls={false}
+      doubleClickToFullscreen={false}
       durationInFrames={durationInFrames}
       fps={fps}
       initialFrame={Math.min(position.frame, durationInFrames - 1)}
       inputProps={inputProps}
       loop
       ref={player}
+      spaceKeyToPlayOrPause={false}
       style={{ height: "100%", width: "100%" }}
     />
   );
@@ -410,6 +415,11 @@ function usePreviewCommands(
     composition: () => playing.current.composition ?? "",
     fps: () => playing.current.fps,
     frame: () => player.current?.getCurrentFrame() ?? 0,
+    pause: () => {
+      replaying.current?.();
+      replaying.current = null;
+      player.current?.pause();
+    },
     video: () => ({
       durationInFrames: playing.current.durationInFrames,
       fps: playing.current.fps,
@@ -426,16 +436,43 @@ function usePreviewCommands(
   });
 
   const replaying = useRef<(() => void) | null>(null);
+  const cancelReplay = useCallback(() => {
+    replaying.current?.();
+    replaying.current = null;
+  }, []);
+
+  usePlayerTransport(
+    player,
+    video.durationInFrames > 0 ? video.composition : null,
+    video.durationInFrames,
+    cancelReplay
+  );
+
+  useEffect(() => {
+    if (player.current === null || video.durationInFrames <= 0) {
+      return;
+    }
+    post({ type: "inspect.ready" });
+    return () => {
+      armInspect(false, spot.current);
+      armSnapshot(false, frame.current);
+    };
+  }, [player, video.composition, video.durationInFrames]);
 
   useEffect(
     () =>
       onCommand((command) => {
+        if (command.type === "inspect.clear") {
+          dismissSelection(false);
+          return;
+        }
         if (command.type === "studio.highlight") {
           highlightManaged(command.objectId, command.video, command.generation);
           return;
         }
         if (
           command.type === "studio.draft" ||
+          command.type === "studio.batch" ||
           command.type === "studio.request"
         ) {
           return;
@@ -464,12 +501,18 @@ function usePreviewCommands(
           return;
         }
 
-        replaying.current?.();
-        replaying.current = null;
-        player.current?.pause();
-        player.current?.seekTo(command.frame);
+        if (command.type === "seek") {
+          cancelReplay();
+          player.current?.pause();
+          player.current?.seekTo(
+            Math.max(
+              0,
+              Math.min(playing.current.durationInFrames - 1, command.frame)
+            )
+          );
+        }
       }),
-    [player]
+    [cancelReplay, player]
   );
 }
 
@@ -542,10 +585,10 @@ function inspectOrSnapshot(
 ): boolean {
   if (command.type === "inspect") {
     if (command.armed) {
-      player.current?.pause();
+      armSnapshot(false, frame);
     }
     post({
-      paused: player.current !== null,
+      paused: player.current !== null && !player.current.isPlaying(),
       status: armInspect(command.armed, spot),
       type: "inspect",
     });
@@ -554,6 +597,7 @@ function inspectOrSnapshot(
 
   if (command.type === "snapshot") {
     if (command.armed) {
+      armInspect(false, spot);
       player.current?.pause();
     }
     post({

@@ -179,9 +179,8 @@ function ComposerBlock({
       <div className="relative mx-auto flex w-full max-w-2xl flex-col gap-1">
         <MentionPopup mentions={composer.mentions} />
 
-        {/* In dark the surface is a tonal fill (`dark:bg-input/30` on the
-            group) and a border would double the edge; light has no tone to
-            offer, so the border is the edge there. */}
+        {/* The dark field sits below the surrounding surface; light mode
+            uses the border to separate it from the page. */}
         <InputGroup
           className={cn(
             "rounded-xl before:rounded-[calc(var(--radius-xl)-1px)] dark:border-none",
@@ -234,7 +233,7 @@ function ComposerBlock({
           <div className="relative flex w-full min-w-0 flex-1 flex-col">
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-[calc(--spacing(3)-1px)] py-[calc(--spacing(3)-1px)] text-base [scrollbar-gutter:stable] sm:text-sm"
+              className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-5 py-[calc(--spacing(3)-1px)] text-base [scrollbar-gutter:stable] sm:text-sm"
               ref={composer.caret.mirror}
             >
               <MessageText counts={composer.counts} text={composer.value} />
@@ -244,7 +243,7 @@ function ComposerBlock({
             <textarea
               {...VERBATIM_INPUT}
               aria-label="Message"
-              className="field-sizing-content relative max-h-64 w-full rounded-none border-0 bg-transparent px-[calc(--spacing(3)-1px)] py-[calc(--spacing(3)-1px)] text-base text-transparent caret-foreground shadow-none outline-none [scrollbar-gutter:stable] selection:bg-primary/30 placeholder:text-muted-foreground/72 sm:text-sm"
+              className="field-sizing-content relative max-h-64 w-full rounded-none border-0 bg-transparent px-5 py-[calc(--spacing(3)-1px)] text-base text-transparent caret-foreground shadow-none outline-none [scrollbar-gutter:stable] selection:bg-primary/30 placeholder:text-muted-foreground/72 dark:placeholder:text-muted-foreground sm:text-sm"
               data-slot="textarea"
               disabled={isLocked}
               onBlur={composer.onBlur}
@@ -374,7 +373,7 @@ function ComposerBlock({
         </InputGroup>
 
         <p
-          className="flex min-h-5 items-center px-3 text-muted-foreground text-xs"
+          className="flex min-h-5 items-center px-5 text-muted-foreground text-xs empty:hidden"
           role="status"
         >
           <ComposerStatus

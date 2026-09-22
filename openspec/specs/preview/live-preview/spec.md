@@ -5,6 +5,45 @@ The right pane plays the video the open chat is about, compiled by the project's
 
 ## Requirements
 
+### Requirement: Playback controls sit below the frame
+
+The preview SHALL use a persistent playback panel below the frame, with a seek bar, Play/Pause, previous and next frame actions, elapsed and total time, and a mute control. Wider panels SHALL also show a volume slider. The embedded player's controls, click-to-play and double-click-to-fullscreen SHALL be disabled so playback interactions do not intercept editing gestures on the frame. The frame SHALL fit the resolved video dimensions while leaving room for the playback panel.
+
+#### Scenario: Playback is controlled from the panel
+
+- **WHEN** Play or Pause is pressed
+- **THEN** the existing preview player changes its playback state
+- **AND** the panel follows the player's reported frame, playback, buffering and sound state
+
+#### Scenario: A precise frame is chosen
+
+- **WHEN** the seek bar or a frame-step action is used
+- **THEN** playback pauses and seeks to a whole frame within the video's bounds
+- **AND** the action does not clear the selected object
+
+#### Scenario: Playback shortcuts are used
+
+- **WHEN** the preview has focus outside text inputs and other interactive controls
+- **THEN** Space toggles playback and Left/Right move one frame
+- **AND** those shortcuts do not intercept input elsewhere in the app
+
+#### Scenario: The player is not ready
+
+- **WHEN** no video is ready to receive playback commands
+- **THEN** the playback panel keeps its space and disables its controls
+- **AND** the time display shows placeholders
+
+#### Scenario: Fullscreen is available
+
+- **WHEN** fullscreen is supported and the person enters it
+- **THEN** the frame and its playback panel enter fullscreen together
+- **AND** a failed fullscreen request is described in the panel
+
+#### Scenario: Playback reports an error
+
+- **WHEN** the player reports a playback error
+- **THEN** the panel shows a readable failure message without moving the frame
+
 ### Requirement: A preview host per project compiles the project's own bundle
 
 Opening a Project SHALL start one preview host for it: a child process whose working directory is the project, which compiles the project with its own bundler and serves the result. The host SHALL report compile progress as a percentage while it compiles and SHALL report the origin it serves from once the first compile finishes. A Project whose folder is missing, or which is still being scaffolded, SHALL get no host at all.

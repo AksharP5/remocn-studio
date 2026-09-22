@@ -444,7 +444,23 @@ export function useInspect({
   const onMessage = useCallback(
     (message: PreviewMessage) => {
       if (message.type === "selection") {
-        onSelection(message);
+        if (isArmed && unavailable === null) {
+          onSelection(message);
+        }
+        return;
+      }
+
+      if (message.type === "studio.select") {
+        abandon(cardRef.current);
+        cardRef.current = null;
+        setCard(null);
+        return;
+      }
+
+      if (message.type === "inspect.ready") {
+        setReported(null);
+        setAsked(Date.now());
+        send(inspectCommand(isArmed));
         return;
       }
 
@@ -455,6 +471,7 @@ export function useInspect({
 
       if (message.type === "rebuilt") {
         onRebuilt();
+        send(inspectCommand(isArmed));
         return;
       }
 
@@ -462,7 +479,7 @@ export function useInspect({
         onTuneResult(message);
       }
     },
-    [onRebuilt, onSelection, onTuneResult]
+    [abandon, isArmed, onRebuilt, onSelection, onTuneResult, send, unavailable]
   );
 
   useOnPreview(preview, onMessage);
@@ -701,6 +718,7 @@ export function useInspect({
 
   const cancelComment = useCallback(() => {
     resetTuning();
+    cardRef.current = null;
     setCard(null);
   }, [resetTuning]);
 
@@ -1099,15 +1117,15 @@ function troubleOf(
     return "The player is not on screen yet, so there is nothing to pick from.";
   }
 
-  if (reported?.paused) {
+  if (status === "armed" || status === "disarmed") {
     return null;
   }
 
   if (status !== null) {
-    return "The preview answered, but its player did not — the video will not pause.";
+    return "The preview could not enable element selection.";
   }
 
   return asked !== null && now - asked > PATIENCE
-    ? "Inspect is on, but the preview never answered — its page is probably from an older build. Restart the preview."
+    ? "Element selection is unavailable because the preview did not answer. Restart the preview."
     : null;
 }

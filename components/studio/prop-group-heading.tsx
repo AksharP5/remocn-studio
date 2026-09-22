@@ -22,10 +22,10 @@ export function GroupHeading({
   );
 
   return (
-    <h3 className="pb-2 font-medium text-foreground text-sm">
+    <h3 className="pb-1.5 font-medium text-foreground text-sm">
       <button
         aria-expanded={isOpen}
-        className="-mx-1 flex w-[calc(100%+0.5rem)] items-center gap-1 rounded-sm px-1 py-0.5 text-left hover:bg-muted/50"
+        className="-mx-1 flex min-h-7 w-[calc(100%+0.5rem)] items-center gap-1.5 rounded-sm px-1 text-left outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-10"
         onClick={toggle}
         type="button"
         value={group}

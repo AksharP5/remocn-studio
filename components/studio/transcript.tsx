@@ -181,7 +181,7 @@ function EntryBlock({
           <MediaRow items={[...entry.attachments, ...entry.media]} />
           <AssetRow items={entry.assets} />
           {entry.text.length === 0 ? null : (
-            <Bubble align="end">
+            <Bubble align="end" variant="secondary">
               <BubbleContent className="whitespace-pre-wrap">
                 <MessageText
                   counts={{

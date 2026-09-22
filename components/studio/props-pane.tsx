@@ -60,19 +60,36 @@ const GROUP_ORDER = [
 ];
 
 export function PropsPane() {
-  const { openedProject, settings, tools } = useStudio();
+  const { composer, openedProject, settings, tools } = useStudio();
   const { inspect } = tools;
   const { card } = inspect;
   const frame = usePreviewFrame(tools.preview);
   // Outside the keyed panel below, so a fold survives picking another element.
   const groups = usePropGroups(settings);
 
+  const addManagedInstruction = useCallback(
+    (instruction: string) => {
+      const object = tools.managed?.selected;
+      const video = tools.preview.composition;
+      if (!(object && video)) {
+        return;
+      }
+      composer.write(
+        `For element ${JSON.stringify(object.label)} (studio object ${JSON.stringify(object.id)}, definition ${JSON.stringify(object.definition)}) in video ${JSON.stringify(video)}:\n${instruction}`
+      );
+      composer.caret.ref.current?.focus();
+    },
+    [composer, tools.managed?.selected, tools.preview.composition]
+  );
+
   if (tools.managed?.isOpen) {
     return (
       <ManagedPropsPane
         fps={tools.preview.pick?.metadata?.fps}
         groups={groups}
+        key={`${openedProject?.id}:${tools.preview.composition}`}
         objects={tools.managed}
+        onAddInstruction={addManagedInstruction}
       />
     );
   }
@@ -152,7 +169,7 @@ export function PropsPanel({
   };
 
   return (
-    <Pane>
+    <Pane className="property-inspector">
       <PaneHeader>
         <div className="flex min-w-0 items-center gap-2">
           <PaneTitle className="truncate">{titleOf(target)}</PaneTitle>
@@ -237,7 +254,7 @@ export function PropsPanel({
                   of the pane rather than an inset line inside the content. */}
               {groups.map(([group, grouped]) => (
                 <section
-                  className="border-border border-t px-4 py-3 first:border-t-0"
+                  className="border-border border-t px-3 py-2.5 first:border-t-0"
                   key={group}
                 >
                   <GroupHeading
@@ -247,7 +264,7 @@ export function PropsPanel({
                     onToggle={folds?.toggle}
                   />
                   <div
-                    className="flex flex-col gap-2.5"
+                    className="flex flex-col gap-1.5"
                     hidden={folds?.collapsed.includes(group) === true}
                   >
                     {paneRows(grouped).map((row) =>
@@ -366,7 +383,7 @@ function TextSection({
   );
 
   return (
-    <section className="border-border border-t px-4 py-3 first:border-t-0">
+    <section className="border-border border-t px-3 py-2.5 first:border-t-0">
       <h3 className="pb-2 font-medium text-foreground text-sm">Text</h3>
       <Textarea
         {...VERBATIM_INPUT}

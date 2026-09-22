@@ -9,7 +9,11 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import {
   SidebarMenu,
   SidebarMenuItem,
@@ -36,16 +40,19 @@ export function StockPane({
   return (
     <PaneScreen
       pinned={
-        <div className="relative px-1">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            aria-label="Search Pexels"
-            className="pl-8"
-            onChange={stock.onQueryChange}
-            placeholder={kind === "photo" ? "Search photos…" : "Search videos…"}
-            type="search"
-            value={stock.query}
-          />
+        <div className="px-1">
+          <InputGroup>
+            <InputGroupAddon>
+              <SearchIcon aria-hidden="true" className="size-4 text-muted-foreground opacity-100" />
+            </InputGroupAddon>
+            <InputGroupInput
+              aria-label="Search Pexels"
+              onChange={stock.onQueryChange}
+              placeholder={kind === "photo" ? "Search photos…" : "Search videos…"}
+              type="search"
+              value={stock.query}
+            />
+          </InputGroup>
         </div>
       }
     >
@@ -115,7 +122,7 @@ function StockBody({ stock }: { stock: Stock }) {
 
   return (
     <div className="flex flex-col gap-2 px-1 pb-2">
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 items-start gap-2">
         {stock.items.map((item) => {
           const key = stockKeyOf(item);
           return (
