@@ -10,4 +10,4 @@
 ## 3. Wrap up
 
 - [x] 3.1 `bun run check`, `bun run typecheck`, changeset
-- [ ] 3.2 In the running app: break a file the bundle includes, watch the pane show the error, fix it, and watch the player come back without Restart
+- [x] 3.2 In the running app: break a file the bundle includes, watch the pane show the error, fix it, and watch the player come back without Restart

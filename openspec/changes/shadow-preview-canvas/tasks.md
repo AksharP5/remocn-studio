@@ -28,7 +28,7 @@
 - [x] 5.2 Split the host into a window session and per-runtime slots; stage rebuilds hidden, switch to the latest announcement, swap atomically, keep the shown version with a stale notice when staging fails.
 - [x] 5.3 Show the loading screen only for the first mount; update the live-preview delta.
 - [x] 5.5 Hold a painted slot while the shown one is under a geometry or text edit, or while its objects document lags a write the studio made (`acceptsPreview`), released after 8 s of lag without an edit.
-- [ ] 5.4 Verify in the running app: a rebuild during a drag does not interrupt it and the element never returns to an earlier position after drop; an agent edit swaps without a flash while paused and while playing; mute/volume survive; a throwing edit keeps the previous version with the notice; rapid successive writes end on the latest version.
+- [x] 5.4 Verify in the running app: a rebuild during a drag does not interrupt it and the element never returns to an earlier position after drop; an agent edit swaps without a flash while paused and while playing; mute/volume survive; a throwing edit keeps the previous version with the notice; rapid successive writes end on the latest version.
 
 ## 6. Cleanup after the canvas became the only preview
 
@@ -39,5 +39,5 @@
 - [ ] 6.5 Remove the grab script the sidecar still serves for the removed page: `GRAB_SCRIPT_ENV` in Rust and the sidecar, the `grab/index.global.js` resource, `/__remocn/grab.js`, `withoutWebFonts`. Cross-layer; needs `cargo check`.
 - [ ] 6.6 Suspend the render compiler between renders (separate change): the main watcher also reports ready/failed to the pane and resets the still cache, so the native compiler has to take those over first.
 
-Checked items record implementation only. Runtime behavior and visual parity
-are unverified. See app/lab/preview-canvas/README.md for compatibility boundaries.
+Runtime behavior was verified by the user in the running app on 2026-09-23;
+4.2 still wants the automated coverage it lists. See app/lab/preview-canvas/README.md for compatibility boundaries.

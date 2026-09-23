@@ -18,5 +18,5 @@
 
 ## 4. Verification
 
-- [ ] 4.1 `bun run check`, `bun run typecheck`, touched tests and the full suite.
-- [ ] 4.2 In the running app: a picked ordinary element reopens after an agent edit; snapping and guides at several zoom levels; holding an arrow is one Undo; shortcuts with a handle focused; an element entering from off-frame is visible dimmed and selectable.
+- [x] 4.1 `bun run check`, `bun run typecheck`, touched tests and the full suite.
+- [x] 4.2 In the running app: a picked ordinary element reopens after an agent edit; snapping and guides at several zoom levels; holding an arrow is one Undo; shortcuts with a handle focused; an element entering from off-frame is visible dimmed and selectable.

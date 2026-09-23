@@ -17,5 +17,5 @@
 
 ## 4. Verification
 
-- [ ] 4.1 `bun run check`, `bun run typecheck`, touched tests and the full suite.
-- [ ] 4.2 In the app, on a video written with the helper: drag early in an entry moves the start (outside the frame), late moves the resting pose; an exit mirrors it; the outline and the path follow the drag; one Undo.
+- [x] 4.1 `bun run check`, `bun run typecheck`, touched tests and the full suite.
+- [x] 4.2 In the app, on a video written with the helper: drag early in an entry moves the start (outside the frame), late moves the resting pose; an exit mirrors it; the outline and the path follow the drag; one Undo.
