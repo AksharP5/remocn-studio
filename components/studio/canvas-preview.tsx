@@ -11,7 +11,7 @@ import {
   SquareDashedIcon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import type { CSSProperties, ReactNode } from "react";
+import { type CSSProperties, memo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useCanvasPreview } from "@/hooks/use-canvas-preview";
@@ -30,6 +30,7 @@ const PropsPane = dynamic(() =>
 const DIMMED = "color-mix(in oklab, var(--background) 72%, transparent)";
 
 type Canvas = ReturnType<typeof useCanvasPreview>;
+type Metadata = Canvas["metadata"];
 
 export function CanvasPreview({
   header,
@@ -122,7 +123,14 @@ export function CanvasPreview({
 
         <CanvasToolbar canvas={canvas} />
 
-        <CanvasInspector canvas={canvas} tools={tools} />
+        <CanvasInspector
+          duration={canvas.transport.duration}
+          hasSelection={canvas.hasSelection}
+          hideInspector={canvas.hideInspector}
+          metadata={metadata}
+          shown={canvas.inspector}
+          tools={tools}
+        />
 
         {canvas.inspector ? null : (
           <Button
@@ -244,7 +252,21 @@ function CanvasToolbar({ canvas }: { canvas: Canvas }) {
   );
 }
 
-function CanvasInspector({ canvas, tools }: { canvas: Canvas; tools: Tools }) {
+function InspectorPanel({
+  duration,
+  hasSelection,
+  hideInspector,
+  metadata,
+  shown,
+  tools,
+}: {
+  duration: string;
+  hasSelection: boolean;
+  hideInspector: () => void;
+  metadata: Metadata;
+  shown: boolean;
+  tools: Tools;
+}) {
   const { snapshot } = tools;
 
   return (
@@ -252,7 +274,7 @@ function CanvasInspector({ canvas, tools }: { canvas: Canvas; tools: Tools }) {
       aria-label="Inspector"
       className={cn(
         "absolute inset-y-0 right-0 z-20 flex w-[340px] max-w-[calc(100%_-_24px)] flex-col overflow-hidden border-pane-border border-l bg-background",
-        !canvas.inspector && "hidden"
+        !shown && "hidden"
       )}
       data-canvas-chrome
       data-canvas-occludes="right"
@@ -281,7 +303,7 @@ function CanvasInspector({ canvas, tools }: { canvas: Canvas; tools: Tools }) {
         />
         <Button
           aria-label="Hide inspector"
-          onClick={canvas.hideInspector}
+          onClick={hideInspector}
           size="icon-sm"
           title="Hide inspector"
           variant="ghost"
@@ -290,12 +312,13 @@ function CanvasInspector({ canvas, tools }: { canvas: Canvas; tools: Tools }) {
         </Button>
       </div>
       <div className="flex min-h-0 flex-1 flex-col">
-        {canvas.hasSelection ? (
+        {hasSelection ? (
           <PropsPane />
         ) : (
           <VideoDetails
-            canvas={canvas}
             composition={tools.preview.composition}
+            duration={duration}
+            metadata={metadata}
           />
         )}
       </div>
@@ -303,15 +326,17 @@ function CanvasInspector({ canvas, tools }: { canvas: Canvas; tools: Tools }) {
   );
 }
 
-function VideoDetails({
-  canvas,
-  composition,
-}: {
-  canvas: Canvas;
-  composition: string | null;
-}) {
-  const { metadata } = canvas;
+const CanvasInspector = memo(InspectorPanel);
 
+function VideoDetails({
+  composition,
+  duration,
+  metadata,
+}: {
+  composition: string | null;
+  duration: string;
+  metadata: Metadata;
+}) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-auto text-xs">
       <div className="p-4">
@@ -327,7 +352,7 @@ function VideoDetails({
             <dt className="text-muted-foreground">Frame rate</dt>
             <dd className="text-right">{metadata.fps} fps</dd>
             <dt className="text-muted-foreground">Duration</dt>
-            <dd className="text-right">{canvas.transport.duration}</dd>
+            <dd className="text-right">{duration}</dd>
           </dl>
         )}
       </div>

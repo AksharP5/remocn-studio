@@ -303,6 +303,24 @@ export function usePreviewCamera(
       return;
     }
     const capture = node.parentElement ?? node;
+    let queued: ((view: PreviewCamera) => PreviewCamera)[] = [];
+    let scheduled = 0;
+    const flush = () => {
+      scheduled = 0;
+      const steps = queued;
+      queued = [];
+      if (steps.length > 0) {
+        setCamera((current) =>
+          steps.reduce((view, step) => step(view), current)
+        );
+      }
+    };
+    const schedule = (step: (view: PreviewCamera) => PreviewCamera) => {
+      queued.push(step);
+      if (scheduled === 0) {
+        scheduled = requestAnimationFrame(flush);
+      }
+    };
     const isControl = (event: Event) =>
       event
         .composedPath()
@@ -327,20 +345,20 @@ export function usePreviewCamera(
       const factor = wheelFactor(event, node);
       if (event.ctrlKey || event.metaKey) {
         const delta = Math.max(-50, Math.min(50, event.deltaY * factor));
-        setCamera((current) =>
+        const anchor = point(event);
+        schedule((current) =>
           zoomPreviewCamera(
             current,
-            point(event),
+            anchor,
             current.zoom * Math.exp(-delta * 0.01)
           )
         );
       } else {
-        setCamera((current) =>
-          panPreviewCamera(current, {
-            x: -event.deltaX * factor,
-            y: -event.deltaY * factor,
-          })
-        );
+        const delta = {
+          x: -event.deltaX * factor,
+          y: -event.deltaY * factor,
+        };
+        schedule((current) => panPreviewCamera(current, delta));
       }
     };
     const overSelection = (event: PointerEvent) =>
@@ -391,12 +409,11 @@ export function usePreviewCamera(
       event.preventDefault();
       event.stopImmediatePropagation();
       const next = point(event);
-      setCamera((previous) =>
-        panPreviewCamera(previous, {
-          x: next.x - current.point.x,
-          y: next.y - current.point.y,
-        })
-      );
+      const delta = {
+        x: next.x - current.point.x,
+        y: next.y - current.point.y,
+      };
+      schedule((previous) => panPreviewCamera(previous, delta));
       current.point = next;
     };
     const end = (event?: Event) => {
@@ -476,6 +493,8 @@ export function usePreviewCamera(
     window.addEventListener("blur", reset);
     return () => {
       reset();
+      cancelAnimationFrame(scheduled);
+      flush();
       node.removeEventListener("wheel", wheel);
       capture.removeEventListener("pointerdown", down, true);
       capture.removeEventListener("pointermove", move, true);
