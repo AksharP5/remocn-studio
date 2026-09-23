@@ -10,6 +10,7 @@ import {
   RotateCwIcon,
 } from "lucide-react";
 import { type RefObject, useCallback, useState } from "react";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -36,7 +37,10 @@ import { ExportButton } from "./export-button";
 import { InspectOverlay } from "./inspect-overlay";
 import { Pane, PaneActions, PaneBody, PaneHeader } from "./pane";
 import { PreviewSurface } from "./preview-controls";
+import { usePreviewPresentation } from "./preview-presentation";
 import { useStudio } from "./studio-provider";
+
+const CanvasPreview = dynamic(() => import("./canvas-preview").then((module) => module.CanvasPreview));
 
 export function PreviewPane({ isBooting = false }: { isBooting?: boolean }) {
   const { activeProject, docs, openedProject, togglePreview, tools } =
@@ -44,13 +48,13 @@ export function PreviewPane({ isBooting = false }: { isBooting?: boolean }) {
   const isDocs = docs.mode === "docs";
   const { inspect, snapshot } = tools;
   const { preview, stage } = tools.preview;
+  const presentation = usePreviewPresentation();
 
-  return (
-    <Pane>
+  const header = (
       <PaneHeader data-tauri-drag-region>
         <ModeSwitch mode={docs.mode} onPick={docs.onPickMode} />
         <PaneActions>
-          <PreviewActions isDocs={isDocs} tools={tools} />
+          {presentation !== "canvas" || isDocs ? <PreviewActions isDocs={isDocs} tools={tools} /> : null}
           <Tooltip>
             <TooltipTrigger
               render={
@@ -69,13 +73,18 @@ export function PreviewPane({ isBooting = false }: { isBooting?: boolean }) {
           </Tooltip>
         </PaneActions>
       </PaneHeader>
+  );
+
+  return (
+    <Pane>
+      {presentation !== "canvas" || isDocs ? header : null}
 
       {isDocs ? <DocsView docs={docs} /> : null}
 
       {/* The preview is hidden, never unmounted: taking the iframe down would
           cost a page load and the frame the person was looking at every time
           they read a document. */}
-      <PaneBody className={cn("gap-2 p-4", isDocs && "hidden")}>
+      {presentation === "canvas" ? <CanvasPreview header={isDocs ? null : header} hidden={isDocs} status={<StatusSlot projectPath={activeProject?.path ?? null} snapshot={snapshot} tools={tools} />} /> : <PaneBody className={cn("gap-2 p-4", isDocs && "hidden")}>
         <PreviewSurface
           enabled={!isDocs && activeProject !== null}
           preview={tools.preview}
@@ -103,7 +112,7 @@ export function PreviewPane({ isBooting = false }: { isBooting?: boolean }) {
           snapshot={snapshot}
           tools={tools}
         />
-      </PaneBody>
+      </PaneBody>}
     </Pane>
   );
 }
@@ -119,6 +128,7 @@ export function PreviewPane({ isBooting = false }: { isBooting?: boolean }) {
  * unavailable.
  */
 function PreviewActions({ isDocs, tools }: { isDocs: boolean; tools: Tools }) {
+  const presentation = usePreviewPresentation();
   const { exporting, snapshot } = tools;
   const { preview, restart } = tools.preview;
 
@@ -127,6 +137,7 @@ function PreviewActions({ isDocs, tools }: { isDocs: boolean; tools: Tools }) {
       <ExportButton
         composition={tools.preview.composition}
         exporting={exporting}
+        renderDialog={presentation !== "canvas"}
       />
     );
   }
@@ -193,7 +204,7 @@ function StatusSlot({
     hint === null;
 
   return (
-    <div className="flex min-h-9 shrink-0 flex-col justify-center gap-2">
+    <div className="flex min-h-8 shrink-0 flex-col justify-center gap-2">
       {trouble === null ? null : (
         /* A percent-encoded URL is one unbreakable word, and this block used
            to carry them: the text ran past the pane's right edge and off the

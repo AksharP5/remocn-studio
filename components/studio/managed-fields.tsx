@@ -66,7 +66,7 @@ export function ManagedFields({
   return (
     <div className="managed-properties flex flex-col pb-2">
       {visible.length === 0 ? (
-        <p className="px-3 py-3 text-muted-foreground text-xs">
+        <p className="px-4 py-3 text-muted-foreground text-xs">
           No {tab === "animation" ? "animation" : "appearance"} controls for
           this element.
         </p>
@@ -75,7 +75,7 @@ export function ManagedFields({
         const isOpen = !(groups?.collapsed ?? collapsed).includes(group);
         return (
           <section
-            className="border-t border-border px-3 py-2 first:border-t-0 [&>h3]:pb-0"
+            className="border-t border-border px-4 py-3 first:border-t-0 [&>h3]:pb-0"
             data-open={isOpen}
             key={group}
           >

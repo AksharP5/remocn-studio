@@ -11,6 +11,7 @@ import {
   VolumeXIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { SliderPrimitive } from "@/components/ui/slider";
 import { Spinner } from "@/components/ui/spinner";
@@ -19,6 +20,7 @@ import {
   type PreviewTransport,
   usePreviewTransport,
 } from "@/hooks/use-preview-transport";
+import { DOCK_ACTIONS } from "./dock-layout";
 
 export function PreviewSurface({
   children,
@@ -61,7 +63,7 @@ export function PreviewSurface({
   );
 }
 
-export function PreviewControls({ transport }: { transport: PreviewTransport }) {
+export function PreviewControls({ transport, playShortcut = "Space", status }: { transport: PreviewTransport; playShortcut?: string; status?: ReactNode }) {
   const {
     buffering,
     canFullscreen,
@@ -87,7 +89,7 @@ export function PreviewControls({ transport }: { transport: PreviewTransport }) 
   return (
     <div
       aria-label="Playback controls"
-      className="@container shrink-0"
+      className={cn("@container shrink-0", status !== undefined && "flex flex-1 flex-col")}
       role="group"
     >
       <PlaybackSlider
@@ -98,10 +100,11 @@ export function PreviewControls({ transport }: { transport: PreviewTransport }) 
         value={frame}
         valueText={`${position}, frame ${frame + 1} of ${lastFrame + 1}`}
       />
-      <div className="flex h-10 items-center gap-1">
+      {status === undefined ? null : <div className="flex min-h-0 flex-1 flex-col justify-center">{status}</div>}
+      <div className={cn(DOCK_ACTIONS, "shrink-0 flex-wrap gap-1")}>
         <Button
           aria-label="Previous frame"
-          className="size-10 text-muted-foreground sm:size-10"
+          className="size-8 text-muted-foreground sm:size-8"
           disabled={!ready || frame === 0}
           onClick={previous}
           size="icon"
@@ -112,11 +115,11 @@ export function PreviewControls({ transport }: { transport: PreviewTransport }) 
         </Button>
         <Button
           aria-label={playing ? "Pause" : "Play"}
-          className="size-10 sm:size-10"
+          className="size-8 sm:size-8"
           disabled={!ready}
           onClick={toggle}
           size="icon"
-          title={playing ? "Pause (Space)" : "Play (Space)"}
+          title={`${playing ? "Pause" : "Play"} (${playShortcut})`}
           variant="ghost"
         >
           {buffering && playing ? (
@@ -129,7 +132,7 @@ export function PreviewControls({ transport }: { transport: PreviewTransport }) 
         </Button>
         <Button
           aria-label="Next frame"
-          className="size-10 text-muted-foreground sm:size-10"
+          className="size-8 text-muted-foreground sm:size-8"
           disabled={!ready || frame === lastFrame}
           onClick={next}
           size="icon"
@@ -158,7 +161,7 @@ export function PreviewControls({ transport }: { transport: PreviewTransport }) 
         )}
         <Button
           aria-label={muted ? "Unmute" : "Mute"}
-          className="size-10 text-muted-foreground sm:size-10"
+          className="size-8 text-muted-foreground sm:size-8"
           disabled={!ready}
           onClick={toggleMute}
           size="icon"
@@ -180,7 +183,7 @@ export function PreviewControls({ transport }: { transport: PreviewTransport }) 
         {canFullscreen ? (
           <Button
             aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-            className="size-10 text-muted-foreground sm:size-10"
+            className="size-8 text-muted-foreground sm:size-8"
             disabled={!ready}
             onClick={toggleFullscreen}
             size="icon"
@@ -220,7 +223,7 @@ function PlaybackSlider({
       thumbAlignment="edge"
       value={value}
     >
-      <SliderPrimitive.Control className="group flex h-10 w-full touch-none select-none items-center data-disabled:pointer-events-none data-disabled:opacity-40">
+      <SliderPrimitive.Control className="group flex h-8 w-full touch-none select-none items-center data-disabled:pointer-events-none data-disabled:opacity-40">
         <SliderPrimitive.Track className="relative h-1 w-full rounded-full bg-foreground/10">
           <SliderPrimitive.Indicator className="rounded-full bg-foreground/65" />
           <SliderPrimitive.Thumb

@@ -82,6 +82,7 @@ import {
   type WriteCommand,
 } from "./protocol";
 import { libraryIndex, proxies } from "./proxies";
+import { nativeBundle, type NativeBundle } from "./native";
 import { checkReadiness, readReadinessReport } from "./readiness";
 import { serve } from "./server";
 import { openSession, type Session, type WarmInternals } from "./session";
@@ -109,6 +110,8 @@ interface Bundler {
   };
   webpack: ((config: WebpackConfig) => Compiler) & {
     ProgressPlugin: new (handler: (percent: number) => void) => unknown;
+    DefinePlugin: new (definitions: Record<string, string>) => unknown;
+    optimize: { LimitChunkCountPlugin: new (options: { maxChunks: number }) => unknown };
   };
 }
 
@@ -242,6 +245,7 @@ function boot(root: string, preferred: string | null) {
     const version = yield* remotionVersionOf(root);
     const staticBase = `/static-${randomBytes(6).toString("hex")}`;
     const previewBase = `/preview-${randomBytes(6).toString("hex")}`;
+    let native: NativeBundle | null = null;
     const grab = yield* grabScript;
     const cache = makeCompositionCache();
     const session = yield* Ref.make<Session | null>(null);
@@ -257,6 +261,7 @@ function boot(root: string, preferred: string | null) {
     yield* Effect.addFinalizer(() => drop(session));
 
     const server = yield* serve({
+      native: () => native,
       grab,
       jobs,
       outDir,
@@ -317,6 +322,34 @@ function boot(root: string, preferred: string | null) {
       server.port,
       build
     );
+
+    const nativeConfig = Effect.tryPromise({
+      catch: (cause) => new PreviewError({ message: String(cause) }),
+      try: async () => {
+        const [, configured] = await BundlerInternals.webpackConfig({
+          ...BUNDLE_FLAGS,
+          entry,
+          extraPlugins: [],
+          onProgress: () => undefined,
+          outDir,
+          poll: null,
+          remotionRoot: root,
+          userDefinedComponent,
+          webpackOverride: async (input: WebpackConfig) =>
+            ours(await override(input), { playerPath, renderEntry }),
+        });
+        return configured;
+      },
+    });
+    native = yield* nativeBundle(webpack, nativeConfig, {
+      entry,
+      projectEntry: userDefinedComponent,
+      directory: `${outDir}-native`,
+      base: `/native-${randomBytes(6).toString("hex")}`,
+      origin: `http://127.0.0.1:${server.port}`,
+      assets: `http://127.0.0.1:${server.port}${previewBase}`,
+      rebuilt: server.notifyNativeRebuilt,
+    });
 
     return {
       browser,

@@ -31,6 +31,7 @@ import {
 } from "@/hooks/use-plan-tier";
 import { type Preferences, usePreferences } from "@/hooks/use-preferences";
 import { usePlayingFrame, usePreview } from "@/hooks/use-preview";
+import { usePreviewPresentation } from "./preview-presentation";
 import { useProjectMenu } from "@/hooks/use-project-menu";
 import {
   type Accounts,
@@ -238,11 +239,13 @@ function StudioStateProvider({
   const sidecarPhase = useSidecarStatus()?.phase ?? "unknown";
 
   const previewProjectId = previewTarget(workspace);
+  const previewPresentation = usePreviewPresentation();
   const preview = usePreview(
     previewProjectId,
     workspace.openedVideo?.compositionId ?? null,
     sidecarPhase,
-    workspace.projects.find((project) => project.id === previewProjectId)?.path
+    workspace.projects.find((project) => project.id === previewProjectId)?.path,
+    previewPresentation
   );
 
   useReconciledVideos(preview, previewProjectId, workspace.reconcile);

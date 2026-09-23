@@ -8,6 +8,7 @@ import {
   readManagedObjects,
   writeManagedObject,
 } from "@/lib/studio/managed-objects";
+import type { StagedDocument } from "@/lib/studio/native-preview";
 import type { PreviewCommand, PreviewMessage } from "@/lib/studio/preview";
 import {
   fieldProblem,
@@ -832,6 +833,21 @@ export function useManagedObjects({
     publish();
   };
   const commit = useCallback(() => commitOwner(active.current), [commitOwner]);
+  const acceptsPreview = useCallback((ready: StagedDocument | null) => {
+    const owner = active.current;
+    if (ready === null || owner === null || owner.video !== ready.video) {
+      return true;
+    }
+    if (
+      geometry.current !== null ||
+      inline.current !== null ||
+      owner.writing ||
+      owner.undoing
+    ) {
+      return false;
+    }
+    return !rendersBehind(owner, ready.lastOperationId);
+  }, []);
   const retry = useCallback(() => {
     const owner = active.current;
     if (!owner) {
@@ -936,7 +952,8 @@ export function useManagedObjects({
 
   const drafts = [...(session?.drafts.values() ?? [])];
   return {
-    awaitingPreview: awaitingPreview(session),
+    acceptsPreview,
+    awaitingPreview: session === null ? false : rendersBehind(session, session.renderedOperation),
     busy:
       drafts.some((draft) => draft.saving) ||
       (session?.undoing ?? false) ||
@@ -999,8 +1016,8 @@ function draftForField(owner: Session, objectId: string, field: string) {
   return null;
 }
 
-function awaitingPreview(session: Session | null): boolean {
-  if (!session?.awaitingOperation) {
+function rendersBehind(session: Session, lastOperationId: string | null): boolean {
+  if (!session.awaitingOperation) {
     return false;
   }
   const operations = session.snapshot?.document.operations ?? [];
@@ -1008,7 +1025,7 @@ function awaitingPreview(session: Session | null): boolean {
     (operation) => operation.id === session.awaitingOperation
   );
   const rendered = operations.findIndex(
-    (operation) => operation.id === session.renderedOperation
+    (operation) => operation.id === lastOperationId
   );
   return expected === -1 || rendered < expected;
 }

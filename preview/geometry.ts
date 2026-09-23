@@ -1,3 +1,4 @@
+import { eventElement, focusSurface, lockCamera, onViewChange, overlayRoot, styleRoot, surfaceEvents } from "./surface";
 import {
   GEOMETRY_KEYS,
   type GeometryHandle,
@@ -134,7 +135,7 @@ export function createGeometryEditor(
     frame.append(button);
     return { button, handle };
   });
-  document.body.append(frame, label, notice);
+  overlayRoot().append(frame, label, notice);
 
   const explain = (error: string) => {
     notice.textContent = error;
@@ -147,6 +148,7 @@ export function createGeometryEditor(
   const reset = () => {
     const previous = gesture;
     gesture = null;
+    lockCamera(frame, false);
     clearTimeout(timer);
     if (previous) {
       previous.restore();
@@ -262,9 +264,9 @@ export function createGeometryEditor(
     const sheet = document.createElement("style");
     sheet.setAttribute(OVERLAY_ATTR, "");
     sheet.textContent = `[${MARKER}="${token}"] { transition: none !important; }
-      html, html * { cursor: ${cursor(handle, poseGeometry(current.values, current.pose).rotation + current.parentRotation)} !important; user-select: none !important; }`;
+      .__remotion-player, .__remotion-player * { cursor: ${cursor(handle, poseGeometry(current.values, current.pose).rotation + current.parentRotation)} !important; user-select: none !important; }`;
     node.setAttribute(MARKER, token);
-    document.head.append(sheet);
+    styleRoot().append(sheet);
     const rule = (sheet.sheet!.cssRules[0] as CSSStyleRule).style;
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
@@ -291,6 +293,7 @@ export function createGeometryEditor(
       },
     };
     gesture = next;
+    lockCamera(frame, true);
     return next;
   };
   const transform = (
@@ -555,13 +558,14 @@ export function createGeometryEditor(
       "data-studio-geometry-frame",
     ],
   });
-  window.addEventListener("pointermove", move, true);
-  window.addEventListener("pointerup", up, true);
-  window.addEventListener("pointercancel", lost, true);
-  window.addEventListener("lostpointercapture", lost, true);
+  surfaceEvents.addEventListener("pointermove", move, true);
+  surfaceEvents.addEventListener("pointerup", up, true);
+  surfaceEvents.addEventListener("pointercancel", lost, true);
+  surfaceEvents.addEventListener("lostpointercapture", lost, true);
   window.addEventListener("blur", blur);
   window.addEventListener("resize", resize);
-  window.addEventListener("click", click, true);
+  const stopView = onViewChange(resize);
+  surfaceEvents.addEventListener("click", click, true);
   frame.addEventListener("keydown", key);
 
   return {
@@ -585,7 +589,7 @@ export function createGeometryEditor(
         event.altKey
       )
         return false;
-      const hit = event.target instanceof Element ? event.target : null;
+      const hit = eventElement(event);
       const handle = hit?.closest<HTMLElement>("[data-geometry-handle]");
       const mode =
         handle && frame.contains(handle)
@@ -602,7 +606,7 @@ export function createGeometryEditor(
       event.preventDefault();
       event.stopPropagation();
       pause();
-      window.focus();
+      focusSurface();
       handle?.focus({ preventScroll: true });
       start(fresh, mode, event.pointerId, event.clientX, event.clientY);
       container.setPointerCapture(event.pointerId);
@@ -615,13 +619,14 @@ export function createGeometryEditor(
       cancelAnimationFrame(painting);
       clearTimeout(noticeTimer);
       clearTimeout(clickTimer);
-      window.removeEventListener("pointermove", move, true);
-      window.removeEventListener("pointerup", up, true);
-      window.removeEventListener("pointercancel", lost, true);
-      window.removeEventListener("lostpointercapture", lost, true);
+      surfaceEvents.removeEventListener("pointermove", move, true);
+      surfaceEvents.removeEventListener("pointerup", up, true);
+      surfaceEvents.removeEventListener("pointercancel", lost, true);
+      surfaceEvents.removeEventListener("lostpointercapture", lost, true);
       window.removeEventListener("blur", blur);
       window.removeEventListener("resize", resize);
-      window.removeEventListener("click", click, true);
+      stopView();
+      surfaceEvents.removeEventListener("click", click, true);
       frame.remove();
       label.remove();
       notice.remove();

@@ -1,3 +1,4 @@
+import { contentRoot } from "./surface";
 export const CANVAS_SELECTOR = ".__remotion-player";
 
 const DESIGN_ID = "data-design-id";
@@ -40,7 +41,7 @@ export function resolveAnchor(
 
   try {
     if (!anchor.startsWith(CANVAS_SELECTOR)) {
-      return container.ownerDocument.querySelector(anchor);
+      return contentRoot().querySelector(anchor);
     }
 
     const steps = anchor.slice(CANVAS_SELECTOR.length).trim();
@@ -54,7 +55,7 @@ export function resolveAnchor(
 }
 
 export function anchorContainer(): Element | null {
-  return document.querySelector(CANVAS_SELECTOR);
+  return contentRoot().querySelector(CANVAS_SELECTOR);
 }
 
 function joined(base: string, steps: readonly string[]): string {

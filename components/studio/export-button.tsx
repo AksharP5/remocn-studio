@@ -9,9 +9,11 @@ import { ExportDialog } from "./export-dialog";
 export function ExportButton({
   composition = null,
   exporting,
+  renderDialog = true,
 }: {
   readonly composition?: string | null;
   readonly exporting: Exporting;
+  readonly renderDialog?: boolean;
 }) {
   const { brief } = exporting;
 
@@ -31,7 +33,7 @@ export function ExportButton({
           <DownloadIcon data-icon="inline-start" />
           Export
         </Button>
-        <ExportDialog composition={composition} exporting={exporting} />
+        {renderDialog ? <ExportDialog composition={composition} exporting={exporting} /> : null}
       </>
     );
   }

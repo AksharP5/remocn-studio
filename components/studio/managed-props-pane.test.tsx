@@ -7,6 +7,7 @@ import { ManagedPropsPane } from "./managed-props-pane";
 
 function fixture(): ManagedObjects {
   return {
+    acceptsPreview: () => true,
     awaitingPreview: false,
     busy: false,
     canUndo: false,

@@ -1,3 +1,4 @@
+import { elementsAt } from "./surface";
 import { managedRoot } from "./managed-objects";
 
 const CLIMB_LIMIT = 8;
@@ -292,8 +293,7 @@ export function pickAt(
   container: Element,
   exact: boolean
 ): Element | null {
-  const under = container.ownerDocument
-    .elementsFromPoint(x, y)
+  const under = elementsAt(x, y)
     .filter(
       (element) =>
         container.contains(element) && !element.hasAttribute(OVERLAY_ATTR)

@@ -11,6 +11,7 @@ import { etagOf, matches } from "./caching";
 import { GRAB_PATH } from "./grab";
 import { previewPage, renderPage } from "./html";
 import { type JobRegistry, jobPath, type Pinned } from "./job";
+import { NATIVE_MANIFEST, type NativeBundle } from "./native";
 import { PreviewError } from "./project";
 import { RENDER_BASE } from "./protocol";
 import type { Proxies } from "./proxies";
@@ -63,10 +64,12 @@ export const COMPOSITION_PARAM = "composition";
 
 export interface PreviewServer {
   readonly notifyRebuilt: () => void;
+  readonly notifyNativeRebuilt: () => void;
   readonly port: number;
 }
 
 export interface ServerOptions {
+  native?: () => NativeBundle | null;
   grab: string | null;
   jobs: JobRegistry;
   outDir: string;
@@ -133,6 +136,11 @@ function start(options: ServerOptions) {
                 listener.write("event: rebuilt\ndata: {}\n\n");
               }
             },
+            notifyNativeRebuilt: () => {
+              for (const listener of listeners) {
+                listener.write("event: native-rebuilt\ndata: {}\n\n");
+              }
+            },
             port: address.port,
           })
         );
@@ -149,6 +157,46 @@ function handle(
 ): void {
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
   const pathname = decodeURIComponent(url.pathname);
+
+  const origin = request.headers.origin;
+  if (origin && isStudioOrigin(origin)) {
+    response.setHeader("access-control-allow-origin", origin);
+    response.setHeader("vary", "Origin");
+  }
+
+  if (pathname === NATIVE_MANIFEST) {
+    const native = options.native?.();
+    if (!native) {
+      response.writeHead(503).end("The canvas preview is not ready. Restart the preview and try again.");
+      return;
+    }
+    const address = request.socket.localPort;
+    const base = `http://127.0.0.1:${address}`;
+    void Effect.runPromise(native.prepare).then(
+      (generation) => {
+        if (response.destroyed) return;
+        sendJson({
+          version: 1,
+          generation,
+          script: `${base}${native.base}/bundle.js?generation=${generation}`,
+          assets: `${base}${options.previewBase}`,
+          events: `${base}${HOT_PATH}`,
+          preferred: options.preferred,
+          project: options.root,
+        }, response);
+      },
+      () => {
+        if (!response.destroyed) response.writeHead(503).end("The canvas preview could not compile. Check the project output, then retry.");
+      }
+    );
+    return;
+  }
+
+  const native = options.native?.();
+  if (native && pathname.startsWith(`${native.base}/`)) {
+    sendFile(native.directory, pathname.slice(native.base.length + 1), BUNDLE, request, response);
+    return;
+  }
 
   if (pathname === HOT_PATH) {
     openStream(listeners, response);
@@ -236,6 +284,17 @@ function handle(
     request,
     response
   );
+}
+
+function isStudioOrigin(origin: string): boolean {
+  if (origin === "tauri://localhost") return true;
+  try {
+    const url = new URL(origin);
+    return ["http:", "https:"].includes(url.protocol) &&
+      ["localhost", "127.0.0.1", "tauri.localhost"].includes(url.hostname);
+  } catch {
+    return false;
+  }
 }
 
 // A render job is served from a copy of the bundle and of public/, taken when

@@ -1,5 +1,6 @@
 "use client";
 
+import { DOCK_ACTIONS, DOCK_INSET, DOCK_SURFACE } from "./dock-layout";
 import {
   ArrowUpIcon,
   ChevronDownIcon,
@@ -175,15 +176,13 @@ function ComposerBlock({
   );
 
   return (
-    <div className="relative z-10 shrink-0 px-4 pb-4">
+    <div className={cn("relative z-10", DOCK_INSET)}>
       <div className="relative mx-auto flex w-full max-w-2xl flex-col gap-1">
         <MentionPopup mentions={composer.mentions} />
 
-        {/* The dark field sits below the surrounding surface; light mode
-            uses the border to separate it from the page. */}
         <InputGroup
           className={cn(
-            "rounded-xl before:rounded-[calc(var(--radius-xl)-1px)] dark:border-none",
+            DOCK_SURFACE,
             drops.composer.isOver && "bg-primary/5 ring-2 ring-primary/40"
           )}
           ref={drops.composer.ref}
@@ -233,7 +232,7 @@ function ComposerBlock({
           <div className="relative flex w-full min-w-0 flex-1 flex-col">
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-5 py-[calc(--spacing(3)-1px)] text-base [scrollbar-gutter:stable] sm:text-sm"
+              className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-3 py-[calc(--spacing(3)-1px)] text-base [scrollbar-gutter:stable] sm:text-sm"
               ref={composer.caret.mirror}
             >
               <MessageText counts={composer.counts} text={composer.value} />
@@ -243,7 +242,7 @@ function ComposerBlock({
             <textarea
               {...VERBATIM_INPUT}
               aria-label="Message"
-              className="field-sizing-content relative max-h-64 w-full rounded-none border-0 bg-transparent px-5 py-[calc(--spacing(3)-1px)] text-base text-transparent caret-foreground shadow-none outline-none [scrollbar-gutter:stable] selection:bg-primary/30 placeholder:text-muted-foreground/72 dark:placeholder:text-muted-foreground sm:text-sm"
+              className="field-sizing-content relative max-h-64 w-full rounded-none border-0 bg-transparent px-3 py-[calc(--spacing(3)-1px)] text-base text-transparent caret-foreground shadow-none outline-none [scrollbar-gutter:stable] selection:bg-primary/30 placeholder:text-muted-foreground/72 dark:placeholder:text-muted-foreground sm:text-sm"
               data-slot="textarea"
               disabled={isLocked}
               onBlur={composer.onBlur}
@@ -264,7 +263,7 @@ function ComposerBlock({
           </div>
 
           <InputGroupAddon align="block-end">
-            <div className="@container/composer flex w-full min-w-0 items-center gap-2">
+            <div className={cn(DOCK_ACTIONS, "@container/composer min-w-0")}>
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
@@ -373,7 +372,7 @@ function ComposerBlock({
         </InputGroup>
 
         <p
-          className="flex min-h-5 items-center px-5 text-muted-foreground text-xs empty:hidden"
+          className="flex min-h-5 items-center px-3 text-muted-foreground text-xs empty:hidden"
           role="status"
         >
           <ComposerStatus

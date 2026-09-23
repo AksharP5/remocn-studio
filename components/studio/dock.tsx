@@ -24,7 +24,7 @@ export function DockStack({ children }: { children: ReactNode }) {
             muted well behind the composer's bordered field instead. The radius
             is the stack's, not each section's, so two sections stack into one
             drawer rather than leaving a notch where their corners meet. */}
-        <div className="divide-y divide-border/50 overflow-hidden rounded-t-xl bg-muted empty:hidden dark:bg-card">
+        <div className="divide-y divide-border/50 overflow-hidden rounded-t-lg bg-muted empty:hidden dark:bg-card">
           {children}
         </div>
       </div>

@@ -1,3 +1,4 @@
+import { nativeSurface } from "./surface";
 import type { PlayerRef } from "@remotion/player";
 import { type RefObject, useEffect } from "react";
 import { onCommand, post } from "./bridge";
@@ -136,7 +137,7 @@ export function usePlayerTransport(
     ref.addEventListener("waiting", onWaiting);
     ref.addEventListener("resume", onResume);
     ref.addEventListener("error", onError);
-    window.addEventListener("keydown", onKeyDown);
+    if (!nativeSurface()) window.addEventListener("keydown", onKeyDown);
     announce();
 
     return () => {

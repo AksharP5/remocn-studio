@@ -113,13 +113,29 @@ export type PreviewCommand =
       type: "tune.reset";
     };
 
+interface LocalBridge {
+  emit: (message: Record<string, unknown>) => void;
+  subscribe: (receive: (command: PreviewCommand) => void) => () => void;
+}
+let local: LocalBridge | null = null;
+
+export function configureBridge(bridge: LocalBridge): () => void {
+  local = bridge;
+  return () => { if (local === bridge) local = null; };
+}
+
 export function post(message: Record<string, unknown>): void {
-  window.parent.postMessage({ ...message, source: MESSAGE_SOURCE }, "*");
+  if (local) {
+    const bridge = local;
+    queueMicrotask(() => { if (local === bridge) bridge.emit({ ...message, source: MESSAGE_SOURCE }); });
+  }
+  else window.parent.postMessage({ ...message, source: MESSAGE_SOURCE }, "*");
 }
 
 export function onCommand(
   handle: (command: PreviewCommand) => void
 ): () => void {
+  if (local) return local.subscribe(handle);
   const listener = (event: MessageEvent) => {
     if (event.source !== window.parent || typeof event.data !== "object") {
       return;

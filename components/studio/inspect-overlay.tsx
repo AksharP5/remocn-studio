@@ -89,6 +89,7 @@ function CommentCard({
 
   return (
     <div
+      data-canvas-chrome
       className="pointer-events-auto absolute flex flex-col gap-2 rounded-xl border bg-popover p-2 shadow-lg"
       style={{
         left: `${placement.x}px`,

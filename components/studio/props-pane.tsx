@@ -13,6 +13,8 @@ import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import { InputGroup, InputGroupAddon, InputGroupTextarea } from "@/components/ui/input-group";
+import { DOCK_ACTIONS, DOCK_INSET, DOCK_SURFACE } from "./dock-layout";
 import {
   Tooltip,
   TooltipContent,
@@ -187,7 +189,7 @@ export function PropsPanel({
             <TooltipTrigger
               render={
                 <Button
-                  aria-label="Close the properties panel"
+                  aria-label="Clear selection and restore original values"
                   className="text-muted-foreground"
                   onClick={onCancel}
                   size="icon-sm"
@@ -198,7 +200,7 @@ export function PropsPanel({
               <XIcon />
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              Close and restore the original values
+              Clear selection and restore the original values
             </TooltipContent>
           </Tooltip>
         </PaneActions>
@@ -254,7 +256,7 @@ export function PropsPanel({
                   of the pane rather than an inset line inside the content. */}
               {groups.map(([group, grouped]) => (
                 <section
-                  className="border-border border-t px-3 py-2.5 first:border-t-0"
+                  className="border-border border-t px-4 py-3 first:border-t-0"
                   key={group}
                 >
                   <GroupHeading
@@ -297,17 +299,18 @@ export function PropsPanel({
           </ScrollArea>
         </DialKitSurface>
 
-        <div className="flex shrink-0 flex-col gap-2 border-t p-3">
+        <div className={cn(DOCK_INSET, "flex flex-col gap-2")}>
           {refusal === null || refusal.path !== null ? null : (
             <p className="text-destructive text-xs" role="alert">
               {refusal.message}
             </p>
           )}
 
-          <Textarea
+          <InputGroup className={DOCK_SURFACE}>
+          <InputGroupTextarea
             {...VERBATIM_INPUT}
             aria-label="What should change about this element?"
-            className="max-h-24 min-h-14 resize-none text-sm"
+            className="max-h-32 flex-1 resize-none text-sm"
             onChange={comment.onChange}
             onKeyDown={comment.onKeyDown}
             placeholder="What should change?"
@@ -316,7 +319,8 @@ export function PropsPanel({
             value={comment.value}
           />
 
-          <div className="flex items-center gap-1">
+          <InputGroupAddon align="block-end">
+          <div className={cn(DOCK_ACTIONS, "flex-wrap")}>
             <Button
               className="text-muted-foreground"
               onClick={comment.keep}
@@ -327,7 +331,7 @@ export function PropsPanel({
               <LibraryBigIcon />
               Save to library
             </Button>
-            <div className="ml-auto flex items-center gap-1">
+            <div className="ms-auto flex items-center gap-1">
               <Button onClick={onCancel} size="xs" variant="ghost">
                 Cancel
               </Button>
@@ -337,6 +341,8 @@ export function PropsPanel({
               </Button>
             </div>
           </div>
+          </InputGroupAddon>
+          </InputGroup>
         </div>
       </PaneBody>
     </Pane>
@@ -383,7 +389,7 @@ function TextSection({
   );
 
   return (
-    <section className="border-border border-t px-3 py-2.5 first:border-t-0">
+    <section className="border-border border-t px-4 py-3 first:border-t-0">
       <h3 className="pb-2 font-medium text-foreground text-sm">Text</h3>
       <Textarea
         {...VERBATIM_INPUT}

@@ -19,6 +19,11 @@ import {
   type PreviewMessage,
   startPreview,
 } from "@/lib/studio/preview";
+import {
+  createPreviewSurfaceChannel,
+  iframePreviewSurface,
+  type PreviewSurface,
+} from "@/lib/studio/preview-surface";
 import type { PromptFrame, SidecarPhase } from "@/shared/ipc";
 
 export type Preview =
@@ -30,6 +35,8 @@ export type Preview =
 export type PreviewListener = (message: PreviewMessage) => void;
 
 export interface PreviewControl {
+  attachSurface?: (surface: PreviewSurface) => () => void;
+  focus?: () => void;
   composition: string | null;
   frameOf: () => number;
   hint: string | null;
@@ -56,13 +63,15 @@ export function usePreview(
   projectId: string | null,
   compositionId: string | null,
   sidecarPhase: SidecarPhase | "unknown",
-  projectPath?: string
+  projectPath?: string,
+  surfaceKind: "iframe" | "canvas" = "iframe"
 ): PreviewControl {
   const [preview, setPreview] = useState<Preview>(IDLE);
   const [pick, setPick] = useState<PreviewComposition | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const running = useRef<Running | null>(null);
   const stage = useRef<HTMLIFrameElement>(null);
+  const surface = useMemo(createPreviewSurfaceChannel, []);
   const listeners = useRef(new Set<PreviewListener>());
   const frame = useRef(0);
   const watchers = useRef(new Set<() => void>());
@@ -217,15 +226,8 @@ export function usePreview(
       }
     };
 
-    const onMessage = (event: MessageEvent) => {
-      if (
-        event.origin !== origin ||
-        event.source !== stage.current?.contentWindow
-      ) {
-        return;
-      }
-
-      const decoded = decodePreviewMessage(event.data);
+    const onMessage = (data: unknown) => {
+      const decoded = decodePreviewMessage(data);
       if (Exit.isFailure(decoded)) {
         return;
       }
@@ -251,22 +253,22 @@ export function usePreview(
       publish(message);
     };
 
-    window.addEventListener("message", onMessage);
+    const unsubscribe = surface.subscribe(onMessage);
 
     return () => {
       cancelPendingEmpty();
-      window.removeEventListener("message", onMessage);
+      unsubscribe();
     };
-  }, [origin, setFrame]);
+  }, [origin, setFrame, surface, url]);
 
-  const send = useCallback(
-    (command: PreviewCommand) => {
-      if (origin !== null) {
-        stage.current?.contentWindow?.postMessage(command, origin);
-      }
-    },
-    [origin]
-  );
+  useEffect(() => {
+    if (origin === null || surfaceKind !== "iframe") return;
+    return surface.attach(iframePreviewSurface(() => stage.current, origin));
+  }, [origin, surface, surfaceKind, url]);
+
+  useEffect(() => () => surface.disconnect(), [surface]);
+
+  const send = surface.send;
 
   const restart = useCallback(() => {
     stop();
@@ -291,6 +293,8 @@ export function usePreview(
 
   return useMemo(
     () => ({
+      attachSurface: surface.attach,
+      focus: surface.focus,
       composition: pick?.compositionId ?? null,
       frameOf,
       hint,
@@ -314,6 +318,7 @@ export function usePreview(
       restart,
       send,
       subscribe,
+      surface,
       url,
     ]
   );

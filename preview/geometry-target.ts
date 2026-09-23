@@ -1,3 +1,4 @@
+import { parentAcrossRoot } from "./surface";
 import {
   GEOMETRY_KEYS,
   IDENTITY_GEOMETRY_POSE,
@@ -147,9 +148,9 @@ export function geometryTarget(
   let parentScale = 1;
   let parentRotation = 0;
   for (
-    let parent: HTMLElement | null = node.parentElement;
+    let parent: HTMLElement | null = parentAcrossRoot(node);
     parent;
-    parent = parent.parentElement
+    parent = parentAcrossRoot(parent)
   ) {
     const inherited = getComputedStyle(parent);
     if (

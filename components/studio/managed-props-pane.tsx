@@ -54,7 +54,7 @@ export function ManagedPropsPane({
         onValueChange={changeTab}
         value={tab}
       >
-        <PaneHeader className="h-auto flex-col items-stretch gap-2 border-b px-3 py-2">
+        <PaneHeader className="h-auto flex-col items-stretch gap-2 px-4 py-3">
           <div className="flex min-w-0 items-center justify-between gap-2">
             <DialKitSurface targetId="object-picker">
               <SelectControl
@@ -79,10 +79,10 @@ export function ManagedPropsPane({
                 <RotateCcwIcon />
               </Button>
               <Button
-                aria-label="Close object properties"
+                aria-label="Clear selection"
                 onClick={objects.close}
                 size="icon-sm"
-                title="Close properties"
+                title="Clear selection"
                 variant="ghost"
               >
                 <XIcon />

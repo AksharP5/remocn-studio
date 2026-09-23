@@ -28,6 +28,7 @@ import { ChatPane } from "./chat-pane";
 import { CrashBoundary } from "./crash-boundary";
 import { OnboardingDialog } from "./onboarding-dialog";
 import { PreviewPane } from "./preview-pane";
+import { PreviewPresentation, usePreviewPresentation } from "./preview-presentation";
 import { ProjectsPane } from "./projects-pane";
 import { QuitGuard } from "./quit-guard";
 import { SettingsPage } from "./settings-page";
@@ -43,12 +44,14 @@ const PropsPane = dynamic(() =>
   import("./props-pane").then((module) => module.PropsPane)
 );
 
-export function AppShell() {
+export function AppShell({ previewSurface = "canvas" }: { previewSurface?: "iframe" | "canvas" }) {
   usePlatformAttribute();
 
   return (
     <CrashBoundary>
-      <StudioBoot />
+      <PreviewPresentation value={previewSurface}>
+        <StudioBoot />
+      </PreviewPresentation>
     </CrashBoundary>
   );
 }
@@ -123,10 +126,12 @@ function ShellPanes({
   isSliding: boolean;
 }) {
   const { hidePreview, isPreviewShown, tools } = useStudio();
+  const presentation = usePreviewPresentation();
   const collapse = usePreviewCollapse(isPreviewShown, hidePreview);
   // The pane exists while there is something to tune in it. A rail that is
   // usually empty is the thing a properties panel must not be.
   const isPropsShown =
+    presentation !== "canvas" &&
     isPreviewShown &&
     ((tools.inspect.card?.tuning ?? null) !== null ||
       tools.managed?.isOpen === true);

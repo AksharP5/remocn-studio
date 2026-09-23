@@ -7,7 +7,8 @@ import {
   useState,
 } from "react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { InputGroup, InputGroupAddon, InputGroupTextarea } from "@/components/ui/input-group";
+import { DOCK_ACTIONS, DOCK_INSET, DOCK_SURFACE } from "./dock-layout";
 import { VERBATIM_INPUT } from "@/lib/studio/text-input";
 
 export function ManagedInstruction({
@@ -47,22 +48,28 @@ export function ManagedInstruction({
     [add]
   );
   return (
-    <div className="flex shrink-0 flex-col gap-2 border-t p-3">
-      <Textarea
+    <div className={DOCK_INSET}>
+      <InputGroup className={DOCK_SURFACE}>
+      <InputGroupTextarea
         {...VERBATIM_INPUT}
         aria-label="What should change about this element?"
-        className="max-h-24 min-h-14 resize-none text-sm"
+        className="max-h-32 flex-1 resize-none text-sm"
         onChange={change}
         onKeyDown={keyDown}
         placeholder="What should AI change?"
         rows={2}
         value={value}
       />
-      <div className="flex justify-end">
+      <InputGroupAddon align="block-end">
+      <div className={DOCK_ACTIONS}>
+        <div className="ms-auto">
         <Button disabled={!value.trim()} onClick={add} size="sm">
           Add to chat
         </Button>
+        </div>
       </div>
+      </InputGroupAddon>
+      </InputGroup>
     </div>
   );
 }

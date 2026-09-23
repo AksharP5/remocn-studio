@@ -1,3 +1,4 @@
+import { nativeSurface } from "./surface";
 import {
   useCallback,
   useContext,
@@ -205,7 +206,7 @@ function stackOf(controls: SequenceControls): string | null {
 }
 
 function rootPath(): string {
-  return (globalThis as unknown as { remocn_root?: string }).remocn_root ?? "/";
+  return nativeSurface()?.project ?? (globalThis as unknown as { remocn_root?: string }).remocn_root ?? "/";
 }
 
 function debugging(): boolean {

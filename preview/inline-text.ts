@@ -1,3 +1,4 @@
+import { elementsAt, focusSurface, lockCamera, onViewChange, overlayRoot, parentAcrossRoot, styleRoot } from "./surface";
 import { onCommand, post } from "./bridge";
 import { managedIdentity, managedRoot } from "./managed-objects";
 import { nearText, OVERLAY_ATTR } from "./picker";
@@ -54,7 +55,7 @@ export function createInlineTextEditor(
     font: "12px/1.4 system-ui, sans-serif", pointerEvents: "none",
     boxShadow: "0 2px 8px #0004",
   });
-  document.body.append(notice);
+  overlayRoot().append(notice);
 
   const explain = (message: string, node?: HTMLElement) => {
     const rect = node?.getBoundingClientRect() ?? container.getBoundingClientRect();
@@ -70,6 +71,7 @@ export function createInlineTextEditor(
     clearTimeout(timer);
     const previous = editor;
     editor = null;
+    lockCamera(notice, false);
     request = null;
     previous?.restore();
     onChange();
@@ -144,8 +146,8 @@ export function createInlineTextEditor(
       text-decoration-color: transparent !important;
     }`;
     node.setAttribute(HIDDEN, token);
-    document.head.append(hide);
-    document.body.append(textarea);
+    styleRoot().append(hide);
+    overlayRoot().append(textarea);
 
     const update = () => {
       if (!node.isConnected || !canOverlay(node)) {
@@ -190,16 +192,19 @@ export function createInlineTextEditor(
           return;
         }
         cancel();
-        window.focus();
+        focusSurface();
       } else if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
         event.stopPropagation();
         save();
       }
     });
+    lockCamera(notice, true);
+    const stopView = onViewChange(update);
     editor = {
       node, textarea, update, waiting: false,
       restore: () => {
+        stopView();
         resize.disconnect();
         window.removeEventListener("resize", update);
         window.removeEventListener("scroll", update, true);
@@ -320,7 +325,7 @@ export function createInlineTextEditor(
 }
 
 function candidatesAt(container: HTMLElement, x: number, y: number): Candidate[] {
-  const hit = document.elementsFromPoint(x, y).find(
+  const hit = elementsAt(x, y).find(
     (node) => container.contains(node) && nearText(node, x, y)
   );
   if (!(hit instanceof HTMLElement)) {
@@ -366,7 +371,7 @@ function canOverlay(node: HTMLElement): boolean {
   if (node.offsetWidth <= 0 || node.offsetHeight <= 0 || node.getClientRects().length !== 1) {
     return false;
   }
-  for (let current: HTMLElement | null = node; current !== null; current = current.parentElement) {
+  for (let current: HTMLElement | null = node; current !== null; current = parentAcrossRoot(current)) {
     const style = getComputedStyle(current);
     if (style.writingMode !== "horizontal-tb" || style.visibility !== "visible" || Number(style.opacity) < 0.05) {
       return false;

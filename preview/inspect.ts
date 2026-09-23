@@ -1,3 +1,4 @@
+import { contentRoot, elementsAt, eventElement, focusSurface, nativeSurface, onViewChange, overlayRoot, styleRoot, surfaceEvents, surfaceHref } from "./surface";
 import { anchorOf, CANVAS_SELECTOR } from "./anchor";
 import { assetBase, assetNames, forgetAssets, staticBase } from "./assets";
 import { post } from "./bridge";
@@ -131,7 +132,7 @@ let managedSelected: { id: string; video: string; generation: string } | null =
 let selection: { box: HTMLElement; tag: HTMLElement } | null = null;
 
 export function canvas(): HTMLElement | null {
-  return document.querySelector<HTMLElement>(CANVAS);
+  return contentRoot().querySelector<HTMLElement>(CANVAS);
 }
 
 export function armInspect(armed: boolean, stage: Stage): InspectStatus {
@@ -151,7 +152,7 @@ export function armInspect(armed: boolean, stage: Stage): InspectStatus {
     session = start(container, stage);
   }
 
-  return document.querySelector("[data-studio-object]") !== null ||
+  return nativeSurface() !== null || contentRoot().querySelector("[data-studio-object]") !== null ||
     grab() !== null
     ? "armed"
     : "no-grab";
@@ -202,6 +203,7 @@ export function clearSelection(): void {
   chain = new Map();
   picked = null;
   selected = null;
+  managedSelected = null;
   // The rebuild that clears a selection is a turn having written to the
   // project, which is the one thing that changes what is in `public/`.
   forgetAssets();
@@ -270,9 +272,9 @@ function forceHitTesting(): HTMLStyleElement {
   style.setAttribute(OVERLAY_ATTR, "");
   style.textContent = `${CANVAS}, ${CANVAS} * {
     pointer-events: auto !important;
-    cursor: var(${CURSOR}, default) !important;
+    cursor: var(--remocn-canvas-cursor, var(${CURSOR}, default)) !important;
   }`;
-  document.head.append(style);
+  styleRoot().append(style);
   return style;
 }
 
@@ -281,7 +283,7 @@ function overCanvas(container: HTMLElement, x: number, y: number): boolean {
     return false;
   }
 
-  const [top] = document.elementsFromPoint?.(x, y) ?? [];
+  const [top] = elementsAt(x, y);
 
   return top === undefined || container.contains(top);
 }
@@ -289,6 +291,7 @@ function overCanvas(container: HTMLElement, x: number, y: number): boolean {
 function start(container: HTMLElement, stage: Stage): Session {
   const { box, label } = overlay();
   const hitTesting = forceHitTesting();
+  const stopView = onViewChange(paint);
   const cursor = container.style.getPropertyValue(CURSOR);
   const inline = createInlineTextEditor(container, ACCENT, TOP + 3, paint);
   const geometry = createGeometryEditor(
@@ -304,6 +307,7 @@ function start(container: HTMLElement, stage: Stage): Session {
 
   const onMove = (event: PointerEvent) => {
     if (geometry.active()) return;
+    if (nativeSurface()?.viewport.hasAttribute("data-preview-navigation")) { onLeave(); return; }
     point = { x: event.clientX, y: event.clientY };
     exact = event.altKey;
     schedule(container);
@@ -325,7 +329,7 @@ function start(container: HTMLElement, stage: Stage): Session {
       event.type === "keydown" &&
       event.key === "Escape" &&
       !event.defaultPrevented &&
-      !(event.target instanceof Element && event.target.closest(EDITING))
+      !(eventElement(event)?.closest(EDITING))
     ) {
       event.preventDefault();
       event.stopPropagation();
@@ -335,7 +339,7 @@ function start(container: HTMLElement, stage: Stage): Session {
   };
 
   const onDown = (event: PointerEvent) => {
-    if (inline.contains(event.target)) {
+    if (inline.contains(eventElement(event))) {
       return;
     }
     if (inline.beforePick()) {
@@ -363,7 +367,7 @@ function start(container: HTMLElement, stage: Stage): Session {
     }
 
     stage.pause?.();
-    window.focus();
+    focusSurface();
 
     const repeat =
       picked !== null &&
@@ -385,7 +389,7 @@ function start(container: HTMLElement, stage: Stage): Session {
   // A click that picks must never also reach Remotion's `clickToPlay`
   // underneath it.
   const swallow = (event: MouseEvent) => {
-    if (inline.contains(event.target) || geometry.contains(event.target)) {
+    if (inline.contains(eventElement(event)) || geometry.contains(eventElement(event))) {
       return;
     }
     if (overCanvas(container, event.clientX, event.clientY)) {
@@ -394,13 +398,13 @@ function start(container: HTMLElement, stage: Stage): Session {
     }
   };
 
-  window.addEventListener("pointermove", onMove, true);
-  window.addEventListener("pointerdown", onDown, true);
-  window.addEventListener("pointerup", swallow, true);
-  window.addEventListener("click", swallow, true);
-  window.addEventListener("dblclick", inline.doubleClick, true);
-  window.addEventListener("keydown", onKey, true);
-  window.addEventListener("keyup", onKey, true);
+  surfaceEvents.addEventListener("pointermove", onMove, true);
+  surfaceEvents.addEventListener("pointerdown", onDown, true);
+  surfaceEvents.addEventListener("pointerup", swallow, true);
+  surfaceEvents.addEventListener("click", swallow, true);
+  surfaceEvents.addEventListener("dblclick", inline.doubleClick, true);
+  surfaceEvents.addEventListener("keydown", onKey, true);
+  surfaceEvents.addEventListener("keyup", onKey, true);
   container.addEventListener("pointerleave", onLeave);
 
   return {
@@ -411,13 +415,13 @@ function start(container: HTMLElement, stage: Stage): Session {
     label,
     stage,
     stop: () => {
-      window.removeEventListener("pointermove", onMove, true);
-      window.removeEventListener("pointerdown", onDown, true);
-      window.removeEventListener("pointerup", swallow, true);
-      window.removeEventListener("click", swallow, true);
-      window.removeEventListener("dblclick", inline.doubleClick, true);
-      window.removeEventListener("keydown", onKey, true);
-      window.removeEventListener("keyup", onKey, true);
+      surfaceEvents.removeEventListener("pointermove", onMove, true);
+      surfaceEvents.removeEventListener("pointerdown", onDown, true);
+      surfaceEvents.removeEventListener("pointerup", swallow, true);
+      surfaceEvents.removeEventListener("click", swallow, true);
+      surfaceEvents.removeEventListener("dblclick", inline.doubleClick, true);
+      surfaceEvents.removeEventListener("keydown", onKey, true);
+      surfaceEvents.removeEventListener("keyup", onKey, true);
       container.removeEventListener("pointerleave", onLeave);
       if (cursor) {
         container.style.setProperty(CURSOR, cursor);
@@ -426,6 +430,7 @@ function start(container: HTMLElement, stage: Stage): Session {
       }
       box.remove();
       label.remove();
+      stopView();
       hitTesting.remove();
       inline.stop();
       geometry.stop();
@@ -434,6 +439,8 @@ function start(container: HTMLElement, stage: Stage): Session {
 }
 
 function close(): void {
+  cancelAnimationFrame(painting);
+  painting = 0;
   pickVersion += 1;
   session?.stop();
   session = null;
@@ -478,7 +485,7 @@ function overlay(): { box: HTMLElement; label: HTMLElement } {
   box.style.border = `1px solid ${ACCENT}`;
   box.style.opacity = "0.55";
 
-  document.body.append(box, label);
+  overlayRoot().append(box, label);
 
   return { box, label };
 }
@@ -494,8 +501,8 @@ function selectionPair(): { box: HTMLElement; tag: HTMLElement } {
   box.setAttribute(SELECTION_ATTR, "");
   box.style.border = `2px solid ${ACCENT}`;
 
-  document.head.append(pulseStyle());
-  document.body.append(box, tag);
+  overlayRoot().append(pulseStyle());
+  overlayRoot().append(box, tag);
   selection = { box, tag };
 
   return selection;
@@ -692,20 +699,24 @@ async function report(
     post({ type: "studio.select", ...managed });
     return;
   }
-  const module = grabModule();
-  const found = grab();
+  const native = nativeSurface();
+  const module = native ? null : grabModule();
+  const found = native ? null : grab();
+  const sourceFor = async (node: Element): Promise<GrabSource | null> => {
+    if (!native) return found?.getSource(node).catch(nothing) ?? null;
+    const [source] = projectFrames(native.project, await native.getStack(node).catch(nothing));
+    return source ? { filePath: source.file, lineNumber: source.line, columnNumber: source.column, componentName: source.name } : null;
+  };
   const root = rootPath();
   const container = canvas();
   const links = controlsChain(element);
 
   const [spot, frames, sources] = await Promise.all([
-    found === null ? null : found.getSource(element).catch(nothing),
-    module === null ? null : module.getStack(element).catch(nothing),
+    sourceFor(element),
+    native ? native.getStack(element).catch(nothing) : module?.getStack(element).catch(nothing) ?? null,
     Promise.all(
       links.map((link) =>
-        found === null || link.node === null
-          ? null
-          : found.getSource(link.node).catch(nothing)
+        link.node === null ? null : sourceFor(link.node)
       )
     ),
   ]);
@@ -749,7 +760,7 @@ async function report(
   }
 
   post({
-    assetBase: assetBase(staticBase(), window.location.href),
+    assetBase: assetBase(staticBase(), surfaceHref()),
     assets,
     element: {
       column: target?.column ?? null,
@@ -849,14 +860,15 @@ function parentsOf(
 }
 
 function normalise(rect: DOMRect) {
-  const width = window.innerWidth || 1;
-  const height = window.innerHeight || 1;
+  const bounds = nativeSurface() ? canvas()?.getBoundingClientRect() : null;
+  const width = bounds?.width || window.innerWidth || 1;
+  const height = bounds?.height || window.innerHeight || 1;
 
   return {
     height: rect.height / height,
     width: rect.width / width,
-    x: rect.left / width,
-    y: rect.top / height,
+    x: (rect.left - (bounds?.left ?? 0)) / width,
+    y: (rect.top - (bounds?.top ?? 0)) / height,
   };
 }
 
@@ -916,7 +928,7 @@ function grabModule(): GrabModule | null {
 }
 
 function rootPath(): string {
-  return (window as unknown as { remocn_root?: string }).remocn_root ?? "/";
+  return nativeSurface()?.project ?? (window as unknown as { remocn_root?: string }).remocn_root ?? "/";
 }
 
 const nothing = () => null;
