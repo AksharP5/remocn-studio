@@ -64,9 +64,9 @@ export function ManagedFields({
   const grouped = Map.groupBy(visible, propertyGroup);
   const changed = useDialCommit(objects.commit);
   return (
-    <div className="managed-properties flex flex-col gap-2">
+    <div className="managed-properties flex flex-col pb-2">
       {visible.length === 0 ? (
-        <p className="text-muted-foreground text-xs">
+        <p className="px-4 py-3 text-muted-foreground text-xs">
           No {tab === "animation" ? "animation" : "appearance"} controls for
           this element.
         </p>
@@ -75,7 +75,7 @@ export function ManagedFields({
         const isOpen = !(groups?.collapsed ?? collapsed).includes(group);
         return (
           <section
-            className="last:pb-0 data-[open=true]:pb-2 [&>h3]:pb-0"
+            className="border-border border-t px-4 py-3 first:border-t-0 [&>h3]:pb-0"
             data-open={isOpen}
             key={group}
           >
@@ -86,7 +86,7 @@ export function ManagedFields({
               label={propertyGroupLabel(group)}
               onToggle={groups ? groups.toggle : toggle}
             />
-            <div className="pt-2" hidden={!isOpen}>
+            <div className="pt-1.5 pb-0.5" hidden={!isOpen}>
               <FieldSection
                 changed={changed}
                 fields={fields}
@@ -102,7 +102,15 @@ export function ManagedFields({
 }
 
 const PAIRED_FIELDS: Record<string, string> = {
+  end: "start",
+  fontSize: "fontWeight",
+  fontWeight: "fontSize",
   height: "width",
+  letterSpacing: "lineHeight",
+  lineHeight: "letterSpacing",
+  paddingX: "paddingY",
+  paddingY: "paddingX",
+  start: "end",
   width: "height",
   x: "y",
   y: "x",
@@ -137,34 +145,57 @@ function FieldSection({
   );
   const physics = fields.filter((field) => PHYSICS.has(field.id));
   const typography = fields.filter((field) => TEXT_DETAILS.has(field.id));
-  const rows = (items: Field[]) =>
-    items.length > 0 ? (
-      <div className="grid grid-cols-2 gap-2">
-        {items.map((field) => {
-          const partner = PAIRED_FIELDS[field.id];
-          const paired = partner && items.some((item) => item.id === partner);
-          return (
-            <div
-              className={paired ? "min-w-0" : "col-span-2 min-w-0"}
-              key={field.id}
-            >
-              <ManagedControl
-                field={{
-                  ...field,
-                  label: propertyLabel(field, objects.fields),
-                }}
-                fps={fps}
-                onChange={objects.change}
-                onCommit={objects.commit}
-                onContinuousChange={changed}
-              />
-            </div>
-          );
-        })}
+  const rows = (items: Field[]) => {
+    const remaining = new Set(items);
+    const pairedRows: [Field, ...Field[]][] = [];
+    for (const field of items) {
+      if (!remaining.delete(field)) {
+        continue;
+      }
+      const partner =
+        field.type === "number"
+          ? items.find(
+              (item) =>
+                item.id === PAIRED_FIELDS[field.id] &&
+                item.type === "number" &&
+                remaining.has(item)
+            )
+          : undefined;
+      if (partner) {
+        remaining.delete(partner);
+      }
+      pairedRows.push(partner ? [field, partner] : [field]);
+    }
+    return items.length > 0 ? (
+      <div className="flex flex-col gap-1.5">
+        {pairedRows.map((row) => (
+          <div
+            className={
+              row.length === 2 ? "grid min-w-0 grid-cols-2 gap-1.5" : "min-w-0"
+            }
+            key={row[0].id}
+          >
+            {row.map((field) => (
+              <div className="min-w-0" key={field.id}>
+                <ManagedControl
+                  field={{
+                    ...field,
+                    label: propertyLabel(field, objects.fields),
+                  }}
+                  fps={fps}
+                  onChange={objects.change}
+                  onCommit={objects.commit}
+                  onContinuousChange={changed}
+                />
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
     ) : null;
+  };
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1.5">
       {rows(primary)}
       {typography.length > 0 ? (
         <PropertyDisclosure label="Text spacing">
@@ -372,8 +403,9 @@ function NumericControl({
     typeof field.value === "number" ? field.value : Number(field.default);
   const [initial] = useState(value);
   const span = Math.max(field.unit === "s" ? 10 : 100, Math.abs(initial) * 2);
-  const min = field.min ?? Math.min(0, initial - span);
-  const max = field.max ?? Math.max(min + span, initial + span);
+  // DialKit derives display precision from the step and range bounds.
+  const min = field.min ?? Math.floor(Math.min(0, initial - span));
+  const max = field.max ?? Math.ceil(Math.max(min + span, initial + span));
   return (
     <Slider
       label={field.label}

@@ -379,7 +379,7 @@ describe("draft-first production instructions", () => {
 it("gives managed videos precedence over legacy Interactive authoring rules", () => {
   for (const plan of ["free", "pro"] as const) {
     const text = conventionsFor(true, "intro", plan);
-    expect(text).toContain("studio-objects-v2/README.md");
+    expect(text).toContain("studio-objects-v5/README.md");
     expect(text).toContain("useStudioObject(stableId)");
     expect(text).toContain("takes precedence over the legacy Interactive");
   }

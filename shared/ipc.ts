@@ -40,7 +40,7 @@ import {
 } from "./studio-document";
 import { TemplateDraft } from "./templates";
 
-export const SIDECAR_PROTOCOL = 35;
+export const SIDECAR_PROTOCOL = 36;
 
 export const SIDECAR_STATUS_EVENT = "sidecar://status";
 export const SIDECAR_NOTIFY_EVENT = "sidecar://notify";

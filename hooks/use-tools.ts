@@ -10,9 +10,12 @@ import {
 } from "@/hooks/use-managed-objects";
 import { type PreviewControl, useOnPreview } from "@/hooks/use-preview";
 import { type Snapshot, useSnapshot } from "@/hooks/use-snapshot";
-import type { PreviewMessage } from "@/lib/studio/preview";
+import {
+  PREVIEW_COMMAND_SOURCE,
+  type PreviewMessage,
+} from "@/lib/studio/preview";
 
-type Tool = "inspect" | "snapshot" | null;
+type Tool = "snapshot" | null;
 
 export interface Tools {
   exporting: Exporting;
@@ -73,16 +76,16 @@ export function useTools({
     }
   }, [unavailable]);
 
-  const onMessage = useCallback((message: PreviewMessage) => {
-    if (message.type === "rebuilt") {
-      setTool(null);
-    }
-  }, []);
+  const managed = useManagedObjects({
+    armed: false,
+    enabled: !isLocked && openedProjectId === previewProjectId,
+    inlineEnabled: unavailable === null && tool === null,
+    preview,
+    projectId: writeProjectId,
+  });
+  const openObjects = managed.open;
+  const { focus, send } = preview;
 
-  useOnPreview(preview, onMessage);
-
-  // On Free the buttons are the way to the trial card: a click arms nothing
-  // and brings the invite back, which is what `onArm` does on Free anyway.
   const toggleInspect = useCallback(() => {
     if (isLocked) {
       onArm?.();
@@ -91,11 +94,10 @@ export function useTools({
     if (unavailable !== null) {
       return;
     }
-    if (tool !== "inspect") {
-      onArm?.();
-    }
-    setTool(tool === "inspect" ? null : "inspect");
-  }, [isLocked, onArm, tool, unavailable]);
+    setTool(null);
+    openObjects();
+    focus();
+  }, [focus, isLocked, onArm, openObjects, unavailable]);
 
   const toggleSnapshot = useCallback(() => {
     if (isLocked) {
@@ -111,26 +113,9 @@ export function useTools({
     setTool(tool === "snapshot" ? null : "snapshot");
   }, [isLocked, onArm, tool, unavailable]);
 
-  // The comment card and the composer answer Escape themselves and prevent the
-  // default; anything they left alone disarms the mode.
-  useEffect(() => {
-    if (tool === null) {
-      return;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !event.defaultPrevented) {
-        setTool(null);
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [tool]);
-
   const inspect = useInspect({
     composer,
-    isArmed: tool === "inspect",
+    isArmed: unavailable === null && tool === null,
     preview,
     projectId: writeProjectId,
     toggle: toggleInspect,
@@ -146,18 +131,51 @@ export function useTools({
     unavailable,
   });
 
-  const managed = useManagedObjects({
-    armed: tool === "inspect",
-    enabled: !isLocked && openedProjectId === previewProjectId,
-    preview,
-    projectId: writeProjectId,
-  });
+  const { cancelComment } = inspect;
+  const closeObjects = managed.close;
+  const dismiss = useCallback(() => {
+    if (tool === "snapshot") {
+      setTool(null);
+      return;
+    }
+    send({ source: PREVIEW_COMMAND_SOURCE, type: "inspect.clear" });
+    cancelComment();
+    closeObjects();
+  }, [cancelComment, closeObjects, send, tool]);
+
+  const onMessage = useCallback(
+    (message: PreviewMessage) => {
+      if (message.type === "rebuilt") {
+        setTool(null);
+      } else if (message.type === "inspect.clear") {
+        dismiss();
+      }
+    },
+    [dismiss]
+  );
+  useOnPreview(preview, onMessage);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.key === "Escape" &&
+        !event.defaultPrevented &&
+        document.fullscreenElement === null
+      ) {
+        dismiss();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [dismiss]);
 
   const exporting = useExport({
     composition: preview.composition,
     isServing: preview.isServing,
     managedPending:
-      managed.pending + (managed.busy || managed.awaitingPreview ? 1 : 0),
+      managed.pending +
+      (managed.busy || managed.awaitingPreview || managed.editingText ? 1 : 0),
     metadata: preview.pick?.metadata ?? null,
     openedProjectId,
     projectId: previewProjectId,

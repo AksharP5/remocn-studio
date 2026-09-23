@@ -105,12 +105,12 @@ describe("AssetsPane", () => {
     ).toBeInTheDocument();
   });
 
-  it("lays the cards out as a grid", () => {
+  it("lays the cards out in two columns", () => {
     const { container } = pane({
       assets: [asset(), asset({ name: "Logo", slug: "logo", type: "img" })],
     });
 
-    const grid = container.querySelector(".grid");
+    const grid = container.querySelector(".columns-2");
 
     expect(grid).not.toBeNull();
     expect(grid?.querySelectorAll('[data-slot="attachment"]')).toHaveLength(2);

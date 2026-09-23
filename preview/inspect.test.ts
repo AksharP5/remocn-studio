@@ -111,14 +111,17 @@ describe("what a click while armed is allowed to reach", () => {
     expect(clicked().defaultPrevented).toBe(true);
   });
 
-  it("wears a crosshair only while it is armed", () => {
+  it("drives the inspect cursor only while it is armed", () => {
     const { canvas } = staged();
     canvas.style.cursor = "pointer";
 
     armInspect(true, STAGE);
-    expect(canvas.style.cursor).toBe("crosshair");
+    expect(canvas.style.getPropertyValue("--remocn-inspect-cursor")).toBe(
+      "default"
+    );
 
     armInspect(false, STAGE);
+    expect(canvas.style.getPropertyValue("--remocn-inspect-cursor")).toBe("");
     expect(canvas.style.cursor).toBe("pointer");
   });
 });
@@ -272,7 +275,7 @@ describe("the selection box", () => {
     armed();
     highlightTarget(null);
 
-    const style = document.head.querySelector("style[data-remocn-selection]");
+    const style = document.querySelector("style[data-remocn-selection]");
 
     expect(style?.textContent).toContain("prefers-reduced-motion");
     expect(style?.textContent).toContain("remocn-selection-pulse");

@@ -11,6 +11,11 @@ import {
 } from "lucide-react";
 import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupTextarea,
+} from "@/components/ui/input-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -38,6 +43,7 @@ import { changedFields, subtitleOf, titleOf } from "@/lib/studio/tuning";
 import { cn } from "@/lib/utils";
 import type { TuningValue } from "@/shared/ipc";
 import { DialKitSurface } from "./dialkit-surface";
+import { DOCK_ACTIONS, DOCK_INSET, DOCK_SURFACE } from "./dock-layout";
 import { ManagedPropsPane } from "./managed-props-pane";
 import { Pane, PaneActions, PaneBody, PaneHeader, PaneTitle } from "./pane";
 import { GroupHeading } from "./prop-group-heading";
@@ -60,19 +66,36 @@ const GROUP_ORDER = [
 ];
 
 export function PropsPane() {
-  const { openedProject, settings, tools } = useStudio();
+  const { composer, openedProject, settings, tools } = useStudio();
   const { inspect } = tools;
   const { card } = inspect;
   const frame = usePreviewFrame(tools.preview);
   // Outside the keyed panel below, so a fold survives picking another element.
   const groups = usePropGroups(settings);
 
+  const addManagedInstruction = useCallback(
+    (instruction: string) => {
+      const object = tools.managed?.selected;
+      const video = tools.preview.composition;
+      if (!(object && video)) {
+        return;
+      }
+      composer.write(
+        `For element ${JSON.stringify(object.label)} (studio object ${JSON.stringify(object.id)}, definition ${JSON.stringify(object.definition)}) in video ${JSON.stringify(video)}:\n${instruction}`
+      );
+      composer.caret.ref.current?.focus();
+    },
+    [composer, tools.managed?.selected, tools.preview.composition]
+  );
+
   if (tools.managed?.isOpen) {
     return (
       <ManagedPropsPane
         fps={tools.preview.pick?.metadata?.fps}
         groups={groups}
+        key={`${openedProject?.id}:${tools.preview.composition}`}
         objects={tools.managed}
+        onAddInstruction={addManagedInstruction}
       />
     );
   }
@@ -152,7 +175,7 @@ export function PropsPanel({
   };
 
   return (
-    <Pane>
+    <Pane className="property-inspector">
       <PaneHeader>
         <div className="flex min-w-0 items-center gap-2">
           <PaneTitle className="truncate">{titleOf(target)}</PaneTitle>
@@ -170,7 +193,7 @@ export function PropsPanel({
             <TooltipTrigger
               render={
                 <Button
-                  aria-label="Close the properties panel"
+                  aria-label="Clear selection and restore original values"
                   className="text-muted-foreground"
                   onClick={onCancel}
                   size="icon-sm"
@@ -181,7 +204,7 @@ export function PropsPanel({
               <XIcon />
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              Close and restore the original values
+              Clear selection and restore the original values
             </TooltipContent>
           </Tooltip>
         </PaneActions>
@@ -247,7 +270,7 @@ export function PropsPanel({
                     onToggle={folds?.toggle}
                   />
                   <div
-                    className="flex flex-col gap-2.5"
+                    className="flex flex-col gap-1.5"
                     hidden={folds?.collapsed.includes(group) === true}
                   >
                     {paneRows(grouped).map((row) =>
@@ -280,46 +303,50 @@ export function PropsPanel({
           </ScrollArea>
         </DialKitSurface>
 
-        <div className="flex shrink-0 flex-col gap-2 border-t p-3">
+        <div className={cn(DOCK_INSET, "flex flex-col gap-2")}>
           {refusal === null || refusal.path !== null ? null : (
             <p className="text-destructive text-xs" role="alert">
               {refusal.message}
             </p>
           )}
 
-          <Textarea
-            {...VERBATIM_INPUT}
-            aria-label="What should change about this element?"
-            className="max-h-24 min-h-14 resize-none text-sm"
-            onChange={comment.onChange}
-            onKeyDown={comment.onKeyDown}
-            placeholder="What should change?"
-            ref={comment.ref}
-            rows={2}
-            value={comment.value}
-          />
+          <InputGroup className={DOCK_SURFACE}>
+            <InputGroupTextarea
+              {...VERBATIM_INPUT}
+              aria-label="What should change about this element?"
+              className="max-h-32 flex-1 resize-none text-sm"
+              onChange={comment.onChange}
+              onKeyDown={comment.onKeyDown}
+              placeholder="What should change?"
+              ref={comment.ref}
+              rows={2}
+              value={comment.value}
+            />
 
-          <div className="flex items-center gap-1">
-            <Button
-              className="text-muted-foreground"
-              onClick={comment.keep}
-              size="xs"
-              title="Ask Claude to put this in the asset library"
-              variant="ghost"
-            >
-              <LibraryBigIcon />
-              Save to library
-            </Button>
-            <div className="ml-auto flex items-center gap-1">
-              <Button onClick={onCancel} size="xs" variant="ghost">
-                Cancel
-              </Button>
-              <Button onClick={comment.submit} size="xs">
-                <CornerDownLeftIcon />
-                {changes === 0 ? "Add" : `Add ${changes}`}
-              </Button>
-            </div>
-          </div>
+            <InputGroupAddon align="block-end">
+              <div className={cn(DOCK_ACTIONS, "flex-wrap")}>
+                <Button
+                  className="text-muted-foreground"
+                  onClick={comment.keep}
+                  size="xs"
+                  title="Ask Claude to put this in the asset library"
+                  variant="ghost"
+                >
+                  <LibraryBigIcon />
+                  Save to library
+                </Button>
+                <div className="ms-auto flex items-center gap-1">
+                  <Button onClick={onCancel} size="xs" variant="ghost">
+                    Cancel
+                  </Button>
+                  <Button onClick={comment.submit} size="xs">
+                    <CornerDownLeftIcon />
+                    {changes === 0 ? "Add" : `Add ${changes}`}
+                  </Button>
+                </div>
+              </div>
+            </InputGroupAddon>
+          </InputGroup>
         </div>
       </PaneBody>
     </Pane>

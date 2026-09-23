@@ -189,7 +189,9 @@ function harness(
   });
 
   const preview = {
+    attachSurface: () => () => undefined,
     composition: null,
+    focus: () => undefined,
     frame: 0,
     frameOf: () => 0,
     hint: null,
@@ -201,7 +203,6 @@ function harness(
     send: (command: PreviewCommand) => {
       sent.push(command);
     },
-    stage: { current: null },
     subscribe: (listen: (message: PreviewMessage) => void) => {
       listener = listen;
       return () => {

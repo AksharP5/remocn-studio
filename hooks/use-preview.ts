@@ -1,7 +1,6 @@
 "use client";
 
 import { Effect, Exit, Fiber } from "effect";
-import type { RefObject } from "react";
 import {
   useCallback,
   useEffect,
@@ -19,6 +18,10 @@ import {
   type PreviewMessage,
   startPreview,
 } from "@/lib/studio/preview";
+import {
+  createPreviewSurfaceChannel,
+  type PreviewSurface,
+} from "@/lib/studio/preview-surface";
 import type { PromptFrame, SidecarPhase } from "@/shared/ipc";
 
 export type Preview =
@@ -30,7 +33,9 @@ export type Preview =
 export type PreviewListener = (message: PreviewMessage) => void;
 
 export interface PreviewControl {
+  attachSurface: (surface: PreviewSurface) => () => void;
   composition: string | null;
+  focus: () => void;
   frameOf: () => number;
   hint: string | null;
   isServing: boolean;
@@ -40,7 +45,6 @@ export interface PreviewControl {
   preview: Preview;
   restart: () => void;
   send: (command: PreviewCommand) => void;
-  stage: RefObject<HTMLIFrameElement | null>;
   subscribe: (listen: PreviewListener) => () => void;
 }
 
@@ -49,9 +53,9 @@ const EMPTY_COMPOSITIONS_SETTLE_MS = 250;
 
 type Running = Fiber.Fiber<unknown, unknown>;
 
-// One host per project, one page per video: the bundle is shared and the
-// iframe asks for the composition it wants, so switching videos is a page
-// load rather than another seven-second compile.
+// One host per project, one runtime per video: the bundle is shared and the
+// canvas asks for the composition it wants, so switching videos is a remount
+// rather than another seven-second compile.
 export function usePreview(
   projectId: string | null,
   compositionId: string | null,
@@ -62,7 +66,7 @@ export function usePreview(
   const [pick, setPick] = useState<PreviewComposition | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const running = useRef<Running | null>(null);
-  const stage = useRef<HTMLIFrameElement>(null);
+  const surface = useMemo(createPreviewSurfaceChannel, []);
   const listeners = useRef(new Set<PreviewListener>());
   const frame = useRef(0);
   const watchers = useRef(new Set<() => void>());
@@ -184,6 +188,7 @@ export function usePreview(
     }
   }, [launch, projectId, sidecarPhase, stop]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new playing url must drop a pending empty-compositions publish and resubscribe
   useEffect(() => {
     if (origin === null) {
       return;
@@ -217,15 +222,8 @@ export function usePreview(
       }
     };
 
-    const onMessage = (event: MessageEvent) => {
-      if (
-        event.origin !== origin ||
-        event.source !== stage.current?.contentWindow
-      ) {
-        return;
-      }
-
-      const decoded = decodePreviewMessage(event.data);
+    const onMessage = (data: unknown) => {
+      const decoded = decodePreviewMessage(data);
       if (Exit.isFailure(decoded)) {
         return;
       }
@@ -251,22 +249,17 @@ export function usePreview(
       publish(message);
     };
 
-    window.addEventListener("message", onMessage);
+    const unsubscribe = surface.subscribe(onMessage);
 
     return () => {
       cancelPendingEmpty();
-      window.removeEventListener("message", onMessage);
+      unsubscribe();
     };
-  }, [origin, setFrame]);
+  }, [origin, setFrame, surface, url]);
 
-  const send = useCallback(
-    (command: PreviewCommand) => {
-      if (origin !== null) {
-        stage.current?.contentWindow?.postMessage(command, origin);
-      }
-    },
-    [origin]
-  );
+  useEffect(() => () => surface.disconnect(), [surface]);
+
+  const { send } = surface;
 
   const restart = useCallback(() => {
     stop();
@@ -291,7 +284,9 @@ export function usePreview(
 
   return useMemo(
     () => ({
+      attachSurface: surface.attach,
       composition: pick?.compositionId ?? null,
+      focus: surface.focus,
       frameOf,
       hint,
       isServing: preview.phase === "ready",
@@ -301,7 +296,6 @@ export function usePreview(
       preview: url === null ? preview : { phase: "ready" as const, url },
       restart,
       send,
-      stage,
       subscribe,
     }),
     [
@@ -314,6 +308,7 @@ export function usePreview(
       restart,
       send,
       subscribe,
+      surface,
       url,
     ]
   );

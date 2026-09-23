@@ -1,3 +1,5 @@
+import { nativeSurface, surfaceHref } from "./surface";
+
 /**
  * What an `asset` field's value is, on each side of the wire.
  *
@@ -24,6 +26,10 @@ const SCHEME = /^[a-z][a-z\d+\-.]*:/i;
 const IMAGE = /\.(avif|gif|jpe?g|png|svg|webp)$/i;
 
 export function staticBase(): string {
+  const surface = nativeSurface();
+  if (surface) {
+    return surface.assets;
+  }
   const value = (window as { remotion_staticBase?: unknown })
     .remotion_staticBase;
 
@@ -63,7 +69,9 @@ export function assetValue(name: string): string {
     return name;
   }
 
-  return `${FILE_TOKEN}${encodeSegments(name)}`;
+  return nativeSurface()
+    ? `${staticBase()}/${encodeSegments(name)}`
+    : `${FILE_TOKEN}${encodeSegments(name)}`;
 }
 
 export function isImageName(name: string): boolean {
@@ -104,7 +112,7 @@ export function forgetAssets(): void {
 
 async function fetchNames(): Promise<readonly string[]> {
   try {
-    const response = await fetch(STATICS_PATH);
+    const response = await fetch(new URL(STATICS_PATH, surfaceHref()));
     const { files }: { files?: unknown } = await response.json();
 
     return Array.isArray(files)

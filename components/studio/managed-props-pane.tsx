@@ -10,16 +10,19 @@ import type { PropGroups } from "@/hooks/use-prop-groups";
 import { readableLabel } from "@/lib/studio/property-presentation";
 import { DialKitSurface } from "./dialkit-surface";
 import { ManagedFields } from "./managed-fields";
+import { ManagedInstruction } from "./managed-instruction";
 import { Pane, PaneActions, PaneBody, PaneHeader } from "./pane";
 
 export function ManagedPropsPane({
   objects,
   groups,
   fps,
+  onAddInstruction,
 }: {
   objects: ManagedObjects;
   groups?: PropGroups;
   fps?: number;
+  onAddInstruction?: (instruction: string) => void;
 }) {
   const [tab, setTab] = useState("appearance");
   const changeTab = useCallback(
@@ -45,13 +48,13 @@ export function ManagedPropsPane({
     status = "Loading properties…";
   }
   return (
-    <Pane className="managed-inspector">
+    <Pane className="managed-inspector property-inspector">
       <Tabs
         className="h-full min-h-0 gap-0"
         onValueChange={changeTab}
         value={tab}
       >
-        <PaneHeader className="h-auto flex-col items-stretch gap-2 px-3 py-2">
+        <PaneHeader className="h-auto flex-col items-stretch gap-2 px-4 py-3">
           <div className="flex min-w-0 items-center justify-between gap-2">
             <DialKitSurface targetId="object-picker">
               <SelectControl
@@ -76,17 +79,17 @@ export function ManagedPropsPane({
                 <RotateCcwIcon />
               </Button>
               <Button
-                aria-label="Close object properties"
+                aria-label="Clear selection"
                 onClick={objects.close}
                 size="icon-sm"
-                title="Close properties"
+                title="Clear selection"
                 variant="ghost"
               >
                 <XIcon />
               </Button>
             </PaneActions>
           </div>
-          <div className="flex flex-col gap-2 text-xs [overflow-wrap:anywhere]">
+          <div className="flex flex-col gap-2 text-xs [overflow-wrap:anywhere] empty:hidden">
             {status ? (
               <p className="text-muted-foreground text-xs" role="status">
                 {status}
@@ -141,7 +144,7 @@ export function ManagedPropsPane({
             </TabsTab>
           </TabsList>
         </PaneHeader>
-        <PaneBody className="overflow-y-auto px-3 py-2">
+        <PaneBody className="overflow-y-auto p-0">
           <TabsPanel hidden={tab !== "appearance"} value="appearance">
             <DialKitSurface targetId={objects.selected?.id ?? "objects"}>
               <ManagedFields
@@ -165,6 +168,12 @@ export function ManagedPropsPane({
             </DialKitSurface>
           </TabsPanel>
         </PaneBody>
+        {onAddInstruction && objects.selected ? (
+          <ManagedInstruction
+            objectId={objects.selected.id}
+            onAdd={onAddInstruction}
+          />
+        ) : null}
       </Tabs>
     </Pane>
   );

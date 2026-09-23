@@ -167,6 +167,76 @@ export const PreviewMetadata = Schema.Struct({
 
 export const PreviewMessage = Schema.Union([
   Schema.Struct({
+    source: from,
+    type: Schema.Literal("studio.geometry.request"),
+  }),
+  Schema.Struct({
+    binding: Schema.Struct({
+      height: Schema.NonEmptyString,
+      rotation: Schema.NullOr(Schema.NonEmptyString),
+      width: Schema.NonEmptyString,
+      x: Schema.NonEmptyString,
+      y: Schema.NonEmptyString,
+    }),
+    generation: Schema.NonEmptyString,
+    objectId: Schema.NonEmptyString,
+    requestId: Schema.NonEmptyString,
+    source: from,
+    type: Schema.Literal("studio.geometry.begin"),
+    values: Schema.Struct({
+      height: Schema.Finite,
+      rotation: Schema.Finite,
+      width: Schema.Finite,
+      x: Schema.Finite,
+      y: Schema.Finite,
+    }),
+    video: Schema.NonEmptyString,
+  }),
+  Schema.Struct({
+    requestId: Schema.NonEmptyString,
+    source: from,
+    type: Schema.Literal("studio.geometry.commit"),
+    values: Schema.Struct({
+      height: Schema.Finite.check(Schema.isGreaterThanOrEqualTo(1)),
+      rotation: Schema.Finite,
+      width: Schema.Finite.check(Schema.isGreaterThanOrEqualTo(1)),
+      x: Schema.Finite,
+      y: Schema.Finite,
+    }),
+  }),
+  Schema.Struct({
+    requestId: Schema.NonEmptyString,
+    source: from,
+    type: Schema.Literal("studio.geometry.cancel"),
+  }),
+  Schema.Struct({
+    candidates: Schema.Array(
+      Schema.Struct({
+        field: Schema.NullOr(Schema.NonEmptyString),
+        text: Schema.String,
+      })
+    ).check(Schema.isMinLength(1), Schema.isMaxLength(16)),
+    generation: Schema.NonEmptyString,
+    objectId: Schema.NonEmptyString,
+    requestId: Schema.NonEmptyString,
+    source: from,
+    type: Schema.Literal("studio.text.request"),
+    video: Schema.NonEmptyString,
+  }),
+  Schema.Struct({
+    requestId: Schema.NonEmptyString,
+    source: from,
+    type: Schema.Literal("studio.text.commit"),
+    value: Schema.String,
+  }),
+  Schema.Struct({
+    requestId: Schema.NonEmptyString,
+    source: from,
+    type: Schema.Literal("studio.text.cancel"),
+  }),
+  Schema.Struct({ source: from, type: Schema.Literal("inspect.ready") }),
+  Schema.Struct({ source: from, type: Schema.Literal("inspect.clear") }),
+  Schema.Struct({
     generation: Schema.NonEmptyString,
     lastOperationId: Schema.NullOr(Schema.NonEmptyString),
     source: from,
@@ -238,6 +308,15 @@ export const PreviewMessage = Schema.Union([
     type: Schema.Literal("playhead"),
   }),
   Schema.Struct({
+    buffering: Schema.Boolean,
+    compositionId: Schema.NonEmptyString,
+    error: Schema.NullOr(Schema.String),
+    muted: Schema.Boolean,
+    source: from,
+    type: Schema.Literal("transport.state"),
+    volume: Schema.Finite.check(Schema.isBetween({ maximum: 1, minimum: 0 })),
+  }),
+  Schema.Struct({
     paused: Schema.Boolean,
     source: from,
     status: InspectStatus,
@@ -272,6 +351,63 @@ export const PreviewMessage = Schema.Union([
 const to = Schema.Literal(PREVIEW_COMMAND_SOURCE);
 
 export const PreviewCommand = Schema.Union([
+  Schema.Struct({
+    enabled: Schema.Boolean,
+    fields: Schema.Array(
+      Schema.Struct({
+        id: Schema.NonEmptyString,
+        max: Schema.NullOr(Schema.Finite),
+        min: Schema.NullOr(Schema.Finite),
+        value: Schema.Finite,
+      })
+    ),
+    generation: Schema.NonEmptyString,
+    objectId: Schema.NullOr(Schema.NonEmptyString),
+    source: to,
+    type: Schema.Literal("studio.geometry.config"),
+    video: Schema.NonEmptyString,
+  }),
+  Schema.Struct({
+    error: Schema.NullOr(Schema.String),
+    requestId: Schema.NonEmptyString,
+    source: to,
+    type: Schema.Literal("studio.geometry.result"),
+  }),
+  Schema.Struct({
+    generation: Schema.NonEmptyString,
+    objectId: Schema.NonEmptyString,
+    source: to,
+    type: Schema.Literal("studio.batch"),
+    values: Schema.Record(Schema.NonEmptyString, StudioValue),
+  }),
+  Schema.Struct({
+    candidate: Schema.Int,
+    label: Schema.String,
+    requestId: Schema.NonEmptyString,
+    source: to,
+    type: Schema.Literal("studio.text.open"),
+    value: Schema.String,
+  }),
+  Schema.Struct({
+    error: Schema.NullOr(Schema.String),
+    requestId: Schema.NonEmptyString,
+    source: to,
+    type: Schema.Literal("studio.text.close"),
+  }),
+  Schema.Struct({ source: to, type: Schema.Literal("inspect.clear") }),
+  Schema.Struct({ source: to, type: Schema.Literal("transport.request") }),
+  Schema.Struct({ source: to, type: Schema.Literal("transport.toggle") }),
+  Schema.Struct({
+    direction: Schema.Literals([-1, 1]),
+    source: to,
+    type: Schema.Literal("transport.step"),
+  }),
+  Schema.Struct({
+    muted: Schema.Boolean,
+    source: to,
+    type: Schema.Literal("transport.audio"),
+    volume: Schema.Finite.check(Schema.isBetween({ maximum: 1, minimum: 0 })),
+  }),
   Schema.Struct({ source: to, type: Schema.Literal("studio.request") }),
   Schema.Struct({
     field: Schema.NonEmptyString,

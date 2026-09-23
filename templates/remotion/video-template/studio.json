@@ -4,7 +4,7 @@
   "definitions": [
     {
       "id": "heading",
-      "version": 1,
+      "version": 2,
       "fields": [
         {
           "id": "text",
@@ -90,6 +90,53 @@
           "type": "easing",
           "default": [0, 0, 0.58, 1],
           "group": "Motion"
+        },
+        {
+          "id": "x",
+          "label": "X",
+          "type": "number",
+          "default": 260,
+          "unit": "px",
+          "group": "Layout",
+          "step": 1
+        },
+        {
+          "id": "y",
+          "label": "Y",
+          "type": "number",
+          "default": 420,
+          "unit": "px",
+          "group": "Layout",
+          "step": 1
+        },
+        {
+          "id": "width",
+          "label": "Width",
+          "type": "number",
+          "default": 1400,
+          "unit": "px",
+          "group": "Layout",
+          "step": 1,
+          "min": 1
+        },
+        {
+          "id": "height",
+          "label": "Height",
+          "type": "number",
+          "default": 120,
+          "unit": "px",
+          "group": "Layout",
+          "step": 1,
+          "min": 1
+        },
+        {
+          "id": "rotation",
+          "label": "Rotation",
+          "type": "number",
+          "default": 0,
+          "unit": "deg",
+          "group": "Layout",
+          "step": 1
         }
       ]
     },
@@ -131,7 +178,12 @@
         "lineHeight": 1.1,
         "entryDistance": 24,
         "entryDuration": 0.6,
-        "entryEasing": [0, 0, 0.58, 1]
+        "entryEasing": [0, 0, 0.58, 1],
+        "x": 260,
+        "y": 420,
+        "width": 1400,
+        "height": 120,
+        "rotation": 0
       }
     },
     {
@@ -148,7 +200,12 @@
         "lineHeight": 1.1,
         "entryDistance": 24,
         "entryDuration": 0.6,
-        "entryEasing": [0, 0, 0.58, 1]
+        "entryEasing": [0, 0, 0.58, 1],
+        "x": 260,
+        "y": 564,
+        "width": 1400,
+        "height": 64,
+        "rotation": 0
       }
     }
   ],

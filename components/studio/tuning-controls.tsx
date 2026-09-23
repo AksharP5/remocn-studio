@@ -64,13 +64,13 @@ export interface AssetOptions {
 }
 
 const ROW =
-  "grid min-h-7 grid-cols-[minmax(2.5rem,30%)_minmax(0,1fr)_1.25rem] items-center gap-x-2";
+  "grid min-h-7.5 grid-cols-[minmax(2.5rem,30%)_minmax(0,1fr)_1.25rem] items-center gap-x-2";
 const LABEL = "truncate text-muted-foreground text-xs";
 // Focus is an outline, not a ring: `control-surface` *is* a box-shadow, and a
 // ring utility would replace it and take the elevation with it.
 const FOCUS =
   "focus-within:outline-2 focus-within:outline-ring focus-within:outline-offset-1";
-const FIELD = `flex h-7 w-full flex-row items-center gap-1.5 overflow-hidden rounded-md control-surface px-2 text-xs ${FOCUS}`;
+const FIELD = `flex h-7.5 w-full flex-row items-center gap-1.5 overflow-hidden rounded-md control-surface px-2 text-xs ${FOCUS}`;
 const VALUE =
   "min-w-0 flex-1 truncate bg-transparent text-left text-foreground text-xs outline-none";
 // The letter inside a field is its drag handle, and dragging it is the whole

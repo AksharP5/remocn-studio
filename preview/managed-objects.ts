@@ -1,3 +1,4 @@
+import { contentRoot } from "./surface";
 export const MANAGED_OBJECT = "data-studio-object";
 
 export function managedRoot(
@@ -10,7 +11,9 @@ export function managedRoot(
 
 export function managedRoots(id: string): Element[] {
   return [
-    ...document.querySelectorAll(`[${MANAGED_OBJECT}="${CSS.escape(id)}"]`),
+    ...contentRoot().querySelectorAll(
+      `[${MANAGED_OBJECT}="${CSS.escape(id)}"]`
+    ),
   ];
 }
 

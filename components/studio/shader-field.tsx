@@ -4,10 +4,7 @@ import { NeuroNoise } from "@paper-design/shaders-react";
 import { useShaderBackdrop } from "@/hooks/use-shader-backdrop";
 import { cn } from "@/lib/utils";
 
-// The shader takes hex/rgb/hsl and the theme is authored in oklch, so these
-// cannot read the tokens. They are the primary violet and its light end,
-// carried over as rgba with the alpha doing the muting: a transparent back
-// leaves whatever it sits on showing through, in either theme.
+// Transparent colors keep the existing surface visible beneath the field.
 const BACK = "rgba(0, 0, 0, 0)";
 const MID = "rgba(124, 58, 237, 0.55)";
 const FRONT = "rgba(196, 181, 253, 0.45)";

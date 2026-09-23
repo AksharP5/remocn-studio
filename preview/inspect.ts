@@ -1,9 +1,11 @@
-import { anchorOf, CANVAS_SELECTOR } from "./anchor";
+import { anchorOf, CANVAS_SELECTOR, resolveAnchor } from "./anchor";
 import { assetBase, assetNames, forgetAssets, staticBase } from "./assets";
 import { post } from "./bridge";
 import { displayName, fiberOf, nearestInFibers } from "./fiber";
+import { createGeometryEditor, SELECTION_BOUNDS } from "./geometry";
+import { createInlineTextEditor } from "./inline-text";
 import { managedIdentity, managedRoots } from "./managed-objects";
-import { covers, OVERLAY_ATTR, pickAt } from "./picker";
+import { covers, nearText, OVERLAY_ATTR, pickAt } from "./picker";
 import {
   absolutise,
   formatFrame,
@@ -12,10 +14,24 @@ import {
   type StackFrame,
   truncateMarkup,
 } from "./source";
+import {
+  contentRoot,
+  elementsAt,
+  eventElement,
+  focusSurface,
+  nativeSurface,
+  onViewChange,
+  overlayRoot,
+  type SurfaceEnvironment,
+  styleRoot,
+  surfaceEvents,
+  surfaceHref,
+} from "./surface";
 import { windowOf } from "./timing";
 import {
   controlsAt,
   controlsChain,
+  type InteractiveLink,
   nameIn,
   plainName,
   type TargetWhere,
@@ -28,6 +44,9 @@ const MARKUP_LIMIT = 4000;
 const PARENTS = 3;
 const SELECTION_ATTR = "data-remocn-selection";
 const PULSE_CLASS = "remocn-selection-pulse";
+const CURSOR = "--remocn-inspect-cursor";
+const EDITING =
+  "input, textarea, select, [contenteditable]:not([contenteditable='false'])";
 // Hand-copied from --reference's dark value in app/globals.css — this file is
 // compiled by the project's webpack and cannot import the app's theme.
 export const ACCENT = "oklch(0.715 0.143 215.221)";
@@ -91,6 +110,8 @@ export interface Stage {
   composition: () => string;
   fps: () => number;
   frame: () => number;
+  pause?: () => void;
+  seek?: (frame: number) => void;
   // What the codemod resolves `fps`, `width`, `height` and `durationInFrames`
   // to when a prop is written as an expression over them. Only the page knows
   // it, so it rides with the selection rather than being asked for later.
@@ -100,7 +121,10 @@ export interface Stage {
 interface Session {
   readonly box: HTMLElement;
   readonly container: HTMLElement;
+  readonly geometry: ReturnType<typeof createGeometryEditor>;
+  readonly inline: ReturnType<typeof createInlineTextEditor>;
   readonly label: HTMLElement;
+  readonly stage: Stage;
   readonly stop: () => void;
 }
 
@@ -110,6 +134,7 @@ let hovered: Element | null = null;
 let exact = false;
 let point: { x: number; y: number } | null = null;
 let painting = 0;
+let pickVersion = 0;
 // Where each `Interactive` of the last selection sits, so switching in the
 // pane can point back at it. Captured at pick time, which is the only moment
 // the whole chain is known.
@@ -119,9 +144,10 @@ let selected: Element | null = null;
 let managedSelected: { id: string; video: string; generation: string } | null =
   null;
 let selection: { box: HTMLElement; tag: HTMLElement } | null = null;
+let restoring: string | null = null;
 
 export function canvas(): HTMLElement | null {
-  return document.querySelector<HTMLElement>(CANVAS);
+  return contentRoot().querySelector<HTMLElement>(CANVAS);
 }
 
 export function armInspect(armed: boolean, stage: Stage): InspectStatus {
@@ -136,10 +162,14 @@ export function armInspect(armed: boolean, stage: Stage): InspectStatus {
     return "no-canvas";
   }
 
-  close();
-  session = start(container, stage);
+  if (session?.container !== container) {
+    close();
+    session = start(container, stage);
+  }
+  restore();
 
-  return document.querySelector("[data-studio-object]") !== null ||
+  return nativeSurface() !== null ||
+    contentRoot().querySelector("[data-studio-object]") !== null ||
     grab() !== null
     ? "armed"
     : "no-grab";
@@ -183,10 +213,54 @@ export function highlightManaged(
   paint();
 }
 
+export function selectedAnchor(): string | null {
+  const container = canvas();
+  if (
+    picked === null ||
+    container === null ||
+    !picked.isConnected ||
+    managedIdentity(picked) !== null
+  ) {
+    return null;
+  }
+  return anchorOf(picked, container);
+}
+
+export function restoreSelection(anchor: string | null): void {
+  restoring = anchor;
+  restore();
+}
+
+function restore(): void {
+  const current = session;
+  if (restoring === null || current === null) {
+    return;
+  }
+  const found = resolveAnchor(restoring, current.container);
+  restoring = null;
+  if (
+    found === null ||
+    found === current.container ||
+    managedIdentity(found) !== null
+  ) {
+    return;
+  }
+  picked = found;
+  selected = found;
+  managedSelected = null;
+  pickVersion += 1;
+  paint();
+  report(found, current.stage, false, pickVersion).catch(nothing);
+}
+
 export function clearSelection(): void {
+  session?.inline.cancel();
+  session?.geometry.cancel();
+  pickVersion += 1;
   chain = new Map();
   picked = null;
   selected = null;
+  managedSelected = null;
   // The rebuild that clears a selection is a turn having written to the
   // project, which is the one thing that changes what is in `public/`.
   forgetAssets();
@@ -194,7 +268,25 @@ export function clearSelection(): void {
 }
 
 export function repaint(): void {
+  if (session !== null && session.container !== canvas()) {
+    armInspect(true, session.stage);
+  }
   paint();
+}
+
+export function dismissSelection(notify = true): void {
+  session?.inline.cancel();
+  session?.geometry.cancel();
+  pickVersion += 1;
+  chain = new Map();
+  picked = null;
+  selected = null;
+  managedSelected = null;
+  hovered = null;
+  paint();
+  if (notify) {
+    post({ type: "inspect.clear" });
+  }
 }
 
 function grab(): GrabApi | null {
@@ -235,29 +327,50 @@ function grab(): GrabApi | null {
 function forceHitTesting(): HTMLStyleElement {
   const style = document.createElement("style");
   style.setAttribute(OVERLAY_ATTR, "");
-  style.textContent = `${CANVAS}, ${CANVAS} * { pointer-events: auto !important; }`;
-  document.head.append(style);
+  style.textContent = `${CANVAS}, ${CANVAS} * {
+    pointer-events: auto !important;
+    cursor: var(--remocn-canvas-cursor, var(${CURSOR}, default)) !important;
+  }`;
+  styleRoot().append(style);
   return style;
 }
 
 function overCanvas(container: HTMLElement, x: number, y: number): boolean {
-  if (!covers(container, x, y)) {
-    return false;
+  const [top] = elementsAt(x, y);
+
+  if (top !== undefined) {
+    return container.contains(top);
   }
 
-  const [top] = document.elementsFromPoint?.(x, y) ?? [];
-
-  return top === undefined || container.contains(top);
+  return covers(container, x, y);
 }
 
 function start(container: HTMLElement, stage: Stage): Session {
   const { box, label } = overlay();
   const hitTesting = forceHitTesting();
-  const { cursor } = container.style;
+  const stopView = onViewChange(paint);
+  const cursor = container.style.getPropertyValue(CURSOR);
+  const inline = createInlineTextEditor(container, ACCENT, TOP + 3, paint);
+  const geometry = createGeometryEditor(
+    container,
+    ACCENT,
+    TOP + 2,
+    () => stage.pause?.(),
+    () => stage.frame(),
+    paint,
+    (frame) => stage.seek?.(frame)
+  );
 
-  container.style.cursor = "crosshair";
+  container.style.setProperty(CURSOR, "default");
 
   const onMove = (event: PointerEvent) => {
+    if (geometry.active()) {
+      return;
+    }
+    if (nativeSurface()?.viewport.hasAttribute("data-preview-navigation")) {
+      onLeave();
+      return;
+    }
     point = { x: event.clientX, y: event.clientY };
     exact = event.altKey;
     schedule(container);
@@ -266,6 +379,7 @@ function start(container: HTMLElement, stage: Stage): Session {
   const onLeave = () => {
     point = null;
     hovered = null;
+    container.style.setProperty(CURSOR, "default");
     paint();
   };
 
@@ -274,9 +388,33 @@ function start(container: HTMLElement, stage: Stage): Session {
       exact = event.type === "keydown";
       schedule(container);
     }
+    if (
+      event.type === "keydown" &&
+      event.key === "Escape" &&
+      !event.defaultPrevented &&
+      !eventElement(event)?.closest(EDITING)
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (geometry.escape()) {
+        return;
+      }
+      dismissSelection();
+    }
   };
 
   const onDown = (event: PointerEvent) => {
+    if (inline.contains(eventElement(event))) {
+      return;
+    }
+    if (inline.beforePick()) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (geometry.pointerDown(event)) {
+      return;
+    }
     if (
       event.button !== 0 ||
       !overCanvas(container, event.clientX, event.clientY)
@@ -290,9 +428,13 @@ function start(container: HTMLElement, stage: Stage): Session {
     const found =
       pickAt(event.clientX, event.clientY, container, event.altKey) ?? hovered;
 
-    if (found === null) {
+    if (found === null || found === container) {
+      dismissSelection();
       return;
     }
+
+    stage.pause?.();
+    focusSurface();
 
     const repeat =
       picked !== null &&
@@ -300,53 +442,76 @@ function start(container: HTMLElement, stage: Stage): Session {
 
     picked = found;
     selected = found;
+    managedSelected = null;
+    pickVersion += 1;
     paint();
 
     if (repeat) {
       pulse();
     }
 
-    report(found, stage, repeat).catch(nothing);
+    report(found, stage, repeat, pickVersion).catch(nothing);
   };
 
   // A click that picks must never also reach Remotion's `clickToPlay`
   // underneath it.
   const swallow = (event: MouseEvent) => {
+    if (
+      inline.contains(eventElement(event)) ||
+      geometry.contains(eventElement(event))
+    ) {
+      return;
+    }
     if (overCanvas(container, event.clientX, event.clientY)) {
       event.preventDefault();
       event.stopPropagation();
     }
   };
 
-  window.addEventListener("pointermove", onMove, true);
-  window.addEventListener("pointerdown", onDown, true);
-  window.addEventListener("pointerup", swallow, true);
-  window.addEventListener("click", swallow, true);
-  window.addEventListener("keydown", onKey, true);
-  window.addEventListener("keyup", onKey, true);
+  surfaceEvents.addEventListener("pointermove", onMove, true);
+  surfaceEvents.addEventListener("pointerdown", onDown, true);
+  surfaceEvents.addEventListener("pointerup", swallow, true);
+  surfaceEvents.addEventListener("click", swallow, true);
+  surfaceEvents.addEventListener("dblclick", inline.doubleClick, true);
+  surfaceEvents.addEventListener("keydown", onKey, true);
+  surfaceEvents.addEventListener("keyup", onKey, true);
   container.addEventListener("pointerleave", onLeave);
 
   return {
     box,
     container,
+    geometry,
+    inline,
     label,
+    stage,
     stop: () => {
-      window.removeEventListener("pointermove", onMove, true);
-      window.removeEventListener("pointerdown", onDown, true);
-      window.removeEventListener("pointerup", swallow, true);
-      window.removeEventListener("click", swallow, true);
-      window.removeEventListener("keydown", onKey, true);
-      window.removeEventListener("keyup", onKey, true);
+      surfaceEvents.removeEventListener("pointermove", onMove, true);
+      surfaceEvents.removeEventListener("pointerdown", onDown, true);
+      surfaceEvents.removeEventListener("pointerup", swallow, true);
+      surfaceEvents.removeEventListener("click", swallow, true);
+      surfaceEvents.removeEventListener("dblclick", inline.doubleClick, true);
+      surfaceEvents.removeEventListener("keydown", onKey, true);
+      surfaceEvents.removeEventListener("keyup", onKey, true);
       container.removeEventListener("pointerleave", onLeave);
-      container.style.cursor = cursor;
+      if (cursor) {
+        container.style.setProperty(CURSOR, cursor);
+      } else {
+        container.style.removeProperty(CURSOR);
+      }
       box.remove();
       label.remove();
+      stopView();
       hitTesting.remove();
+      inline.stop();
+      geometry.stop();
     },
   };
 }
 
 function close(): void {
+  cancelAnimationFrame(painting);
+  painting = 0;
+  pickVersion += 1;
   session?.stop();
   session = null;
   hovered = null;
@@ -368,8 +533,23 @@ function schedule(container: HTMLElement): void {
     }
 
     hovered = pickAt(point.x, point.y, container, exact);
+    if (hovered === container) {
+      hovered = null;
+    }
+    container.style.setProperty(CURSOR, cursorFor(hovered, point, session));
     paint();
   });
+}
+
+function cursorFor(
+  target: Element | null,
+  at: { x: number; y: number },
+  active: Session
+): string {
+  if (target !== null && nearText(target, at.x, at.y)) {
+    return "text";
+  }
+  return active.geometry.movable(target) ? "move" : "default";
 }
 
 function overlay(): { box: HTMLElement; label: HTMLElement } {
@@ -377,9 +557,9 @@ function overlay(): { box: HTMLElement; label: HTMLElement } {
   const label = tagged(TOP + 1);
 
   box.style.border = `1px solid ${ACCENT}`;
-  box.style.background = ACCENT_SOFT;
+  box.style.opacity = "0.55";
 
-  document.body.append(box, label);
+  overlayRoot().append(box, label);
 
   return { box, label };
 }
@@ -393,10 +573,11 @@ function selectionPair(): { box: HTMLElement; tag: HTMLElement } {
   const tag = tagged(TOP - 1);
 
   box.setAttribute(SELECTION_ATTR, "");
+  box.setAttribute(SELECTION_BOUNDS, "");
   box.style.border = `2px solid ${ACCENT}`;
 
-  document.head.append(pulseStyle());
-  document.body.append(box, tag);
+  overlayRoot().append(pulseStyle());
+  overlayRoot().append(box, tag);
   selection = { box, tag };
 
   return selection;
@@ -407,7 +588,7 @@ function pulseStyle(): HTMLStyleElement {
   style.setAttribute(SELECTION_ATTR, "");
   style.textContent = `@keyframes ${PULSE_CLASS} {
   0% { outline: 0 solid ${ACCENT_SOFT}; }
-  40% { outline: 6px solid ${ACCENT_SOFT}; }
+  40% { outline: 2px solid ${ACCENT_SOFT}; }
   100% { outline: 0 solid ${ACCENT_SOFT}; }
 }
 [${SELECTION_ATTR}].${PULSE_CLASS} { animation: ${PULSE_CLASS} 250ms ease-out; }
@@ -469,6 +650,11 @@ function paint(): void {
 
 function paintSelection(): void {
   const { box, tag } = selectionPair();
+  if (session?.inline.active()) {
+    session.geometry.paint(null);
+    place(box, tag, null);
+    return;
+  }
   const roots =
     managedSelected === null
       ? []
@@ -479,8 +665,11 @@ function paintSelection(): void {
               managedSelected?.generation
         );
   const root =
-    roots.find((node) => node.getBoundingClientRect().width > 0) ?? null;
-  place(box, tag, managedSelected === null ? selected : root);
+    (picked !== null && roots.includes(picked) ? picked : null) ??
+    roots.find((node) => node.getBoundingClientRect().width > 0) ??
+    null;
+  const showing = managedSelected === null ? selected : root;
+  place(box, tag, session?.geometry.paint(showing) ? null : showing);
 }
 
 function paintHover(): void {
@@ -488,7 +677,19 @@ function paintHover(): void {
     return;
   }
 
-  place(session.box, session.label, hovered);
+  const isSelected =
+    hovered !== null &&
+    (hovered === selected ||
+      (managedSelected !== null &&
+        managedIdentity(hovered)?.objectId === managedSelected.id));
+  place(
+    session.box,
+    session.label,
+    isSelected || session.inline.active() || session.geometry.active()
+      ? null
+      : hovered
+  );
+  session.label.style.display = "none";
 }
 
 function place(
@@ -560,32 +761,114 @@ export function componentAt(element: Element): string | null {
 async function report(
   element: Element,
   stage: Stage,
-  repeat: boolean
+  repeat: boolean,
+  version: number
 ): Promise<void> {
+  const frame = stage.frame();
+  const composition = stage.composition();
+  const fps = stage.fps();
+  const video = stage.video();
+  const rect = normalise(element.getBoundingClientRect());
   const managed = managedIdentity(element);
   if (managed !== null) {
     post({ type: "studio.select", ...managed });
     return;
   }
-  const module = grabModule();
-  const found = grab();
+  const native = nativeSurface();
+  const module = native ? null : grabModule();
+  const found = native ? null : grab();
+  const sourceFor = (node: Element) => sourceOf(node, native, found);
   const root = rootPath();
   const container = canvas();
   const links = controlsChain(element);
 
   const [spot, frames, sources] = await Promise.all([
-    found === null ? null : found.getSource(element).catch(nothing),
-    module === null ? null : module.getStack(element).catch(nothing),
+    sourceFor(element),
+    stackOf(element, native, module),
     Promise.all(
-      links.map((link) =>
-        found === null || link.node === null
-          ? null
-          : found.getSource(link.node).catch(nothing)
-      )
+      links.map((link) => (link.node === null ? null : sourceFor(link.node)))
     ),
   ]);
 
-  chain = new Map();
+  if (version !== pickVersion || !element.isConnected) {
+    return;
+  }
+
+  chain = chainOf(links, container);
+  const wheres = wheresOf(links, sources, root, container);
+
+  const stack = projectFrames(root, frames);
+  const target = resolved(root, spot) ?? stack.at(0) ?? null;
+  const assets = await assetNames();
+
+  if (version !== pickVersion || !element.isConnected) {
+    return;
+  }
+
+  post({
+    assetBase: assetBase(staticBase(), surfaceHref()),
+    assets,
+    element: {
+      column: target?.column ?? null,
+      component: spot?.componentName ?? target?.name ?? null,
+      composition,
+      file: target?.file ?? null,
+      fps,
+      frame,
+      html: truncateMarkup(element.outerHTML, MARKUP_LIMIT),
+      line: target?.line ?? null,
+      scene: sceneOf(element, frame),
+      stack: parentsOf(stack, target).map(formatFrame),
+    },
+    fonts: loadedFonts(),
+    rect,
+    repeat,
+    text: directText(links.at(0)?.node ?? element),
+    tuning: located(targetsOf(element), wheres),
+    type: "selection",
+    video,
+    window: windowOf(element),
+  });
+}
+
+async function sourceOf(
+  node: Element,
+  native: SurfaceEnvironment | null,
+  found: GrabApi | null
+): Promise<GrabSource | null> {
+  if (!native) {
+    return found === null ? null : found.getSource(node).catch(nothing);
+  }
+  const [source] = projectFrames(
+    native.project,
+    await native.getStack(node).catch(nothing)
+  );
+  return source
+    ? {
+        columnNumber: source.column,
+        componentName: source.name,
+        filePath: source.file,
+        lineNumber: source.line,
+      }
+    : null;
+}
+
+function stackOf(
+  element: Element,
+  native: SurfaceEnvironment | null,
+  module: GrabModule | null
+) {
+  if (native) {
+    return native.getStack(element).catch(nothing);
+  }
+  return module === null ? null : module.getStack(element).catch(nothing);
+}
+
+function chainOf(
+  links: readonly InteractiveLink[],
+  container: HTMLElement | null
+): Map<string, Element> {
+  const next = new Map<string, Element>();
 
   for (const { controls, node } of links) {
     if (node === null) {
@@ -593,12 +876,21 @@ async function report(
     }
 
     if (container !== null) {
-      chain.set(anchorOf(node, container), node);
+      next.set(anchorOf(node, container), node);
     }
 
-    chain.set(controls.overrideId, node);
+    next.set(controls.overrideId, node);
   }
 
+  return next;
+}
+
+function wheresOf(
+  links: readonly InteractiveLink[],
+  sources: readonly (GrabSource | null)[],
+  root: string,
+  container: HTMLElement | null
+): Map<string, TargetWhere | null> {
   const wheres = new Map<string, TargetWhere | null>();
 
   for (const [at, link] of links.entries()) {
@@ -611,36 +903,7 @@ async function report(
     wheres.set(link.controls.overrideId, where);
   }
 
-  const stack = projectFrames(root, frames);
-  const target = resolved(root, spot) ?? stack.at(0) ?? null;
-  const frame = stage.frame();
-
-  const assets = await assetNames();
-
-  post({
-    assetBase: assetBase(staticBase(), window.location.href),
-    assets,
-    element: {
-      column: target?.column ?? null,
-      component: spot?.componentName ?? target?.name ?? null,
-      composition: stage.composition(),
-      file: target?.file ?? null,
-      fps: stage.fps(),
-      frame,
-      html: truncateMarkup(element.outerHTML, MARKUP_LIMIT),
-      line: target?.line ?? null,
-      scene: sceneOf(element, frame),
-      stack: parentsOf(stack, target).map(formatFrame),
-    },
-    fonts: loadedFonts(),
-    rect: normalise(element.getBoundingClientRect()),
-    repeat,
-    text: directText(links.at(0)?.node ?? element),
-    tuning: located(targetsOf(element), wheres),
-    type: "selection",
-    video: stage.video(),
-    window: windowOf(element),
-  });
+  return wheres;
 }
 
 function loadedFonts(): string[] {
@@ -718,14 +981,15 @@ function parentsOf(
 }
 
 function normalise(rect: DOMRect) {
-  const width = window.innerWidth || 1;
-  const height = window.innerHeight || 1;
+  const bounds = nativeSurface() ? canvas()?.getBoundingClientRect() : null;
+  const width = bounds?.width || window.innerWidth || 1;
+  const height = bounds?.height || window.innerHeight || 1;
 
   return {
     height: rect.height / height,
     width: rect.width / width,
-    x: rect.left / width,
-    y: rect.top / height,
+    x: (rect.left - (bounds?.left ?? 0)) / width,
+    y: (rect.top - (bounds?.top ?? 0)) / height,
   };
 }
 
@@ -785,7 +1049,11 @@ function grabModule(): GrabModule | null {
 }
 
 function rootPath(): string {
-  return (window as unknown as { remocn_root?: string }).remocn_root ?? "/";
+  return (
+    nativeSurface()?.project ??
+    (window as unknown as { remocn_root?: string }).remocn_root ??
+    "/"
+  );
 }
 
 const nothing = () => null;

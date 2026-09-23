@@ -5,6 +5,29 @@ The properties pane: a fourth panel beside the chat and the preview that opens o
 
 ## Requirements
 
+### Requirement: A geometry gesture is one atomic property edit
+
+A managed operation MAY contain additional field changes on the same object.
+The writer SHALL validate every before-value, definition and resulting value
+before changing any field, then replace the document once. Reusing an operation
+ID with a different set of changes SHALL fail; retrying an identical operation
+SHALL remain idempotent. Undo SHALL validate and invert every field together.
+The inspector SHALL display each field's pending value and preserve a failed
+gesture for Retry or Discard. Discard SHALL restore every affected field. Export
+SHALL remain unavailable during a gesture, its save and the preview receipt wait.
+
+#### Scenario: A left-edge resize changes X and width
+
+- **WHEN** a resize commits both coordinates
+- **THEN** they share one operation and one file replacement
+- **AND** one Undo restores both original values
+
+#### Scenario: One field changes concurrently
+
+- **WHEN** any field's before-value differs from the current document
+- **THEN** the whole gesture fails without writing any of its fields
+- **AND** its pending values remain available for the existing recovery actions
+
 ### Requirement: The pane exists only while there is something in it
 
 The studio SHALL open the properties pane when a picked element resolves to at least one component declaring an editable parameter, and SHALL keep it out of the layout entirely at every other moment. An element that resolves to no such component SHALL instead get the compact comment card anchored over the frame. Closing the pane SHALL restore the values it arrived with.

@@ -17,7 +17,7 @@ export function DialKitSurface({
   return (
     <MotionConfig reducedMotion="user">
       <div
-        className="dialkit-root remocn-dialkit flex min-h-0 flex-1 flex-col"
+        className="dialkit-root remocn-dialkit flex min-h-0 min-w-0 flex-1 flex-col"
         data-mode="inline"
         data-target-id={targetId}
         data-theme={theme}

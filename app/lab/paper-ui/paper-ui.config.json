@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "reference": "Codex desktop screenshot supplied by the user",
+  "parameters": {
+    "canvas": 24,
+    "surfaceStep": 10,
+    "borderOpacity": 8,
+    "radius": 5,
+    "accent": "neutral",
+    "font": "dm-sans"
+  }
+}

@@ -9,7 +9,11 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import {
   SidebarMenu,
   SidebarMenuItem,
@@ -41,17 +45,21 @@ export function AssetSearchField({
 }) {
   return (
     <div className="px-1">
-      <div className="relative">
-        <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
+      <InputGroup>
+        <InputGroupAddon>
+          <SearchIcon
+            aria-hidden="true"
+            className="size-4 text-muted-foreground opacity-100"
+          />
+        </InputGroupAddon>
+        <InputGroupInput
           aria-label="Search by name"
-          className="pl-8"
           onChange={onChange}
           placeholder="Search…"
           type="search"
           value={value}
         />
-      </div>
+      </InputGroup>
     </div>
   );
 }

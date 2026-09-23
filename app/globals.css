@@ -19,6 +19,85 @@
   font-family: var(--font-sans), var(--font-cyrillic), sans-serif;
 }
 
+.property-inspector .dialkit-root.remocn-dialkit {
+  --dial-row-height: 1.875rem;
+  --dial-row-gap: 0.375rem;
+  --dial-radius: var(--radius);
+  --dial-surface: var(--field);
+  --dial-surface-hover: color-mix(in srgb, var(--field), var(--foreground) 5%);
+  --dial-surface-active: color-mix(in srgb, var(--foreground) 7%, transparent);
+  --dial-surface-subtle: var(--muted);
+  --dial-text-root: var(--foreground);
+  --dial-text-section: var(--foreground);
+  --dial-text-label: var(--muted-foreground);
+  --dial-text-focus: var(--foreground);
+  --dial-text-primary: var(--foreground);
+  --dial-text-secondary: var(--muted-foreground);
+  --dial-border: var(--border);
+  --dial-border-hover: var(--input);
+  --dial-focus-ring: var(--ring);
+  --dial-glass-bg: var(--popover);
+  --dial-dropdown-bg: var(--popover);
+}
+
+.property-inspector
+  .remocn-dialkit
+  :is(
+    .dialkit-slider,
+    .dialkit-select-trigger,
+    .dialkit-text-control,
+    .dialkit-color-control,
+    .dialkit-pad-field
+  ) {
+  box-shadow: var(--elevation-control);
+}
+
+.property-inspector
+  .remocn-dialkit
+  :is(
+    .dialkit-slider-value,
+    .dialkit-slider-input,
+    .dialkit-select-value,
+    .dialkit-text-input,
+    .dialkit-color-value,
+    .dialkit-pad-value
+  ) {
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+
+.property-inspector .remocn-dialkit .dialkit-select-trigger {
+  gap: 0.5rem;
+  padding-inline: 0.625rem;
+}
+
+.managed-inspector .dialkit-select-label {
+  color: var(--muted-foreground);
+}
+
+.property-inspector .remocn-dialkit .dialkit-select-label {
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.property-inspector .remocn-dialkit .dialkit-select-right {
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.property-inspector [data-slot="textarea"] {
+  min-height: 3.5rem;
+  max-height: 6rem;
+}
+
+@media (pointer: coarse) {
+  .property-inspector .dialkit-root.remocn-dialkit {
+    --dial-row-height: 2.75rem;
+  }
+}
+
 .remocn-dialkit
   :is(
     .dialkit-slider-value,
@@ -150,6 +229,7 @@
   --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
   --color-input: var(--input);
+  --color-field: var(--field);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
@@ -297,55 +377,45 @@
 }
 
 :root {
+  --font-sans: var(--font-dm-sans), var(--font-cyrillic), sans-serif;
+  --font-heading: var(--font-sans);
   --card: var(--color-white);
-  --card-foreground: var(--color-neutral-800);
+  --card-foreground: var(--foreground);
   --popover: var(--color-white);
-  --popover-foreground: var(--color-neutral-800);
-  /* The shader's violet (#7c3aed = oklch(0.541 0.278 293)) is the brand, and
-     this is that hue held to a lightness a paragraph of text can sit on: the
-     user's message bubble is a fill of it, so it is a surface first and an
-     accent second. Chroma is pulled back from the shader's — a saturated
-     violet behind eight lines of prose vibrates. */
-  --primary: oklch(0.52 0.19 293);
-  --primary-foreground: oklch(0.985 0.01 293);
-  --secondary: --alpha(var(--color-black) / 4%);
-  --secondary-foreground: var(--color-neutral-800);
-  --muted: --alpha(var(--color-black) / 4%);
-  --muted-foreground: color-mix(
-    in srgb,
-    var(--color-neutral-500) 90%,
-    var(--color-black)
-  );
-  --accent: --alpha(var(--color-black) / 4%);
-  --accent-foreground: var(--color-neutral-800);
+  --popover-foreground: var(--foreground);
+  --primary: #33332f;
+  --primary-foreground: #fafaf6;
+  --secondary: rgb(0 0 0 / 0.045);
+  --secondary-foreground: var(--foreground);
+  --muted: rgb(0 0 0 / 0.045);
+  --muted-foreground: #6a6a64;
+  --accent: rgb(0 0 0 / 0.055);
+  --accent-foreground: var(--foreground);
   --destructive: var(--color-red-500);
-  --border: --alpha(var(--color-black) / 8%);
-  --input: --alpha(var(--color-black) / 10%);
-  --ring: var(--color-neutral-400);
+  --border: rgb(0 0 0 / 0.09);
+  --input: var(--border);
+  --field: var(--background);
+  --ring: #777770;
   --chart-1: var(--color-orange-600);
   --chart-2: var(--color-teal-600);
   --chart-3: var(--color-cyan-900);
   --chart-4: var(--color-amber-400);
   --chart-5: var(--color-amber-500);
-  --radius: 0.625rem;
-  --sidebar: var(--color-neutral-50);
-  --sidebar-foreground: color-mix(
-    in srgb,
-    var(--color-neutral-800) 64%,
-    var(--sidebar)
-  );
-  --sidebar-primary: oklch(0.52 0.19 293);
-  --sidebar-primary-foreground: oklch(0.985 0.01 293);
-  --sidebar-accent: --alpha(var(--color-black) / 4%);
-  --sidebar-accent-foreground: var(--color-neutral-800);
-  --sidebar-border: --alpha(var(--color-black) / 6%);
-  --sidebar-ring: var(--color-neutral-400);
+  --radius: 0.3125rem;
+  --sidebar: #f0f0f0;
+  --sidebar-foreground: #5d5d57;
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
   --code: var(--color-white);
   --code-foreground: var(--foreground);
-  --code-highlight: --alpha(var(--color-black) / 4%);
-  --code-number: oklch(0.556 0 0);
-  --reference: oklch(0.52 0.105 223.128);
-  --pane-border: oklch(0.922 0 0);
+  --code-highlight: var(--accent);
+  --code-number: var(--muted-foreground);
+  --reference: #3b5799;
+  --pane-border: var(--border);
   /* A floating surface over content: the 1px spread stands in for a border, so
      it composites against whatever it covers rather than being tuned to one
      background, then a tight layer and a wide ambient one. */
@@ -360,8 +430,8 @@
   --elevation-control-hover:
     inset 0 1px 0 rgb(255 255 255 / 0.85), inset 0 0 0 1px rgb(0 0 0 / 0.12),
     0 1px 2px rgb(0 0 0 / 0.06), 0 3px 6px -2px rgb(0 0 0 / 0.08);
-  --background: var(--color-white);
-  --foreground: var(--color-neutral-800);
+  --background: #f8f8f8;
+  --foreground: #282824;
   --destructive-foreground: var(--color-red-700);
   --info: var(--color-blue-500);
   --info-foreground: var(--color-blue-700);
@@ -372,62 +442,42 @@
 }
 
 .dark {
-  --background: color-mix(
-    in srgb,
-    var(--color-neutral-950) 95%,
-    var(--color-white)
-  );
-  --foreground: var(--color-neutral-100);
-  --card: color-mix(in srgb, var(--background) 98%, var(--color-white));
-  --card-foreground: var(--color-neutral-100);
-  --popover: color-mix(in srgb, var(--background) 98%, var(--color-white));
-  --popover-foreground: var(--color-neutral-100);
-  /* Dark takes the same hue a step darker and 40% less saturated, per the
-     rule that a brand colour carried into dark at full chroma vibrates. White
-     text on it clears 6:1. */
-  --primary: oklch(0.5 0.16 293);
-  --primary-foreground: oklch(0.985 0.01 293);
-  --secondary: --alpha(var(--color-white) / 4%);
-  --secondary-foreground: var(--color-neutral-100);
-  --muted: --alpha(var(--color-white) / 4%);
-  --muted-foreground: color-mix(
-    in srgb,
-    var(--color-neutral-500) 90%,
-    var(--color-white)
-  );
-  --accent: --alpha(var(--color-white) / 4%);
-  --accent-foreground: var(--color-neutral-100);
+  --background: #181818;
+  --foreground: #f3f3f3;
+  --card: #222222;
+  --card-foreground: var(--foreground);
+  --popover: #2c2c2c;
+  --popover-foreground: var(--foreground);
+  --primary: #ffffff;
+  --primary-foreground: #181818;
+  --secondary: #2c2c2c;
+  --secondary-foreground: var(--foreground);
+  --muted: #222222;
+  --muted-foreground: #afafaf;
+  --accent: #323232;
+  --accent-foreground: var(--foreground);
   --destructive: color-mix(
     in srgb,
     var(--color-red-500) 90%,
     var(--color-white)
   );
-  --border: --alpha(var(--color-white) / 6%);
-  --input: --alpha(var(--color-white) / 8%);
-  --ring: var(--color-neutral-500);
+  --border: rgb(255 255 255 / 0.08);
+  --input: rgb(255 255 255 / 0.1);
+  --field: #333333;
+  --ring: #a3a3a3;
   --chart-1: var(--color-blue-700);
   --chart-2: var(--color-emerald-500);
   --chart-3: var(--color-amber-500);
   --chart-4: var(--color-purple-500);
   --chart-5: var(--color-rose-500);
-  --sidebar: color-mix(
-    in srgb,
-    var(--color-neutral-950) 97%,
-    var(--color-white)
-  );
-  --sidebar-foreground: color-mix(
-    in srgb,
-    var(--color-neutral-100) 64%,
-    var(--sidebar)
-  );
-  /* The pane's marks are 6px dots and 4px rails read at a glance, not fills:
-     they take the brand hue light enough to carry against the sidebar. */
-  --sidebar-primary: oklch(0.72 0.13 293);
-  --sidebar-primary-foreground: oklch(0.22 0.03 293);
-  --sidebar-accent: --alpha(var(--color-white) / 4%);
-  --sidebar-accent-foreground: var(--color-neutral-100);
-  --sidebar-border: --alpha(var(--color-white) / 5%);
-  --sidebar-ring: var(--color-neutral-400);
+  --sidebar: #181818;
+  --sidebar-foreground: #d4d4d4;
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: #2c2c2c;
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
   /* Dark surfaces cannot show a stacked shadow, so depth collapses to a white
      ring — kept alongside one wide ambient layer, because this surface floats
      over a scrolling transcript rather than sitting on the page. */
@@ -439,12 +489,12 @@
   --elevation-control-hover:
     inset 0 1px 0 rgb(255 255 255 / 0.07),
     inset 0 0 0 1px rgb(255 255 255 / 0.12);
-  --code: color-mix(in srgb, var(--background) 98%, var(--color-white));
+  --code: var(--card);
   --code-foreground: var(--foreground);
-  --code-highlight: --alpha(var(--color-white) / 4%);
-  --code-number: oklch(0.55 0.008 290);
-  --reference: oklch(0.715 0.143 215.221);
-  --pane-border: oklch(0.187 0 0);
+  --code-highlight: var(--accent);
+  --code-number: var(--muted-foreground);
+  --reference: #a0b8ef;
+  --pane-border: var(--border);
   --destructive-foreground: var(--color-red-400);
   --info: var(--color-blue-500);
   --info-foreground: var(--color-blue-400);
@@ -528,7 +578,7 @@
      their alpha where they met.
 
      The colour is `currentColor`, so one chip serves both surfaces: near-white
-     over the composer, the bubble's own foreground over `bg-primary`. A fixed
+     over the composer, the bubble's own foreground over `bg-secondary`. A fixed
      tint had to be readable on both and was legible on neither. */
   .file-mention {
     background-color: color-mix(in oklab, currentColor 14%, transparent);
@@ -801,8 +851,7 @@
 .managed-inspector .dialkit-root {
   min-width: 0;
 }
-.managed-inspector .dialkit-slider-label,
-.managed-inspector .dialkit-select-label {
+.managed-inspector .dialkit-slider-label {
   color: var(--muted-foreground);
 }
 .managed-inspector .dialkit-slider-value,
@@ -817,8 +866,9 @@
   padding: 0.75rem;
 }
 .managed-inspector [data-control-type="text"] textarea {
+  flex: none;
   width: 100%;
-  min-height: 4.5rem;
+  min-height: 1lh;
   line-height: 1.5;
   text-align: left;
 }

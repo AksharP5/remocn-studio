@@ -13,23 +13,10 @@ const BUSY = 0.85;
 // onto the same texture, not a squeezed one.
 const SCALE = 0.55;
 
-// Brighter and flatter than the startup screen's. There the shader is a wash
-// behind prose and has a whole pane to be visible in; here it is the signal
-// itself in a band a few pixels tall, and the drift kept carrying the lit part
-// out of frame. Brightness lifts the crossing points, and lower contrast keeps
-// the space between them from going to black.
 const BRIGHTNESS = 0.26;
 const CONTRAST = 0.2;
 
-// A filter, not a blend layer. `mix-blend-mode` composites against the backdrop
-// of the nearest isolated group, and the fade-in below animates opacity, which
-// makes this element its own group — so over the canvas's transparent parts the
-// tint simply painted itself and the band came out a flat slab of colour.
-// `hue-rotate` transforms the pixels that exist and leaves the rest alone, and
-// unlike a WebGL uniform it transitions.
-//
-// Measured against the shader's violet (#7c3aed) through the filter spec's
-// matrix: -45deg lands on rgb(5, 95, 220), 100deg on rgb(228, 49, 20).
+// Filtering preserves transparent pixels and lets mood changes transition.
 const TONES = {
   failed: "hue-rotate-100",
   idle: "hue-rotate-0",
@@ -89,9 +76,7 @@ export function MoodField({
     <div
       aria-hidden="true"
       className={cn(
-        // The band's own bottom edge is the sidebar, not a boundary worth
-        // drawing, so the pattern is masked out before it gets there —
-        // a long staged ramp, because a short one reads as a hard seam.
+        // Fade into the sidebar without drawing a seam at the band's edge.
         "pointer-events-none absolute inset-0 transition-[filter] duration-700 ease-out [mask-image:linear-gradient(to_bottom,#000_0%,#000d_35%,#0009_60%,#0004_80%,#0001_92%,transparent_100%)]",
         shouldAnimateEntrance && "animate-titlebar",
         TONES[mood.tone]

@@ -1,4 +1,5 @@
 import { managedRoot } from "./managed-objects";
+import { elementsAt } from "./surface";
 
 const CLIMB_LIMIT = 8;
 const OVERLAY_ATTR = "data-remocn-inspect";
@@ -292,12 +293,10 @@ export function pickAt(
   container: Element,
   exact: boolean
 ): Element | null {
-  const under = container.ownerDocument
-    .elementsFromPoint(x, y)
-    .filter(
-      (element) =>
-        container.contains(element) && !element.hasAttribute(OVERLAY_ATTR)
-    );
+  const under = elementsAt(x, y).filter(
+    (element) =>
+      container.contains(element) && !element.hasAttribute(OVERLAY_ATTR)
+  );
 
   const [topmost] = under;
 

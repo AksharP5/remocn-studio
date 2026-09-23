@@ -142,7 +142,15 @@ function Marker({ row }: { row: SessionRow }) {
   const className = "pointer-events-none absolute top-2 left-1.5 shrink-0";
 
   if (label === null) {
-    return null;
+    return (
+      <DotmSquare1
+        animated={false}
+        ariaLabel=""
+        className={cn(className, "text-muted-foreground/35")}
+        dotSize={2}
+        size={16}
+      />
+    );
   }
 
   // `role="img"`, not `role="status"`: a live region per row would re-announce

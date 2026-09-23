@@ -56,6 +56,7 @@ import {
   makeJobRegistry,
   pinBundle,
 } from "./job";
+import { type NativeBundle, nativeBundle } from "./native";
 import {
   agreedVersionIn,
   entryPointOf,
@@ -109,6 +110,10 @@ interface Bundler {
   };
   webpack: ((config: WebpackConfig) => Compiler) & {
     ProgressPlugin: new (handler: (percent: number) => void) => unknown;
+    DefinePlugin: new (definitions: Record<string, string>) => unknown;
+    optimize: {
+      LimitChunkCountPlugin: new (options: { maxChunks: number }) => unknown;
+    };
   };
 }
 
@@ -242,6 +247,7 @@ function boot(root: string, preferred: string | null) {
     const version = yield* remotionVersionOf(root);
     const staticBase = `/static-${randomBytes(6).toString("hex")}`;
     const previewBase = `/preview-${randomBytes(6).toString("hex")}`;
+    let native: NativeBundle | null = null;
     const grab = yield* grabScript;
     const cache = makeCompositionCache();
     const session = yield* Ref.make<Session | null>(null);
@@ -259,6 +265,7 @@ function boot(root: string, preferred: string | null) {
     const server = yield* serve({
       grab,
       jobs,
+      native: () => native,
       outDir,
       preferred,
       previewBase,
@@ -317,6 +324,34 @@ function boot(root: string, preferred: string | null) {
       server.port,
       build
     );
+
+    const nativeConfig = Effect.tryPromise({
+      catch: (cause) => new PreviewError({ message: String(cause) }),
+      try: async () => {
+        const [, configured] = await BundlerInternals.webpackConfig({
+          ...BUNDLE_FLAGS,
+          entry,
+          extraPlugins: [],
+          onProgress: () => undefined,
+          outDir,
+          poll: null,
+          remotionRoot: root,
+          userDefinedComponent,
+          webpackOverride: async (input: WebpackConfig) =>
+            ours(await override(input), { playerPath, renderEntry }),
+        });
+        return configured;
+      },
+    });
+    native = yield* nativeBundle(webpack, nativeConfig, {
+      assets: `http://127.0.0.1:${server.port}${previewBase}`,
+      base: `/native-${randomBytes(6).toString("hex")}`,
+      directory: `${outDir}-native`,
+      entry,
+      origin: `http://127.0.0.1:${server.port}`,
+      projectEntry: userDefinedComponent,
+      rebuilt: server.notifyNativeRebuilt,
+    });
 
     return {
       browser,

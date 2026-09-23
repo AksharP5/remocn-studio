@@ -11,6 +11,7 @@ import { anchorContainer, anchorOf, resolveAnchor } from "./anchor";
 import { assetValue } from "./assets";
 import type { TargetStatuses, TuningNodePath, TuningValue } from "./bridge";
 import { originOf } from "./stack";
+import { nativeSurface } from "./surface";
 import { type TimeWindow, windowOf } from "./timing";
 import {
   controlsChain,
@@ -205,7 +206,11 @@ function stackOf(controls: SequenceControls): string | null {
 }
 
 function rootPath(): string {
-  return (globalThis as unknown as { remocn_root?: string }).remocn_root ?? "/";
+  return (
+    nativeSurface()?.project ??
+    (globalThis as unknown as { remocn_root?: string }).remocn_root ??
+    "/"
+  );
 }
 
 function debugging(): boolean {

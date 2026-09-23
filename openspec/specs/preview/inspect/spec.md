@@ -5,15 +5,133 @@ Inspect answers *change this*: hover the frame, click the thing you mean, and th
 
 ## Requirements
 
-### Requirement: Arming is acknowledged, and the frame's clicks are taken
+### Requirement: Explicit geometry supports direct manipulation
 
-Arming Inspect SHALL pause the preview, put a crosshair over the frame, and force the frame and everything inside it to be hit-testable for as long as the mode is on. The page SHALL answer every arm and disarm with a status — armed, disarmed, no player canvas, or the source resolver unavailable — and the pane SHALL print anything that is not a clean arm, including when no answer arrives within a short patience. Inspect and Snapshot SHALL be mutually exclusive, and Escape SHALL disarm whichever is on unless something else has already answered that key. While armed, pointer and click events SHALL be stopped when, and only when, they land on the frame itself, so a pick never also reaches the player's click-to-play; whether a point is on the frame SHALL be decided by asking the document what is under it, falling back to the frame's rectangle when the document cannot answer.
+A selected managed HTML object with declared, consumed geometry bindings SHALL
+show its border box, eight resize handles, dimensions in composition units and an
+optional rotation handle. Its base coordinates SHALL be stored in its positioned
+parent's space. Preview scale SHALL not change how far a gesture moves the object
+in composition coordinates. Geometry without explicit bindings or with unsupported
+transforms SHALL remain available through ordinary selection and properties.
 
-#### Scenario: Inspect is armed
+#### Scenario: Dragging a selected object
 
-- **WHEN** the Inspect button is pressed while it is available
-- **THEN** the preview pauses, the frame takes a crosshair, and the button reads as pressed
-- **AND** everything inside the frame is made hit-testable, so a scene that puts an overlay out of the pointer's way is still pickable
+- **WHEN** a pointer moves beyond the click threshold on a bound object
+- **THEN** playback is paused and the object follows the pointer without easing or momentum
+- **AND** Shift constrains movement to one axis
+- **AND** a click below the threshold still permits double-click text editing
+
+#### Scenario: Resizing a rotated box
+
+- **WHEN** a corner or edge is dragged
+- **THEN** the opposite corner or edge remains anchored in the parent's coordinate space
+- **AND** dimensions remain positive and respect their declared constraints
+- **AND** Shift at a corner preserves the original aspect ratio
+- **AND** resizing text changes its box rather than its font size
+
+#### Scenario: Rotating an object
+
+- **WHEN** the rotation handle is dragged
+- **THEN** the object rotates about its center and the label shows its angle
+- **AND** Shift snaps the angle to fifteen-degree increments
+
+#### Scenario: Cancelling or finishing a gesture
+
+- **WHEN** Escape, pointer cancellation, loss of capture or a source replacement interrupts a drag
+- **THEN** its temporary geometry is removed without a file write
+- **WHEN** a changed gesture ends normally
+- **THEN** all affected fields are submitted as one operation with one Undo
+- **AND** the temporary override is removed after the runtime displays the accepted values
+
+#### Scenario: Manipulation using the keyboard
+
+- **WHEN** a resize or rotation handle has focus and an arrow key is pressed
+- **THEN** the corresponding geometry changes by one unit, or ten with Shift
+- **AND** the property fields remain an alternative for entering exact values
+
+#### Scenario: A rebuild or Snapshot resets selection tools
+
+- **WHEN** selection tools are mounted again
+- **THEN** the preview requests fresh geometry capabilities from the app
+- **AND** an earlier gesture cannot write to a new object generation
+
+### Requirement: Managed plain text can be edited in the preview
+
+Double-clicking a supported HTML text region SHALL open a plain-text input over
+that region while playback stays paused. The input SHALL inherit its typography,
+alignment and preview scale, and grow with its content up to the visible frame's
+available height. Enter SHALL insert a newline. Cmd/Ctrl+Enter or an outside click
+SHALL save one normal managed property operation; Escape SHALL cancel without a
+write. Editing keystrokes and pointer gestures SHALL not trigger selection or
+player shortcuts. Selection outlines SHALL be hidden during text entry.
+
+#### Scenario: A card has several text fields
+
+- **WHEN** Title, Status and Footer regions have explicit field bindings
+- **THEN** double-clicking Status edits only Status, even if another field currently has the same text
+- **AND** one completed edit is undone with one existing property Undo
+
+#### Scenario: An older scene has no field bindings
+
+- **WHEN** a plain text region exactly matches one declared text field on its managed object
+- **THEN** it can be edited inline without rewriting the authored runtime
+- **AND** multiple matching fields or unsupported markup fall back to the properties pane
+
+#### Scenario: A text edit is cancelled
+
+- **WHEN** Escape is pressed inside the inline input
+- **THEN** the input closes, the original rendered text returns, and selection stays open
+- **AND** no draft, file write or Undo operation is created
+
+#### Scenario: A save fails
+
+- **WHEN** the property writer rejects a completed inline edit
+- **THEN** its existing inspector draft remains available for Retry or Discard
+- **AND** the failure is not presented as a successful save
+
+#### Scenario: The source changes during editing
+
+- **WHEN** a rebuild replaces the text node or its managed document generation
+- **THEN** the inline session is cancelled and its old request cannot write into the new generation
+- **AND** a concurrent property change detected before commit retains the input with an explanation
+
+#### Scenario: A scene uses a transform the plain-text input cannot reproduce
+
+- **WHEN** text uses SVG, rotation, skew, perspective, vertical writing or mixed rich-text styles
+- **THEN** its properties remain available without an inaccurate inline editor
+
+#### Scenario: A video is exported during text entry
+
+- **WHEN** an inline text session or its save is pending
+- **THEN** export waits for that edit to be completed or cancelled and for the preview's save receipt
+
+### Requirement: Element selection is available without a mode button
+
+When editing is available, the preview SHALL enable element selection automatically, without an Inspect button. Becoming ready SHALL neither pause playback nor open the properties pane. The page SHALL acknowledge whether selection is ready, disabled, missing a player canvas, or missing the source resolver. The pane SHALL explain a failure or a missing acknowledgement. Selection and Snapshot SHALL be mutually exclusive; leaving Snapshot SHALL restore selection automatically. Pointer events SHALL be intercepted only on the frame itself. Clicking an element SHALL pause playback at the current frame and select it. Escape SHALL clear the current selection while keeping selection available, unless another control has already handled the key.
+
+#### Scenario: The preview becomes ready
+
+- **WHEN** an editable preview becomes ready
+- **THEN** its elements can be selected immediately
+- **AND** playback and the closed properties pane are left alone
+- **AND** the frame is made hit-testable, including elements authored with pointer events disabled
+
+#### Scenario: Snapshot temporarily owns the frame
+
+- **WHEN** Snapshot is active
+- **THEN** frame gestures capture an image rather than select an element
+- **AND** leaving Snapshot restores element selection without another action
+
+#### Scenario: Escape clears the selection
+
+- **WHEN** Escape is pressed with an element selected and no other control handles the key
+- **THEN** the selection and its properties are closed
+- **AND** a later click can immediately select another element
+
+#### Scenario: Source resolution finishes after selection was cleared
+
+- **WHEN** an earlier click resolves after Escape, a different pick, or a rebuild
+- **THEN** that result does not reopen or replace the current selection
 
 #### Scenario: The source resolver did not load
 
@@ -29,16 +147,17 @@ Arming Inspect SHALL pause the preview, put a crosshair over the frame, and forc
 #### Scenario: The page never answers
 
 - **WHEN** no answer arrives within the patience window
-- **THEN** the pane reads that Inspect is on but the preview never answered, and suggests restarting the preview
+- **THEN** the pane explains that element selection is unavailable because the preview did not answer, and suggests restarting it
 
 #### Scenario: A pick on the frame
 
-- **WHEN** a click lands on the frame while armed
-- **THEN** the element is picked and the click does not reach the player underneath
+- **WHEN** a click lands on an element while selection is available
+- **THEN** playback pauses and the element is picked without seeking
+- **AND** the click does not reach the player underneath
 
 #### Scenario: A click on the transport bar
 
-- **WHEN** a click lands on the player's transport controls, which overlap the frame's rectangle
+- **WHEN** a click lands on the playback controls below the frame
 - **THEN** the click reaches them and the video responds
 
 ### Requirement: A click picks the thing that actually paints at the point
@@ -91,9 +210,9 @@ From the element that paints, the pick SHALL climb outward while the current ele
 - **THEN** the outermost picture holding it is what is selected
 - **AND** Alt still picks the shape itself
 
-### Requirement: Two boxes and their label, drawn inside the preview
+### Requirement: Quiet hover and persistent selection, drawn inside the preview
 
-The preview page SHALL draw a thin hover box with a label, which lives and dies with the armed mode, and a solid selection box with a label, which belongs to the open card rather than to the mode. Both SHALL be drawn inside the preview document, so they cannot drift from the pixels. The label on both SHALL name the component the person could actually tune, followed by the element's tag: the name the author declared on the component by preference, then the interactive component's own name, then the nearest component in the tree that is neither Remotion's own wrappers nor its internal plumbing, and the bare tag when nothing names it. The selection box SHALL be set the moment a click lands, before the selection has been resolved. It SHALL be cleared only when the card is closed or the page is rebuilt, and SHALL follow the open link of the chain when the properties pane switches between them.
+The preview page SHALL draw a thin, subdued hover outline without a fill or floating label, and a solid selection outline with a label. Hover SHALL not draw a second outline on the selected element. Both outlines SHALL live inside the preview document. The selection label SHALL name the declared object or tunable component, falling back to its element tag when nothing names it. The selection outline SHALL appear immediately on click, before source resolution completes, and follow the open target in the properties pane. Over visible text, the pointer SHALL use a text cursor; elsewhere it SHALL use the default cursor. Neither hovering nor changing the cursor SHALL pause playback or open properties.
 
 #### Scenario: The pointer moves over the frame
 
@@ -240,12 +359,13 @@ Moving the selection to another element SHALL revert the changes that element's 
 
 ### Requirement: A rebuild clears what refers to the old render
 
-When the preview reports that it rebuilt, whatever the open card was still holding SHALL be reset, the card SHALL be closed, the markers SHALL be taken off, selections already added SHALL be marked as no longer reopenable, and Inspect SHALL be disarmed. The text being typed in the composer and the references already in it SHALL NOT be touched.
+When the preview reports that it rebuilt, legacy selections tied to the old render SHALL be cleared: pending card values are reset, the card is closed, markers are removed, and references already added are marked as no longer reopenable. Managed objects retain their stable-ID behavior. Element selection SHALL be enabled again automatically when the preview is ready and editing is available. The text being typed in the composer and the references already in it SHALL NOT be removed.
 
 #### Scenario: A turn writes to the project while a card is open
 
 - **WHEN** the preview rebuilds
-- **THEN** the card closes, its pending values are reset, the markers go and the mode is disarmed
+- **THEN** the legacy card closes, its pending values are reset, and its markers go
+- **AND** the next ready preview supports selection automatically
 - **AND** what was typed in the composer is still there
 
 #### Scenario: A chip from before the rebuild
@@ -255,13 +375,13 @@ When the preview reports that it rebuilt, whatever the open card was still holdi
 
 ### Requirement: The playhead crosses the wire and the boxes follow it
 
-The page SHALL report the playhead — the frame and whether the video is playing — immediately on play, pause and seek, and at most once per animation frame while playing. The boxes SHALL be repainted on every frame update, so a box on a moving element tracks it. While Inspect is armed and the pane has nothing more urgent to say, the pane SHALL show the frame the preview is on. That readout SHALL NOT be announced to a screen reader.
+The page SHALL report the playhead — the frame and whether the video is playing — immediately on play, pause and seek, and at most once per animation frame while playing. The boxes SHALL be repainted on every frame update, so a box on a moving element tracks it. The playback panel SHALL display progress without announcing every frame to a screen reader. The quiet status area SHALL explain that clicking selects an element, or that Escape clears an existing selection.
 
 #### Scenario: The video is played while an element is selected
 
 - **WHEN** the preview plays
 - **THEN** the selection box follows the element as it moves
-- **AND** the pane's frame readout counts up
+- **AND** the playback panel's progress updates
 
 #### Scenario: The frame is seeked
 
@@ -289,26 +409,49 @@ A selection carrying a timed window SHALL be offered a way to seek within that w
 
 ### Requirement: Inspect is offered only when it can work, and says why not
 
-The Inspect button SHALL carry the reason it is unavailable on its tooltip rather than being silently dead, and SHALL remain focusable so that reason can be read. It SHALL be unavailable while the plan is Free, while the preview pane is hidden, while the pane is showing documents, with no Project open, with the Project's folder missing, while a permission card is waiting to be answered, while the preview is not yet serving, and when the preview is showing a different Project from the open chat's. Anything armed SHALL be disarmed the moment it becomes unavailable. A move to another Project SHALL drop the element references in the composer, leaving text, pictures and assets alone, which is specified by the `composer/references` capability.
+Element selection SHALL be unavailable while the plan is Free, while the preview pane is hidden, while the pane is showing documents, with no Project open, with the Project's folder missing, while a permission card is waiting to be answered, while the preview is not yet serving, and when the preview is showing a different Project from the open chat's. A visible, serving preview SHALL explain the reason in its status area. Losing availability SHALL disable picking immediately. The Inspect menu command SHALL focus the preview and open the managed object catalogue when available, rather than toggle selection off. A move to another Project SHALL drop element references in the composer while preserving text, pictures and assets, as specified by `composer/references`.
 
 #### Scenario: The plan is Free
 
-- **WHEN** Inspect is pressed on the Free plan
-- **THEN** nothing is armed
-- **AND** the trial invitation is brought back, and the tooltip says Inspect and Snapshot are part of Pro
+- **WHEN** a preview is shown on the Free plan
+- **THEN** element selection is disabled
+- **AND** its status explains that Inspect and Snapshot are part of Pro
 
 #### Scenario: The preview is on another project
 
 - **WHEN** the preview is showing a Project other than the open chat's
-- **THEN** the tooltip reads *The preview is showing a different project than this session.*
+- **THEN** the status reads *The preview is showing a different project than this session.*
 
 #### Scenario: The pane moves to documents while armed
 
 - **WHEN** the pane's mode moves to Docs
-- **THEN** Inspect is disarmed and its button leaves the header
+- **THEN** element selection is disabled until the pane returns to Preview
 
 #### Scenario: The open chat moves to another project
 
 - **WHEN** the open chat moves to a different Project
 - **THEN** the element references in the composer are dropped and renumbered away
 - **AND** the pictures, assets and the text that was typed are left alone
+
+### Requirement: Direct manipulation of animated managed geometry
+
+An opted-in managed object MUST declare its current frame's affine mapping from
+base geometry to rendered layout, including positive uniform local scale. The
+preview MUST draw handles at the rendered pose, transform pointer movement through
+supported 2D ancestor rotation and uniform scale, and invert the declared mapping
+before committing base property values as one operation. It MUST NOT persist DOM
+measurements or freeze the animation at the edited frame. A playhead change MUST
+cancel unfinished gestures. Singular mappings, hidden objects, perspective, skew
+and nonuniform scale MUST retain property editing without inaccurate handles.
+
+#### Scenario: Resize midway through an animated card expansion
+- **WHEN** the composition is paused during interpolation between two card poses
+- **AND** the scene binds the endpoint with the larger interpolation weight
+- **THEN** the opposite visible edge stays fixed during resize
+- **AND** release saves changes to that endpoint without a jump at the paused frame
+- **AND** one Undo reverses all changed geometry fields.
+
+#### Scenario: Move a scaled and rotated object
+- **WHEN** the selected object has entry rotation, local uniform scale or a rotated uniformly scaled ancestor
+- **THEN** its handles follow the projected border box
+- **AND** pointer deltas are converted into the object's parent coordinates.

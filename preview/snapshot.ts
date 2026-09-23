@@ -1,6 +1,7 @@
 import { post } from "./bridge";
 import { ACCENT, ACCENT_SOFT, canvas, TOP } from "./inspect";
 import { covers, OVERLAY_ATTR } from "./picker";
+import { elementsAt, lockCamera, overlayRoot, surfaceEvents } from "./surface";
 
 export const DRAG_THRESHOLD = 6;
 
@@ -113,17 +114,33 @@ export function armSnapshot(armed: boolean, frame: Frame): SnapshotStatus {
 function start(container: HTMLElement, frame: Frame): Session {
   const marquee = overlay();
   const { cursor } = container.style;
+  let captured: number | null = null;
+  const releasePointer = () => {
+    const id = captured;
+    captured = null;
+    if (id !== null && container.hasPointerCapture(id)) {
+      container.releasePointerCapture(id);
+    }
+  };
 
   container.style.cursor = "crosshair";
 
   const onDown = (event: PointerEvent) => {
-    if (!covers(container, event.clientX, event.clientY)) {
+    if (
+      event.button !== 0 ||
+      !elementsAt(event.clientX, event.clientY).some((node) =>
+        container.contains(node)
+      )
+    ) {
       return;
     }
 
     event.preventDefault();
     event.stopPropagation();
 
+    lockCamera(marquee, true);
+    container.setPointerCapture(event.pointerId);
+    captured = event.pointerId;
     dragging = { x: event.clientX, y: event.clientY };
     paint(marquee, dragging, dragging);
   };
@@ -148,6 +165,8 @@ function start(container: HTMLElement, frame: Frame): Session {
     const to = { x: event.clientX, y: event.clientY };
 
     dragging = null;
+    lockCamera(marquee, false);
+    releasePointer();
     marquee.style.display = "none";
 
     capture(container, frame, isDrag(from, to) ? { from, to } : null);
@@ -155,14 +174,20 @@ function start(container: HTMLElement, frame: Frame): Session {
 
   const onCancel = () => {
     dragging = null;
+    lockCamera(marquee, false);
+    releasePointer();
     marquee.style.display = "none";
   };
 
   const onKey = (event: KeyboardEvent) => {
-    if (event.key === "Escape" && dragging !== null) {
+    if (event.key === "Escape" && !event.defaultPrevented) {
       event.preventDefault();
       event.stopPropagation();
-      onCancel();
+      if (dragging === null) {
+        post({ type: "inspect.clear" });
+      } else {
+        onCancel();
+      }
     }
   };
 
@@ -173,24 +198,30 @@ function start(container: HTMLElement, frame: Frame): Session {
     }
   };
 
-  window.addEventListener("pointerdown", onDown, true);
-  window.addEventListener("pointermove", onMove, true);
-  window.addEventListener("pointerup", onUp, true);
-  window.addEventListener("pointercancel", onCancel, true);
-  window.addEventListener("keydown", onKey, true);
-  window.addEventListener("click", swallow, true);
+  surfaceEvents.addEventListener("pointerdown", onDown, true);
+  surfaceEvents.addEventListener("pointermove", onMove, true);
+  surfaceEvents.addEventListener("pointerup", onUp, true);
+  surfaceEvents.addEventListener("pointercancel", onCancel, true);
+  surfaceEvents.addEventListener("lostpointercapture", onCancel, true);
+  window.addEventListener("blur", onCancel);
+  surfaceEvents.addEventListener("keydown", onKey, true);
+  surfaceEvents.addEventListener("click", swallow, true);
 
   return {
     container,
     marquee,
     stop: () => {
-      window.removeEventListener("pointerdown", onDown, true);
-      window.removeEventListener("pointermove", onMove, true);
-      window.removeEventListener("pointerup", onUp, true);
-      window.removeEventListener("pointercancel", onCancel, true);
-      window.removeEventListener("keydown", onKey, true);
-      window.removeEventListener("click", swallow, true);
+      surfaceEvents.removeEventListener("pointerdown", onDown, true);
+      surfaceEvents.removeEventListener("pointermove", onMove, true);
+      surfaceEvents.removeEventListener("pointerup", onUp, true);
+      surfaceEvents.removeEventListener("pointercancel", onCancel, true);
+      surfaceEvents.removeEventListener("lostpointercapture", onCancel, true);
+      window.removeEventListener("blur", onCancel);
+      releasePointer();
+      surfaceEvents.removeEventListener("keydown", onKey, true);
+      surfaceEvents.removeEventListener("click", swallow, true);
       container.style.cursor = cursor;
+      lockCamera(marquee, false);
       marquee.remove();
     },
   };
@@ -235,7 +266,7 @@ function overlay(): HTMLElement {
   marquee.style.border = `1px dashed ${ACCENT}`;
   marquee.style.background = ACCENT_SOFT;
 
-  document.body.append(marquee);
+  overlayRoot().append(marquee);
 
   return marquee;
 }
