@@ -152,7 +152,7 @@ export function CanvasPreview({
         <div
           className={cn(
             DOCK_SURFACE,
-            "absolute right-[calc(var(--canvas-inspector-width)+16px)] bottom-4 left-4 z-20 flex flex-col p-[11px]"
+            "absolute right-[calc(var(--canvas-inspector-width)+16px)] bottom-4 left-4 z-20 flex min-h-0 flex-col p-[11px]"
           )}
           data-canvas-chrome
           data-canvas-occludes="bottom"

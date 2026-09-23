@@ -52,25 +52,20 @@ export function PreviewControls({
   return (
     <fieldset
       aria-label="Playback controls"
-      className={cn(
-        "@container min-w-0 shrink-0",
-        status !== undefined && "flex flex-1 flex-col"
-      )}
+      className="@container flex min-w-0 shrink-0 flex-col gap-2"
     >
       <PlaybackSlider
         disabled={!ready || lastFrame === 0}
+        end={ready ? duration : "--:--"}
         label="Video position"
         max={Math.max(1, lastFrame)}
         onChange={seekTo}
+        start={ready ? position : "--:--"}
+        title={`Frame ${frame + 1} of ${lastFrame + 1}`}
         value={frame}
         valueText={`${position}, frame ${frame + 1} of ${lastFrame + 1}`}
       />
-      {status === undefined ? null : (
-        <div className="flex min-h-0 flex-1 flex-col justify-center">
-          {status}
-        </div>
-      )}
-      <div className={cn(DOCK_ACTIONS, "shrink-0 flex-wrap gap-1")}>
+      <div className={cn(DOCK_ACTIONS, "shrink-0 gap-1")}>
         <Button
           aria-label="Previous frame"
           className="size-8 text-muted-foreground sm:size-8"
@@ -104,14 +99,19 @@ export function PreviewControls({
         >
           <StepForwardIcon />
         </Button>
-        <PlaybackReadout
-          duration={duration}
-          error={error}
-          frame={frame}
-          lastFrame={lastFrame}
-          position={position}
-          ready={ready}
-        />
+        <div className="flex min-w-0 flex-1 flex-col justify-center px-2">
+          {error ? (
+            <span
+              className="truncate text-center text-destructive text-xs"
+              role="alert"
+              title={error}
+            >
+              {error}
+            </span>
+          ) : (
+            status
+          )}
+        </div>
         <Button
           aria-label={muted ? "Unmute" : "Mute"}
           className="size-8 text-muted-foreground sm:size-8"
@@ -123,7 +123,7 @@ export function PreviewControls({
         >
           {muted ? <VolumeXIcon /> : <Volume2Icon />}
         </Button>
-        <div className="@min-[28rem]:block hidden w-16 shrink-0">
+        <div className="@min-[28rem]:block hidden w-20 shrink-0">
           <PlaybackSlider
             disabled={!ready}
             label="Volume"
@@ -164,52 +164,24 @@ function PlaybackGlyph({
   return <PlayIcon className="translate-x-px fill-current" />;
 }
 
-function PlaybackReadout({
-  duration,
-  error,
-  frame,
-  lastFrame,
-  position,
-  ready,
-}: Pick<
-  PreviewTransport,
-  "duration" | "error" | "frame" | "lastFrame" | "position" | "ready"
->) {
-  if (error) {
-    return (
-      <span
-        className="min-w-0 flex-1 truncate text-destructive text-xs"
-        role="alert"
-        title={error}
-      >
-        {error}
-      </span>
-    );
-  }
-  return (
-    <span
-      className="min-w-0 flex-1 whitespace-nowrap pl-1 font-mono text-2xs text-muted-foreground tabular-nums"
-      title={`Frame ${frame + 1} of ${lastFrame + 1}`}
-    >
-      <span className="text-foreground">{ready ? position : "--:--"}</span>
-      <span className="px-1.5 opacity-50">/</span>
-      {ready ? duration : "--:--"}
-    </span>
-  );
-}
-
 function PlaybackSlider({
   disabled,
+  end,
   label,
   max,
   onChange,
+  start,
+  title,
   value,
   valueText,
 }: {
   disabled: boolean;
+  end?: string;
   label: string;
   max: number;
   onChange: (value: number) => void;
+  start?: string;
+  title?: string;
   value: number;
   valueText: string;
 }) {
@@ -223,15 +195,28 @@ function PlaybackSlider({
       thumbAlignment="edge"
       value={value}
     >
-      <SliderPrimitive.Control className="group flex h-8 w-full touch-none select-none items-center data-disabled:pointer-events-none data-disabled:opacity-40">
-        <SliderPrimitive.Track className="relative h-1 w-full rounded-full bg-foreground/10">
-          <SliderPrimitive.Indicator className="rounded-full bg-foreground/65" />
+      <SliderPrimitive.Control
+        className="group relative flex h-8 w-full touch-none select-none overflow-hidden rounded-md bg-foreground/5 has-focus-visible:ring-2 has-focus-visible:ring-ring data-disabled:pointer-events-none data-disabled:opacity-40"
+        title={title}
+      >
+        <SliderPrimitive.Track className="relative h-full w-full">
+          <SliderPrimitive.Indicator className="bg-foreground/10 transition-colors group-hover:bg-foreground/15 group-data-dragging:bg-foreground/15" />
           <SliderPrimitive.Thumb
             aria-label={label}
             aria-valuetext={valueText}
-            className="block size-2.5 rounded-full bg-foreground shadow-xs outline-none transition-[box-shadow] has-focus-visible:ring-2 has-focus-visible:ring-ring has-focus-visible:ring-offset-2 has-focus-visible:ring-offset-background"
+            className="h-5 w-[3px] rounded-full bg-foreground outline-none"
           />
         </SliderPrimitive.Track>
+        {start === undefined ? null : (
+          <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center font-mono text-2xs text-foreground tabular-nums">
+            {start}
+          </span>
+        )}
+        {end === undefined ? null : (
+          <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center font-mono text-2xs text-muted-foreground tabular-nums">
+            {end}
+          </span>
+        )}
       </SliderPrimitive.Control>
     </SliderPrimitive.Root>
   );
