@@ -251,6 +251,11 @@ export const PreviewMessage = Schema.Union([
     video: Schema.NonEmptyString,
   }),
   Schema.Struct({
+    ids: Schema.Array(Schema.NonEmptyString),
+    source: from,
+    type: Schema.Literal("studio.present"),
+  }),
+  Schema.Struct({
     compositionId: Schema.NullOr(Schema.String),
     compositions: Schema.Array(Schema.NonEmptyString),
     // What the Player is really mounted with, calculateMetadata resolved. A
@@ -423,6 +428,11 @@ export const PreviewCommand = Schema.Union([
     source: to,
     type: Schema.Literal("studio.highlight"),
     video: Schema.NonEmptyString,
+  }),
+  Schema.Struct({
+    objectId: Schema.NullOr(Schema.NonEmptyString),
+    source: to,
+    type: Schema.Literal("studio.hover"),
   }),
   Schema.Struct({
     armed: Schema.Boolean,

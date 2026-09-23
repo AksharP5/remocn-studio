@@ -450,6 +450,32 @@ describe("decodePreviewMessage", () => {
     ).toEqual({ fonts: [], text: null });
   });
 
+  it("accepts the objects the runtime has mounted", () => {
+    const decoded = decodePreviewMessage({
+      ids: ["card", "title"],
+      source: "remocn-preview",
+      type: "studio.present",
+    });
+
+    expect(
+      Exit.isSuccess(decoded) &&
+        decoded.value.type === "studio.present" &&
+        decoded.value.ids
+    ).toEqual(["card", "title"]);
+  });
+
+  it("refuses a mounted object with no id", () => {
+    expect(
+      Exit.isSuccess(
+        decodePreviewMessage({
+          ids: [""],
+          source: "remocn-preview",
+          type: "studio.present",
+        })
+      )
+    ).toBe(false);
+  });
+
   it("accepts the rebuild notice that clears the markers", () => {
     expect(
       Exit.isSuccess(
@@ -513,6 +539,20 @@ describe("decodePreviewCommand", () => {
         })
       )
     ).toBe(true);
+  });
+
+  it("accepts hovering an object from the list and leaving it", () => {
+    for (const objectId of ["title", null]) {
+      expect(
+        Exit.isSuccess(
+          decodePreviewCommand({
+            objectId,
+            source: "remocn-studio",
+            type: "studio.hover",
+          })
+        )
+      ).toBe(true);
+    }
   });
 
   it("accepts a seek back to the frame a selection was made on", () => {

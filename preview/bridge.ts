@@ -91,6 +91,7 @@ export type PreviewCommand =
       generation: string;
       video: string;
     }
+  | { objectId: string | null; type: "studio.hover" }
   | { armed: boolean; type: "inspect" }
   | { type: "inspect.clear" }
   | { armed: boolean; type: "snapshot" }

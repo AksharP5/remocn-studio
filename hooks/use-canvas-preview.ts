@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { NativePreviewState } from "@/lib/studio/native-preview";
 import type { PreviewComposition } from "@/lib/studio/preview";
+import { useCanvasLayers } from "./use-canvas-layers";
 import { useNativePreview } from "./use-native-preview";
 import type { Preview, PreviewControl } from "./use-preview";
 import { usePreviewCamera } from "./use-preview-camera";
@@ -55,6 +56,16 @@ function noticeOf(
   return metadata === null ? "Loading the video…" : null;
 }
 
+function selectionOf(
+  managed: Tools["managed"],
+  card: Tools["inspect"]["card"]
+): unknown {
+  if (managed?.isOpen) {
+    return `object:${managed.selected?.id ?? ""}`;
+  }
+  return card?.tuning ? card.element : null;
+}
+
 export function useCanvasPreview({
   hidden,
   projectId,
@@ -65,9 +76,6 @@ export function useCanvasPreview({
   tools: Tools;
 }) {
   const { inspect, managed, preview } = tools;
-  const [inspector, setInspector] = useState(true);
-  const showInspector = useCallback(() => setInspector(true), []);
-  const hideInspector = useCallback(() => setInspector(false), []);
   const metadata = preview.pick?.metadata ?? null;
   const transport = usePreviewTransport(preview, !hidden);
   const camera = usePreviewCamera(
@@ -75,6 +83,12 @@ export function useCanvasPreview({
     projectId === null ? null : `${projectId}:${preview.composition}`,
     transport.toggle
   );
+  const layers = useCanvasLayers({
+    managed,
+    preview,
+    selection: selectionOf(managed, inspect.card),
+    viewport: camera.viewport,
+  });
   const native = useNativePreview(
     preview,
     camera.viewport,
@@ -110,14 +124,12 @@ export function useCanvasPreview({
   return {
     camera,
     failure,
-    hasSelection: Boolean(managed?.isOpen || inspect.card?.tuning),
-    hideInspector,
-    inspector,
+    hasSelection: selectionOf(managed, inspect.card) !== null,
+    layers,
     metadata,
     native,
     notice,
     overlay,
-    showInspector,
     stale,
     transport,
   };

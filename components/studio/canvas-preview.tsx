@@ -2,23 +2,29 @@
 
 import {
   CameraIcon,
+  ChevronRightIcon,
+  ClapperboardIcon,
   FocusIcon,
   HandIcon,
+  InfoIcon,
+  LayersIcon,
   MinusIcon,
   PanelRightCloseIcon,
   PanelRightOpenIcon,
   PlusIcon,
+  SlidersHorizontalIcon,
   SquareDashedIcon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { type CSSProperties, memo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import type { CanvasLayers } from "@/hooks/use-canvas-layers";
 import { useCanvasPreview } from "@/hooks/use-canvas-preview";
 import type { Tools } from "@/hooks/use-tools";
+import type { LayerRow } from "@/lib/studio/layers";
 import { cn } from "@/lib/utils";
 import { DOCK_SURFACE } from "./dock-layout";
-import { ExportButton } from "./export-button";
 import { InspectOverlay } from "./inspect-overlay";
 import { PreviewControls } from "./preview-controls";
 import { useStudio } from "./studio-provider";
@@ -60,9 +66,9 @@ export function CanvasPreview({
       ref={canvas.transport.surface}
       style={
         {
-          "--canvas-inspector-width": canvas.inspector
+          "--canvas-inspector-width": canvas.layers.shown
             ? "min(340px, calc(100% - 24px))"
-            : "0px",
+            : "3rem",
         } as CSSProperties
       }
     >
@@ -126,26 +132,10 @@ export function CanvasPreview({
         <CanvasInspector
           duration={canvas.transport.duration}
           hasSelection={canvas.hasSelection}
-          hideInspector={canvas.hideInspector}
+          layers={canvas.layers}
           metadata={metadata}
-          shown={canvas.inspector}
           tools={tools}
         />
-
-        {canvas.inspector ? null : (
-          <Button
-            aria-expanded={false}
-            aria-label="Show inspector"
-            className="absolute top-12 right-4 z-20 border border-border bg-field"
-            data-canvas-chrome
-            onClick={canvas.showInspector}
-            size="icon-sm"
-            title="Show inspector"
-            variant="outline"
-          >
-            <PanelRightOpenIcon />
-          </Button>
-        )}
 
         <CanvasNotices canvas={canvas} restart={tools.preview.restart} />
 
@@ -255,16 +245,14 @@ function CanvasToolbar({ canvas }: { canvas: Canvas }) {
 function InspectorPanel({
   duration,
   hasSelection,
-  hideInspector,
+  layers,
   metadata,
-  shown,
   tools,
 }: {
   duration: string;
   hasSelection: boolean;
-  hideInspector: () => void;
+  layers: CanvasLayers;
   metadata: Metadata;
-  shown: boolean;
   tools: Tools;
 }) {
   const { snapshot } = tools;
@@ -272,61 +260,238 @@ function InspectorPanel({
   return (
     <aside
       aria-label="Inspector"
-      className={cn(
-        "absolute inset-y-0 right-0 z-20 flex w-[340px] max-w-[calc(100%_-_24px)] flex-col overflow-hidden border-pane-border border-l bg-background",
-        !shown && "hidden"
-      )}
+      className="absolute inset-y-0 right-0 z-20 flex w-(--canvas-inspector-width) flex-row-reverse overflow-hidden border-pane-border border-l bg-background"
       data-canvas-chrome
       data-canvas-occludes="right"
     >
-      <div className="flex h-10 shrink-0 items-center gap-1 px-4">
-        <h2 className="min-w-0 flex-1 font-medium text-xs">Inspect</h2>
+      <InspectorBar
+        hasSelection={hasSelection}
+        layers={layers}
+        snapshot={snapshot}
+      />
+      <div
+        className={cn(
+          "flex min-w-0 flex-1 flex-col border-pane-border border-r",
+          !layers.shown && "hidden"
+        )}
+      >
+        {hasSelection && layers.view === "properties" ? <PropsPane /> : null}
+        {layers.enabled && layers.view === "layers" ? (
+          <VideoLayers
+            composition={tools.preview.composition}
+            duration={duration}
+            layers={layers}
+            metadata={metadata}
+          />
+        ) : null}
+        {!layers.enabled && layers.view === "layers" ? (
+          <VideoDetails
+            composition={tools.preview.composition}
+            duration={duration}
+            metadata={metadata}
+          />
+        ) : null}
+      </div>
+    </aside>
+  );
+}
+
+function InspectorBar({
+  hasSelection,
+  layers,
+  snapshot,
+}: {
+  hasSelection: boolean;
+  layers: CanvasLayers;
+  snapshot: Tools["snapshot"];
+}) {
+  const firstView = layers.enabled ? "Layers" : "Video details";
+
+  return (
+    <nav
+      aria-label="Inspector views"
+      className="flex w-12 shrink-0 flex-col items-center gap-1.5 py-2"
+    >
+      <Button
+        aria-label={firstView}
+        aria-pressed={layers.active === "layers"}
+        onClick={layers.onView}
+        size="icon-lg"
+        title={firstView}
+        value="layers"
+        variant={layers.active === "layers" ? "secondary" : "ghost"}
+      >
+        {layers.enabled ? (
+          <LayersIcon className="size-5" />
+        ) : (
+          <InfoIcon className="size-5" />
+        )}
+      </Button>
+      <Button
+        aria-label="Properties"
+        aria-pressed={layers.active === "properties"}
+        disabled={!hasSelection}
+        onClick={layers.onView}
+        size="icon-lg"
+        title={
+          hasSelection
+            ? "Properties"
+            : "Properties — select something on the canvas"
+        }
+        value="properties"
+        variant={layers.active === "properties" ? "secondary" : "ghost"}
+      >
+        <SlidersHorizontalIcon className="size-5" />
+      </Button>
+      <div className="mt-auto flex flex-col items-center gap-1.5">
         <Button
           aria-disabled={!snapshot.canSnapshot}
           aria-label="Snapshot"
           aria-pressed={snapshot.isArmed}
           className="aria-disabled:opacity-50"
           onClick={snapshot.toggle}
-          size="icon-sm"
+          size="icon-lg"
           title={snapshot.unavailable ?? "Capture the frame, or part of it"}
           variant={snapshot.isArmed ? "secondary" : "ghost"}
         >
           {snapshot.isBusy ? (
-            <Spinner aria-hidden="true" className="size-4" />
+            <Spinner aria-hidden="true" className="size-5" />
           ) : (
-            <CameraIcon />
+            <CameraIcon className="size-5" />
           )}
         </Button>
-        <ExportButton
-          composition={tools.preview.composition}
-          exporting={tools.exporting}
-        />
         <Button
-          aria-label="Hide inspector"
-          onClick={hideInspector}
-          size="icon-sm"
-          title="Hide inspector"
+          aria-expanded={layers.shown}
+          aria-label={layers.shown ? "Collapse inspector" : "Expand inspector"}
+          onClick={layers.toggle}
+          size="icon-lg"
+          title={layers.shown ? "Collapse inspector" : "Expand inspector"}
           variant="ghost"
         >
-          <PanelRightCloseIcon />
+          {layers.shown ? (
+            <PanelRightCloseIcon className="size-5" />
+          ) : (
+            <PanelRightOpenIcon className="size-5" />
+          )}
         </Button>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col">
-        {hasSelection ? (
-          <PropsPane />
-        ) : (
-          <VideoDetails
-            composition={tools.preview.composition}
-            duration={duration}
-            metadata={metadata}
-          />
-        )}
-      </div>
-    </aside>
+    </nav>
   );
 }
 
 const CanvasInspector = memo(InspectorPanel);
+
+function VideoLayers({
+  composition,
+  duration,
+  layers,
+  metadata,
+}: {
+  composition: string | null;
+  duration: string;
+  layers: CanvasLayers;
+  metadata: Metadata;
+}) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col text-xs">
+      <h3
+        className="truncate px-4 pt-3 pb-2 font-medium"
+        title={composition ?? undefined}
+      >
+        {composition ?? "Video"}
+      </h3>
+      <div className="min-h-0 flex-1 overflow-auto px-2 pb-2">
+        <LayerList layers={layers} />
+      </div>
+      {metadata === null ? null : (
+        <p className="shrink-0 border-pane-border border-t px-4 py-2.5 text-muted-foreground tabular-nums">
+          {metadata.width} × {metadata.height} · {metadata.fps} fps · {duration}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function LayerList({ layers }: { layers: CanvasLayers }) {
+  if (layers.error !== null) {
+    return (
+      <p className="px-2 py-1 text-destructive" role="alert">
+        {layers.error}
+      </p>
+    );
+  }
+  if (layers.rows.length === 0) {
+    return layers.loading ? null : (
+      <p className="px-2 py-1 text-muted-foreground">
+        This video has no editable objects. Select an element on the canvas to
+        ask for changes to it.
+      </p>
+    );
+  }
+  return (
+    <ul aria-label="Objects in this video" className="flex flex-col">
+      {layers.visible.map((row) => (
+        <LayerItem key={row.id} layers={layers} row={row} />
+      ))}
+    </ul>
+  );
+}
+
+function LayerItem({ layers, row }: { layers: CanvasLayers; row: LayerRow }) {
+  const open = layers.isOpen(row);
+  const present = layers.isPresent(row);
+
+  return (
+    <li
+      className="flex items-center"
+      style={{ paddingInlineStart: `${row.depth * 12}px` }}
+    >
+      {row.hasChildren ? (
+        <button
+          aria-expanded={open}
+          aria-label={`${open ? "Collapse" : "Expand"} ${row.label}`}
+          className="grid size-6 shrink-0 place-items-center rounded-sm text-muted-foreground outline-none hover:text-foreground focus-visible:bg-muted"
+          onClick={layers.onToggle}
+          type="button"
+          value={row.id}
+        >
+          <ChevronRightIcon
+            className={cn(
+              "size-3.5 transition-transform duration-150 ease-out",
+              open && "rotate-90"
+            )}
+          />
+        </button>
+      ) : (
+        <span aria-hidden="true" className="size-6 shrink-0" />
+      )}
+      <button
+        aria-current={row.id === layers.selectedId ? "true" : undefined}
+        className={cn(
+          "flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 text-left outline-none hover:bg-muted focus-visible:bg-muted aria-[current]:bg-muted aria-[current]:font-medium",
+          row.isScene && "font-medium",
+          !present && "text-muted-foreground/60"
+        )}
+        onBlur={layers.onLeave}
+        onClick={layers.onSelect}
+        onFocus={layers.onEnter}
+        onPointerEnter={layers.onEnter}
+        onPointerLeave={layers.onLeave}
+        title={present ? row.label : `${row.label} — not in this frame`}
+        type="button"
+        value={row.id}
+      >
+        {row.isScene ? (
+          <ClapperboardIcon
+            aria-hidden="true"
+            className="size-3.5 shrink-0 text-muted-foreground"
+          />
+        ) : null}
+        <span className="truncate">{row.label}</span>
+      </button>
+    </li>
+  );
+}
 
 function VideoDetails({
   composition,

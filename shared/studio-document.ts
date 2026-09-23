@@ -54,6 +54,8 @@ export const StudioDefinition = Schema.Struct({
 });
 export type StudioDefinition = typeof StudioDefinition.Type;
 
+export const SCENE_DEFINITION = "scene";
+
 export const StudioObject = Schema.Struct({
   definition: Identifier,
   id: Identifier,

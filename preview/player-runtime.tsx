@@ -21,6 +21,7 @@ import {
   dismissSelection,
   highlightManaged,
   highlightTarget,
+  hoverManaged,
   repaint,
   type Stage as Spot,
 } from "./inspect";
@@ -369,6 +370,10 @@ function studioCommand(command: PreviewCommand): boolean {
   }
   if (command.type === "studio.highlight") {
     highlightManaged(command.objectId, command.video, command.generation);
+    return true;
+  }
+  if (command.type === "studio.hover") {
+    hoverManaged(command.objectId);
     return true;
   }
   return (

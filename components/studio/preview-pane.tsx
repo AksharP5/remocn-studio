@@ -36,13 +36,10 @@ export function PreviewPane() {
     <PaneHeader data-tauri-drag-region>
       <ModeSwitch mode={docs.mode} onPick={docs.onPickMode} />
       <PaneActions>
-        {isDocs ? (
-          <ExportButton
-            composition={tools.preview.composition}
-            exporting={tools.exporting}
-            renderDialog={false}
-          />
-        ) : null}
+        <ExportButton
+          composition={tools.preview.composition}
+          exporting={tools.exporting}
+        />
         <Tooltip>
           <TooltipTrigger
             render={

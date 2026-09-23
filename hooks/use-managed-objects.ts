@@ -927,6 +927,7 @@ export function useManagedObjects({
     definition,
     discard,
     editingText: inline.current !== null,
+    enabled,
     error: session?.error ?? drafts.find((draft) => draft.error)?.error ?? null,
     fields: fieldStates(
       session,
