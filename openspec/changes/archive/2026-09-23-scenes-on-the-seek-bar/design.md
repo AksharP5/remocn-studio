@@ -29,16 +29,35 @@ bar stays cheap to render while playing at 30–60 fps.
 `{ id, name, from, duration }[]` with absolute frames: it sums `from` up the
 parent chain, keeps `type === "sequence"` with `showInTimeline`, takes the top
 level, and descends one level while the top level is a single sequence covering
-the whole video. Names: `displayName`, else the single child component's
-display name, else `Scene N`. Alternative considered — deriving in the webview
+the whole video. Names: `displayName` unless it is a placeholder in angle
+brackets — Remotion 4.0.520 names every unnamed `<Series.Sequence>`
+"<Series.Sequence>", which the first build showed nine times on the bar — else
+the single child component's name made readable (a trailing "Scene" dropped,
+words split: `CustomerStoriesScene` → "Customer Stories"), else `Scene N`. Alternative considered — deriving in the webview
 from a raw registry dump: the registry holds refs and functions that cannot
 cross the message boundary, and the fold would be duplicated anyway.
 
-The runtime posts `{ type: "scenes", scenes }` when the derived list changes
-(compared by value), not with every playhead tick. The registry changes on
-mount and unmount, so the list is recomputed on registry change, debounced to
-one per frame. Sequences deeper than the scene level mount and unmount as the
-playhead moves; they do not change the derived list, so no message is sent.
+The Player has no sequence registry of its own. Found in the running app on
+2026-09-23: a first build read `Internals.SequenceManager` from inside the
+composition and the bar stayed plain. In Remotion 4.0.520 a `<Sequence>`
+registers only when the environment is the Studio or `SequenceRegistrationContext`
+is on, and `<Player>` mounts a `SequenceManagerProvider` and turns registration on
+only when `PlayerInternals.TimelineSequenceObserverContext` carries an observer —
+otherwise the context is Remotion's empty default. The runtime therefore wraps its
+`<Player>` in that context with an observer (`useSceneObserver`,
+`preview/scenes-report.ts`) that receives every registry change, folds it to
+scenes once per animation frame and posts `{ type: "scenes", compositionId,
+scenes }` only when the list changed by value. A Remotion without that context
+gets no observer, no registry and a plain bar — never an error. Side effect,
+wanted: the registry `InteractivityRuntime` reads for the properties pane's timing
+windows is populated for the first time in the native canvas.
+
+The pane keeps the latest report under the composition id the runtime sent,
+not under the one the pane believes is open, and shows it once the two agree.
+Found with a console trace on 2026-09-23: the runtime posted nine scenes for
+`imaginator` while the pane's `preview.composition` still read the previous
+video, so a filter at receipt dropped the only message — scenes are posted on
+change, unlike `transport.state`, which is re-announced constantly.
 
 ### Speed is a transport command
 
@@ -50,11 +69,20 @@ follow it.
 
 ### Drawing
 
-`useSeekScenes` (hook) maps scenes to percentages of the duration and decides
-which labels fit, measured once per resize, not per frame. The segments are a
-static layer under the slider's fill; only the fill and the handle move while
-playing. A click on a label seeks through the existing `seekTo`; the bar keeps
-its slider semantics for dragging and the keyboard.
+`useSeekScenes` (hook) maps scenes to percentages of the duration
+(`segmentsOf`, pure, in `lib/studio/seek-scenes.ts`) and labels a segment only
+when it is at least 48px wide on the measured bar, measured on resize, not per
+frame. Boundaries are 6px ticks from the top edge of the slider track — full-height
+dark lines were tried first and cut the bar into blocks that read as content
+still loading; the name of the scene under the playhead is drawn in the
+foreground colour; the names sit in a
+16px row directly above it, one button per segment (an unlabelled one still
+names itself on hover). Inside the bar was rejected after the bar gained its
+elapsed and total times at its two ends: the first and last scene names would
+collide with them, and a clickable name inside the slider fights the slider's
+own pointer-down seek and drag. A click on a name seeks to the scene's first
+frame through the existing `seekTo`. The speed is a small menu before the mute
+button, listing `PLAYBACK_RATES`.
 
 ### Scenes are described in the video, and the check makes it mandatory
 
@@ -76,8 +104,12 @@ finishing, so three static rules join it: `unnamed-scene` (error) for a
 `<Series.Sequence>` / `<TransitionSeries.Sequence>` in `index.tsx` with no `name`;
 `scene-without-object` (error) for a named one with no scene object of that
 label; `object-outside-scene` (warning) for an object whose parents never reach a
-scene object, skipped when the video declares no scene objects at all so a video
-made before this change gets the two errors, not 29 warnings. Scenes sequenced
+scene object — except one the video's `index.tsx` reads by a literal id
+(`useStudioObject('film-stage')`), which is how a background or soundtrack that
+spans every scene is written — skipped when the video declares no scene objects
+at all, so a video made before this change gets the two errors, not 29
+warnings. A scene named by an expression (`name={title}`) counts as named; its
+object cannot be matched statically and is not reported. Scenes sequenced
 elsewhere than `index.tsx` are not seen; the conventions put them there.
 
 ### The list links to the seek bar by name

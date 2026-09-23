@@ -1,6 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import type { StudioObject } from "@/shared/studio-document";
-import { layersOf, nextPresent, visibleRows, withAncestors } from "./layers";
+import {
+  layersOf,
+  nextPresent,
+  sceneRowOf,
+  visibleRows,
+  withAncestors,
+} from "./layers";
 
 function object(
   id: string,
@@ -78,6 +84,13 @@ describe("groups", () => {
       "phone",
       "stage",
     ]);
+  });
+
+  it("finds the scene a row jumps to", () => {
+    expect(sceneRowOf(rows, "phone", false)?.id).toBe("phone");
+    expect(sceneRowOf(rows, "clock", true)?.id).toBe("phone");
+    expect(sceneRowOf(rows, "clock", false)).toBeUndefined();
+    expect(sceneRowOf(rows, "stage", true)).toBeUndefined();
   });
 
   it("widens a set of objects to the groups above them", () => {

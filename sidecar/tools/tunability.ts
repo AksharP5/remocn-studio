@@ -1,5 +1,5 @@
 import { Exit, Schema } from "effect";
-import { StudioDocument } from "@/shared/studio-document";
+import { SCENE_DEFINITION, StudioDocument } from "@/shared/studio-document";
 import type {
   DesignFinding,
   DesignFindingCode,
@@ -20,7 +20,10 @@ export type TunabilityRule =
   | "mapped-primitive-name"
   | "plain-text-element"
   | "raw-export"
-  | "managed-document";
+  | "managed-document"
+  | "object-outside-scene"
+  | "scene-without-object"
+  | "unnamed-scene";
 
 export interface TunabilityFinding {
   readonly file: string;
@@ -41,8 +44,11 @@ const CODE: Record<TunabilityRule, DesignFindingCode> = {
   "inert-easing": "tunability_inert_easing",
   "managed-document": "tunability_managed_document",
   "mapped-primitive-name": "tunability_mapped_primitive_name",
+  "object-outside-scene": "tunability_object_outside_scene",
   "plain-text-element": "tunability_plain_text_element",
   "raw-export": "tunability_raw_export",
+  "scene-without-object": "tunability_scene_without_object",
+  "unnamed-scene": "tunability_unnamed_scene",
 };
 
 const SEVERITY: Record<TunabilityRule, DesignSeverity> = {
@@ -52,8 +58,11 @@ const SEVERITY: Record<TunabilityRule, DesignSeverity> = {
   "inert-easing": "info",
   "managed-document": "error",
   "mapped-primitive-name": "error",
+  "object-outside-scene": "warning",
   "plain-text-element": "warning",
   "raw-export": "error",
+  "scene-without-object": "error",
+  "unnamed-scene": "error",
 };
 
 const EXPECTED: Record<TunabilityRule, string> = {
@@ -68,9 +77,14 @@ const EXPECTED: Record<TunabilityRule, string> = {
     "a valid studio.json with independent IDs, explicit values and supported versioned definitions",
   "mapped-primitive-name":
     "a `name` inside a `.map()` carries the index or the content, so it is unique in the frame",
+  "object-outside-scene":
+    "every object's parentId chain reaches its scene's object, unless index.tsx renders it for the whole video",
   "plain-text-element":
     "one run of text is one named `Interactive.H1`, `Interactive.P` or `Interactive.Span` whose direct child is the string",
   "raw-export": "a file exports only the wrapped component",
+  "scene-without-object": `a scene object in studio.json (definition "${SCENE_DEFINITION}") whose label is the scene's name`,
+  "unnamed-scene":
+    "every scene sequence in index.tsx carries a short human `name`",
 };
 
 const FIX: Record<TunabilityRule, string> = {
@@ -86,10 +100,15 @@ const FIX: Record<TunabilityRule, string> = {
     "Read src/lib/studio-objects-v1/README.md, repair the document, and preserve object IDs and edit history.",
   "mapped-primitive-name":
     "Give each rendered instance a `name` that is unique in the frame and equals its `data-design-id`: inside a `.map()` the name carries the index or the content.",
+  "object-outside-scene":
+    "Set this object's parentId to its scene's object, or to the object it is drawn inside. Leave it at the root only when the video's index.tsx renders it because it spans every scene.",
   "plain-text-element":
     "Make this run of text one `Interactive.H1`, `Interactive.P` or `Interactive.Span` whose direct child is the string, with its font size, weight, colour, letter spacing and line height written as literals in its own `style`, and a `name` that is unique in the frame.",
   "raw-export":
     "Export only the component `Interactive.withSchema()` returns; a raw export of the inner component renders without any `controls` and the pane never opens on it.",
+  "scene-without-object": `Add an object with definition "${SCENE_DEFINITION}" (declare the definition with no fields), the scene's name as its label, and spread its bind onto the scene component's root; parent the scene's objects to it.`,
+  "unnamed-scene":
+    'Give this sequence a short human `name` the person would use for the scene, such as name="Intro", and a scene object with the same label in studio.json.',
 };
 
 const MESSAGE: Record<TunabilityRule, string> = {
@@ -103,10 +122,16 @@ const MESSAGE: Record<TunabilityRule, string> = {
     "The managed object document is missing or invalid, so its properties cannot be edited.",
   "mapped-primitive-name":
     "Every instance this `.map()` renders carries the same `name`.",
+  "object-outside-scene":
+    "This object belongs to no scene, so the object list cannot place it.",
   "plain-text-element":
     "This run of text sits in a plain element, so the pane cannot name or edit it.",
   "raw-export":
     "This file exports the unwrapped component beside the wrapped one.",
+  "scene-without-object":
+    "This scene has no scene object, so the object list cannot group it.",
+  "unnamed-scene":
+    "This scene has no name, so the seek bar and the object list cannot show it.",
 };
 
 const MANAGED_BIND = /\{\s*\.\.\.\s*[A-Za-z_$][\w$]*\.bind\s*\}/;
@@ -202,6 +227,7 @@ export function tunabilityFindings(
 ): TunabilityFinding[] {
   return [
     ...managedDocumentFindings(files),
+    ...sceneFindings(files),
     ...files
       .filter((file) => file.path !== "studio.json")
       .flatMap((file) => scan(file.path, file.source)),
@@ -238,6 +264,123 @@ function managedDocumentFindings(
       snippet: problem,
     },
   ];
+}
+
+const SCENE_TAG = /<\s*(?:Series|TransitionSeries)\s*\.\s*Sequence\b/g;
+const NAME_ATTRIBUTE =
+  /(?<![\w-])name\s*=\s*(?:"([^"]*)"|'([^']*)'|\{\s*(?:"([^"]*)"|'([^']*)'|`([^`$]*)`)\s*\}|\{)/;
+const LITERAL_USE = /\buseStudioObject\s*\(\s*["'`]([^"'`]+)["'`]\s*\)/g;
+
+interface SceneTag {
+  readonly at: number;
+  readonly name: string | null | undefined;
+}
+
+function sceneTags(source: string): SceneTag[] {
+  const code = masked(source);
+  const tags: SceneTag[] = [];
+  for (const match of code.matchAll(SCENE_TAG)) {
+    const end = openTagEnd(code, match.index + match[0].length);
+    const tag = source.slice(match.index, end === null ? undefined : end.at);
+    const found = NAME_ATTRIBUTE.exec(tag);
+    tags.push({
+      at: match.index,
+      name:
+        found === null
+          ? undefined
+          : (found.slice(1).find((value) => value !== undefined) ?? null),
+    });
+  }
+  return tags;
+}
+
+function sceneDocument(files: readonly TunabilitySource[]) {
+  const file = files.find((item) => item.path === "studio.json");
+  if (!file) {
+    return null;
+  }
+  try {
+    const decoded = decodeDocument(JSON.parse(file.source));
+    return Exit.isSuccess(decoded)
+      ? { document: decoded.value, source: file.source }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+type SceneDocument = NonNullable<ReturnType<typeof sceneDocument>>;
+
+function sceneFindings(
+  files: readonly TunabilitySource[]
+): TunabilityFinding[] {
+  const index = files.find((item) => item.path === "index.tsx");
+  const loaded = sceneDocument(files);
+  const scenes = new Set(
+    loaded?.document.objects
+      .filter((object) => object.definition === SCENE_DEFINITION)
+      .map((object) => object.label) ?? []
+  );
+  return [
+    ...(index
+      ? sceneTagFindings(index.source, loaded === null ? null : scenes)
+      : []),
+    ...(loaded === null || scenes.size === 0
+      ? []
+      : outsideSceneFindings(loaded, index?.source ?? "")),
+  ];
+}
+
+function sceneTagFindings(
+  source: string,
+  scenes: ReadonlySet<string> | null
+): TunabilityFinding[] {
+  return sceneTags(source).flatMap((tag): TunabilityFinding[] => {
+    const line = lineOf(source, tag.at);
+    if (tag.name === undefined || tag.name === "") {
+      const snippet = (source.slice(tag.at).split("\n")[0] ?? "").trim();
+      return [{ file: "index.tsx", line, rule: "unnamed-scene", snippet }];
+    }
+    if (tag.name === null || scenes === null || scenes.has(tag.name)) {
+      return [];
+    }
+    return [
+      {
+        file: "index.tsx",
+        line,
+        rule: "scene-without-object",
+        snippet: `name="${tag.name}"`,
+      },
+    ];
+  });
+}
+
+function outsideSceneFindings(
+  { document, source }: SceneDocument,
+  index: string
+): TunabilityFinding[] {
+  const byId = new Map(document.objects.map((object) => [object.id, object]));
+  const videoWide = new Set(
+    [...index.matchAll(LITERAL_USE)].map((match) => match[1])
+  );
+  const inScene = (id: string | null): boolean => {
+    const object = id === null ? undefined : byId.get(id);
+    if (object === undefined) {
+      return false;
+    }
+    return object.definition === SCENE_DEFINITION || inScene(object.parentId);
+  };
+  return document.objects
+    .filter((object) => !(inScene(object.id) || videoWide.has(object.id)))
+    .map((object) => {
+      const at = source.indexOf(`"${object.id}"`);
+      return {
+        file: "studio.json",
+        line: at === -1 ? 1 : lineOf(source, at),
+        rule: "object-outside-scene",
+        snippet: `${object.id} (${object.label})`,
+      };
+    });
 }
 
 export function tunabilityDesignFindings(

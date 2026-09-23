@@ -270,13 +270,19 @@ Where a generated sequence publishes a motion contract in the rendered page, the
 
 ### Requirement: The source's tunability is checked beside the pixels
 
-Every design check SHALL also read the turn's own video source and report seven rules about whether the result can be tuned without code: a constant timing curve, a spring whose physics are nailed shut, a run of text in a plain element, one literal name shared by every instance a repetition renders, a curve that is never sampled, a schema component that never forwards its controls, and a file that exports the unwrapped component. These findings SHALL be merged into the same findings list and counted in the same summary.
+Every design check SHALL also read the turn's own video source and report its tunability rules about whether the result can be tuned without code: a constant timing curve, a spring whose physics are nailed shut, a run of text in a plain element, one literal name shared by every instance a repetition renders, a curve that is never sampled, a schema component that never forwards its controls, a file that exports the unwrapped component, a scene sequenced without a name, a named scene with no scene object of the same label in `studio.json`, and a managed object that belongs to no scene. These findings SHALL be merged into the same findings list and counted in the same summary.
 
 #### Scenario: Severities
 
 - **WHEN** the source is scanned
-- **THEN** a constant easing, a shared literal name, unforwarded controls and a raw export are errors; a run of text in a plain element is a warning; a constant spring and an inert curve are information
+- **THEN** a constant easing, a shared literal name, unforwarded controls, a raw export, an unnamed scene and a scene without its scene object are errors; a run of text in a plain element and an object outside every scene are warnings; a constant spring and an inert curve are information
 - **AND** each finding names the file, the line and the snippet, what was expected and how to fix it
+
+#### Scenario: Scenes are described
+
+- **WHEN** the video's `index.tsx` sequences scenes with `<Series.Sequence>` or `<TransitionSeries.Sequence>`
+- **THEN** each one without a `name` is reported, and each named one without a scene object of that label in `studio.json` is reported
+- **AND** a managed object whose parents never reach a scene object is reported, unless the video's `index.tsx` renders it itself or the video has no scene objects at all
 
 #### Scenario: Only this chat's video
 

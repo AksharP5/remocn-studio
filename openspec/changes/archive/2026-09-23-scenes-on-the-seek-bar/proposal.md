@@ -16,7 +16,7 @@ because a convention alone was already not followed.
 ## What Changes
 
 - The seek bar marks the video's scenes: a boundary at the start of each scene
-  and the scene's name inside its segment where it fits. Hovering a segment
+  and the scene's name above its segment where it fits. Hovering a segment
   names it; clicking a segment's name moves the playhead to the scene's start.
 - A playback speed menu in the panel: 0.25×, 0.5×, 1× and 2×. It affects the
   preview only; Export and Snapshot are unchanged.

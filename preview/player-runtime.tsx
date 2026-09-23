@@ -1,4 +1,4 @@
-import { Player, type PlayerRef } from "@remotion/player";
+import { Player, PlayerInternals, type PlayerRef } from "@remotion/player";
 import {
   useCallback,
   useContext,
@@ -27,6 +27,8 @@ import {
 } from "./inspect";
 import { InteractivityRuntime } from "./interactivity";
 import { type PlaybackPosition, playbackPositions } from "./playback-position";
+import { usePlaybackRate } from "./playback-rate";
+import { useSceneObserver } from "./scenes-report";
 import { armSnapshot, type Frame } from "./snapshot";
 import { nativeSurface } from "./surface";
 import { usePlayerTransport } from "./transport";
@@ -178,8 +180,17 @@ function InteractivePlayer({
       );
     };
   }, [component, frame]);
+  const observeSequences = useSceneObserver(composition, durationInFrames);
+  const SequenceObserver = (
+    PlayerInternals as {
+      TimelineSequenceObserverContext?: React.Context<
+        ((sequences: readonly unknown[]) => void) | null
+      >;
+    }
+  ).TimelineSequenceObserverContext;
+  const playbackRate = usePlaybackRate();
 
-  return (
+  const rendered = (
     <Player
       acknowledgeRemotionLicense
       autoPlay={hooks === null && position.playing}
@@ -198,10 +209,19 @@ function InteractivePlayer({
       inputProps={inputProps}
       loop
       overflowVisible={hooks !== null}
+      playbackRate={playbackRate}
       ref={player}
       spaceKeyToPlayOrPause={false}
       style={{ height: "100%", width: "100%" }}
     />
+  );
+
+  return SequenceObserver ? (
+    <SequenceObserver.Provider value={observeSequences}>
+      {rendered}
+    </SequenceObserver.Provider>
+  ) : (
+    rendered
   );
 }
 

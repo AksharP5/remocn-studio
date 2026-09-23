@@ -3,8 +3,8 @@
 ### Requirement: The seek bar shows the video's scenes
 
 The playback panel's seek bar SHALL mark each scene of the playing video with a
-boundary at the scene's first frame and SHALL show the scene's name inside its
-segment when the name fits, truncating it otherwise. A scene SHALL be a
+boundary at the scene's first frame and SHALL show the scene's name directly
+above its segment when the name fits, truncating it otherwise. A scene SHALL be a
 sequence at the top level of the video that is shown in the timeline and is not
 an audio or video clip; when the top level holds a single sequence spanning the
 whole video, its children SHALL be the scenes instead. A video with fewer than
@@ -14,7 +14,7 @@ two scenes SHALL show a plain seek bar. The scene list SHALL follow a rebuild.
 
 - **WHEN** a video sequences an intro, a feature scene and a closing scene
 - **THEN** the seek bar shows three segments with a boundary at each scene's start
-- **AND** each segment carries the scene's name where it fits
+- **AND** each segment's name is shown above it where it fits
 
 #### Scenario: Jumping to a scene
 
@@ -24,8 +24,8 @@ two scenes SHALL show a plain seek bar. The scene list SHALL follow a rebuild.
 
 #### Scenario: A scene without a name
 
-- **WHEN** a scene was sequenced without a name around a single component
-- **THEN** its segment is labelled with that component's name
+- **WHEN** a scene was sequenced without a name, or with only the placeholder Remotion gives it such as `<Series.Sequence>`, around a single component
+- **THEN** its segment is labelled with that component's name made readable, "PricingScene" as "Pricing"
 - **AND** a scene with neither is labelled "Scene" followed by its position
 
 #### Scenario: A narrow scene

@@ -86,6 +86,8 @@ export function useCanvasPreview({
   const layers = useCanvasLayers({
     managed,
     preview,
+    scenes: transport.scenes,
+    seekTo: transport.seekTo,
     selection: selectionOf(managed, inspect.card),
     viewport: camera.viewport,
   });

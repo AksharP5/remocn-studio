@@ -67,6 +67,24 @@ export function visibleRows(
   );
 }
 
+export function sceneRowOf(
+  rows: readonly LayerRow[],
+  id: string,
+  offScreen: boolean
+): LayerRow | undefined {
+  const row = rows.find((item) => item.id === id);
+  if (row?.isScene) {
+    return row;
+  }
+  if (!(row && offScreen)) {
+    return;
+  }
+  return [...row.ancestors]
+    .reverse()
+    .map((ancestor) => rows.find((item) => item.id === ancestor))
+    .find((item) => item?.isScene);
+}
+
 export function nextPresent(
   rows: readonly LayerRow[],
   present: ReadonlySet<string>,

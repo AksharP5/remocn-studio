@@ -64,6 +64,18 @@ export const SnapshotStatus = Schema.Literals([
 
 const from = Schema.Literal(PREVIEW_MESSAGE_SOURCE);
 
+export const PLAYBACK_RATES = [0.25, 0.5, 1, 2] as const;
+export type PlaybackRate = (typeof PLAYBACK_RATES)[number];
+
+const Frame = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
+const PreviewScene = Schema.Struct({
+  duration: Frame,
+  from: Schema.Int,
+  id: Schema.NonEmptyString,
+  name: Schema.NonEmptyString,
+});
+export type PreviewScene = typeof PreviewScene.Type;
+
 export const TuningValue = Schema.Union([
   Schema.Finite,
   Schema.String,
@@ -322,6 +334,12 @@ export const PreviewMessage = Schema.Union([
     volume: Schema.Finite.check(Schema.isBetween({ maximum: 1, minimum: 0 })),
   }),
   Schema.Struct({
+    compositionId: Schema.NonEmptyString,
+    scenes: Schema.Array(PreviewScene),
+    source: from,
+    type: Schema.Literal("scenes"),
+  }),
+  Schema.Struct({
     paused: Schema.Boolean,
     source: from,
     status: InspectStatus,
@@ -412,6 +430,11 @@ export const PreviewCommand = Schema.Union([
     source: to,
     type: Schema.Literal("transport.audio"),
     volume: Schema.Finite.check(Schema.isBetween({ maximum: 1, minimum: 0 })),
+  }),
+  Schema.Struct({
+    rate: Schema.Literals(PLAYBACK_RATES),
+    source: to,
+    type: Schema.Literal("transport.rate"),
   }),
   Schema.Struct({ source: to, type: Schema.Literal("studio.request") }),
   Schema.Struct({

@@ -14,7 +14,7 @@ Every design check SHALL also read the turn's own video source and report its tu
 
 - **WHEN** the video's `index.tsx` sequences scenes with `<Series.Sequence>` or `<TransitionSeries.Sequence>`
 - **THEN** each one without a `name` is reported, and each named one without a scene object of that label in `studio.json` is reported
-- **AND** a managed object whose parents never reach a scene object is reported, unless the video has no scene objects at all
+- **AND** a managed object whose parents never reach a scene object is reported, unless the video's `index.tsx` renders it itself or the video has no scene objects at all
 
 #### Scenario: Only this chat's video
 

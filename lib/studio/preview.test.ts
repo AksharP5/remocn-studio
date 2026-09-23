@@ -1,10 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import { Exit } from "effect";
+import { PLAYBACK_RATES as RUNTIME_RATES } from "@/preview/playback-rate";
 import {
   decodePreviewCommand,
   decodePreviewMessage,
   inspectCommand,
   originOf,
+  PLAYBACK_RATES,
   pauseCommand,
   replayCommand,
   seekCommand,
@@ -450,6 +452,42 @@ describe("decodePreviewMessage", () => {
     ).toEqual({ fonts: [], text: null });
   });
 
+  it("accepts the scenes the runtime found, in playback order", () => {
+    const decoded = decodePreviewMessage({
+      compositionId: "intro",
+      scenes: [
+        { duration: 90, from: 0, id: "a", name: "Intro" },
+        { duration: 210, from: 90, id: "b", name: "Features" },
+      ],
+      source: "remocn-preview",
+      type: "scenes",
+    });
+
+    expect(
+      Exit.isSuccess(decoded) &&
+        decoded.value.type === "scenes" &&
+        decoded.value.scenes.map((scene) => scene.name)
+    ).toEqual(["Intro", "Features"]);
+  });
+
+  it("refuses a scene without a name or at a fractional frame", () => {
+    for (const scene of [
+      { duration: 90, from: 0, id: "a", name: "" },
+      { duration: 90, from: 0.5, id: "a", name: "Intro" },
+    ]) {
+      expect(
+        Exit.isSuccess(
+          decodePreviewMessage({
+            compositionId: "intro",
+            scenes: [scene],
+            source: "remocn-preview",
+            type: "scenes",
+          })
+        )
+      ).toBe(false);
+    }
+  });
+
   it("accepts the objects the runtime has mounted", () => {
     const decoded = decodePreviewMessage({
       ids: ["card", "title"],
@@ -539,6 +577,24 @@ describe("decodePreviewCommand", () => {
         })
       )
     ).toBe(true);
+  });
+
+  it("offers the speeds the runtime applies", () => {
+    expect([...PLAYBACK_RATES]).toEqual([...RUNTIME_RATES]);
+  });
+
+  it("accepts the speeds the panel offers and nothing else", () => {
+    const decodes = (rate: number) =>
+      Exit.isSuccess(
+        decodePreviewCommand({
+          rate,
+          source: "remocn-studio",
+          type: "transport.rate",
+        })
+      );
+
+    expect([0.25, 0.5, 1, 2].every(decodes)).toBe(true);
+    expect(decodes(3)).toBe(false);
   });
 
   it("accepts hovering an object from the list and leaving it", () => {

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { SliderPrimitive } from "@/components/ui/slider";
 import { Spinner } from "@/components/ui/spinner";
 import type { PreviewTransport } from "@/hooks/use-preview-transport";
+import { useSeekScenes } from "@/hooks/use-seek-scenes";
 import { cn } from "@/lib/utils";
 import { DOCK_ACTIONS } from "./dock-layout";
 
@@ -40,24 +41,63 @@ export function PreviewControls({
     playing,
     position,
     previous,
+    rate,
+    rateMarks,
+    rateStep,
+    rates,
     ready,
+    scenes,
     seekTo,
+    setRateStep,
     setVolume,
     toggle,
     toggleFullscreen,
     toggleMute,
     volume,
   } = transport;
+  const sceneBar = useSeekScenes({
+    frame,
+    scenes,
+    seekTo,
+    totalFrames: lastFrame + 1,
+  });
 
   return (
     <fieldset
       aria-label="Playback controls"
       className="@container flex min-w-0 shrink-0 flex-col gap-2"
     >
+      {sceneBar.segments.length === 0 ? null : (
+        <nav
+          aria-label="Scenes"
+          className="relative h-4"
+          ref={sceneBar.measure}
+        >
+          {sceneBar.segments.map((segment) => (
+            <button
+              aria-label={`Go to ${segment.name}`}
+              className={cn(
+                "absolute inset-y-0 truncate px-2 text-left text-muted-foreground text-xs outline-none transition-colors hover:text-foreground focus-visible:text-foreground disabled:pointer-events-none",
+                segment.id === sceneBar.current && "text-foreground"
+              )}
+              disabled={!ready}
+              key={segment.id}
+              onClick={sceneBar.onPick}
+              style={{ left: `${segment.left}%`, width: `${segment.width}%` }}
+              title={segment.name}
+              type="button"
+              value={segment.from}
+            >
+              {segment.labeled ? segment.name : null}
+            </button>
+          ))}
+        </nav>
+      )}
       <PlaybackSlider
         disabled={!ready || lastFrame === 0}
         end={ready ? duration : "--:--"}
         label="Video position"
+        marks={sceneBar.segments.slice(1).map((segment) => segment.left)}
         max={Math.max(1, lastFrame)}
         onChange={seekTo}
         start={ready ? position : "--:--"}
@@ -112,6 +152,24 @@ export function PreviewControls({
             status
           )}
         </div>
+        <div className="@min-[28rem]:flex hidden shrink-0 items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="w-9 text-end font-medium text-muted-foreground text-xs tabular-nums"
+          >
+            {rate}×
+          </span>
+          <PillSlider
+            className="w-20"
+            disabled={!ready}
+            label="Playback speed"
+            marks={rateMarks}
+            max={rates.length - 1}
+            onChange={setRateStep}
+            value={rateStep}
+            valueText={`${rate}×`}
+          />
+        </div>
         <Button
           aria-label={muted ? "Unmute" : "Mute"}
           className="size-8 text-muted-foreground sm:size-8"
@@ -123,16 +181,15 @@ export function PreviewControls({
         >
           {muted ? <VolumeXIcon /> : <Volume2Icon />}
         </Button>
-        <div className="@min-[28rem]:block hidden w-20 shrink-0">
-          <PlaybackSlider
-            disabled={!ready}
-            label="Volume"
-            max={100}
-            onChange={setVolume}
-            value={volume}
-            valueText={`${volume}%`}
-          />
-        </div>
+        <PillSlider
+          className="@min-[28rem]:flex hidden w-20"
+          disabled={!ready}
+          label="Volume"
+          max={100}
+          onChange={setVolume}
+          value={volume}
+          valueText={`${volume}%`}
+        />
         {canFullscreen ? (
           <Button
             aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
@@ -168,6 +225,7 @@ function PlaybackSlider({
   disabled,
   end,
   label,
+  marks = [],
   max,
   onChange,
   start,
@@ -178,6 +236,7 @@ function PlaybackSlider({
   disabled: boolean;
   end?: string;
   label: string;
+  marks?: readonly number[];
   max: number;
   onChange: (value: number) => void;
   start?: string;
@@ -201,6 +260,14 @@ function PlaybackSlider({
       >
         <SliderPrimitive.Track className="relative h-full w-full">
           <SliderPrimitive.Indicator className="bg-foreground/10 transition-colors group-hover:bg-foreground/15 group-data-dragging:bg-foreground/15" />
+          {marks.map((left) => (
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute top-0 h-1.5 w-px -translate-x-1/2 bg-foreground/30"
+              key={left}
+              style={{ left: `${left}%` }}
+            />
+          ))}
           <SliderPrimitive.Thumb
             aria-label={label}
             aria-valuetext={valueText}
@@ -208,15 +275,70 @@ function PlaybackSlider({
           />
         </SliderPrimitive.Track>
         {start === undefined ? null : (
-          <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center font-mono text-2xs text-foreground tabular-nums">
+          <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center font-medium text-foreground text-xs tabular-nums">
             {start}
           </span>
         )}
         {end === undefined ? null : (
-          <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center font-mono text-2xs text-muted-foreground tabular-nums">
+          <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-muted-foreground text-xs tabular-nums">
             {end}
           </span>
         )}
+      </SliderPrimitive.Control>
+    </SliderPrimitive.Root>
+  );
+}
+
+function PillSlider({
+  className,
+  disabled,
+  label,
+  max,
+  marks = [],
+  onChange,
+  value,
+  valueText,
+}: {
+  className?: string;
+  disabled: boolean;
+  label: string;
+  max: number;
+  onChange: (value: number) => void;
+  marks?: readonly number[];
+  value: number;
+  valueText: string;
+}) {
+  return (
+    <SliderPrimitive.Root
+      className={cn("shrink-0", className)}
+      disabled={disabled}
+      max={max}
+      min={0}
+      onValueChange={onChange}
+      step={1}
+      thumbAlignment="edge"
+      value={value}
+    >
+      <SliderPrimitive.Control
+        className="flex h-5 w-full touch-none select-none items-center data-disabled:pointer-events-none data-disabled:opacity-40"
+        title={`${label}: ${valueText}`}
+      >
+        <SliderPrimitive.Track className="relative h-5 w-full rounded-full bg-foreground/10">
+          <SliderPrimitive.Indicator className="rounded-full bg-info" />
+          {marks.map((mark) => (
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute top-1/2 size-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground/35"
+              key={mark}
+              style={{ left: `calc(0.625rem + (100% - 1.25rem) * ${mark})` }}
+            />
+          ))}
+          <SliderPrimitive.Thumb
+            aria-label={label}
+            aria-valuetext={valueText}
+            className="block size-5 rounded-full bg-white shadow-sm outline-none ring-1 ring-black/10 has-focus-visible:ring-2 has-focus-visible:ring-ring"
+          />
+        </SliderPrimitive.Track>
       </SliderPrimitive.Control>
     </SliderPrimitive.Root>
   );

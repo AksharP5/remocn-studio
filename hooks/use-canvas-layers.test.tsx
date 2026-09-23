@@ -2,12 +2,17 @@ import { afterEach, describe, expect, it, mock } from "bun:test";
 import { act, renderHook } from "@testing-library/react";
 import type { MouseEvent } from "react";
 import type { PreviewControl, PreviewListener } from "@/hooks/use-preview";
-import type { PreviewMessage } from "@/lib/studio/preview";
+import type { PreviewMessage, PreviewScene } from "@/lib/studio/preview";
 import type { StudioObject } from "@/shared/studio-document";
 import { useCanvasLayers } from "./use-canvas-layers";
 
-function object(id: string, parentId: string | null = null): StudioObject {
-  return { definition: "box", id, label: id, parentId, values: {} };
+function object(
+  id: string,
+  parentId: string | null = null,
+  definition = "box",
+  label = id
+): StudioObject {
+  return { definition, id, label, parentId, values: {} };
 }
 
 const OBJECTS = [
@@ -17,10 +22,15 @@ const OBJECTS = [
   object("price", "card"),
 ];
 
-function setup(selected: string | null = null, objects = OBJECTS) {
+function setup(
+  selected: string | null = null,
+  objects = OBJECTS,
+  scenes: readonly PreviewScene[] = []
+) {
   const listeners = new Set<PreviewListener>();
   const send = mock();
   const select = mock();
+  const seekTo = mock();
   const preview = {
     send,
     subscribe: (listener: PreviewListener) => {
@@ -47,6 +57,8 @@ function setup(selected: string | null = null, objects = OBJECTS) {
       useCanvasLayers({
         managed: managed(picked === undefined ? selected : picked),
         preview,
+        scenes,
+        seekTo,
         selection,
         viewport: { current: viewport },
       }),
@@ -73,7 +85,7 @@ function setup(selected: string | null = null, objects = OBJECTS) {
     target.dispatchEvent(event);
     return event;
   };
-  return { ...hook, emit, press, select, send, viewport };
+  return { ...hook, emit, press, seekTo, select, send, viewport };
 }
 
 afterEach(() => {
@@ -340,5 +352,60 @@ describe("useCanvasLayers", () => {
       true,
       false,
     ]);
+  });
+
+  describe("scenes on the seek bar", () => {
+    const SCENED = [
+      object("opening", null, "scene", "Opening"),
+      object("title", "opening"),
+      object("phone", null, "scene", "Phone"),
+      object("device", "phone"),
+      object("clock", "device"),
+      object("legacy", null, "scene", "Renamed"),
+    ];
+    const SCENES = [
+      { duration: 50, from: 0, id: "a", name: "Opening" },
+      { duration: 88, from: 480, id: "b", name: "Phone" },
+    ];
+
+    it("moves the playhead to a scene's start when its row is clicked", () => {
+      const { result, seekTo, select } = setup(null, SCENED, SCENES);
+      act(() => result.current.select("phone"));
+
+      expect(seekTo).toHaveBeenCalledWith(480);
+      expect(select).toHaveBeenCalledWith("phone");
+    });
+
+    it("moves the playhead to the scene of an object that is off screen", () => {
+      const { emit, result, seekTo } = setup(null, SCENED, SCENES);
+      emit({
+        ids: ["title"],
+        source: "remocn-preview",
+        type: "studio.present",
+      });
+      act(() => result.current.select("clock"));
+
+      expect(seekTo).toHaveBeenCalledWith(480);
+    });
+
+    it("leaves the playhead alone for an object on screen", () => {
+      const { emit, result, seekTo } = setup(null, SCENED, SCENES);
+      emit({
+        ids: ["title"],
+        source: "remocn-preview",
+        type: "studio.present",
+      });
+      act(() => result.current.select("title"));
+
+      expect(seekTo).not.toHaveBeenCalled();
+    });
+
+    it("selects without seeking when no scene has the row's name", () => {
+      const { result, seekTo, select } = setup(null, SCENED, SCENES);
+      act(() => result.current.select("legacy"));
+
+      expect(seekTo).not.toHaveBeenCalled();
+      expect(select).toHaveBeenCalledWith("legacy");
+    });
   });
 });

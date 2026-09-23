@@ -15,12 +15,14 @@ import {
   type LayerRow,
   layersOf,
   nextPresent,
+  sceneRowOf,
   visibleRows,
   withAncestors,
 } from "@/lib/studio/layers";
 import {
   PREVIEW_COMMAND_SOURCE,
   type PreviewMessage,
+  type PreviewScene,
 } from "@/lib/studio/preview";
 import type { ManagedObjects } from "./use-managed-objects";
 import { type PreviewControl, useOnPreview } from "./use-preview";
@@ -46,14 +48,20 @@ function fromControl(event: Event) {
 
 export type InspectorView = "layers" | "properties";
 
+const NO_SCENES: readonly PreviewScene[] = [];
+
 export function useCanvasLayers({
   managed,
   preview,
+  scenes = NO_SCENES,
+  seekTo,
   selection,
   viewport,
 }: {
   managed: Managed | undefined;
   preview: PreviewControl;
+  scenes?: readonly PreviewScene[];
+  seekTo?: (frame: number) => void;
   selection: unknown;
   viewport: RefObject<HTMLElement | null>;
 }) {
@@ -129,13 +137,27 @@ export function useCanvasLayers({
     [send]
   );
 
+  const sceneStart = useCallback(
+    (objectId: string): number | null => {
+      const offScreen = present !== null && !present.has(objectId);
+      const owner = sceneRowOf(rows, objectId, offScreen);
+      const scene = scenes.find((item) => item.name === owner?.label);
+      return scene ? scene.from : null;
+    },
+    [present, rows, scenes]
+  );
+
   const select = useCallback(
     (objectId: string) => {
       hover(null);
       setLayersFor(null);
+      const start = sceneStart(objectId);
+      if (start !== null) {
+        seekTo?.(start);
+      }
       selectObject?.(objectId);
     },
-    [hover, selectObject]
+    [hover, sceneStart, seekTo, selectObject]
   );
 
   const onEnter = useCallback(
