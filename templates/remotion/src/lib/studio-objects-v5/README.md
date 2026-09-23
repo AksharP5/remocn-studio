@@ -103,9 +103,10 @@ The optional rotation field uses `deg`. Store every value explicitly. Geometry
 uses the parent's positioning coordinates, border-box dimensions and a centered
 transform origin. The helper supplies `position`, `left`, `top`, `width`, `height`,
 `rotate`, `boxSizing` and zero margin. Apply both bindings and styles to the same
-HTML root. Do not override these properties elsewhere. Keep per-frame entry
-offsets in CSS `translate` or animate an inner wrapper; do not record a computed
-animation frame as the base x/y/width/height or angle.
+HTML root. Do not override these properties elsewhere. Render entry and exit
+poses with `geometryBetween` (see *Entry and exit poses*); keep only small offsets
+in CSS `translate` or an inner wrapper. Do not record a computed animation frame
+as the base x/y/width/height or angle.
 
 The selected object has eight resize handles, a W × H label in composition units,
 and a rotation handle when rotation is bound. Drag the object to move it. Shift
@@ -140,7 +141,7 @@ saves the base fields in one existing grouped operation. Width/height labels sho
 the current pose's layout dimensions, before camera/local scale. The animation
 continues to use saved base values on playback and export; no frame snapshot or
 new keyframe is written. A seek, changed frame, binding or rebuild cancels the
-unfinished gesture. CSS translate can carry an independent entry offset.
+unfinished gesture.
 
 Keep coefficients and ancestor transforms independent of the base fields being
 edited. Do not compute a pose offset by subtracting the same bound field from a
@@ -152,6 +153,41 @@ current pose and avoids dividing by zero near an endpoint. For a folding fan's
 angle, retain its animated spread angle and bind a separate additive rotation
 offset, so a collapsed fan is still rotatable. Freeze travel directions in
 separate motion fields instead of deriving them from a draggable X/Y.
+
+### Entry and exit poses
+
+An object that flies in from its own position or out to one declares that pose as
+fields of its own (`entryX`, `entryY`, `entryWidth`, `entryHeight`, optionally
+`entryRotation`; the same with `exit…`) and renders the move with
+`geometryBetween` from `./between`:
+
+```tsx
+import { geometryBetween } from "../../lib/studio-objects-v5/between";
+
+const rest = { x: "x", y: "y", width: "width", height: "height" };
+const entry = { x: "entryX", y: "entryY", width: "entryWidth", height: "entryHeight" };
+const exit = { x: "exitX", y: "exitY", width: "exitWidth", height: "exitHeight" };
+
+const geometry = leaving
+  ? geometryBetween(object, { from: rest, to: exit }, exitProgress, { kind: "exit" })
+  : geometryBetween(object, { from: entry, to: rest }, entryProgress, {
+      kind: "entry",
+      frames: { from: entryStartFrame, to: entryEndFrame },
+    });
+```
+
+`frames` are the local frames (the scene's `useCurrentFrame()`) at which that
+progress is 0 and 1. With them, clicking the outline of the other pose on the
+canvas moves the playhead to it. A pose that shares a field with the other (the
+same width, say) keeps that field out of the interpolation.
+
+The helper renders `from × (1 − progress) + to × progress`, binds the pose whose
+weight is at least 0.5 and puts the other into the offset, which is the two-pose
+rule above. Dragging the object early in a move edits its start pose (often
+outside the frame), late in the move its resting or end pose; the canvas shows
+which, the other pose as a dashed outline and the path between them. Progress is
+the eased value of that move; extra `motion` (offset, multiplier, scale) composes
+on top. Use CSS `translate` only for small offsets nobody positions.
 
 All coefficients must be finite, multipliers positive and at least 0.000001 for
 canvas editing, and local scale positive. Fully hidden or degenerate boxes cannot

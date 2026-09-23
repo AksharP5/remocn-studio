@@ -144,3 +144,114 @@ export function transformGeometry(
   if (limit("x", x) !== x || limit("y", y) !== y) return before;
   return { ...before, x, y, width, height };
 }
+
+export interface SnapLine {
+  at: number;
+  from: number;
+  to: number;
+}
+export interface SnapBox {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+export type SnapSide = "start" | "center" | "end";
+export interface SnapLines {
+  x: readonly SnapLine[];
+  y: readonly SnapLine[];
+}
+export interface Snapped {
+  dx: number;
+  dy: number;
+  guides: { x: SnapLine | null; y: SnapLine | null };
+}
+
+export function snapLinesOf(rects: readonly SnapBox[]): SnapLines {
+  return {
+    x: rects.flatMap((rect) =>
+      [rect.left, (rect.left + rect.right) / 2, rect.right].map((at) => ({
+        at,
+        from: rect.top,
+        to: rect.bottom,
+      }))
+    ),
+    y: rects.flatMap((rect) =>
+      [rect.top, (rect.top + rect.bottom) / 2, rect.bottom].map((at) => ({
+        at,
+        from: rect.left,
+        to: rect.right,
+      }))
+    ),
+  };
+}
+
+export function snapSides(
+  handle: GeometryHandle,
+  shift: boolean
+): { x: readonly SnapSide[]; y: readonly SnapSide[] } {
+  if (handle === "move") {
+    return {
+      x: ["start", "center", "end"],
+      y: ["start", "center", "end"],
+    };
+  }
+  const horizontal = handle.includes("w") ? "start" : handle.includes("e") ? "end" : null;
+  const vertical = handle.includes("n") ? "start" : handle.includes("s") ? "end" : null;
+  if (handle === "rotate" || (shift && horizontal && vertical)) {
+    return { x: [], y: [] };
+  }
+  return {
+    x: horizontal ? [horizontal] : [],
+    y: vertical ? [vertical] : [],
+  };
+}
+
+export function snapBox(
+  box: SnapBox,
+  lines: SnapLines,
+  sides: { x: readonly SnapSide[]; y: readonly SnapSide[] },
+  threshold: number
+): Snapped {
+  const along = (
+    start: number,
+    end: number,
+    candidates: readonly SnapLine[],
+    wanted: readonly SnapSide[]
+  ) => {
+    let best: { offset: number; line: SnapLine } | null = null;
+    for (const side of wanted) {
+      const edge = side === "start" ? start : side === "end" ? end : (start + end) / 2;
+      for (const line of candidates) {
+        const offset = line.at - edge;
+        if (
+          Math.abs(offset) <= threshold &&
+          (best === null || Math.abs(offset) < Math.abs(best.offset))
+        ) {
+          best = { offset, line };
+        }
+      }
+    }
+    return best;
+  };
+  const x = along(box.left, box.right, lines.x, sides.x);
+  const y = along(box.top, box.bottom, lines.y, sides.y);
+  const dx = x?.offset ?? 0;
+  const dy = y?.offset ?? 0;
+  return {
+    dx,
+    dy,
+    guides: {
+      x: x && {
+        at: x.line.at,
+        from: Math.min(x.line.from, box.top + dy),
+        to: Math.max(x.line.to, box.bottom + dy),
+      },
+      y: y && {
+        at: y.line.at,
+        from: Math.min(y.line.from, box.left + dx),
+        to: Math.max(y.line.to, box.right + dx),
+      },
+    },
+  };
+}

@@ -47,7 +47,8 @@ interface RuntimePosition {
 interface RuntimeSession {
   dispose: () => void;
   position: () => RuntimePosition | null;
-  start: (position: RuntimePosition | null) => void;
+  selection: () => string | null;
+  start: (position: RuntimePosition | null, selection: string | null) => void;
 }
 
 interface NativeRuntime {
@@ -87,7 +88,8 @@ interface Slot {
   readonly painted: Effect.Effect<void, NativePreviewError>;
   readonly document: () => StagedDocument | null;
   readonly position: () => RuntimePosition | null;
-  readonly reveal: (position: RuntimePosition | null, rebuilt: boolean) => void;
+  readonly selection: () => string | null;
+  readonly reveal: (position: RuntimePosition | null, selection: string | null, rebuilt: boolean) => void;
   readonly dispose: () => void;
 }
 
@@ -244,9 +246,10 @@ function claim() {
       swap: (slot) => {
         const previous = session.current;
         const position = previous?.position() ?? null;
+        const selection = previous?.selection() ?? null;
         session.current = slot;
         previous?.dispose();
-        slot.reveal(position, previous !== null);
+        slot.reveal(position, selection, previous !== null);
       },
       release: () => {
         if (session.released) return;
@@ -297,7 +300,7 @@ function mountSlot(session: Session, manifest: Manifest, source: string, base: U
   host.inert = true;
   const root = host.attachShadow({ mode: "open" });
   const element = document.createElement("div");
-  element.style.cssText = "width:100%;height:100%;position:relative;isolation:isolate;overflow:hidden";
+  element.style.cssText = "width:100%;height:100%;position:relative;isolation:isolate";
   const reset = document.createElement("style");
   reset.textContent = HOST_RESET;
   root.replaceChildren(reset, element);
@@ -369,14 +372,15 @@ function mountSlot(session: Session, manifest: Manifest, source: string, base: U
         : null;
     },
     position: () => runtime?.position() ?? null,
-    reveal: (position, rebuilt) => {
+    selection: () => runtime?.selection() ?? null,
+    reveal: (position, selection, rebuilt) => {
       host.style.cssText = "position:absolute;inset:0";
       host.inert = false;
       revealed = true;
       disconnect = options.attach(surface);
       if (rebuilt) deliver({ type: "rebuilt", source: MESSAGE_SOURCE });
       for (const message of buffered.splice(0)) deliver(message);
-      runtime?.start(position);
+      runtime?.start(position, selection);
     },
     dispose: () => {
       if (!session.slots.delete(slot)) return;

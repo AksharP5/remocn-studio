@@ -3,6 +3,8 @@ import { Component } from "react";
 import { createRoot } from "react-dom/client";
 import { Internals } from "remotion";
 import { configureBridge, type PreviewCommand } from "./bridge";
+import { releaseFrameClips } from "./frame-clips";
+import { restoreSelection, selectedAnchor } from "./inspect";
 import { release, releaseDetachedMedia } from "./media-release";
 import { delayScope, disposeNativeRemotion, pendingRenders } from "./native-remotion";
 import { mountStyles } from "./native-style";
@@ -80,6 +82,7 @@ export function mount(element: HTMLElement, environment: NativeEnvironment) {
   const stopStyles = mountStyles(environment.root);
   const root = createRoot(element);
   const stopMedia = releaseDetachedMedia(element);
+  const stopClips = releaseFrameClips(environment.root, element);
   const registrationTimeout = window.setTimeout(() => {
     environment.emit({ type: "native.error", message: "The project did not register a video root." });
   }, 30000);
@@ -99,9 +102,12 @@ export function mount(element: HTMLElement, environment: NativeEnvironment) {
       playing: player.isPlaying(),
       volume: player.getVolume(),
     },
-    start: (position: PlaybackPosition | null) => {
+    selection: selectedAnchor,
+    start: (position: PlaybackPosition | null, selection: string | null) => {
+      if (disposed) return;
+      restoreSelection(selection);
       const ref = player;
-      if (ref === null || disposed) return;
+      if (ref === null) return;
       const at = position ?? resumed;
       const frame = Math.max(0, Math.min(lastFrame, Math.round(at.frame)));
       if (ref.getCurrentFrame() !== frame) ref.seekTo(frame);
@@ -120,6 +126,7 @@ export function mount(element: HTMLElement, environment: NativeEnvironment) {
         disposeNativeRemotion();
         stopPlayback();
         stopMedia();
+        stopClips();
         stopStyles();
         stopSurface();
         stopBridge();

@@ -22,6 +22,17 @@ export interface CanvasInsets {
 export const MIN_PREVIEW_ZOOM = 0.05;
 export const MAX_PREVIEW_ZOOM = 8;
 export const INITIAL_PREVIEW_CAMERA: PreviewCamera = { x: 0, y: 0, zoom: 1 };
+export const SELECTION_ZOOM = 4;
+export const SELECTION_BOUNDS_ATTR = "data-remocn-selection-bounds";
+
+export function canvasInsets(inspector: boolean, margin = 0): CanvasInsets {
+  return {
+    top: 104 + margin,
+    bottom: 160 + margin,
+    left: 32 + margin,
+    right: (inspector ? 376 : 32) + margin,
+  };
+}
 
 function finitePoint(point: CanvasPoint): boolean {
   return Number.isFinite(point.x) && Number.isFinite(point.y);
@@ -83,7 +94,8 @@ export function fitPreviewCamera(
   camera: PreviewCamera,
   content: CanvasRect,
   viewport: { width: number; height: number },
-  insets: CanvasInsets = { top: 32, right: 32, bottom: 32, left: 32 }
+  insets: CanvasInsets = { top: 32, right: 32, bottom: 32, left: 32 },
+  maxZoom = 1
 ): PreviewCamera {
   if (
     !finitePoint(content) ||
@@ -99,7 +111,7 @@ export function fitPreviewCamera(
   if (width <= 0 || height <= 0) return camera;
   const zoom = Math.max(
     MIN_PREVIEW_ZOOM,
-    Math.min(1, width / content.width, height / content.height)
+    Math.min(maxZoom, MAX_PREVIEW_ZOOM, width / content.width, height / content.height)
   );
   const next = {
     x: insets.left + width / 2 - (content.x + content.width / 2) * zoom,

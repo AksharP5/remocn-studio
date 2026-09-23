@@ -1,10 +1,10 @@
 import { contentRoot, elementsAt, eventElement, focusSurface, nativeSurface, onViewChange, overlayRoot, styleRoot, surfaceEvents, surfaceHref } from "./surface";
-import { anchorOf, CANVAS_SELECTOR } from "./anchor";
+import { anchorOf, CANVAS_SELECTOR, resolveAnchor } from "./anchor";
 import { assetBase, assetNames, forgetAssets, staticBase } from "./assets";
 import { post } from "./bridge";
 import { displayName, fiberOf, nearestInFibers } from "./fiber";
 import { createInlineTextEditor } from "./inline-text";
-import { createGeometryEditor } from "./geometry";
+import { createGeometryEditor, SELECTION_BOUNDS } from "./geometry";
 import { managedIdentity, managedRoots } from "./managed-objects";
 import { covers, nearText, OVERLAY_ATTR, pickAt } from "./picker";
 import {
@@ -98,6 +98,7 @@ export interface Stage {
   fps: () => number;
   frame: () => number;
   pause?: () => void;
+  seek?: (frame: number) => void;
   // What the codemod resolves `fps`, `width`, `height` and `durationInFrames`
   // to when a prop is written as an expression over them. Only the page knows
   // it, so it rides with the selection rather than being asked for later.
@@ -130,6 +131,7 @@ let selected: Element | null = null;
 let managedSelected: { id: string; video: string; generation: string } | null =
   null;
 let selection: { box: HTMLElement; tag: HTMLElement } | null = null;
+let restoring: string | null = null;
 
 export function canvas(): HTMLElement | null {
   return contentRoot().querySelector<HTMLElement>(CANVAS);
@@ -151,6 +153,7 @@ export function armInspect(armed: boolean, stage: Stage): InspectStatus {
     close();
     session = start(container, stage);
   }
+  restore();
 
   return nativeSurface() !== null || contentRoot().querySelector("[data-studio-object]") !== null ||
     grab() !== null
@@ -194,6 +197,46 @@ export function highlightManaged(
     objectId === null ? null : { generation, id: objectId, video };
   selected = null;
   paint();
+}
+
+export function selectedAnchor(): string | null {
+  const container = canvas();
+  if (
+    picked === null ||
+    container === null ||
+    !picked.isConnected ||
+    managedIdentity(picked) !== null
+  ) {
+    return null;
+  }
+  return anchorOf(picked, container);
+}
+
+export function restoreSelection(anchor: string | null): void {
+  restoring = anchor;
+  restore();
+}
+
+function restore(): void {
+  const current = session;
+  if (restoring === null || current === null) {
+    return;
+  }
+  const found = resolveAnchor(restoring, current.container);
+  restoring = null;
+  if (
+    found === null ||
+    found === current.container ||
+    managedIdentity(found) !== null
+  ) {
+    return;
+  }
+  picked = found;
+  selected = found;
+  managedSelected = null;
+  pickVersion += 1;
+  paint();
+  report(found, current.stage, false, pickVersion).catch(nothing);
 }
 
 export function clearSelection(): void {
@@ -279,13 +322,13 @@ function forceHitTesting(): HTMLStyleElement {
 }
 
 function overCanvas(container: HTMLElement, x: number, y: number): boolean {
-  if (!covers(container, x, y)) {
-    return false;
-  }
-
   const [top] = elementsAt(x, y);
 
-  return top === undefined || container.contains(top);
+  if (top !== undefined) {
+    return container.contains(top);
+  }
+
+  return covers(container, x, y);
 }
 
 function start(container: HTMLElement, stage: Stage): Session {
@@ -300,7 +343,8 @@ function start(container: HTMLElement, stage: Stage): Session {
     TOP + 2,
     () => stage.pause?.(),
     () => stage.frame(),
-    paint
+    paint,
+    (frame) => stage.seek?.(frame)
   );
 
   container.style.setProperty(CURSOR, "default");
@@ -499,6 +543,7 @@ function selectionPair(): { box: HTMLElement; tag: HTMLElement } {
   const tag = tagged(TOP - 1);
 
   box.setAttribute(SELECTION_ATTR, "");
+  box.setAttribute(SELECTION_BOUNDS, "");
   box.style.border = `2px solid ${ACCENT}`;
 
   overlayRoot().append(pulseStyle());

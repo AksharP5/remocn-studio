@@ -4,11 +4,19 @@ import {
   type GeometryHandle,
   type GeometryValues,
   poseGeometry,
+  type SnapBox,
+  type SnapLine,
+  type SnapLines,
+  type Snapped,
+  snapBox,
+  snapLinesOf,
+  snapSides,
   unposeGeometry,
   transformGeometry,
 } from "../shared/studio-geometry";
 import { onCommand, post } from "./bridge";
 import {
+  type GeometryBetween,
   type GeometryConfig,
   type GeometryTarget,
   geometryTarget,
@@ -18,6 +26,24 @@ import { managedIdentity, managedRoot } from "./managed-objects";
 import { OVERLAY_ATTR } from "./picker";
 
 const MARKER = "data-remocn-transform";
+const REVEAL = "data-remocn-reveal";
+const INVISIBLE = 0.05;
+export const SELECTION_BOUNDS = "data-remocn-selection-bounds";
+const SNAP_DISTANCE = 6;
+const NUDGE_SETTLE_MS = 400;
+const GUIDE_INK = "#f43f5e";
+const NO_GUIDES: Snapped["guides"] = { x: null, y: null };
+const ARROWS: Record<string, { x: number; y: number }> = {
+  ArrowDown: { x: 0, y: 1 },
+  ArrowLeft: { x: -1, y: 0 },
+  ArrowRight: { x: 1, y: 0 },
+  ArrowUp: { x: 0, y: -1 },
+};
+const TYPING = "input, textarea, select, [contenteditable]:not([contenteditable='false'])";
+const POSE_NAMES: Record<GeometryBetween["kind"], Record<GeometryBetween["editing"], string>> = {
+  entry: { from: "Entry start", to: "Resting position" },
+  exit: { from: "Resting position", to: "Exit end" },
+};
 const HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w", "rotate"] as const;
 interface Gesture {
   target: GeometryTarget;
@@ -36,6 +62,9 @@ interface Gesture {
   restore: () => void;
   rule: CSSStyleDeclaration;
   frame: number;
+  lines: SnapLines;
+  guides: Snapped["guides"];
+  nudge: { x: number; y: number };
 }
 
 export function createGeometryEditor(
@@ -44,7 +73,8 @@ export function createGeometryEditor(
   depth: number,
   pause: () => void,
   currentFrame: () => number,
-  onChange: () => void
+  onChange: () => void,
+  seek: (frame: number) => void
 ) {
   let config: GeometryConfig | null = null;
   let target: GeometryTarget | null = null;
@@ -54,7 +84,65 @@ export function createGeometryEditor(
   let noticeTimer: ReturnType<typeof setTimeout> | undefined;
   let suppressClick = false;
   let clickTimer: ReturnType<typeof setTimeout> | undefined;
+  let nudging: ReturnType<typeof setTimeout> | undefined;
   const frame = overlay("div", depth);
+  frame.setAttribute(SELECTION_BOUNDS, "");
+  let frameRotation = 0;
+  let revealed: HTMLElement | null = null;
+  const revealing = document.createElement("style");
+  revealing.setAttribute(OVERLAY_ATTR, "");
+  revealing.textContent = `[${REVEAL}] { opacity: 0.45 !important; }`;
+  styleRoot().append(revealing);
+  const reveal = (node: HTMLElement | null) => {
+    if (revealed !== null && revealed !== node) revealed.removeAttribute(REVEAL);
+    revealed = null;
+    if (node === null) return;
+    node.removeAttribute(REVEAL);
+    if (Number(getComputedStyle(node).opacity) < INVISIBLE) {
+      node.setAttribute(REVEAL, "");
+      revealed = node;
+    }
+  };
+  const insideFrame = (x: number, y: number) => {
+    if (frame.style.display === "none") return false;
+    const rect = frame.getBoundingClientRect();
+    const angle = (-frameRotation * Math.PI) / 180;
+    const dx = x - (rect.left + rect.width / 2);
+    const dy = y - (rect.top + rect.height / 2);
+    const localX = Math.cos(angle) * dx - Math.sin(angle) * dy;
+    const localY = Math.sin(angle) * dx + Math.cos(angle) * dy;
+    return Math.abs(localX) <= frame.offsetWidth / 2 && Math.abs(localY) <= frame.offsetHeight / 2;
+  };
+  const guides = {
+    x: overlay("div", depth - 1),
+    y: overlay("div", depth - 1),
+  };
+  guides.x.style.background = GUIDE_INK;
+  guides.y.style.background = GUIDE_INK;
+  const ghost = document.createElement("button");
+  ghost.type = "button";
+  ghost.setAttribute(OVERLAY_ATTR, "");
+  let ghostFrame: number | null = null;
+  Object.assign(ghost.style, {
+    position: "fixed",
+    zIndex: String(depth - 1),
+    display: "none",
+    padding: "0",
+    margin: "0",
+    appearance: "none",
+    border: `1px dashed ${accent}`,
+    background: "rgba(255, 255, 255, 0.06)",
+    boxSizing: "border-box",
+    transformOrigin: "center",
+    opacity: "0.7",
+  });
+  const path = overlay("div", depth - 1);
+  Object.assign(path.style, {
+    height: "0",
+    borderTop: `1px dashed ${accent}`,
+    transformOrigin: "0 0",
+    opacity: "0.8",
+  });
   Object.assign(frame.style, {
     border: `1px solid ${accent}`,
     boxSizing: "border-box",
@@ -135,7 +223,7 @@ export function createGeometryEditor(
     frame.append(button);
     return { button, handle };
   });
-  overlayRoot().append(frame, label, notice);
+  overlayRoot().append(ghost, path, guides.x, guides.y, frame, label, notice);
 
   const explain = (error: string) => {
     notice.textContent = error;
@@ -145,11 +233,26 @@ export function createGeometryEditor(
       notice.style.display = "none";
     }, 5000);
   };
+  const drawGuides = (lines: Snapped["guides"]) => {
+    const place = (node: HTMLElement, line: SnapLine | null, vertical: boolean) => {
+      if (line === null) {
+        node.style.display = "none";
+        return;
+      }
+      Object.assign(node.style, vertical
+        ? { display: "block", left: `${line.at - 0.5}px`, top: `${line.from}px`, width: "1px", height: `${line.to - line.from}px` }
+        : { display: "block", left: `${line.from}px`, top: `${line.at - 0.5}px`, width: `${line.to - line.from}px`, height: "1px" });
+    };
+    place(guides.x, lines.x, true);
+    place(guides.y, lines.y, false);
+  };
   const reset = () => {
     const previous = gesture;
     gesture = null;
     lockCamera(frame, false);
     clearTimeout(timer);
+    clearTimeout(nudging);
+    drawGuides(NO_GUIDES);
     if (previous) {
       previous.restore();
       if (
@@ -175,12 +278,72 @@ export function createGeometryEditor(
     )
       reset();
   };
+  const drawBetween = (
+    current: GeometryTarget,
+    values: GeometryValues,
+    rect: DOMRect
+  ) => {
+    const between = current.between;
+    if (between === null) {
+      ghostFrame = null;
+      ghost.style.display = "none";
+      path.style.display = "none";
+      return;
+    }
+    const rendered = poseGeometry(values, current.pose);
+    const angle = (current.parentRotation * Math.PI) / 180;
+    const scale = current.parentScale;
+    const originX = rect.left + rect.width / 2;
+    const originY = rect.top + rect.height / 2;
+    const centerOf = (pose: GeometryValues) => {
+      const dx = (pose.x + pose.width / 2 - rendered.x - rendered.width / 2) * scale;
+      const dy = (pose.y + pose.height / 2 - rendered.y - rendered.height / 2) * scale;
+      return {
+        x: originX + Math.cos(angle) * dx - Math.sin(angle) * dy,
+        y: originY + Math.sin(angle) * dx + Math.cos(angle) * dy,
+      };
+    };
+    const other = between.other;
+    const there = centerOf(other);
+    const local = Number(current.frameAttribute);
+    const otherSide = between.editing === "from" ? "to" : "from";
+    ghostFrame =
+      between.frames !== null && Number.isFinite(local)
+        ? currentFrame() - local + between.frames[otherSide]
+        : null;
+    const name = POSE_NAMES[between.kind][otherSide];
+    ghost.style.pointerEvents = ghostFrame === null || gesture !== null ? "none" : "auto";
+    ghost.style.cursor = ghostFrame === null ? "default" : "pointer";
+    ghost.setAttribute("aria-label", ghostFrame === null ? name : `Go to ${name.toLowerCase()}`);
+    ghost.title = ghostFrame === null ? name : `${name} · click to go to frame ${Math.round(ghostFrame)}`;
+    const here = centerOf(values);
+    const width = other.width * scale;
+    const height = other.height * scale;
+    Object.assign(ghost.style, {
+      display: "block",
+      left: `${there.x - width / 2}px`,
+      top: `${there.y - height / 2}px`,
+      width: `${width}px`,
+      height: `${height}px`,
+      transform: `rotate(${other.rotation + current.parentRotation}deg)`,
+    });
+    const [start, end] = between.editing === "from" ? [here, there] : [there, here];
+    Object.assign(path.style, {
+      display: "block",
+      left: `${start.x}px`,
+      top: `${start.y}px`,
+      width: `${Math.hypot(end.x - start.x, end.y - start.y)}px`,
+      transform: `rotate(${Math.atan2(end.y - start.y, end.x - start.x)}rad)`,
+    });
+  };
   const draw = (current: GeometryTarget, values: GeometryValues) => {
     const rendered = poseGeometry(values, current.pose);
     const rect = current.node.getBoundingClientRect();
+    drawBetween(current, values, rect);
     const width = rendered.width * current.scale;
     const height = rendered.height * current.scale;
     const rotation = rendered.rotation + current.parentRotation;
+    frameRotation = rotation;
     Object.assign(frame.style, {
       display: "block",
       left: `${rect.left + rect.width / 2 - width / 2}px`,
@@ -189,7 +352,9 @@ export function createGeometryEditor(
       height: `${height}px`,
       transform: `rotate(${rotation}deg)`,
     });
-    label.textContent = `${format(rendered.width)} × ${format(rendered.height)}${gesture?.handle === "rotate" ? ` · ${format(rendered.rotation)}°` : ""}`;
+    const pose = current.between === null ? "" : `${POSE_NAMES[current.between.kind][current.between.editing]} · `;
+    const hidden = revealed === current.node ? " · transparent here" : "";
+    label.textContent = `${pose}${format(rendered.width)} × ${format(rendered.height)}${gesture?.handle === "rotate" ? ` · ${format(rendered.rotation)}°` : ""}${hidden}`;
     Object.assign(label.style, {
       display: "block",
       left: `${Math.max(4, Math.min(rect.left + rect.width / 2 - label.offsetWidth / 2, innerWidth - label.offsetWidth - 4))}px`,
@@ -212,9 +377,12 @@ export function createGeometryEditor(
       return true;
     }
     target = geometryTarget(node, config);
+    reveal(target?.node ?? null);
     if (!target) {
       frame.style.display = "none";
       label.style.display = "none";
+      ghost.style.display = "none";
+      path.style.display = "none";
       return false;
     }
     draw(target, target.values);
@@ -235,6 +403,36 @@ export function createGeometryEditor(
     rule.setProperty("height", `${rendered.height}px`, "important");
     rule.setProperty("rotate", `${rendered.rotation}deg`, "important");
     draw(current.target, current.values);
+    drawGuides(current.guides);
+  };
+  const screenBox = (current: Gesture, values: GeometryValues): SnapBox | null => {
+    const { target } = current;
+    const next = poseGeometry(values, target.pose);
+    const upright = (degrees: number) => {
+      const turn = ((degrees % 360) + 360) % 360;
+      return Math.min(turn, 360 - turn) <= 0.01;
+    };
+    if (!(upright(next.rotation) && upright(target.parentRotation))) return null;
+    const first = poseGeometry(target.values, target.pose);
+    const centerX = current.centerX + (next.x + next.width / 2 - first.x - first.width / 2) * target.parentScale;
+    const centerY = current.centerY + (next.y + next.height / 2 - first.y - first.height / 2) * target.parentScale;
+    const width = next.width * target.scale;
+    const height = next.height * target.scale;
+    return {
+      left: centerX - width / 2,
+      top: centerY - height / 2,
+      right: centerX + width / 2,
+      bottom: centerY + height / 2,
+    };
+  };
+  const snapTargets = (node: HTMLElement): SnapLines => {
+    const rects: SnapBox[] = [container.getBoundingClientRect()];
+    for (const other of container.querySelectorAll<HTMLElement>("[data-studio-object]")) {
+      if (other === node || other.contains(node) || node.contains(other)) continue;
+      const rect = other.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) rects.push(rect);
+    }
+    return snapLinesOf(rects);
   };
   const begin = (current: Gesture) => {
     if (current.phase !== "pending") return;
@@ -286,6 +484,9 @@ export function createGeometryEditor(
       accepted: false,
       rule,
       frame: currentFrame(),
+      lines: snapTargets(node),
+      guides: NO_GUIDES,
+      nudge: { x: 0, y: 0 },
       restore: () => {
         sheet.remove();
         if (oldMarker === null) node.removeAttribute(MARKER);
@@ -390,15 +591,18 @@ export function createGeometryEditor(
       current.angle = next;
     }
     const angle = (current.target.parentRotation * Math.PI) / 180;
-    current.values = transform(
-      current,
-      (Math.cos(angle) * dx + Math.sin(angle) * dy) /
-        current.target.parentScale,
-      (-Math.sin(angle) * dx + Math.cos(angle) * dy) /
-        current.target.parentScale,
-      event.shiftKey,
-      current.turn
-    );
+    const scale = current.target.parentScale;
+    const px = (Math.cos(angle) * dx + Math.sin(angle) * dy) / scale;
+    const py = (-Math.sin(angle) * dx + Math.cos(angle) * dy) / scale;
+    current.values = transform(current, px, py, event.shiftKey, current.turn);
+    const box = event.metaKey || event.ctrlKey ? null : screenBox(current, current.values);
+    const snapped = box === null
+      ? null
+      : snapBox(box, current.lines, snapSides(current.handle, event.shiftKey), SNAP_DISTANCE);
+    if (snapped !== null && (snapped.dx !== 0 || snapped.dy !== 0)) {
+      current.values = transform(current, px + snapped.dx / scale, py + snapped.dy / scale, event.shiftKey, current.turn);
+    }
+    current.guides = snapped?.guides ?? NO_GUIDES;
     if (painting === 0)
       painting = requestAnimationFrame(() => {
         painting = 0;
@@ -417,6 +621,7 @@ export function createGeometryEditor(
       cancel();
       return;
     }
+    current.guides = NO_GUIDES;
     apply();
     if (gesture !== current) return;
     current.phase = "committing";
@@ -451,7 +656,8 @@ export function createGeometryEditor(
       cancel();
   };
   const blur = () => {
-    if (gesture?.phase !== "committing") cancel();
+    if (gesture?.pointer === -1 && gesture.phase === "dragging") commit();
+    else if (gesture?.phase !== "committing") cancel();
   };
   const resize = () => {
     if (gesture && gesture.phase !== "committing") cancel();
@@ -464,35 +670,63 @@ export function createGeometryEditor(
     event.stopImmediatePropagation();
   };
   const key = (event: KeyboardEvent) => {
+    const arrow = ARROWS[event.key];
+    const hit = eventElement(event);
     if (
-      !(event.target instanceof HTMLElement) ||
-      !frame.contains(event.target) ||
-      !target ||
-      gesture ||
-      !config?.enabled
+      !arrow ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.altKey ||
+      event.isComposing ||
+      hit?.closest(TYPING)
     )
       return;
-    if (
-      !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)
-    )
+    if (gesture?.phase === "committing" && gesture.pointer === -1) {
+      event.preventDefault();
+      event.stopPropagation();
       return;
-    const handle = event.target.dataset.geometryHandle as GeometryHandle;
-    if (!handle) return;
+    }
+    if (gesture && gesture.pointer !== -1) return;
+    const focused = hit?.closest<HTMLElement>("[data-geometry-handle]");
+    const handle =
+      focused && frame.contains(focused)
+        ? (focused.dataset.geometryHandle as GeometryHandle)
+        : "move";
+    let current = gesture;
+    if (current === null) {
+      if (!target) return;
+      if (!config?.enabled) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      if (handle === "rotate" && target.binding.rotation === null) return;
+      const fresh = geometryTarget(target.node, config);
+      if (!fresh) return;
+      pause();
+      current = start(fresh, handle, -1, 0, 0);
+      begin(current);
+    }
     event.preventDefault();
     event.stopPropagation();
     const step = event.shiftKey ? 10 : 1;
-    const dx =
-      event.key === "ArrowRight" ? step : event.key === "ArrowLeft" ? -step : 0;
-    const dy =
-      event.key === "ArrowDown" ? step : event.key === "ArrowUp" ? -step : 0;
-    pause();
-    const fresh = geometryTarget(target.node, config);
-    if (!fresh) return;
-    const current = start(fresh, handle, -1, 0, 0);
-    begin(current);
-    current.values = transform(current, dx, dy, false, dx || dy);
-    commit();
+    current.nudge.x += arrow.x * step;
+    current.nudge.y += arrow.y * step;
+    current.turn += (arrow.x || arrow.y) * step;
+    current.values = transform(current, current.nudge.x, current.nudge.y, false, current.turn);
+    apply();
+    clearTimeout(nudging);
+    nudging = setTimeout(commit, NUDGE_SETTLE_MS);
   };
+
+  const goToGhost = (event: Event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (ghostFrame === null || gesture !== null) return;
+    seek(ghostFrame);
+    focusSurface();
+  };
+  ghost.addEventListener("click", goToGhost);
 
   const stopCommands = onCommand((command) => {
     if (command.type === "studio.geometry.config") {
@@ -556,6 +790,7 @@ export function createGeometryEditor(
       "data-studio-geometry-values",
       "data-studio-geometry-pose",
       "data-studio-geometry-frame",
+      "data-studio-geometry-between",
     ],
   });
   surfaceEvents.addEventListener("pointermove", move, true);
@@ -566,7 +801,7 @@ export function createGeometryEditor(
   window.addEventListener("resize", resize);
   const stopView = onViewChange(resize);
   surfaceEvents.addEventListener("click", click, true);
-  frame.addEventListener("keydown", key);
+  surfaceEvents.addEventListener("keydown", key, true);
 
   return {
     active: () => gesture !== null,
@@ -577,10 +812,17 @@ export function createGeometryEditor(
       return true;
     },
     contains: (eventTarget: EventTarget | null) =>
-      eventTarget instanceof Node && frame.contains(eventTarget),
+      eventTarget instanceof Node &&
+      (frame.contains(eventTarget) || ghost.contains(eventTarget)),
     paint,
     movable: (node: Element | null) => target !== null && target.node === node,
     pointerDown: (event: PointerEvent) => {
+      const onGhost = eventElement(event);
+      if (onGhost !== null && ghost.contains(onGhost)) {
+        event.preventDefault();
+        event.stopPropagation();
+        return true;
+      }
       if (
         gesture ||
         !target ||
@@ -595,11 +837,11 @@ export function createGeometryEditor(
         handle && frame.contains(handle)
           ? (handle.dataset.geometryHandle as GeometryHandle)
           : "move";
-      if (
-        mode === "move" &&
-        (!hit || managedRoot(hit, container) !== target.node)
-      )
-        return false;
+      const own = hit !== null && managedRoot(hit, container) === target.node;
+      const unreachable =
+        (hit === null || !container.contains(hit)) &&
+        insideFrame(event.clientX, event.clientY);
+      if (mode === "move" && !own && !unreachable) return false;
       if (mode === "rotate" && target.binding.rotation === null) return false;
       const fresh = geometryTarget(target.node, config);
       if (!fresh) return false;
@@ -626,8 +868,16 @@ export function createGeometryEditor(
       window.removeEventListener("blur", blur);
       window.removeEventListener("resize", resize);
       stopView();
+      reveal(null);
+      revealing.remove();
       surfaceEvents.removeEventListener("click", click, true);
+      surfaceEvents.removeEventListener("keydown", key, true);
+      clearTimeout(nudging);
       frame.remove();
+      guides.x.remove();
+      guides.y.remove();
+      ghost.remove();
+      path.remove();
       label.remove();
       notice.remove();
     },

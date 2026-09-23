@@ -272,7 +272,7 @@ describe("the selection box", () => {
     armed();
     highlightTarget(null);
 
-    const style = document.head.querySelector("style[data-remocn-selection]");
+    const style = document.querySelector("style[data-remocn-selection]");
 
     expect(style?.textContent).toContain("prefers-reduced-motion");
     expect(style?.textContent).toContain("remocn-selection-pulse");

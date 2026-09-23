@@ -15,7 +15,15 @@ export type GeometryConfig = Extract<
   PreviewCommand,
   { type: "studio.geometry.config" }
 >;
+export interface GeometryBetween {
+  editing: "from" | "to";
+  kind: "entry" | "exit";
+  other: GeometryValues;
+  frames: { from: number; to: number } | null;
+}
+
 export interface GeometryTarget {
+  between: GeometryBetween | null;
   binding: GeometryBinding;
   bindingAttribute: string;
   bounds: Partial<
@@ -126,8 +134,7 @@ export function geometryTarget(
     !close(local.scale, 1) ||
     !close(local.rotation, 0) ||
     (style.transform !== "none" && !identityTranslation(style.transform)) ||
-    style.visibility !== "visible" ||
-    Number(style.opacity) < 0.05
+    style.visibility !== "visible"
   )
     return null;
   if (
@@ -155,8 +162,7 @@ export function geometryTarget(
     const inherited = getComputedStyle(parent);
     if (
       inherited.perspective !== "none" ||
-      inherited.visibility !== "visible" ||
-      Number(inherited.opacity) < 0.05
+      inherited.visibility !== "visible"
     )
       return null;
     const matrix = similarity(inherited.transform);
@@ -198,9 +204,41 @@ export function geometryTarget(
     pose,
     poseAttribute,
     frameAttribute: node.getAttribute("data-studio-geometry-frame"),
+    between: betweenOf(node),
     scale,
     values,
   };
+}
+
+function betweenOf(node: HTMLElement): GeometryBetween | null {
+  try {
+    const parsed = JSON.parse(
+      node.getAttribute("data-studio-geometry-between") ?? "null"
+    );
+    const editing = parsed?.editing;
+    const kind = parsed?.kind;
+    const other = editing === "from" ? parsed.to : parsed?.from;
+    if (
+      (editing !== "from" && editing !== "to") ||
+      (kind !== "entry" && kind !== "exit") ||
+      !GEOMETRY_KEYS.every((key) => Number.isFinite(other?.[key]))
+    )
+      return null;
+    const frames = parsed.frames;
+    return {
+      editing,
+      kind,
+      frames:
+        Number.isFinite(frames?.from) && Number.isFinite(frames?.to)
+          ? { from: frames.from, to: frames.to }
+          : null,
+      other: Object.fromEntries(
+        GEOMETRY_KEYS.map((key) => [key, other[key]])
+      ) as GeometryValues,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function renderedGeometry(

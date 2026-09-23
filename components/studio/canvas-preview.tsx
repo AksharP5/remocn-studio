@@ -1,6 +1,6 @@
 "use client";
 
-import { CameraIcon, HandIcon, MinusIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlusIcon } from "lucide-react";
+import { CameraIcon, FocusIcon, HandIcon, MinusIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlusIcon, SquareDashedIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { type CSSProperties, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -56,7 +56,7 @@ export function CanvasPreview({ header, hidden, status }: { header: React.ReactN
     style={{ "--canvas-inspector-width": inspector ? "min(340px, calc(100% - 24px))" : "0px" } as CSSProperties}
   >
     <div
-      aria-label="Video canvas. Click to select; double-click text to edit. Space and drag to pan; pinch to zoom; K to play."
+      aria-label="Video canvas. Click to select; double-click text to edit; arrow keys nudge the selection. Space and drag to pan; pinch to zoom; Shift 1 fits, Shift 2 zooms to the selection; K to play."
       className="relative min-h-0 flex-1 touch-none overflow-hidden outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
       ref={camera.viewport}
       style={{ cursor: camera.cursor }}
@@ -66,6 +66,12 @@ export function CanvasPreview({ header, hidden, status }: { header: React.ReactN
         style={{ width: metadata?.width ?? 1920, height: metadata?.height ?? 1080, transform: camera.transform, visibility: metadata && !failure ? "visible" : "hidden" }}>
         <div ref={native.stage} style={{ position: "relative", width: "100%", height: "100%" }} />
       </div>
+
+      {metadata && !failure ? <div
+        aria-hidden="true"
+        className="pointer-events-none absolute z-[5]"
+        style={{ ...camera.frame, boxShadow: `0 0 0 20000px ${camera.outside === "hide" ? "var(--background)" : "color-mix(in oklab, var(--background) 72%, transparent)"}` }}
+      /> : null}
 
       <div className="pointer-events-none absolute inset-0 z-10" ref={native.overlays} style={{ clipPath: "inset(0)" }} />
 
@@ -83,10 +89,12 @@ export function CanvasPreview({ header, hidden, status }: { header: React.ReactN
 
       <div className="absolute top-12 left-4 z-20 flex items-center gap-1 rounded-lg border border-border bg-field p-1" data-canvas-chrome>
         <Button aria-label="Pan tool" aria-pressed={camera.hand} onClick={() => camera.setHand(!camera.hand)} size="icon-sm" variant={camera.hand ? "secondary" : "ghost"}><HandIcon /></Button>
-        <Button onClick={camera.fit} size="sm" variant="ghost" disabled={!metadata}>Fit</Button>
-        <Button aria-label="Zoom out" onClick={() => camera.zoomTo(camera.camera.zoom / 1.2)} size="icon-sm" variant="ghost"><MinusIcon /></Button>
-        <Button aria-label="Zoom to 100%" className="w-14 tabular-nums" onClick={() => camera.zoomTo(1)} size="sm" variant="ghost">{Math.round(camera.camera.zoom * 100)}%</Button>
-        <Button aria-label="Zoom in" onClick={() => camera.zoomTo(camera.camera.zoom * 1.2)} size="icon-sm" variant="ghost"><PlusIcon /></Button>
+        <Button onClick={camera.fit} size="sm" title="Fit (⇧1)" variant="ghost" disabled={!metadata}>Fit</Button>
+        <Button aria-label="Zoom to selection" disabled={!hasSelection} onClick={camera.zoomToSelection} size="icon-sm" title="Zoom to selection (⇧2)" variant="ghost"><FocusIcon /></Button>
+        <Button aria-label="Zoom out" onClick={() => camera.zoomTo(camera.camera.zoom / 1.2)} size="icon-sm" title="Zoom out (⌘−)" variant="ghost"><MinusIcon /></Button>
+        <Button aria-label="Zoom to 100%" className="w-14 tabular-nums" onClick={() => camera.zoomTo(1)} size="sm" title="Zoom to 100% (⌘0)" variant="ghost">{Math.round(camera.camera.zoom * 100)}%</Button>
+        <Button aria-label="Zoom in" onClick={() => camera.zoomTo(camera.camera.zoom * 1.2)} size="icon-sm" title="Zoom in (⌘+)" variant="ghost"><PlusIcon /></Button>
+        <Button aria-label="Show content outside the frame" aria-pressed={camera.outside === "dim"} onClick={camera.toggleOutside} size="icon-sm" title={camera.outside === "dim" ? "Hide content outside the frame" : "Show content outside the frame"} variant={camera.outside === "dim" ? "secondary" : "ghost"}><SquareDashedIcon /></Button>
       </div>
 
       <aside

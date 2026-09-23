@@ -180,6 +180,7 @@ function InteractivePlayer({
       initialFrame={Math.max(0, Math.min(Math.round(position.frame), durationInFrames - 1))}
       inputProps={inputProps}
       loop
+      overflowVisible={hooks !== null}
       ref={player}
       spaceKeyToPlayOrPause={false}
       style={{ height: "100%", width: "100%" }}
@@ -266,6 +267,14 @@ function usePreviewCommands(
       replaying.current?.();
       replaying.current = null;
       player.current?.pause();
+    },
+    seek: (at: number) => {
+      replaying.current?.();
+      replaying.current = null;
+      player.current?.pause();
+      player.current?.seekTo(
+        Math.max(0, Math.min(playing.current.durationInFrames - 1, Math.round(at)))
+      );
     },
     video: () => ({
       durationInFrames: playing.current.durationInFrames,
