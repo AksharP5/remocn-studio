@@ -1,32 +1,19 @@
 "use client";
 
 import {
-  CameraIcon,
   FileTextIcon,
   FolderOpenIcon,
-  FolderPlusIcon,
   MonitorPlayIcon,
   PanelRightCloseIcon,
-  RotateCwIcon,
 } from "lucide-react";
-import { type RefObject, useCallback, useState } from "react";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { Docs, PreviewMode } from "@/hooks/use-docs";
-import type { Preview } from "@/hooks/use-preview";
 import type { Snapshot } from "@/hooks/use-snapshot";
 import type { Tools } from "@/hooks/use-tools";
 import { exportLabel } from "@/lib/studio/export";
@@ -34,147 +21,69 @@ import { fileManagerName } from "@/lib/studio/platform";
 import { cn } from "@/lib/utils";
 import { DocsView } from "./docs-view";
 import { ExportButton } from "./export-button";
-import { InspectOverlay } from "./inspect-overlay";
-import { Pane, PaneActions, PaneBody, PaneHeader } from "./pane";
-import { PreviewSurface } from "./preview-controls";
-import { usePreviewPresentation } from "./preview-presentation";
+import { Pane, PaneActions, PaneHeader } from "./pane";
 import { useStudio } from "./studio-provider";
 
-const CanvasPreview = dynamic(() => import("./canvas-preview").then((module) => module.CanvasPreview));
+const CanvasPreview = dynamic(() =>
+  import("./canvas-preview").then((module) => module.CanvasPreview)
+);
 
-export function PreviewPane({ isBooting = false }: { isBooting?: boolean }) {
-  const { activeProject, docs, openedProject, togglePreview, tools } =
-    useStudio();
+export function PreviewPane() {
+  const { activeProject, docs, togglePreview, tools } = useStudio();
   const isDocs = docs.mode === "docs";
-  const { inspect, snapshot } = tools;
-  const { preview, stage } = tools.preview;
-  const presentation = usePreviewPresentation();
 
   const header = (
-      <PaneHeader data-tauri-drag-region>
-        <ModeSwitch mode={docs.mode} onPick={docs.onPickMode} />
-        <PaneActions>
-          {presentation !== "canvas" || isDocs ? <PreviewActions isDocs={isDocs} tools={tools} /> : null}
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  aria-label="Hide the preview"
-                  className="text-muted-foreground"
-                  onClick={togglePreview}
-                  size="icon-sm"
-                  variant="ghost"
-                />
-              }
-            >
-              <PanelRightCloseIcon />
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Hide the preview</TooltipContent>
-          </Tooltip>
-        </PaneActions>
-      </PaneHeader>
+    <PaneHeader data-tauri-drag-region>
+      <ModeSwitch mode={docs.mode} onPick={docs.onPickMode} />
+      <PaneActions>
+        {isDocs ? (
+          <ExportButton
+            composition={tools.preview.composition}
+            exporting={tools.exporting}
+            renderDialog={false}
+          />
+        ) : null}
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                aria-label="Hide the preview"
+                className="text-muted-foreground"
+                onClick={togglePreview}
+                size="icon-sm"
+                variant="ghost"
+              />
+            }
+          >
+            <PanelRightCloseIcon />
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Hide the preview</TooltipContent>
+        </Tooltip>
+      </PaneActions>
+    </PaneHeader>
   );
 
   return (
     <Pane>
-      {presentation !== "canvas" || isDocs ? header : null}
+      {isDocs ? header : null}
 
       {isDocs ? <DocsView docs={docs} /> : null}
 
-      {/* The preview is hidden, never unmounted: taking the iframe down would
-          cost a page load and the frame the person was looking at every time
+      {/* The preview is hidden, never unmounted: taking the runtime down would
+          cost a rebuild and the frame the person was looking at every time
           they read a document. */}
-      {presentation === "canvas" ? <CanvasPreview header={isDocs ? null : header} hidden={isDocs} status={<StatusSlot projectPath={activeProject?.path ?? null} snapshot={snapshot} tools={tools} />} /> : <PaneBody className={cn("gap-2 p-4", isDocs && "hidden")}>
-        <PreviewSurface
-          enabled={!isDocs && activeProject !== null}
-          preview={tools.preview}
-        >
-          {activeProject === null ? (
-            <NoFolder />
-          ) : (
-            <Stage isBooting={isBooting} preview={preview} stage={stage} />
-          )}
-
-          {tools.managed?.isOpen ||
-          (inspect.card === null && inspect.markers.length === 0) ? null : (
-            <InspectOverlay
-              card={inspect.card}
-              cwd={openedProject?.path ?? null}
-              markers={inspect.markers}
-              onCancel={inspect.cancelComment}
-              onSubmit={inspect.submitComment}
-            />
-          )}
-        </PreviewSurface>
-
-        <StatusSlot
-          projectPath={activeProject?.path ?? null}
-          snapshot={snapshot}
-          tools={tools}
-        />
-      </PaneBody>}
-    </Pane>
-  );
-}
-
-/**
- * Snapshot leaves the header entirely in Docs — it points at
- * pixels that are not on screen — while Export stays, because a render already
- * running must not be hidden by looking at a document.
- *
- * `aria-disabled`, not `disabled`: a native disabled control fires no mouse
- * events, so the `title` explaining *why* it is off could never show, and the
- * button fell out of the tab order. The click handlers no-op while
- * unavailable.
- */
-function PreviewActions({ isDocs, tools }: { isDocs: boolean; tools: Tools }) {
-  const presentation = usePreviewPresentation();
-  const { exporting, snapshot } = tools;
-  const { preview, restart } = tools.preview;
-
-  if (isDocs) {
-    return (
-      <ExportButton
-        composition={tools.preview.composition}
-        exporting={exporting}
-        renderDialog={presentation !== "canvas"}
-      />
-    );
-  }
-
-  return (
-    <>
-      {preview.phase === "failed" ? (
-        <Button onClick={restart} size="sm" variant="ghost">
-          <RotateCwIcon />
-          Restart
-        </Button>
-      ) : null}
-      <Button
-        aria-disabled={!snapshot.canSnapshot}
-        aria-pressed={snapshot.isArmed}
-        className="aria-disabled:opacity-50"
-        onClick={snapshot.toggle}
-        size="sm"
-        title={snapshot.unavailable ?? "Capture the frame, or part of it"}
-        variant={snapshot.isArmed ? "default" : "outline"}
-      >
-        {snapshot.isBusy ? (
-          <Spinner
-            aria-hidden="true"
-            className="size-4"
-            data-icon="inline-start"
+      <CanvasPreview
+        header={isDocs ? null : header}
+        hidden={isDocs}
+        status={
+          <StatusSlot
+            projectPath={activeProject?.path ?? null}
+            snapshot={tools.snapshot}
+            tools={tools}
           />
-        ) : (
-          <CameraIcon data-icon="inline-start" />
-        )}
-        Snapshot
-      </Button>
-      <ExportButton
-        composition={tools.preview.composition}
-        exporting={exporting}
+        }
       />
-    </>
+    </Pane>
   );
 }
 
@@ -272,15 +181,24 @@ function StatusSlot({
       {quiet && tools.preview.isServing && !snapshot.isArmed ? (
         <p className="text-center text-muted-foreground text-xs">
           {inspect.unavailable ??
-            (tools.managed?.editingText
-              ? "Click outside to save · Esc to cancel"
-              : inspect.card !== null || tools.managed?.isOpen
-                ? "Double-click text to edit · Esc to clear selection"
-                : "Click to select · Double-click text to edit")}
+            canvasHint(
+              tools.managed?.editingText === true,
+              inspect.card !== null || tools.managed?.isOpen === true
+            )}
         </p>
       ) : null}
     </div>
   );
+}
+
+function canvasHint(editingText: boolean, selecting: boolean) {
+  if (editingText) {
+    return "Click outside to save · Esc to cancel";
+  }
+  if (selecting) {
+    return "Double-click text to edit · Esc to clear selection";
+  }
+  return "Click to select · Double-click text to edit";
 }
 
 const MODES: readonly {
@@ -326,113 +244,5 @@ function ModeSwitch({
         </button>
       ))}
     </div>
-  );
-}
-
-function Stage({
-  isBooting,
-  preview,
-  stage,
-}: {
-  readonly isBooting: boolean;
-  readonly preview: Preview;
-  readonly stage: RefObject<HTMLIFrameElement | null>;
-}) {
-  if (preview.phase === "ready") {
-    return (
-      <PreviewFrame
-        isBooting={isBooting}
-        key={preview.url}
-        ref={stage}
-        url={preview.url}
-      />
-    );
-  }
-
-  if (preview.phase === "failed") {
-    return (
-      <div className="h-full overflow-auto p-4">
-        <pre className="whitespace-pre-wrap font-mono text-destructive text-xs leading-relaxed [overflow-wrap:anywhere]">
-          {preview.message}
-        </pre>
-      </div>
-    );
-  }
-
-  if (preview.phase === "building") {
-    return (
-      <Empty className="h-full p-6">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <Spinner className="size-6" />
-          </EmptyMedia>
-          <EmptyTitle>Building the project</EmptyTitle>
-          <EmptyDescription className="tabular-nums">
-            {preview.percent > 0
-              ? `Compiling — ${preview.percent}%`
-              : "Starting the compiler."}
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    );
-  }
-
-  return (
-    <Empty className="h-full p-6">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <MonitorPlayIcon />
-        </EmptyMedia>
-        <EmptyTitle>Preview not running</EmptyTitle>
-        <EmptyDescription>
-          The player starts once there is something to play.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  );
-}
-
-export function PreviewFrame({
-  isBooting,
-  ref,
-  url,
-}: {
-  readonly isBooting: boolean;
-  readonly ref: RefObject<HTMLIFrameElement | null>;
-  readonly url: string;
-}) {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const onLoad = useCallback(() => setIsLoaded(true), []);
-
-  return (
-    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: load is the embedded document becoming paintable, not a user interaction
-    <iframe
-      allow="autoplay; fullscreen"
-      className={cn(
-        "h-full w-full border-0 opacity-0 transition-opacity duration-200 ease-[cubic-bezier(0.19,1,0.22,1)] motion-reduce:duration-150",
-        isLoaded && "opacity-100",
-        isBooting && "transition-none"
-      )}
-      onLoad={onLoad}
-      ref={ref}
-      src={url}
-      title="Remotion preview"
-    />
-  );
-}
-
-function NoFolder() {
-  return (
-    <Empty className="h-full p-6">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <FolderPlusIcon />
-        </EmptyMedia>
-        <EmptyTitle>No project open</EmptyTitle>
-        <EmptyDescription>
-          The preview mirrors the project on disk.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
   );
 }

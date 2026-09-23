@@ -9,9 +9,9 @@ export type GeometryBinding = Record<
 };
 export interface GeometryField {
   id: string;
-  value: number;
-  min: number | null;
   max: number | null;
+  min: number | null;
+  value: number;
 }
 export interface GeometryPose {
   multiplier: GeometryValues;
@@ -20,8 +20,8 @@ export interface GeometryPose {
 }
 
 export const IDENTITY_GEOMETRY_POSE: GeometryPose = {
-  multiplier: { x: 1, y: 1, width: 1, height: 1, rotation: 1 },
-  offset: { x: 0, y: 0, width: 0, height: 0, rotation: 0 },
+  multiplier: { height: 1, rotation: 1, width: 1, x: 1, y: 1 },
+  offset: { height: 0, rotation: 0, width: 0, x: 0, y: 0 },
   scale: 1,
 };
 
@@ -64,6 +64,58 @@ export type GeometryHandle =
 const radians = (degrees: number) => (degrees * Math.PI) / 180;
 const round = (value: number) => Math.round(value * 100) / 100;
 
+type GeometryBounds = Partial<
+  Record<GeometryKey, { min: number | null; max: number | null }>
+>;
+
+function handleSign(
+  handle: GeometryHandle,
+  positive: string,
+  negative: string
+): number {
+  if (handle.includes(positive)) {
+    return 1;
+  }
+  if (handle.includes(negative)) {
+    return -1;
+  }
+  return 0;
+}
+
+function lockedAxis(dx: number, dy: number, shift: boolean) {
+  if (!shift) {
+    return { dx, dy };
+  }
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return { dx, dy: 0 };
+  }
+  return { dx: 0, dy };
+}
+
+function proportionalSize(
+  before: GeometryValues,
+  bounds: GeometryBounds,
+  localX: number,
+  localY: number,
+  width: number,
+  height: number
+) {
+  const factor =
+    Math.abs(localX / before.width) >= Math.abs(localY / before.height)
+      ? width / before.width
+      : height / before.height;
+  const min = Math.max(
+    Math.max(1, bounds.width?.min ?? 1) / before.width,
+    Math.max(1, bounds.height?.min ?? 1) / before.height
+  );
+  const max = Math.min(
+    (bounds.width?.max ?? Number.POSITIVE_INFINITY) / before.width,
+    (bounds.height?.max ?? Number.POSITIVE_INFINITY) / before.height
+  );
+  const ratio = Math.min(max, Math.max(min, factor));
+  return { height: before.height * ratio, width: before.width * ratio };
+}
+
 /** Pointer deltas are in the unrotated parent's coordinates, not screen pixels. */
 export function transformGeometry(
   before: GeometryValues,
@@ -71,18 +123,16 @@ export function transformGeometry(
   dx: number,
   dy: number,
   shift: boolean,
-  bounds: Partial<
-    Record<GeometryKey, { min: number | null; max: number | null }>
-  >,
+  bounds: GeometryBounds,
   angle = 0,
   scale = 1
 ): GeometryValues {
   const limit = (key: GeometryKey, value: number) =>
     Math.min(
-      bounds[key]?.max ?? Infinity,
+      bounds[key]?.max ?? Number.POSITIVE_INFINITY,
       Math.max(
         bounds[key]?.min ??
-          (key === "width" || key === "height" ? 1 : -Infinity),
+          (key === "width" || key === "height" ? 1 : Number.NEGATIVE_INFINITY),
         value
       )
     );
@@ -97,40 +147,30 @@ export function transformGeometry(
     };
   }
   if (handle === "move") {
-    if (shift) {
-      if (Math.abs(dx) >= Math.abs(dy)) dy = 0;
-      else dx = 0;
-    }
+    const locked = lockedAxis(dx, dy, shift);
     return {
       ...before,
-      x: limit("x", before.x + round(dx)),
-      y: limit("y", before.y + round(dy)),
+      x: limit("x", before.x + round(locked.dx)),
+      y: limit("y", before.y + round(locked.dy)),
     };
   }
   const cos = Math.cos(radians(before.rotation));
   const sin = Math.sin(radians(before.rotation));
   const localX = (cos * dx + sin * dy) / scale;
   const localY = (-sin * dx + cos * dy) / scale;
-  const horizontal = handle.includes("e") ? 1 : handle.includes("w") ? -1 : 0;
-  const vertical = handle.includes("s") ? 1 : handle.includes("n") ? -1 : 0;
+  const horizontal = handleSign(handle, "e", "w");
+  const vertical = handleSign(handle, "s", "n");
   let width = Math.max(1, limit("width", before.width + horizontal * localX));
   let height = Math.max(1, limit("height", before.height + vertical * localY));
   if (shift && horizontal && vertical) {
-    const factor =
-      Math.abs(localX / before.width) >= Math.abs(localY / before.height)
-        ? width / before.width
-        : height / before.height;
-    const min = Math.max(
-      Math.max(1, bounds.width?.min ?? 1) / before.width,
-      Math.max(1, bounds.height?.min ?? 1) / before.height
-    );
-    const max = Math.min(
-      (bounds.width?.max ?? Infinity) / before.width,
-      (bounds.height?.max ?? Infinity) / before.height
-    );
-    const ratio = Math.min(max, Math.max(min, factor));
-    width = before.width * ratio;
-    height = before.height * ratio;
+    ({ height, width } = proportionalSize(
+      before,
+      bounds,
+      localX,
+      localY,
+      width,
+      height
+    ));
   }
   const dw = width - before.width;
   const dh = height - before.height;
@@ -141,8 +181,10 @@ export function transformGeometry(
   const x = before.x + centerX - dw / 2;
   const y = before.y + centerY - dh / 2;
   // Reject a constrained position instead of letting the opposite edge drift.
-  if (limit("x", x) !== x || limit("y", y) !== y) return before;
-  return { ...before, x, y, width, height };
+  if (limit("x", x) !== x || limit("y", y) !== y) {
+    return before;
+  }
+  return { ...before, height, width, x, y };
 }
 
 export interface SnapLine {
@@ -151,10 +193,10 @@ export interface SnapLine {
   to: number;
 }
 export interface SnapBox {
-  left: number;
-  top: number;
-  right: number;
   bottom: number;
+  left: number;
+  right: number;
+  top: number;
 }
 export type SnapSide = "start" | "center" | "end";
 export interface SnapLines {
@@ -186,6 +228,30 @@ export function snapLinesOf(rects: readonly SnapBox[]): SnapLines {
   };
 }
 
+function handleSide(
+  handle: GeometryHandle,
+  start: string,
+  end: string
+): SnapSide | null {
+  if (handle.includes(start)) {
+    return "start";
+  }
+  if (handle.includes(end)) {
+    return "end";
+  }
+  return null;
+}
+
+function sideEdge(side: SnapSide, start: number, end: number): number {
+  if (side === "start") {
+    return start;
+  }
+  if (side === "end") {
+    return end;
+  }
+  return (start + end) / 2;
+}
+
 export function snapSides(
   handle: GeometryHandle,
   shift: boolean
@@ -196,8 +262,8 @@ export function snapSides(
       y: ["start", "center", "end"],
     };
   }
-  const horizontal = handle.includes("w") ? "start" : handle.includes("e") ? "end" : null;
-  const vertical = handle.includes("n") ? "start" : handle.includes("s") ? "end" : null;
+  const horizontal = handleSide(handle, "w", "e");
+  const vertical = handleSide(handle, "n", "s");
   if (handle === "rotate" || (shift && horizontal && vertical)) {
     return { x: [], y: [] };
   }
@@ -221,14 +287,14 @@ export function snapBox(
   ) => {
     let best: { offset: number; line: SnapLine } | null = null;
     for (const side of wanted) {
-      const edge = side === "start" ? start : side === "end" ? end : (start + end) / 2;
+      const edge = sideEdge(side, start, end);
       for (const line of candidates) {
         const offset = line.at - edge;
         if (
           Math.abs(offset) <= threshold &&
           (best === null || Math.abs(offset) < Math.abs(best.offset))
         ) {
-          best = { offset, line };
+          best = { line, offset };
         }
       }
     }

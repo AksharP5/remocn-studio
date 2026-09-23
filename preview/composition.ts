@@ -21,7 +21,9 @@ interface Resolution {
 
 const LOADING: Resolution = { message: null, metadata: null, state: "loading" };
 
-export function useResolvedMetadata(composition: AnyComposition | null): Resolution {
+export function useResolvedMetadata(
+  composition: AnyComposition | null
+): Resolution {
   const [resolution, setResolution] = useState<Resolution>(LOADING);
 
   useEffect(() => {

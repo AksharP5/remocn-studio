@@ -179,7 +179,9 @@ export function useStudioObject(id: string, occurrence = "main") {
         definition?.fields.find((item) => item.id === field)?.type !== "text" ||
         typeof values[field] !== "string"
       ) {
-        throw new Error(`${object.label}: ${field} must be a declared text field.`);
+        throw new Error(
+          `${object.label}: ${field} must be a declared text field.`
+        );
       }
       return { "data-studio-text-field": field };
     },

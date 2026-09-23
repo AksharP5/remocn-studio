@@ -1,10 +1,9 @@
-import { contentRoot, elementsAt, eventElement, focusSurface, nativeSurface, onViewChange, overlayRoot, styleRoot, surfaceEvents, surfaceHref } from "./surface";
 import { anchorOf, CANVAS_SELECTOR, resolveAnchor } from "./anchor";
 import { assetBase, assetNames, forgetAssets, staticBase } from "./assets";
 import { post } from "./bridge";
 import { displayName, fiberOf, nearestInFibers } from "./fiber";
-import { createInlineTextEditor } from "./inline-text";
 import { createGeometryEditor, SELECTION_BOUNDS } from "./geometry";
+import { createInlineTextEditor } from "./inline-text";
 import { managedIdentity, managedRoots } from "./managed-objects";
 import { covers, nearText, OVERLAY_ATTR, pickAt } from "./picker";
 import {
@@ -15,10 +14,24 @@ import {
   type StackFrame,
   truncateMarkup,
 } from "./source";
+import {
+  contentRoot,
+  elementsAt,
+  eventElement,
+  focusSurface,
+  nativeSurface,
+  onViewChange,
+  overlayRoot,
+  type SurfaceEnvironment,
+  styleRoot,
+  surfaceEvents,
+  surfaceHref,
+} from "./surface";
 import { windowOf } from "./timing";
 import {
   controlsAt,
   controlsChain,
+  type InteractiveLink,
   nameIn,
   plainName,
   type TargetWhere,
@@ -108,8 +121,8 @@ export interface Stage {
 interface Session {
   readonly box: HTMLElement;
   readonly container: HTMLElement;
-  readonly inline: ReturnType<typeof createInlineTextEditor>;
   readonly geometry: ReturnType<typeof createGeometryEditor>;
+  readonly inline: ReturnType<typeof createInlineTextEditor>;
   readonly label: HTMLElement;
   readonly stage: Stage;
   readonly stop: () => void;
@@ -155,7 +168,8 @@ export function armInspect(armed: boolean, stage: Stage): InspectStatus {
   }
   restore();
 
-  return nativeSurface() !== null || contentRoot().querySelector("[data-studio-object]") !== null ||
+  return nativeSurface() !== null ||
+    contentRoot().querySelector("[data-studio-object]") !== null ||
     grab() !== null
     ? "armed"
     : "no-grab";
@@ -350,8 +364,13 @@ function start(container: HTMLElement, stage: Stage): Session {
   container.style.setProperty(CURSOR, "default");
 
   const onMove = (event: PointerEvent) => {
-    if (geometry.active()) return;
-    if (nativeSurface()?.viewport.hasAttribute("data-preview-navigation")) { onLeave(); return; }
+    if (geometry.active()) {
+      return;
+    }
+    if (nativeSurface()?.viewport.hasAttribute("data-preview-navigation")) {
+      onLeave();
+      return;
+    }
     point = { x: event.clientX, y: event.clientY };
     exact = event.altKey;
     schedule(container);
@@ -373,11 +392,13 @@ function start(container: HTMLElement, stage: Stage): Session {
       event.type === "keydown" &&
       event.key === "Escape" &&
       !event.defaultPrevented &&
-      !(eventElement(event)?.closest(EDITING))
+      !eventElement(event)?.closest(EDITING)
     ) {
       event.preventDefault();
       event.stopPropagation();
-      if (geometry.escape()) return;
+      if (geometry.escape()) {
+        return;
+      }
       dismissSelection();
     }
   };
@@ -391,7 +412,9 @@ function start(container: HTMLElement, stage: Stage): Session {
       event.stopPropagation();
       return;
     }
-    if (geometry.pointerDown(event)) return;
+    if (geometry.pointerDown(event)) {
+      return;
+    }
     if (
       event.button !== 0 ||
       !overCanvas(container, event.clientX, event.clientY)
@@ -433,7 +456,10 @@ function start(container: HTMLElement, stage: Stage): Session {
   // A click that picks must never also reach Remotion's `clickToPlay`
   // underneath it.
   const swallow = (event: MouseEvent) => {
-    if (inline.contains(eventElement(event)) || geometry.contains(eventElement(event))) {
+    if (
+      inline.contains(eventElement(event)) ||
+      geometry.contains(eventElement(event))
+    ) {
       return;
     }
     if (overCanvas(container, event.clientX, event.clientY)) {
@@ -454,8 +480,8 @@ function start(container: HTMLElement, stage: Stage): Session {
   return {
     box,
     container,
-    inline,
     geometry,
+    inline,
     label,
     stage,
     stop: () => {
@@ -510,16 +536,20 @@ function schedule(container: HTMLElement): void {
     if (hovered === container) {
       hovered = null;
     }
-    container.style.setProperty(
-      CURSOR,
-      hovered !== null && nearText(hovered, point.x, point.y)
-        ? "text"
-        : session.geometry.movable(hovered)
-          ? "move"
-          : "default"
-    );
+    container.style.setProperty(CURSOR, cursorFor(hovered, point, session));
     paint();
   });
+}
+
+function cursorFor(
+  target: Element | null,
+  at: { x: number; y: number },
+  active: Session
+): string {
+  if (target !== null && nearText(target, at.x, at.y)) {
+    return "text";
+  }
+  return active.geometry.movable(target) ? "move" : "default";
 }
 
 function overlay(): { box: HTMLElement; label: HTMLElement } {
@@ -747,22 +777,16 @@ async function report(
   const native = nativeSurface();
   const module = native ? null : grabModule();
   const found = native ? null : grab();
-  const sourceFor = async (node: Element): Promise<GrabSource | null> => {
-    if (!native) return found?.getSource(node).catch(nothing) ?? null;
-    const [source] = projectFrames(native.project, await native.getStack(node).catch(nothing));
-    return source ? { filePath: source.file, lineNumber: source.line, columnNumber: source.column, componentName: source.name } : null;
-  };
+  const sourceFor = (node: Element) => sourceOf(node, native, found);
   const root = rootPath();
   const container = canvas();
   const links = controlsChain(element);
 
   const [spot, frames, sources] = await Promise.all([
     sourceFor(element),
-    native ? native.getStack(element).catch(nothing) : module?.getStack(element).catch(nothing) ?? null,
+    stackOf(element, native, module),
     Promise.all(
-      links.map((link) =>
-        link.node === null ? null : sourceFor(link.node)
-      )
+      links.map((link) => (link.node === null ? null : sourceFor(link.node)))
     ),
   ]);
 
@@ -770,31 +794,8 @@ async function report(
     return;
   }
 
-  chain = new Map();
-
-  for (const { controls, node } of links) {
-    if (node === null) {
-      continue;
-    }
-
-    if (container !== null) {
-      chain.set(anchorOf(node, container), node);
-    }
-
-    chain.set(controls.overrideId, node);
-  }
-
-  const wheres = new Map<string, TargetWhere | null>();
-
-  for (const [at, link] of links.entries()) {
-    const where = whereOf(root, sources[at] ?? null);
-
-    if (container !== null && link.node !== null) {
-      wheres.set(anchorOf(link.node, container), where);
-    }
-
-    wheres.set(link.controls.overrideId, where);
-  }
+  chain = chainOf(links, container);
+  const wheres = wheresOf(links, sources, root, container);
 
   const stack = projectFrames(root, frames);
   const target = resolved(root, spot) ?? stack.at(0) ?? null;
@@ -828,6 +829,81 @@ async function report(
     video,
     window: windowOf(element),
   });
+}
+
+async function sourceOf(
+  node: Element,
+  native: SurfaceEnvironment | null,
+  found: GrabApi | null
+): Promise<GrabSource | null> {
+  if (!native) {
+    return found === null ? null : found.getSource(node).catch(nothing);
+  }
+  const [source] = projectFrames(
+    native.project,
+    await native.getStack(node).catch(nothing)
+  );
+  return source
+    ? {
+        columnNumber: source.column,
+        componentName: source.name,
+        filePath: source.file,
+        lineNumber: source.line,
+      }
+    : null;
+}
+
+function stackOf(
+  element: Element,
+  native: SurfaceEnvironment | null,
+  module: GrabModule | null
+) {
+  if (native) {
+    return native.getStack(element).catch(nothing);
+  }
+  return module === null ? null : module.getStack(element).catch(nothing);
+}
+
+function chainOf(
+  links: readonly InteractiveLink[],
+  container: HTMLElement | null
+): Map<string, Element> {
+  const next = new Map<string, Element>();
+
+  for (const { controls, node } of links) {
+    if (node === null) {
+      continue;
+    }
+
+    if (container !== null) {
+      next.set(anchorOf(node, container), node);
+    }
+
+    next.set(controls.overrideId, node);
+  }
+
+  return next;
+}
+
+function wheresOf(
+  links: readonly InteractiveLink[],
+  sources: readonly (GrabSource | null)[],
+  root: string,
+  container: HTMLElement | null
+): Map<string, TargetWhere | null> {
+  const wheres = new Map<string, TargetWhere | null>();
+
+  for (const [at, link] of links.entries()) {
+    const where = whereOf(root, sources[at] ?? null);
+
+    if (container !== null && link.node !== null) {
+      wheres.set(anchorOf(link.node, container), where);
+    }
+
+    wheres.set(link.controls.overrideId, where);
+  }
+
+  return wheres;
 }
 
 function loadedFonts(): string[] {
@@ -973,7 +1049,11 @@ function grabModule(): GrabModule | null {
 }
 
 function rootPath(): string {
-  return nativeSurface()?.project ?? (window as unknown as { remocn_root?: string }).remocn_root ?? "/";
+  return (
+    nativeSurface()?.project ??
+    (window as unknown as { remocn_root?: string }).remocn_root ??
+    "/"
+  );
 }
 
 const nothing = () => null;

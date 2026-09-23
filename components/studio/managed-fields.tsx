@@ -75,7 +75,7 @@ export function ManagedFields({
         const isOpen = !(groups?.collapsed ?? collapsed).includes(group);
         return (
           <section
-            className="border-t border-border px-4 py-3 first:border-t-0 [&>h3]:pb-0"
+            className="border-border border-t px-4 py-3 first:border-t-0 [&>h3]:pb-0"
             data-open={isOpen}
             key={group}
           >
@@ -102,15 +102,15 @@ export function ManagedFields({
 }
 
 const PAIRED_FIELDS: Record<string, string> = {
+  end: "start",
   fontSize: "fontWeight",
   fontWeight: "fontSize",
   height: "width",
   letterSpacing: "lineHeight",
   lineHeight: "letterSpacing",
-  start: "end",
-  end: "start",
   paddingX: "paddingY",
   paddingY: "paddingX",
+  start: "end",
   width: "height",
   x: "y",
   y: "x",
@@ -149,29 +149,44 @@ function FieldSection({
     const remaining = new Set(items);
     const pairedRows: [Field, ...Field[]][] = [];
     for (const field of items) {
-      if (!remaining.delete(field)) continue;
-      const partner = field.type === "number"
-        ? items.find((item) => item.id === PAIRED_FIELDS[field.id] && item.type === "number" && remaining.has(item))
-        : undefined;
-      if (partner) remaining.delete(partner);
+      if (!remaining.delete(field)) {
+        continue;
+      }
+      const partner =
+        field.type === "number"
+          ? items.find(
+              (item) =>
+                item.id === PAIRED_FIELDS[field.id] &&
+                item.type === "number" &&
+                remaining.has(item)
+            )
+          : undefined;
+      if (partner) {
+        remaining.delete(partner);
+      }
       pairedRows.push(partner ? [field, partner] : [field]);
     }
     return items.length > 0 ? (
       <div className="flex flex-col gap-1.5">
         {pairedRows.map((row) => (
-          <div className={row.length === 2 ? "grid min-w-0 grid-cols-2 gap-1.5" : "min-w-0"} key={row[0].id}>
+          <div
+            className={
+              row.length === 2 ? "grid min-w-0 grid-cols-2 gap-1.5" : "min-w-0"
+            }
+            key={row[0].id}
+          >
             {row.map((field) => (
               <div className="min-w-0" key={field.id}>
-              <ManagedControl
-                field={{
-                  ...field,
-                  label: propertyLabel(field, objects.fields),
-                }}
-                fps={fps}
-                onChange={objects.change}
-                onCommit={objects.commit}
-                onContinuousChange={changed}
-              />
+                <ManagedControl
+                  field={{
+                    ...field,
+                    label: propertyLabel(field, objects.fields),
+                  }}
+                  fps={fps}
+                  onChange={objects.change}
+                  onCommit={objects.commit}
+                  onContinuousChange={changed}
+                />
               </div>
             ))}
           </div>

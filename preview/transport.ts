@@ -1,7 +1,7 @@
-import { nativeSurface } from "./surface";
 import type { PlayerRef } from "@remotion/player";
 import { type RefObject, useEffect } from "react";
 import { onCommand, post } from "./bridge";
+import { nativeSurface } from "./surface";
 
 const INTERACTIVE =
   "input, textarea, select, button, a, [contenteditable]:not([contenteditable='false']), [role='slider'], [role='textbox'], [role='button']";
@@ -56,16 +56,35 @@ export function usePlayerTransport(
         )
       );
     };
+    const report = () => {
+      muted = ref.isMuted();
+      volume = ref.getVolume();
+      announce();
+      post({
+        frame: ref.getCurrentFrame(),
+        playing: ref.isPlaying(),
+        type: "playhead",
+      });
+    };
+    const setAudio = (next: { muted: boolean; volume: number }) => {
+      if (
+        !Number.isFinite(next.volume) ||
+        next.volume < 0 ||
+        next.volume > 1 ||
+        typeof next.muted !== "boolean"
+      ) {
+        return;
+      }
+      ref.setVolume(next.volume);
+      if (next.muted) {
+        ref.mute();
+      } else {
+        ref.unmute();
+      }
+    };
     const stopCommands = onCommand((command) => {
       if (command.type === "transport.request") {
-        muted = ref.isMuted();
-        volume = ref.getVolume();
-        announce();
-        post({
-          frame: ref.getCurrentFrame(),
-          playing: ref.isPlaying(),
-          type: "playhead",
-        });
+        report();
       } else if (command.type === "transport.toggle") {
         toggle();
       } else if (command.type === "transport.step") {
@@ -73,20 +92,7 @@ export function usePlayerTransport(
           step(command.direction);
         }
       } else if (command.type === "transport.audio") {
-        if (
-          !Number.isFinite(command.volume) ||
-          command.volume < 0 ||
-          command.volume > 1 ||
-          typeof command.muted !== "boolean"
-        ) {
-          return;
-        }
-        ref.setVolume(command.volume);
-        if (command.muted) {
-          ref.mute();
-        } else {
-          ref.unmute();
-        }
+        setAudio(command);
       }
     });
     const onKeyDown = (event: KeyboardEvent) => {
@@ -124,7 +130,7 @@ export function usePlayerTransport(
       announce();
     };
     const onVolume = ({ detail }: { detail: { volume: number } }) => {
-      volume = detail.volume;
+      ({ volume } = detail);
       announce();
     };
     const onMute = ({ detail }: { detail: { isMuted: boolean } }) => {
@@ -137,7 +143,9 @@ export function usePlayerTransport(
     ref.addEventListener("waiting", onWaiting);
     ref.addEventListener("resume", onResume);
     ref.addEventListener("error", onError);
-    if (!nativeSurface()) window.addEventListener("keydown", onKeyDown);
+    if (!nativeSurface()) {
+      window.addEventListener("keydown", onKeyDown);
+    }
     announce();
 
     return () => {

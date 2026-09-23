@@ -30,5 +30,14 @@
 - [x] 5.5 Hold a painted slot while the shown one is under a geometry or text edit, or while its objects document lags a write the studio made (`acceptsPreview`), released after 8 s of lag without an edit.
 - [ ] 5.4 Verify in the running app: a rebuild during a drag does not interrupt it and the element never returns to an earlier position after drop; an agent edit swaps without a flash while paused and while playing; mute/volume survive; a throwing edit keeps the previous version with the notice; rapid successive writes end on the latest version.
 
+## 6. Cleanup after the canvas became the only preview
+
+- [x] 6.1 Remove the iframe host: the presentation switch, the iframe stage and its surface adapter, the separate properties column, the page the sidecar served at `/`, the page runtime in `preview/entry.tsx` (now the render entry only) and `preview/hot.ts`.
+- [x] 6.2 Move the canvas logic into `useCanvasPreview`; the component only renders.
+- [x] 6.3 Fit and zoom-to-selection measure the panels that cover the canvas (`data-canvas-occludes`) instead of fixed insets.
+- [x] 6.4 The canvas shows compile progress ("Building the project — N%") that only the iframe page showed.
+- [ ] 6.5 Remove the grab script the sidecar still serves for the removed page: `GRAB_SCRIPT_ENV` in Rust and the sidecar, the `grab/index.global.js` resource, `/__remocn/grab.js`, `withoutWebFonts`. Cross-layer; needs `cargo check`.
+- [ ] 6.6 Suspend the render compiler between renders (separate change): the main watcher also reports ready/failed to the pane and resets the still cache, so the native compiler has to take those over first.
+
 Checked items record implementation only. Runtime behavior and visual parity
 are unverified. See app/lab/preview-canvas/README.md for compatibility boundaries.

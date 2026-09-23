@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { snapBox, snapLinesOf, snapSides } from "./studio-geometry";
 
-const frame = { left: 0, top: 0, right: 1000, bottom: 500 };
+const frame = { bottom: 500, left: 0, right: 1000, top: 0 };
 
 describe("snapLinesOf", () => {
   it("offers both edges and the centre of every box on each axis", () => {
@@ -36,7 +36,12 @@ describe("snapBox", () => {
   const sides = snapSides("move", false);
 
   it("pulls a centre that is within reach onto the frame's centre", () => {
-    const snapped = snapBox({ left: 396, top: 100, right: 596, bottom: 200 }, lines, sides, 6);
+    const snapped = snapBox(
+      { bottom: 200, left: 396, right: 596, top: 100 },
+      lines,
+      sides,
+      6
+    );
     expect(snapped.dx).toBe(4);
     expect(snapped.dy).toBe(0);
     expect(snapped.guides.x).toEqual({ at: 500, from: 0, to: 500 });
@@ -44,18 +49,33 @@ describe("snapBox", () => {
   });
 
   it("takes the nearest line when several are in reach", () => {
-    const snapped = snapBox({ left: 3, top: 497, right: 103, bottom: 598 }, lines, sides, 6);
+    const snapped = snapBox(
+      { bottom: 598, left: 3, right: 103, top: 497 },
+      lines,
+      sides,
+      6
+    );
     expect(snapped.dx).toBe(-3);
     expect(snapped.dy).toBe(3);
   });
 
   it("leaves a box alone when nothing is within the threshold", () => {
-    const snapped = snapBox({ left: 100, top: 100, right: 200, bottom: 200 }, lines, sides, 6);
+    const snapped = snapBox(
+      { bottom: 200, left: 100, right: 200, top: 100 },
+      lines,
+      sides,
+      6
+    );
     expect(snapped).toEqual({ dx: 0, dy: 0, guides: { x: null, y: null } });
   });
 
   it("spans a guide across the snapped box and the line's source", () => {
-    const snapped = snapBox({ left: 998, top: 600, right: 1100, bottom: 700 }, lines, { x: ["start"], y: [] }, 6);
+    const snapped = snapBox(
+      { bottom: 700, left: 998, right: 1100, top: 600 },
+      lines,
+      { x: ["start"], y: [] },
+      6
+    );
     expect(snapped.dx).toBe(2);
     expect(snapped.guides.x).toEqual({ at: 1000, from: 0, to: 700 });
   });

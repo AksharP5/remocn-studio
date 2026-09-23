@@ -89,7 +89,7 @@ export function ManagedPropsPane({
               </Button>
             </PaneActions>
           </div>
-          <div className="flex flex-col gap-2 text-xs empty:hidden [overflow-wrap:anywhere]">
+          <div className="flex flex-col gap-2 text-xs [overflow-wrap:anywhere] empty:hidden">
             {status ? (
               <p className="text-muted-foreground text-xs" role="status">
                 {status}

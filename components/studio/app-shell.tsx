@@ -1,6 +1,5 @@
 "use client";
 import { PanelRightOpenIcon } from "lucide-react";
-import dynamic from "next/dynamic";
 import { memo } from "react";
 import { useDefaultLayout } from "react-resizable-panels";
 import { Button } from "@/components/ui/button";
@@ -28,7 +27,6 @@ import { ChatPane } from "./chat-pane";
 import { CrashBoundary } from "./crash-boundary";
 import { OnboardingDialog } from "./onboarding-dialog";
 import { PreviewPane } from "./preview-pane";
-import { PreviewPresentation, usePreviewPresentation } from "./preview-presentation";
 import { ProjectsPane } from "./projects-pane";
 import { QuitGuard } from "./quit-guard";
 import { SettingsPage } from "./settings-page";
@@ -38,20 +36,12 @@ import { Titlebar } from "./titlebar";
 
 const SHELL_LAYOUT_ID = "shell";
 
-// DialKit and Motion are needed only after Inspect finds a tunable component.
-// Keep that control stack out of the editor's initial client bundle.
-const PropsPane = dynamic(() =>
-  import("./props-pane").then((module) => module.PropsPane)
-);
-
-export function AppShell({ previewSurface = "canvas" }: { previewSurface?: "iframe" | "canvas" }) {
+export function AppShell() {
   usePlatformAttribute();
 
   return (
     <CrashBoundary>
-      <PreviewPresentation value={previewSurface}>
-        <StudioBoot />
-      </PreviewPresentation>
+      <StudioBoot />
     </CrashBoundary>
   );
 }
@@ -118,27 +108,17 @@ function FrozenPane({
 
 function ShellPanes({
   className,
-  isBooting,
   isSliding,
 }: {
   className?: string;
-  isBooting: boolean;
   isSliding: boolean;
 }) {
-  const { hidePreview, isPreviewShown, tools } = useStudio();
-  const presentation = usePreviewPresentation();
+  const { hidePreview, isPreviewShown } = useStudio();
   const collapse = usePreviewCollapse(isPreviewShown, hidePreview);
-  // The pane exists while there is something to tune in it. A rail that is
-  // usually empty is the thing a properties panel must not be.
-  const isPropsShown =
-    presentation !== "canvas" &&
-    isPreviewShown &&
-    ((tools.inspect.card?.tuning ?? null) !== null ||
-      tools.managed?.isOpen === true);
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: SHELL_LAYOUT_ID,
     onlySaveAfterUserInteractions: true,
-    panelIds: panelIdsOf(true, isPropsShown),
+    panelIds: panelIdsOf(true),
     storage: layoutStorage,
   });
 
@@ -183,24 +163,10 @@ function ShellPanes({
       >
         {collapse.isMounted ? (
           <FrozenPane isFrozen={isSliding || collapse.isAnimating}>
-            <StillPreviewPane isBooting={isBooting} />
+            <StillPreviewPane />
           </FrozenPane>
         ) : null}
       </ResizablePanel>
-
-      {isPropsShown ? (
-        <>
-          <ResizableHandle className="bg-pane-border" />
-          <ResizablePanel
-            defaultSize="340px"
-            id="props"
-            maxSize="560px"
-            minSize="280px"
-          >
-            <PropsPane />
-          </ResizablePanel>
-        </>
-      ) : null}
     </ResizablePanelGroup>
   );
 }
@@ -262,11 +228,7 @@ function ShellLayout({ isBooting }: { isBooting: boolean }) {
             isProjectsShown ? "ml-0" : "ml-2"
           )}
         >
-          <ShellPanes
-            className="flex-1"
-            isBooting={isBooting}
-            isSliding={collapse.isAnimating}
-          />
+          <ShellPanes className="flex-1" isSliding={collapse.isAnimating} />
           <ShowPreviewButton />
         </div>
       </div>

@@ -11,7 +11,9 @@ export function managedRoot(
 
 export function managedRoots(id: string): Element[] {
   return [
-    ...contentRoot().querySelectorAll(`[${MANAGED_OBJECT}="${CSS.escape(id)}"]`),
+    ...contentRoot().querySelectorAll(
+      `[${MANAGED_OBJECT}="${CSS.escape(id)}"]`
+    ),
   ];
 }
 

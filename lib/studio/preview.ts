@@ -172,11 +172,11 @@ export const PreviewMessage = Schema.Union([
   }),
   Schema.Struct({
     binding: Schema.Struct({
-      x: Schema.NonEmptyString,
-      y: Schema.NonEmptyString,
-      width: Schema.NonEmptyString,
       height: Schema.NonEmptyString,
       rotation: Schema.NullOr(Schema.NonEmptyString),
+      width: Schema.NonEmptyString,
+      x: Schema.NonEmptyString,
+      y: Schema.NonEmptyString,
     }),
     generation: Schema.NonEmptyString,
     objectId: Schema.NonEmptyString,
@@ -184,11 +184,11 @@ export const PreviewMessage = Schema.Union([
     source: from,
     type: Schema.Literal("studio.geometry.begin"),
     values: Schema.Struct({
-      x: Schema.Finite,
-      y: Schema.Finite,
-      width: Schema.Finite,
       height: Schema.Finite,
       rotation: Schema.Finite,
+      width: Schema.Finite,
+      x: Schema.Finite,
+      y: Schema.Finite,
     }),
     video: Schema.NonEmptyString,
   }),
@@ -197,11 +197,11 @@ export const PreviewMessage = Schema.Union([
     source: from,
     type: Schema.Literal("studio.geometry.commit"),
     values: Schema.Struct({
-      x: Schema.Finite,
-      y: Schema.Finite,
-      width: Schema.Finite.check(Schema.isGreaterThanOrEqualTo(1)),
       height: Schema.Finite.check(Schema.isGreaterThanOrEqualTo(1)),
       rotation: Schema.Finite,
+      width: Schema.Finite.check(Schema.isGreaterThanOrEqualTo(1)),
+      x: Schema.Finite,
+      y: Schema.Finite,
     }),
   }),
   Schema.Struct({
@@ -314,7 +314,7 @@ export const PreviewMessage = Schema.Union([
     muted: Schema.Boolean,
     source: from,
     type: Schema.Literal("transport.state"),
-    volume: Schema.Finite.check(Schema.isBetween({ minimum: 0, maximum: 1 })),
+    volume: Schema.Finite.check(Schema.isBetween({ maximum: 1, minimum: 0 })),
   }),
   Schema.Struct({
     paused: Schema.Boolean,
@@ -352,20 +352,20 @@ const to = Schema.Literal(PREVIEW_COMMAND_SOURCE);
 
 export const PreviewCommand = Schema.Union([
   Schema.Struct({
-    source: to,
-    type: Schema.Literal("studio.geometry.config"),
     enabled: Schema.Boolean,
-    generation: Schema.NonEmptyString,
-    objectId: Schema.NullOr(Schema.NonEmptyString),
-    video: Schema.NonEmptyString,
     fields: Schema.Array(
       Schema.Struct({
         id: Schema.NonEmptyString,
-        value: Schema.Finite,
-        min: Schema.NullOr(Schema.Finite),
         max: Schema.NullOr(Schema.Finite),
+        min: Schema.NullOr(Schema.Finite),
+        value: Schema.Finite,
       })
     ),
+    generation: Schema.NonEmptyString,
+    objectId: Schema.NullOr(Schema.NonEmptyString),
+    source: to,
+    type: Schema.Literal("studio.geometry.config"),
+    video: Schema.NonEmptyString,
   }),
   Schema.Struct({
     error: Schema.NullOr(Schema.String),
@@ -406,7 +406,7 @@ export const PreviewCommand = Schema.Union([
     muted: Schema.Boolean,
     source: to,
     type: Schema.Literal("transport.audio"),
-    volume: Schema.Finite.check(Schema.isBetween({ minimum: 0, maximum: 1 })),
+    volume: Schema.Finite.check(Schema.isBetween({ maximum: 1, minimum: 0 })),
   }),
   Schema.Struct({ source: to, type: Schema.Literal("studio.request") }),
   Schema.Struct({

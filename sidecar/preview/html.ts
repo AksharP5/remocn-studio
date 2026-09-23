@@ -1,40 +1,11 @@
-import { GRAB_PATH } from "./grab";
-
-const CONTAINER = "__remotion-studio-container";
 const VIDEO_CONTAINER = "video-container";
 const SITE_VERSION = "11";
-const DELAY_RENDER_TIMEOUT_MS = 30_000;
 
 export interface PageOptions {
-  asked: string | null;
-  hasGrab: boolean;
-  preferred: string | null;
   publicPath: string;
-  root: string;
   staticBase: string;
   title: string;
   version: string;
-}
-
-export function previewPage(options: PageOptions): string {
-  return page({
-    body: `<div id="${CONTAINER}"></div>`,
-    globals: {
-      ...shared(options),
-      __REACT_GRAB_DISABLED__: true,
-      remocn_composition: options.asked,
-      remocn_preferred: options.preferred,
-      remocn_root: options.root,
-      remotion_puppeteerTimeout: DELAY_RENDER_TIMEOUT_MS,
-    },
-    head: `<style>
-      html, body { margin: 0; padding: 0; height: 100%; background: #000; }
-      #${CONTAINER} { height: 100%; width: 100%; }
-    </style>`,
-    scripts: options.hasGrab ? [GRAB_PATH] : [],
-    source: `${options.publicPath}bundle.js`,
-    title: options.title,
-  });
 }
 
 export function renderPage(options: PageOptions): string {

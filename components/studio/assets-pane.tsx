@@ -47,7 +47,10 @@ export function AssetSearchField({
     <div className="px-1">
       <InputGroup>
         <InputGroupAddon>
-          <SearchIcon aria-hidden="true" className="size-4 text-muted-foreground opacity-100" />
+          <SearchIcon
+            aria-hidden="true"
+            className="size-4 text-muted-foreground opacity-100"
+          />
         </InputGroupAddon>
         <InputGroupInput
           aria-label="Search by name"

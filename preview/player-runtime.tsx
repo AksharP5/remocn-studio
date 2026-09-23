@@ -27,24 +27,35 @@ import {
 import { InteractivityRuntime } from "./interactivity";
 import { type PlaybackPosition, playbackPositions } from "./playback-position";
 import { armSnapshot, type Frame } from "./snapshot";
+import { nativeSurface } from "./surface";
 import { usePlayerTransport } from "./transport";
 import { applyStatuses, clearTuning, tune } from "./tuning-runtime";
 
-import { nativeSurface } from "./surface";
-
 export interface PlaybackHooks {
   initial: PlaybackPosition | null;
-  onPlayer: (player: PlayerRef | null, position: PlaybackPosition, durationInFrames: number) => void;
+  onPlayer: (
+    player: PlayerRef | null,
+    position: PlaybackPosition,
+    durationInFrames: number
+  ) => void;
   onUnplayable: () => void;
 }
 
 let positions: ReturnType<typeof playbackPositions>;
 let hooks: PlaybackHooks | null = null;
 
-export function configurePlayback(project: string, playback: PlaybackHooks | null = null) {
+export function configurePlayback(
+  project: string,
+  playback: PlaybackHooks | null = null
+) {
   positions = playbackPositions(window.sessionStorage, project);
   hooks = playback;
-  return () => { hooks = null; positions.persist(); clearSelection(); clearTuning(); };
+  return () => {
+    hooks = null;
+    positions.persist();
+    clearSelection();
+    clearTuning();
+  };
 }
 
 export function Preview({ Root }: { readonly Root: React.FC }) {
@@ -96,7 +107,9 @@ function Stage() {
   const unplayable =
     resolved.state === "failed" || (compositions.length > 0 && picked === null);
   useEffect(() => {
-    if (unplayable) hooks?.onUnplayable();
+    if (unplayable) {
+      hooks?.onUnplayable();
+    }
   }, [unplayable]);
 
   if (picked === null || resolved.metadata === null) {
@@ -169,15 +182,18 @@ function InteractivePlayer({
     <Player
       acknowledgeRemotionLicense
       autoPlay={hooks === null && position.playing}
+      clickToPlay={false}
       component={interactiveComponent}
       compositionHeight={height}
       compositionWidth={width}
-      clickToPlay={false}
       controls={false}
       doubleClickToFullscreen={false}
       durationInFrames={durationInFrames}
       fps={fps}
-      initialFrame={Math.max(0, Math.min(Math.round(position.frame), durationInFrames - 1))}
+      initialFrame={Math.max(
+        0,
+        Math.min(Math.round(position.frame), durationInFrames - 1)
+      )}
       inputProps={inputProps}
       loop
       overflowVisible={hooks !== null}
@@ -273,7 +289,10 @@ function usePreviewCommands(
       replaying.current = null;
       player.current?.pause();
       player.current?.seekTo(
-        Math.max(0, Math.min(playing.current.durationInFrames - 1, Math.round(at)))
+        Math.max(
+          0,
+          Math.min(playing.current.durationInFrames - 1, Math.round(at))
+        )
       );
     },
     video: () => ({
@@ -304,6 +323,7 @@ function usePreviewCommands(
     cancelReplay
   );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies(video.composition): a new composition must disarm Inspect and Snapshot through the cleanup and announce inspect.ready again, although the body never reads it
   useEffect(() => {
     if (player.current === null || video.durationInFrames <= 0) {
       return;
@@ -318,42 +338,12 @@ function usePreviewCommands(
   useEffect(
     () =>
       onCommand((command) => {
-        if (command.type === "inspect.clear") {
-          dismissSelection(false);
-          return;
-        }
-        if (command.type === "studio.highlight") {
-          highlightManaged(command.objectId, command.video, command.generation);
-          return;
-        }
         if (
-          command.type === "studio.draft" ||
-          command.type === "studio.batch" ||
-          command.type === "studio.request"
+          studioCommand(command) ||
+          inspectOrSnapshot(command, player, spot.current, frame.current) ||
+          playbackCommand(command, player, replaying) ||
+          targetCommand(command)
         ) {
-          return;
-        }
-        if (inspectOrSnapshot(command, player, spot.current, frame.current)) {
-          return;
-        }
-
-        if (playback(command, player, replaying)) {
-          return;
-        }
-
-        if (command.type === "highlight") {
-          highlightTarget(command.targetId, command.open);
-          return;
-        }
-
-        if (command.type === "tune.set" || command.type === "tune.reset") {
-          const result = tune(command);
-          post({
-            error: result.error,
-            ok: result.ok,
-            requestId: command.requestId,
-            type: "tune.result",
-          });
           return;
         }
 
@@ -372,7 +362,43 @@ function usePreviewCommands(
   );
 }
 
-function playback(
+function studioCommand(command: PreviewCommand): boolean {
+  if (command.type === "inspect.clear") {
+    dismissSelection(false);
+    return true;
+  }
+  if (command.type === "studio.highlight") {
+    highlightManaged(command.objectId, command.video, command.generation);
+    return true;
+  }
+  return (
+    command.type === "studio.draft" ||
+    command.type === "studio.batch" ||
+    command.type === "studio.request"
+  );
+}
+
+function targetCommand(command: PreviewCommand): boolean {
+  if (command.type === "highlight") {
+    highlightTarget(command.targetId, command.open);
+    return true;
+  }
+
+  if (command.type === "tune.set" || command.type === "tune.reset") {
+    const result = tune(command);
+    post({
+      error: result.error,
+      ok: result.ok,
+      requestId: command.requestId,
+      type: "tune.result",
+    });
+    return true;
+  }
+
+  return false;
+}
+
+function playbackCommand(
   command: PreviewCommand,
   player: React.RefObject<PlayerRef | null>,
   replaying: React.RefObject<(() => void) | null>
@@ -468,16 +494,12 @@ function inspectOrSnapshot(
 }
 
 // Two different signals, deliberately not merged. `asked` is the video the pane
-// opened this page for, and a miss is a fact worth reporting; `preferred` is the
+// opened this runtime for, and a miss is a fact worth reporting; `preferred` is the
 // basename of the opened folder, a guess from #226 whose miss is unremarkable.
 function askedId(): string | null {
-  if (nativeSurface()) return nativeSurface()!.composition;
-  return (window as unknown as { remocn_composition: string | null })
-    .remocn_composition;
+  return nativeSurface()?.composition ?? null;
 }
 
 function preferredId(): string | null {
-  if (nativeSurface()) return nativeSurface()!.preferred;
-  return (window as unknown as { remocn_preferred: string | null })
-    .remocn_preferred;
+  return nativeSurface()?.preferred ?? null;
 }

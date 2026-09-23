@@ -1,13 +1,21 @@
 "use client";
 
-import { CameraIcon, FocusIcon, HandIcon, MinusIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlusIcon, SquareDashedIcon } from "lucide-react";
+import {
+  CameraIcon,
+  FocusIcon,
+  HandIcon,
+  MinusIcon,
+  PanelRightCloseIcon,
+  PanelRightOpenIcon,
+  PlusIcon,
+  SquareDashedIcon,
+} from "lucide-react";
 import dynamic from "next/dynamic";
-import { type CSSProperties, useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { useNativePreview } from "@/hooks/use-native-preview";
-import { usePreviewCamera } from "@/hooks/use-preview-camera";
-import { usePreviewTransport } from "@/hooks/use-preview-transport";
+import { useCanvasPreview } from "@/hooks/use-canvas-preview";
+import type { Tools } from "@/hooks/use-tools";
 import { cn } from "@/lib/utils";
 import { DOCK_SURFACE } from "./dock-layout";
 import { ExportButton } from "./export-button";
@@ -15,155 +23,365 @@ import { InspectOverlay } from "./inspect-overlay";
 import { PreviewControls } from "./preview-controls";
 import { useStudio } from "./studio-provider";
 
-const PropsPane = dynamic(() => import("./props-pane").then((module) => module.PropsPane));
+const PropsPane = dynamic(() =>
+  import("./props-pane").then((module) => module.PropsPane)
+);
 
-type Rect = { x: number; y: number; width: number; height: number };
+const DIMMED = "color-mix(in oklab, var(--background) 72%, transparent)";
 
-export function CanvasPreview({ header, hidden, status }: { header: React.ReactNode; hidden: boolean; status: React.ReactNode }) {
+type Canvas = ReturnType<typeof useCanvasPreview>;
+
+export function CanvasPreview({
+  header,
+  hidden,
+  status,
+}: {
+  header: ReactNode;
+  hidden: boolean;
+  status: ReactNode;
+}) {
   const { tools, activeProject, openedProject } = useStudio();
-  const { inspect, managed, preview } = tools;
-  const [inspector, setInspector] = useState(true);
-  const hasSelection = Boolean(managed?.isOpen || inspect.card?.tuning);
-  const metadata = preview.pick?.metadata ?? null;
-  const transport = usePreviewTransport(preview, !hidden);
-  const identity = activeProject ? `${activeProject.id}:${preview.composition}` : null;
-  const camera = usePreviewCamera(metadata, identity, inspector, transport.toggle);
-  const native = useNativePreview(preview, camera.viewport, managed?.acceptsPreview);
-  const failure = preview.preview.phase === "failed" ? preview.preview.message
-    : preview.preview.phase === "ready" && native.state.phase === "failed" ? native.state.message : null;
-  const unavailable = activeProject === null ? "Open a project to preview your video."
-    : preview.preview.phase !== "ready" ? "Preparing the project…"
-    : native.state.phase === "loading" ? "Preparing the canvas…"
-    : preview.hint ?? (metadata === null ? "Loading the video…" : null);
-  const stale = native.state.phase === "ready" ? native.state.stale : null;
-  const mapRect = (rect: Rect): Rect => {
-    const width = camera.bounds.width || 1;
-    const height = camera.bounds.height || 1;
-    const videoWidth = (metadata?.width ?? 0) * camera.camera.zoom;
-    const videoHeight = (metadata?.height ?? 0) * camera.camera.zoom;
-    return {
-      x: (camera.camera.x + rect.x * videoWidth) / width,
-      y: (camera.camera.y + rect.y * videoHeight) / height,
-      width: rect.width * videoWidth / width,
-      height: rect.height * videoHeight / height,
-    };
-  };
+  const canvas = useCanvasPreview({
+    hidden,
+    projectId: activeProject?.id ?? null,
+    tools,
+  });
+  const { camera, failure, metadata, native, overlay } = canvas;
+  const shown = metadata !== null && failure === null;
 
-  return <section
-    aria-label="Canvas preview"
-    className={cn("relative isolate flex min-h-0 flex-1 overflow-hidden bg-background [&:fullscreen]:h-screen", hidden && "hidden")}
-    ref={transport.surface}
-    style={{ "--canvas-inspector-width": inspector ? "min(340px, calc(100% - 24px))" : "0px" } as CSSProperties}
-  >
-    <div
-      aria-label="Video canvas. Click to select; double-click text to edit; arrow keys nudge the selection. Space and drag to pan; pinch to zoom; Shift 1 fits, Shift 2 zooms to the selection; K to play."
-      className="relative min-h-0 flex-1 touch-none overflow-hidden outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
-      ref={camera.viewport}
-      style={{ cursor: camera.cursor }}
-      tabIndex={0}
+  return (
+    <section
+      aria-label="Canvas preview"
+      className={cn(
+        "relative isolate flex min-h-0 flex-1 overflow-hidden bg-background [&:fullscreen]:h-screen",
+        hidden && "hidden"
+      )}
+      ref={canvas.transport.surface}
+      style={
+        {
+          "--canvas-inspector-width": canvas.inspector
+            ? "min(340px, calc(100% - 24px))"
+            : "0px",
+        } as CSSProperties
+      }
     >
-      <div className="absolute top-0 left-0 origin-top-left bg-black shadow-lg"
-        style={{ width: metadata?.width ?? 1920, height: metadata?.height ?? 1080, transform: camera.transform, visibility: metadata && !failure ? "visible" : "hidden" }}>
-        <div ref={native.stage} style={{ position: "relative", width: "100%", height: "100%" }} />
-      </div>
-
-      {metadata && !failure ? <div
-        aria-hidden="true"
-        className="pointer-events-none absolute z-[5]"
-        style={{ ...camera.frame, boxShadow: `0 0 0 20000px ${camera.outside === "hide" ? "var(--background)" : "color-mix(in oklab, var(--background) 72%, transparent)"}` }}
-      /> : null}
-
-      <div className="pointer-events-none absolute inset-0 z-10" ref={native.overlays} style={{ clipPath: "inset(0)" }} />
-
-      {managed?.isOpen ? null : <InspectOverlay
-        card={inspect.card ? { ...inspect.card, rect: mapRect(inspect.card.rect) } : null}
-        cwd={openedProject?.path ?? null}
-        markers={inspect.markers.map((marker) => ({ ...marker, rect: mapRect(marker.rect) }))}
-        onCancel={inspect.cancelComment}
-        onSubmit={inspect.submitComment}
-      />}
-
-      <div className="absolute top-0 left-0 z-20" data-canvas-chrome style={{ right: "var(--canvas-inspector-width)" }}>
-        {header}
-      </div>
-
-      <div className="absolute top-12 left-4 z-20 flex items-center gap-1 rounded-lg border border-border bg-field p-1" data-canvas-chrome>
-        <Button aria-label="Pan tool" aria-pressed={camera.hand} onClick={() => camera.setHand(!camera.hand)} size="icon-sm" variant={camera.hand ? "secondary" : "ghost"}><HandIcon /></Button>
-        <Button onClick={camera.fit} size="sm" title="Fit (⇧1)" variant="ghost" disabled={!metadata}>Fit</Button>
-        <Button aria-label="Zoom to selection" disabled={!hasSelection} onClick={camera.zoomToSelection} size="icon-sm" title="Zoom to selection (⇧2)" variant="ghost"><FocusIcon /></Button>
-        <Button aria-label="Zoom out" onClick={() => camera.zoomTo(camera.camera.zoom / 1.2)} size="icon-sm" title="Zoom out (⌘−)" variant="ghost"><MinusIcon /></Button>
-        <Button aria-label="Zoom to 100%" className="w-14 tabular-nums" onClick={() => camera.zoomTo(1)} size="sm" title="Zoom to 100% (⌘0)" variant="ghost">{Math.round(camera.camera.zoom * 100)}%</Button>
-        <Button aria-label="Zoom in" onClick={() => camera.zoomTo(camera.camera.zoom * 1.2)} size="icon-sm" title="Zoom in (⌘+)" variant="ghost"><PlusIcon /></Button>
-        <Button aria-label="Show content outside the frame" aria-pressed={camera.outside === "dim"} onClick={camera.toggleOutside} size="icon-sm" title={camera.outside === "dim" ? "Hide content outside the frame" : "Show content outside the frame"} variant={camera.outside === "dim" ? "secondary" : "ghost"}><SquareDashedIcon /></Button>
-      </div>
-
-      <aside
-        aria-label="Inspector"
-        className={cn("absolute inset-y-0 right-0 z-20 flex w-[340px] max-w-[calc(100%_-_24px)] flex-col overflow-hidden border-l border-pane-border bg-background", !inspector && "hidden")}
-        data-canvas-chrome
+      <div
+        aria-label="Video canvas. Click to select; double-click text to edit; arrow keys nudge the selection. Space and drag to pan; pinch to zoom; Shift 1 fits, Shift 2 zooms to the selection; K to play."
+        className="relative min-h-0 flex-1 touch-none overflow-hidden outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset"
+        ref={camera.viewport}
+        role="application"
+        style={{ cursor: camera.cursor }}
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: the canvas is a keyboard-driven editing surface and must take focus for its shortcuts
+        tabIndex={0}
       >
-        <div className="flex h-10 shrink-0 items-center gap-1 px-4">
-          <h2 className="min-w-0 flex-1 font-medium text-xs">Inspect</h2>
+        <div
+          className="absolute top-0 left-0 origin-top-left bg-black shadow-lg"
+          style={{
+            height: metadata?.height ?? 1080,
+            transform: camera.transform,
+            visibility: shown ? "visible" : "hidden",
+            width: metadata?.width ?? 1920,
+          }}
+        >
+          <div className="relative size-full" ref={native.stage} />
+        </div>
+
+        {shown ? (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute z-[5]"
+            style={{
+              ...camera.frame,
+              boxShadow: `0 0 0 20000px ${camera.outside === "hide" ? "var(--background)" : DIMMED}`,
+            }}
+          />
+        ) : null}
+
+        <div
+          className="pointer-events-none absolute inset-0 z-10 [clip-path:inset(0)]"
+          ref={native.overlays}
+        />
+
+        {tools.managed?.isOpen ? null : (
+          <InspectOverlay
+            card={overlay.card}
+            cwd={openedProject?.path ?? null}
+            markers={overlay.markers}
+            onCancel={tools.inspect.cancelComment}
+            onSubmit={tools.inspect.submitComment}
+          />
+        )}
+
+        <div
+          className="absolute top-0 right-(--canvas-inspector-width) left-0 z-20"
+          data-canvas-chrome
+          data-canvas-occludes="top"
+        >
+          {header}
+        </div>
+
+        <CanvasToolbar canvas={canvas} />
+
+        <CanvasInspector canvas={canvas} tools={tools} />
+
+        {canvas.inspector ? null : (
           <Button
-            aria-disabled={!tools.snapshot.canSnapshot}
-            aria-label="Snapshot"
-            aria-pressed={tools.snapshot.isArmed}
-            className="aria-disabled:opacity-50"
-            onClick={tools.snapshot.toggle}
+            aria-expanded={false}
+            aria-label="Show inspector"
+            className="absolute top-12 right-4 z-20 border border-border bg-field"
+            data-canvas-chrome
+            onClick={canvas.showInspector}
             size="icon-sm"
-            title={tools.snapshot.unavailable ?? "Capture the frame, or part of it"}
-            variant={tools.snapshot.isArmed ? "secondary" : "ghost"}
+            title="Show inspector"
+            variant="outline"
           >
-            {tools.snapshot.isBusy ? <Spinner aria-hidden="true" className="size-4" /> : <CameraIcon />}
+            <PanelRightOpenIcon />
           </Button>
-          <ExportButton composition={preview.composition} exporting={tools.exporting} />
-          <Button aria-label="Hide inspector" onClick={() => setInspector(false)} size="icon-sm" title="Hide inspector" variant="ghost">
-            <PanelRightCloseIcon />
-          </Button>
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col">
-          {hasSelection ? <PropsPane /> : <div className="flex min-h-0 flex-1 flex-col overflow-auto text-xs">
-            <div className="p-4">
-              <h3 className="truncate font-medium" title={preview.composition ?? undefined}>{preview.composition ?? "Video"}</h3>
-              {metadata ? <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 tabular-nums">
-                <dt className="text-muted-foreground">Dimensions</dt><dd className="text-right">{metadata.width} × {metadata.height}</dd>
-                <dt className="text-muted-foreground">Frame rate</dt><dd className="text-right">{metadata.fps} fps</dd>
-                <dt className="text-muted-foreground">Duration</dt><dd className="text-right">{transport.duration}</dd>
-              </dl> : null}
-            </div>
-            <p className="px-4 pb-4 text-muted-foreground">{metadata ? "Select an element on the canvas to edit its properties." : "Select a video to see its properties."}</p>
-          </div>}
-        </div>
-      </aside>
+        )}
 
-      {!inspector ? <Button
-        aria-label="Show inspector"
-        aria-expanded={false}
-        className="absolute top-12 right-4 z-20 border border-border bg-field"
-        data-canvas-chrome
-        onClick={() => setInspector(true)}
+        <CanvasNotices canvas={canvas} restart={tools.preview.restart} />
+
+        <div
+          className={cn(
+            DOCK_SURFACE,
+            "absolute right-[calc(var(--canvas-inspector-width)+16px)] bottom-4 left-4 z-20 flex flex-col p-[11px]"
+          )}
+          data-canvas-chrome
+          data-canvas-occludes="bottom"
+        >
+          <PreviewControls
+            playShortcut="K"
+            status={status}
+            transport={canvas.transport}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CanvasToolbar({ canvas }: { canvas: Canvas }) {
+  const { camera, hasSelection, metadata } = canvas;
+  const dimmed = camera.outside === "dim";
+
+  return (
+    <div
+      className="absolute top-12 left-4 z-20 flex items-center gap-1 rounded-lg border border-border bg-field p-1"
+      data-canvas-chrome
+      data-canvas-occludes="top"
+    >
+      <Button
+        aria-label="Pan tool"
+        aria-pressed={camera.hand}
+        onClick={camera.toggleHand}
         size="icon-sm"
-        title="Show inspector"
-        variant="outline"
-      ><PanelRightOpenIcon /></Button> : null}
+        variant={camera.hand ? "secondary" : "ghost"}
+      >
+        <HandIcon />
+      </Button>
+      <Button
+        disabled={metadata === null}
+        onClick={camera.fit}
+        size="sm"
+        title="Fit (⇧1)"
+        variant="ghost"
+      >
+        Fit
+      </Button>
+      <Button
+        aria-label="Zoom to selection"
+        disabled={!hasSelection}
+        onClick={camera.zoomToSelection}
+        size="icon-sm"
+        title="Zoom to selection (⇧2)"
+        variant="ghost"
+      >
+        <FocusIcon />
+      </Button>
+      <Button
+        aria-label="Zoom out"
+        onClick={camera.zoomOut}
+        size="icon-sm"
+        title="Zoom out (⌘−)"
+        variant="ghost"
+      >
+        <MinusIcon />
+      </Button>
+      <Button
+        aria-label="Zoom to 100%"
+        className="w-14 tabular-nums"
+        onClick={camera.zoomReset}
+        size="sm"
+        title="Zoom to 100% (⌘0)"
+        variant="ghost"
+      >
+        {Math.round(camera.camera.zoom * 100)}%
+      </Button>
+      <Button
+        aria-label="Zoom in"
+        onClick={camera.zoomIn}
+        size="icon-sm"
+        title="Zoom in (⌘+)"
+        variant="ghost"
+      >
+        <PlusIcon />
+      </Button>
+      <Button
+        aria-label="Show content outside the frame"
+        aria-pressed={dimmed}
+        onClick={camera.toggleOutside}
+        size="icon-sm"
+        title={
+          dimmed
+            ? "Hide content outside the frame"
+            : "Show content outside the frame"
+        }
+        variant={dimmed ? "secondary" : "ghost"}
+      >
+        <SquareDashedIcon />
+      </Button>
+    </div>
+  );
+}
 
-      {stale && !failure && !unavailable ? <div className="pointer-events-none absolute top-24 left-0 z-20 flex justify-center px-4" style={{ right: "var(--canvas-inspector-width)" }}>
-        <p className="max-w-sm rounded-md border bg-popover px-3 py-1.5 text-muted-foreground text-xs" role="status">{stale}</p>
-      </div> : null}
+function CanvasInspector({ canvas, tools }: { canvas: Canvas; tools: Tools }) {
+  const { snapshot } = tools;
 
-      {failure || unavailable ? <div className="pointer-events-none absolute inset-y-0 left-0 z-30 flex items-center justify-center p-10" style={{ right: "var(--canvas-inspector-width)" }}>
-        <div className="pointer-events-auto max-w-sm rounded-lg border bg-popover p-4 text-center text-sm" data-canvas-chrome role={failure ? "alert" : "status"}>
-          <p>{failure ?? unavailable}</p>
-          {failure ? <div className="mt-3 flex justify-center gap-2">
-            <Button onClick={native.retry} size="sm" variant="outline">Retry</Button>
-            <Button onClick={preview.restart} size="sm" variant="ghost">Restart preview</Button>
-          </div> : null}
-        </div>
-      </div> : null}
+  return (
+    <aside
+      aria-label="Inspector"
+      className={cn(
+        "absolute inset-y-0 right-0 z-20 flex w-[340px] max-w-[calc(100%_-_24px)] flex-col overflow-hidden border-pane-border border-l bg-background",
+        !canvas.inspector && "hidden"
+      )}
+      data-canvas-chrome
+      data-canvas-occludes="right"
+    >
+      <div className="flex h-10 shrink-0 items-center gap-1 px-4">
+        <h2 className="min-w-0 flex-1 font-medium text-xs">Inspect</h2>
+        <Button
+          aria-disabled={!snapshot.canSnapshot}
+          aria-label="Snapshot"
+          aria-pressed={snapshot.isArmed}
+          className="aria-disabled:opacity-50"
+          onClick={snapshot.toggle}
+          size="icon-sm"
+          title={snapshot.unavailable ?? "Capture the frame, or part of it"}
+          variant={snapshot.isArmed ? "secondary" : "ghost"}
+        >
+          {snapshot.isBusy ? (
+            <Spinner aria-hidden="true" className="size-4" />
+          ) : (
+            <CameraIcon />
+          )}
+        </Button>
+        <ExportButton
+          composition={tools.preview.composition}
+          exporting={tools.exporting}
+        />
+        <Button
+          aria-label="Hide inspector"
+          onClick={canvas.hideInspector}
+          size="icon-sm"
+          title="Hide inspector"
+          variant="ghost"
+        >
+          <PanelRightCloseIcon />
+        </Button>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col">
+        {canvas.hasSelection ? (
+          <PropsPane />
+        ) : (
+          <VideoDetails
+            canvas={canvas}
+            composition={tools.preview.composition}
+          />
+        )}
+      </div>
+    </aside>
+  );
+}
 
-      <div className={cn(DOCK_SURFACE, "absolute bottom-4 left-4 z-20 flex flex-col p-[11px]")} data-canvas-chrome style={{ right: "calc(var(--canvas-inspector-width) + 16px)" }}>
-        <PreviewControls transport={transport} playShortcut="K" status={status} />
+function VideoDetails({
+  canvas,
+  composition,
+}: {
+  canvas: Canvas;
+  composition: string | null;
+}) {
+  const { metadata } = canvas;
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-auto text-xs">
+      <div className="p-4">
+        <h3 className="truncate font-medium" title={composition ?? undefined}>
+          {composition ?? "Video"}
+        </h3>
+        {metadata === null ? null : (
+          <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 tabular-nums">
+            <dt className="text-muted-foreground">Dimensions</dt>
+            <dd className="text-right">
+              {metadata.width} × {metadata.height}
+            </dd>
+            <dt className="text-muted-foreground">Frame rate</dt>
+            <dd className="text-right">{metadata.fps} fps</dd>
+            <dt className="text-muted-foreground">Duration</dt>
+            <dd className="text-right">{canvas.transport.duration}</dd>
+          </dl>
+        )}
+      </div>
+      <p className="px-4 pb-4 text-muted-foreground">
+        {metadata === null
+          ? "Select a video to see its properties."
+          : "Select an element on the canvas to edit its properties."}
+      </p>
+    </div>
+  );
+}
+
+function CanvasNotices({
+  canvas,
+  restart,
+}: {
+  canvas: Canvas;
+  restart: () => void;
+}) {
+  const { failure, notice, stale } = canvas;
+  const message = failure ?? notice;
+
+  if (message === null) {
+    return stale === null ? null : (
+      <div className="pointer-events-none absolute top-24 right-(--canvas-inspector-width) left-0 z-20 flex justify-center px-4">
+        <p
+          className="max-w-sm rounded-md border bg-popover px-3 py-1.5 text-muted-foreground text-xs"
+          role="status"
+        >
+          {stale}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pointer-events-none absolute inset-y-0 right-(--canvas-inspector-width) left-0 z-30 flex items-center justify-center p-10">
+      <div
+        className="pointer-events-auto max-w-sm rounded-lg border bg-popover p-4 text-center text-sm"
+        data-canvas-chrome
+        role={failure === null ? "status" : "alert"}
+      >
+        <p>{message}</p>
+        {failure === null ? null : (
+          <div className="mt-3 flex justify-center gap-2">
+            <Button onClick={canvas.native.retry} size="sm" variant="outline">
+              Retry
+            </Button>
+            <Button onClick={restart} size="sm" variant="ghost">
+              Restart preview
+            </Button>
+          </div>
+        )}
       </div>
     </div>
-  </section>;
+  );
 }

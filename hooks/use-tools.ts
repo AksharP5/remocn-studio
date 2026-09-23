@@ -84,7 +84,7 @@ export function useTools({
     projectId: writeProjectId,
   });
   const openObjects = managed.open;
-  const { focus, send, stage } = preview;
+  const { focus, send } = preview;
 
   const toggleInspect = useCallback(() => {
     if (isLocked) {
@@ -96,9 +96,8 @@ export function useTools({
     }
     setTool(null);
     openObjects();
-    if (focus) focus();
-    else stage.current?.focus();
-  }, [focus, isLocked, onArm, openObjects, stage, unavailable]);
+    focus();
+  }, [focus, isLocked, onArm, openObjects, unavailable]);
 
   const toggleSnapshot = useCallback(() => {
     if (isLocked) {

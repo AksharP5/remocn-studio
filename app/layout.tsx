@@ -6,9 +6,9 @@ import { cn } from "@/lib/utils";
 import "./globals.css";
 
 const dmSans = DM_Sans({
+  adjustFontFallback: false,
   subsets: ["latin"],
   variable: "--font-dm-sans",
-  adjustFontFallback: false,
 });
 
 // DM Sans ships no Cyrillic at all, so without this every Russian sentence
@@ -62,11 +62,7 @@ export default function RootLayout({
     // `suppressHydrationWarning` is required by next-themes: it writes the
     // theme class onto <html> before React hydrates.
     <html
-      className={cn(
-        golos.variable,
-        "font-sans",
-        dmSans.variable
-      )}
+      className={cn(golos.variable, "font-sans", dmSans.variable)}
       lang="en"
       suppressHydrationWarning
     >

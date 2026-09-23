@@ -8,8 +8,8 @@ The user retains runtime verification; no checks are authorized.
 ## Runtime boundary
 
 A connection-owned surface channel routes the existing decoded commands and
-events. The active connection alone can update the app. The iframe adapter is
-retained for legacy callers; the main shell selects the native adapter explicitly.
+events. The active connection alone can update the app. The native surface is its
+only adapter (see *One preview host*).
 
 The project compiler produces a distinct window library exporting mount/dispose.
 It uses project React, ReactDOM, Remotion and loaders, preserves sequence source
@@ -20,8 +20,7 @@ owned globals. Hook-based render delays use a runtime-owned scope; late external
 continueRender calls are ignored after disposal. Rebuilds replace only this runtime and emit the existing rebuilt
 message. Playback positions and camera state survive the replacement.
 
-Player, transport, inspection, snapshot and tuning are shared by the page and
-native bootstraps. The bridge accepts injected local delivery. Events from that
+Player, transport, inspection, snapshot and tuning live in the native runtime. The bridge accepts injected local delivery. Events from that
 bridge are queued until mount effects finish, matching asynchronous page messages.
 The direct channel still uses object generation, operation and request IDs.
 
@@ -118,6 +117,18 @@ The sidecar must be restarted for its new endpoints/compiler to take effect.
 The app/preview implementation is complete in source; runtime behavior, visual
 parity, all five videos and packaged operation have not been verified. See
 app/lab/preview-canvas/README.md for user-facing operation notes.
+
+## One preview host
+
+The canvas is the only preview. The iframe host, its presentation switch and the
+separate properties column are gone; `PreviewControl` always carries
+`attachSurface` and `focus`. The sidecar no longer serves a preview page at `/`
+and the main bundle's entry is the render entry alone, so that bundle is only
+what the renderer, Snapshot and the design check load. Compile progress, which
+only the page used to show, is on the canvas. Fit reads the rectangles of the
+elements marked `data-canvas-occludes` (header and toolbar on top, inspector on
+the right, playback at the bottom) rather than constants, so hiding the inspector
+or a taller dock changes what Fit leaves free.
 
 ## Shared workspace spacing
 

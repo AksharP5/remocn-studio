@@ -376,9 +376,9 @@ export function studioOperationChanges(
 ): readonly StudioFieldChange[] {
   return [
     {
-      field: operation.field,
-      before: operation.before,
       after: operation.after,
+      before: operation.before,
+      field: operation.field,
     },
     ...(operation.changes ?? []),
   ];

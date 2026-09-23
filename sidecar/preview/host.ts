@@ -56,6 +56,7 @@ import {
   makeJobRegistry,
   pinBundle,
 } from "./job";
+import { type NativeBundle, nativeBundle } from "./native";
 import {
   agreedVersionIn,
   entryPointOf,
@@ -82,7 +83,6 @@ import {
   type WriteCommand,
 } from "./protocol";
 import { libraryIndex, proxies } from "./proxies";
-import { nativeBundle, type NativeBundle } from "./native";
 import { checkReadiness, readReadinessReport } from "./readiness";
 import { serve } from "./server";
 import { openSession, type Session, type WarmInternals } from "./session";
@@ -111,7 +111,9 @@ interface Bundler {
   webpack: ((config: WebpackConfig) => Compiler) & {
     ProgressPlugin: new (handler: (percent: number) => void) => unknown;
     DefinePlugin: new (definitions: Record<string, string>) => unknown;
-    optimize: { LimitChunkCountPlugin: new (options: { maxChunks: number }) => unknown };
+    optimize: {
+      LimitChunkCountPlugin: new (options: { maxChunks: number }) => unknown;
+    };
   };
 }
 
@@ -261,9 +263,9 @@ function boot(root: string, preferred: string | null) {
     yield* Effect.addFinalizer(() => drop(session));
 
     const server = yield* serve({
-      native: () => native,
       grab,
       jobs,
+      native: () => native,
       outDir,
       preferred,
       previewBase,
@@ -342,12 +344,12 @@ function boot(root: string, preferred: string | null) {
       },
     });
     native = yield* nativeBundle(webpack, nativeConfig, {
-      entry,
-      projectEntry: userDefinedComponent,
-      directory: `${outDir}-native`,
-      base: `/native-${randomBytes(6).toString("hex")}`,
-      origin: `http://127.0.0.1:${server.port}`,
       assets: `http://127.0.0.1:${server.port}${previewBase}`,
+      base: `/native-${randomBytes(6).toString("hex")}`,
+      directory: `${outDir}-native`,
+      entry,
+      origin: `http://127.0.0.1:${server.port}`,
+      projectEntry: userDefinedComponent,
       rebuilt: server.notifyNativeRebuilt,
     });
 

@@ -17,7 +17,9 @@ import { useManagedObjects } from "./use-managed-objects";
 function setup(document = documentFixture) {
   const listeners = new Set<PreviewListener>();
   const preview: PreviewControl = {
+    attachSurface: () => () => undefined,
     composition: "intro",
+    focus: () => undefined,
     frameOf: () => 0,
     hint: null,
     isServing: true,
@@ -27,7 +29,6 @@ function setup(document = documentFixture) {
     preview: { phase: "ready", url: "http://localhost:3001" },
     restart: () => undefined,
     send: mock(),
-    stage: { current: null },
     subscribe: (listener) => {
       listeners.add(listener);
       return () => {

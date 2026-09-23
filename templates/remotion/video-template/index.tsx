@@ -18,11 +18,11 @@ export const meta = {
 function Heading({ id }: { id: string }) {
   const object = useStudioObject(id);
   const geometry = object.geometry({
-    x: "x",
-    y: "y",
-    width: "width",
     height: "height",
     rotation: "rotation",
+    width: "width",
+    x: "x",
+    y: "y",
   });
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();

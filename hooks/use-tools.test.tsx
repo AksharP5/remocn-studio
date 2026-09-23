@@ -16,7 +16,9 @@ function harness(
   stubGlobal("cancelAnimationFrame", () => undefined);
 
   const preview = {
+    attachSurface: () => () => undefined,
     composition: null,
+    focus: () => undefined,
     frame: 0,
     hint: null,
     isServing: true,
@@ -25,7 +27,6 @@ function harness(
     preview: { phase: "serving" },
     restart: () => undefined,
     send: () => undefined,
-    stage: { current: null },
     subscribe: () => () => undefined,
   } as unknown as PreviewControl;
 

@@ -1,14 +1,14 @@
 import {
-  createContext,
   type CSSProperties,
+  createContext,
   type ReactNode,
   useContext,
   useEffect,
   useMemo,
   useState,
 } from "react";
-import { z } from "zod";
 import { useCurrentFrame } from "remotion";
+import { z } from "zod";
 
 type GeometryKey = "x" | "y" | "width" | "height" | "rotation";
 type GeometryValues = Record<GeometryKey, number>;
@@ -102,6 +102,129 @@ function acceptsDraft(
   return typeof command.value === "string";
 }
 
+type BatchCommand = z.infer<typeof Command> & { type: "studio.batch" };
+type Definition = ObjectDocument["definitions"][number];
+type GeometryBindings = Record<GeometryKey, string | null>;
+interface GeometryPose {
+  multiplier: GeometryValues;
+  offset: GeometryValues;
+  scale: number;
+}
+
+const GEOMETRY_KEYS = ["x", "y", "width", "height", "rotation"] as const;
+
+function acceptsBatch(
+  document: ObjectDocument,
+  generation: string,
+  command: BatchCommand
+): boolean {
+  const entries = Object.entries(command.values);
+  return (
+    command.generation === generation &&
+    entries.length > 0 &&
+    entries.every(([field, draft]) =>
+      acceptsDraft(document, {
+        field,
+        generation,
+        objectId: command.objectId,
+        source: "remocn-studio",
+        type: "studio.draft",
+        value: draft,
+      })
+    )
+  );
+}
+
+function isSize(key: GeometryKey): boolean {
+  return key === "width" || key === "height";
+}
+
+function baseGeometry(
+  label: string,
+  definition: Definition | undefined,
+  values: Readonly<Record<string, Value | undefined>>,
+  bindings: GeometryBindings
+): GeometryValues {
+  const geometry = { height: 0, rotation: 0, width: 0, x: 0, y: 0 };
+  for (const key of GEOMETRY_KEYS) {
+    const bound = bindings[key];
+    if (bound === null) {
+      continue;
+    }
+    const field = definition?.fields.find((item) => item.id === bound);
+    const value = values[bound];
+    const rotation = key === "rotation";
+    if (
+      field?.type !== "number" ||
+      typeof value !== "number" ||
+      !Number.isFinite(value) ||
+      (field.unit !== undefined && field.unit !== (rotation ? "deg" : "px"))
+    ) {
+      throw new Error(
+        `${label}: ${bound} must be a numeric geometry field in ${rotation ? "degrees" : "pixels"}.`
+      );
+    }
+    if (isSize(key) && value < 1) {
+      throw new Error(`${label}: ${bound} must be at least one pixel.`);
+    }
+    geometry[key] = value;
+  }
+  return geometry;
+}
+
+function poseOf(motion: GeometryMotion): GeometryPose {
+  return {
+    multiplier: {
+      height: 1,
+      rotation: 1,
+      width: 1,
+      x: 1,
+      y: 1,
+      ...motion.multiplier,
+    },
+    offset: {
+      height: 0,
+      rotation: 0,
+      width: 0,
+      x: 0,
+      y: 0,
+      ...motion.offset,
+    },
+    scale: motion.scale ?? 1,
+  };
+}
+
+function renderedGeometry(
+  label: string,
+  geometry: GeometryValues,
+  pose: GeometryPose
+): GeometryValues {
+  const rendered = { ...geometry };
+  for (const key of GEOMETRY_KEYS) {
+    if (
+      !Number.isFinite(pose.multiplier[key]) ||
+      pose.multiplier[key] <= 0 ||
+      !Number.isFinite(pose.offset[key])
+    ) {
+      throw new Error(
+        `${label}: ${key} needs an invertible geometry motion mapping.`
+      );
+    }
+    rendered[key] = geometry[key] * pose.multiplier[key] + pose.offset[key];
+    if (!Number.isFinite(rendered[key]) || (isSize(key) && rendered[key] < 1)) {
+      throw new Error(
+        `${label}: motion must render a finite, positive geometry box.`
+      );
+    }
+  }
+  if (!Number.isFinite(pose.scale) || pose.scale <= 0) {
+    throw new Error(
+      `${label}: geometry motion needs a positive uniform scale.`
+    );
+  }
+  return rendered;
+}
+
 const Objects = createContext<ContextValue | null>(null);
 
 export function StudioObjects({
@@ -147,22 +270,9 @@ export function StudioObjects({
         return;
       }
       if (command.type === "studio.batch") {
-        const entries = Object.entries(command.values);
-        if (
-          command.generation !== generation ||
-          entries.length === 0 ||
-          !entries.every(([field, value]) =>
-            acceptsDraft(document, {
-              source: "remocn-studio",
-              type: "studio.draft",
-              generation,
-              objectId: command.objectId,
-              field,
-              value,
-            })
-          )
-        )
+        if (!acceptsBatch(document, generation, command)) {
           return;
+        }
         setDrafts((previous) => ({
           ...previous,
           [command.objectId]: {
@@ -222,117 +332,6 @@ export function useStudioObject(id: string, occurrence = "main") {
       "data-studio-occurrence": occurrence,
       "data-studio-video": context.document.video,
     },
-    geometry: (
-      fields: {
-        x: string;
-        y: string;
-        width: string;
-        height: string;
-        rotation?: string;
-      },
-      motion: GeometryMotion = {}
-    ) => {
-      const definition = context.document.definitions.find(
-        (item) => item.id === object.definition
-      );
-      const keys = ["x", "y", "width", "height", "rotation"] as const;
-      const bindings = { ...fields, rotation: fields.rotation ?? null };
-      const ids = Object.values(bindings).filter((field) => field !== null);
-      if (new Set(ids).size !== ids.length) {
-        throw new Error(
-          `${object.label}: geometry fields must be independent.`
-        );
-      }
-      const geometry = { x: 0, y: 0, width: 0, height: 0, rotation: 0 };
-      for (const key of keys) {
-        const id = bindings[key];
-        if (id === null) continue;
-        const field = definition?.fields.find((item) => item.id === id);
-        const value = values[id];
-        if (
-          field?.type !== "number" ||
-          typeof value !== "number" ||
-          !Number.isFinite(value) ||
-          (field.unit !== undefined &&
-            field.unit !== (key === "rotation" ? "deg" : "px"))
-        ) {
-          throw new Error(
-            `${object.label}: ${id} must be a numeric geometry field in ${key === "rotation" ? "degrees" : "pixels"}.`
-          );
-        }
-        if ((key === "width" || key === "height") && value < 1) {
-          throw new Error(`${object.label}: ${id} must be at least one pixel.`);
-        }
-        geometry[key] = value;
-      }
-      const pose = {
-        multiplier: {
-          x: 1,
-          y: 1,
-          width: 1,
-          height: 1,
-          rotation: 1,
-          ...motion.multiplier,
-        },
-        offset: {
-          x: 0,
-          y: 0,
-          width: 0,
-          height: 0,
-          rotation: 0,
-          ...motion.offset,
-        },
-        scale: motion.scale ?? 1,
-      };
-      const rendered = { ...geometry };
-      for (const key of keys) {
-        if (
-          !Number.isFinite(pose.multiplier[key]) ||
-          pose.multiplier[key] <= 0 ||
-          !Number.isFinite(pose.offset[key])
-        ) {
-          throw new Error(
-            `${object.label}: ${key} needs an invertible geometry motion mapping.`
-          );
-        }
-        rendered[key] = geometry[key] * pose.multiplier[key] + pose.offset[key];
-        if (
-          !Number.isFinite(rendered[key]) ||
-          ((key === "width" || key === "height") && rendered[key] < 1)
-        ) {
-          throw new Error(
-            `${object.label}: motion must render a finite, positive geometry box.`
-          );
-        }
-      }
-      if (!Number.isFinite(pose.scale) || pose.scale <= 0) {
-        throw new Error(
-          `${object.label}: geometry motion needs a positive uniform scale.`
-        );
-      }
-      const style: CSSProperties = {
-        position: "absolute",
-        left: rendered.x,
-        top: rendered.y,
-        width: rendered.width,
-        height: rendered.height,
-        rotate: `${rendered.rotation}deg`,
-        scale: pose.scale === 1 ? undefined : pose.scale,
-        transformOrigin: "center",
-        boxSizing: "border-box",
-        margin: 0,
-        touchAction: "none",
-      };
-      return {
-        bind: {
-          "data-studio-geometry": JSON.stringify(bindings),
-          "data-studio-geometry-values": JSON.stringify(geometry),
-          "data-studio-geometry-pose": JSON.stringify(pose),
-          "data-studio-geometry-frame": frame,
-        },
-        style,
-      };
-    },
     bindText: (field: string) => {
       const definition = context.document.definitions.find(
         (item) => item.id === object.definition
@@ -362,6 +361,52 @@ export function useStudioObject(id: string, occurrence = "main") {
         throw new Error(`${object.label}: ${field} must be a switch value.`);
       }
       return value;
+    },
+    geometry: (
+      fields: {
+        x: string;
+        y: string;
+        width: string;
+        height: string;
+        rotation?: string;
+      },
+      motion: GeometryMotion = {}
+    ) => {
+      const definition = context.document.definitions.find(
+        (item) => item.id === object.definition
+      );
+      const bindings = { ...fields, rotation: fields.rotation ?? null };
+      const ids = Object.values(bindings).filter((field) => field !== null);
+      if (new Set(ids).size !== ids.length) {
+        throw new Error(
+          `${object.label}: geometry fields must be independent.`
+        );
+      }
+      const geometry = baseGeometry(object.label, definition, values, bindings);
+      const pose = poseOf(motion);
+      const rendered = renderedGeometry(object.label, geometry, pose);
+      const style: CSSProperties = {
+        boxSizing: "border-box",
+        height: rendered.height,
+        left: rendered.x,
+        margin: 0,
+        position: "absolute",
+        rotate: `${rendered.rotation}deg`,
+        scale: pose.scale === 1 ? undefined : pose.scale,
+        top: rendered.y,
+        touchAction: "none",
+        transformOrigin: "center",
+        width: rendered.width,
+      };
+      return {
+        bind: {
+          "data-studio-geometry": JSON.stringify(bindings),
+          "data-studio-geometry-frame": frame,
+          "data-studio-geometry-pose": JSON.stringify(pose),
+          "data-studio-geometry-values": JSON.stringify(geometry),
+        },
+        style,
+      };
     },
     number: (field: string): number => {
       const value = values[field];

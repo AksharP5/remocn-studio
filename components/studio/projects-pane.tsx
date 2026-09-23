@@ -324,7 +324,7 @@ function PaneViewMenu({
         {VIEW_ITEMS.map((item) => (
           <SidebarMenuItem key={item.view}>
             <SidebarMenuButton
-              className="relative pl-3 text-sidebar-foreground/70 dark:text-muted-foreground hover:bg-sidebar-accent/40 hover:text-sidebar-foreground active:bg-sidebar-accent/40 active:text-sidebar-foreground data-active:bg-transparent data-active:font-normal data-active:text-sidebar-foreground"
+              className="relative pl-3 text-sidebar-foreground/70 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground active:bg-sidebar-accent/40 active:text-sidebar-foreground data-active:bg-transparent data-active:font-normal data-active:text-sidebar-foreground dark:text-muted-foreground"
               isActive={view === item.view}
               onClick={onSelect}
               value={item.view}
@@ -503,7 +503,7 @@ function VideosBody({
       {gone.length === 0 ? null : (
         <>
           <h3
-            className="mt-2 flex h-8 shrink-0 items-center px-2 font-medium text-sidebar-foreground/70 dark:text-muted-foreground text-xs"
+            className="mt-2 flex h-8 shrink-0 items-center px-2 font-medium text-sidebar-foreground/70 text-xs dark:text-muted-foreground"
             title="Nothing in this project renders these anymore. Their chats are still here."
           >
             Not in the code

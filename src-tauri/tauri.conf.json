@@ -73,7 +73,6 @@
       "../preview/assets.ts": "preview/assets.ts",
       "../preview/bridge.ts": "preview/bridge.ts",
       "../preview/fiber.ts": "preview/fiber.ts",
-      "../preview/hot.ts": "preview/hot.ts",
       "../preview/playback-position.ts": "preview/playback-position.ts",
       "../preview/inspect.ts": "preview/inspect.ts",
       "../preview/inline-text.ts": "preview/inline-text.ts",

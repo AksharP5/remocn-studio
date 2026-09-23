@@ -57,7 +57,9 @@ function setup() {
   const send = mock();
   const open = mock();
   const preview: PreviewControl = {
+    attachSurface: () => () => undefined,
     composition: "Main",
+    focus: () => undefined,
     frameOf: () => 0,
     hint: null,
     isServing: true,
@@ -67,7 +69,6 @@ function setup() {
     preview: { phase: "ready", url: "http://localhost:1234" },
     restart: mock(),
     send,
-    stage: { current: null },
     subscribe: (next) => {
       listener = next;
       return () => {

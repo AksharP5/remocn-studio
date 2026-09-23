@@ -62,10 +62,10 @@ export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
   useOnPreview(preview, receive);
 
   useEffect(() => {
-    if (isServing && composition !== null) {
+    if (url !== null && composition !== null) {
       send({ source: PREVIEW_COMMAND_SOURCE, type: "transport.request" });
     }
-  }, [composition, isServing, send, url]);
+  }, [composition, send, url]);
 
   const toggle = useCallback(() => {
     if (ready) {
@@ -117,7 +117,7 @@ export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
 
   const setVolume = useCallback(
     (value: number) => {
-      if (!ready || !Number.isFinite(value)) {
+      if (!(ready && Number.isFinite(value))) {
         return;
       }
       const volume = Math.max(0, Math.min(1, value / 100));
@@ -213,7 +213,7 @@ export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
     toggle,
     toggleFullscreen,
     toggleMute,
-    volume: Math.round((state?.muted ? 0 : state?.volume ?? 1) * 100),
+    volume: Math.round((state?.muted ? 0 : (state?.volume ?? 1)) * 100),
   };
 }
 

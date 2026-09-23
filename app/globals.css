@@ -40,31 +40,39 @@
   --dial-dropdown-bg: var(--popover);
 }
 
-.property-inspector .remocn-dialkit :is(
-  .dialkit-slider,
-  .dialkit-select-trigger,
-  .dialkit-text-control,
-  .dialkit-color-control,
-  .dialkit-pad-field
-) {
+.property-inspector
+  .remocn-dialkit
+  :is(
+    .dialkit-slider,
+    .dialkit-select-trigger,
+    .dialkit-text-control,
+    .dialkit-color-control,
+    .dialkit-pad-field
+  ) {
   box-shadow: var(--elevation-control);
 }
 
-.property-inspector .remocn-dialkit :is(
-  .dialkit-slider-value,
-  .dialkit-slider-input,
-  .dialkit-select-value,
-  .dialkit-text-input,
-  .dialkit-color-value,
-  .dialkit-pad-value
-) {
-  color: var(--foreground);
+.property-inspector
+  .remocn-dialkit
+  :is(
+    .dialkit-slider-value,
+    .dialkit-slider-input,
+    .dialkit-select-value,
+    .dialkit-text-input,
+    .dialkit-color-value,
+    .dialkit-pad-value
+  ) {
   font-variant-numeric: tabular-nums;
+  color: var(--foreground);
 }
 
 .property-inspector .remocn-dialkit .dialkit-select-trigger {
   gap: 0.5rem;
   padding-inline: 0.625rem;
+}
+
+.managed-inspector .dialkit-select-label {
+  color: var(--muted-foreground);
 }
 
 .property-inspector .remocn-dialkit .dialkit-select-label {
@@ -75,8 +83,8 @@
 }
 
 .property-inspector .remocn-dialkit .dialkit-select-right {
-  min-width: 0;
   justify-content: flex-end;
+  min-width: 0;
 }
 
 .property-inspector [data-slot="textarea"] {
@@ -843,8 +851,7 @@
 .managed-inspector .dialkit-root {
   min-width: 0;
 }
-.managed-inspector .dialkit-slider-label,
-.managed-inspector .dialkit-select-label {
+.managed-inspector .dialkit-slider-label {
   color: var(--muted-foreground);
 }
 .managed-inspector .dialkit-slider-value,

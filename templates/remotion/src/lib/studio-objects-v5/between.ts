@@ -3,11 +3,11 @@ import type { CSSProperties } from "react";
 type GeometryKey = "x" | "y" | "width" | "height" | "rotation";
 
 export interface PoseFields {
-  x: string;
-  y: string;
-  width: string;
   height: string;
   rotation?: string;
+  width: string;
+  x: string;
+  y: string;
 }
 
 export interface BetweenMotion {
@@ -17,11 +17,11 @@ export interface BetweenMotion {
 }
 
 interface GeometryObject {
-  number: (field: string) => number;
   geometry: (
     fields: PoseFields,
     motion?: BetweenMotion
   ) => { bind: Record<string, string | number>; style: CSSProperties };
+  number: (field: string) => number;
 }
 
 const KEYS: readonly GeometryKey[] = ["x", "y", "width", "height", "rotation"];
@@ -43,7 +43,7 @@ export function geometryBetween(
   const bound = poses[editing];
   const other = poses[editing === "to" ? "from" : "to"];
   const weight = editing === "to" ? progress : 1 - progress;
-  const valueOf = (fields: PoseFields, key: GeometryKey) => {
+  const fieldValue = (fields: PoseFields, key: GeometryKey) => {
     const id = fields[key];
     return id === undefined ? 0 : object.number(id);
   };
@@ -58,10 +58,10 @@ export function geometryBetween(
       continue;
     }
     multiplier[key] = weight * scale;
-    offset[key] = (1 - weight) * valueOf(other, key) * scale + extra;
+    offset[key] = (1 - weight) * fieldValue(other, key) * scale + extra;
   }
   const pose = (fields: PoseFields) =>
-    Object.fromEntries(KEYS.map((key) => [key, valueOf(fields, key)]));
+    Object.fromEntries(KEYS.map((key) => [key, fieldValue(fields, key)]));
   const geometry = object.geometry(bound, {
     multiplier,
     offset,
@@ -73,10 +73,10 @@ export function geometryBetween(
       ...geometry.bind,
       "data-studio-geometry-between": JSON.stringify({
         editing,
-        kind: options.kind ?? "entry",
-        from: pose(poses.from),
-        to: pose(poses.to),
         frames: options.frames ?? null,
+        from: pose(poses.from),
+        kind: options.kind ?? "entry",
+        to: pose(poses.to),
       }),
     },
   };

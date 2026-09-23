@@ -13,6 +13,8 @@ import type { PreviewCommand, PreviewMessage } from "@/lib/studio/preview";
 import {
   fieldProblem,
   inverseStudioOperation,
+  type StudioDefinition,
+  type StudioObject,
   type StudioOperation,
   type StudioSnapshot,
   type StudioValue,
@@ -48,6 +50,14 @@ interface Session {
   writing: boolean;
 }
 
+type GeometryBegin = Extract<PreviewMessage, { type: "studio.geometry.begin" }>;
+type GeometryCommit = Extract<
+  PreviewMessage,
+  { type: "studio.geometry.commit" }
+>;
+type TextRequest = Extract<PreviewMessage, { type: "studio.text.request" }>;
+type TextCommit = Extract<PreviewMessage, { type: "studio.text.commit" }>;
+
 interface Options {
   armed: boolean;
   enabled: boolean;
@@ -76,8 +86,9 @@ export function useManagedObjects({
     preview.preview.phase === "ready" ? preview.preview.url : null;
   const allowed = useRef(enabled);
   allowed.current = enabled;
-  const inlineAllowed = useRef(inlineEnabled && enabled);
-  inlineAllowed.current = inlineEnabled && enabled;
+  const inlineOn = inlineEnabled && enabled;
+  const inlineAllowed = useRef(inlineOn);
+  inlineAllowed.current = inlineOn;
   const inline = useRef<{
     generation: string;
     operation: StudioOperation;
@@ -129,35 +140,7 @@ export function useManagedObjects({
       publish();
     }
   }, [publish, send]);
-  const key =
-    projectId === null || composition === null
-      ? null
-      : JSON.stringify([projectId, composition]);
-  if (
-    key !== null &&
-    projectId !== null &&
-    composition !== null &&
-    !sessions.current.has(key)
-  ) {
-    sessions.current.set(key, {
-      awaitingOperation: null,
-      commitAgain: false,
-      dismissed: false,
-      drafts: new Map(),
-      epoch: 0,
-      error: null,
-      generation: null,
-      loading: false,
-      open: false,
-      projectId,
-      renderedOperation: null,
-      selected: null,
-      snapshot: null,
-      undoing: false,
-      video: composition,
-      writing: false,
-    });
-  }
+  const key = registerSession(sessions.current, projectId, composition);
   const session = key === null ? null : (sessions.current.get(key) ?? null);
   active.current = session;
 
@@ -180,7 +163,7 @@ export function useManagedObjects({
           type: "studio.batch",
           values: Object.fromEntries([
             [operation.field, operation.after],
-            ...operation.changes.map((change) => [change.field, change.after]),
+            ...operation.changes.map((item) => [item.field, item.after]),
           ]),
         });
         return;
@@ -293,10 +276,12 @@ export function useManagedObjects({
   );
   useOnPreview(preview, onMessage);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: an open text edit is cancelled whenever the session, the permissions or the preview url change
   useEffect(
     () => cancelInline,
     [cancelInline, session, enabled, inlineEnabled, previewUrl]
   );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a live gesture is cancelled whenever the session, the permissions or the preview url change
   useEffect(
     () => cancelGeometry,
     [cancelGeometry, session, enabled, inlineEnabled, previewUrl]
@@ -353,33 +338,19 @@ export function useManagedObjects({
     !session?.undoing &&
     session?.drafts.size === 0 &&
     inline.current === null;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sessions are mutated in place, so localRevision is what invalidates the held draft values
   const geometryConfig = useMemo(() => {
-    if (!(generation && video)) return null;
+    if (!(generation && video)) {
+      return null;
+    }
     return {
+      enabled: geometryAvailable,
+      fields: geometryFields(session, selected, definition),
+      generation,
+      objectId: isOpen ? (selected?.id ?? null) : null,
       source: "remocn-studio" as const,
       type: "studio.geometry.config" as const,
-      enabled: geometryAvailable,
-      generation,
       video,
-      objectId: isOpen ? (selected?.id ?? null) : null,
-      fields:
-        definition?.fields.flatMap((field) => {
-          const held =
-            session && selected
-              ? draftForField(session, selected.id, field.id)
-              : null;
-          const value = held?.change.after ?? selected?.values[field.id];
-          return field.type === "number" && typeof value === "number"
-            ? [
-                {
-                  id: field.id,
-                  value,
-                  min: field.min ?? null,
-                  max: field.max ?? null,
-                },
-              ]
-            : [];
-        }) ?? [],
     };
   }, [
     definition,
@@ -393,7 +364,9 @@ export function useManagedObjects({
   ]);
   geometryConfigRef.current = geometryConfig;
   useEffect(() => {
-    if (geometryConfig) send(geometryConfig);
+    if (geometryConfig) {
+      send(geometryConfig);
+    }
   }, [geometryConfig, send]);
 
   const select = useCallback(
@@ -543,16 +516,126 @@ export function useManagedObjects({
     [publish, write]
   );
   commitRef.current = commitOwner;
-  geometryMessage.current = (message) => {
-    const result = (requestId: string, error: string | null) =>
-      send({
-        source: "remocn-studio",
-        type: "studio.geometry.result",
-        requestId,
-        error,
+  const geometryResult = (requestId: string, error: string | null) =>
+    send({
+      error,
+      requestId,
+      source: "remocn-studio",
+      type: "studio.geometry.result",
+    });
+  const beginGeometry = (message: GeometryBegin) => {
+    const owner = active.current;
+    if (
+      !(inlineAllowed.current && owner?.snapshot) ||
+      owner.generation !== message.generation ||
+      owner.video !== message.video ||
+      owner.selected !== message.objectId ||
+      owner.loading ||
+      owner.writing ||
+      owner.undoing ||
+      owner.drafts.size > 0 ||
+      inline.current ||
+      geometry.current
+    ) {
+      geometryResult(
+        message.requestId,
+        "Finish the current edit before transforming this object."
+      );
+      return;
+    }
+    const object = owner.snapshot.document.objects.find(
+      (item) => item.id === message.objectId
+    );
+    const declared = owner.snapshot.document.definitions.find(
+      (item) => item.id === object?.definition
+    );
+    const fields = Object.values(message.binding).filter(
+      (field): field is string => field !== null
+    );
+    if (
+      !(object && declared) ||
+      new Set(fields).size !== fields.length ||
+      geometryMismatch(object, declared, message)
+    ) {
+      geometryResult(
+        message.requestId,
+        "This object does not declare editable geometry."
+      );
+      return;
+    }
+    geometry.current = {
+      binding: message.binding,
+      generation: message.generation,
+      objectId: object.id,
+      owner,
+      requestId: message.requestId,
+      snapshot: owner.snapshot,
+    };
+    publish();
+  };
+  const commitGeometry = (message: GeometryCommit) => {
+    const gesture = geometry.current;
+    if (gesture?.requestId !== message.requestId) {
+      return;
+    }
+    const { owner, snapshot, objectId, binding } = gesture;
+    geometry.current = null;
+    const object = snapshot.document.objects.find(
+      (item) => item.id === objectId
+    );
+    const declared = snapshot.document.definitions.find(
+      (item) => item.id === object?.definition
+    );
+    if (
+      !inlineAllowed.current ||
+      active.current !== owner ||
+      owner.generation !== gesture.generation ||
+      owner.snapshot?.revision !== snapshot.revision ||
+      owner.loading ||
+      owner.writing ||
+      owner.undoing ||
+      owner.drafts.size > 0 ||
+      !(object && declared)
+    ) {
+      geometryResult(
+        message.requestId,
+        "The object changed during the gesture. Try again."
+      );
+      publish();
+      return;
+    }
+    const changes = geometryChanges(object, binding, message.values);
+    const problem = geometryProblem(declared, changes);
+    if (problem) {
+      geometryResult(message.requestId, problem);
+    } else if (changes.length > 0) {
+      const [first, ...rest] = changes;
+      const operation: StudioOperation = {
+        ...first,
+        changes: rest,
+        definition: declared,
+        id: crypto.randomUUID(),
+        objectId,
+      };
+      owner.drafts.set(JSON.stringify([objectId, first.field]), {
+        attempted: false,
+        error: null,
+        operation,
+        saving: false,
       });
+      broadcast(owner, operation);
+      commitOwner(owner);
+      geometryResult(message.requestId, null);
+    } else {
+      geometryResult(message.requestId, null);
+    }
+    publish();
+  };
+  geometryMessage.current = (message) => {
     if (message.type === "studio.geometry.request") {
-      if (geometryConfigRef.current) send(geometryConfigRef.current);
+      if (geometryConfigRef.current) {
+        send(geometryConfigRef.current);
+      }
       return;
     }
     if (message.type === "studio.geometry.cancel") {
@@ -563,235 +646,96 @@ export function useManagedObjects({
       return;
     }
     if (message.type === "studio.geometry.begin") {
-      const owner = active.current;
-      if (
-        !inlineAllowed.current ||
-        !owner?.snapshot ||
-        owner.generation !== message.generation ||
-        owner.video !== message.video ||
-        owner.selected !== message.objectId ||
-        owner.loading ||
-        owner.writing ||
-        owner.undoing ||
-        owner.drafts.size > 0 ||
-        inline.current ||
-        geometry.current
-      ) {
-        result(
-          message.requestId,
-          "Finish the current edit before transforming this object."
-        );
-        return;
-      }
-      const object = owner.snapshot.document.objects.find(
-        (item) => item.id === message.objectId
-      );
-      const definition = owner.snapshot.document.definitions.find(
-        (item) => item.id === object?.definition
-      );
-      const fields = Object.values(message.binding).filter(
-        (field): field is string => field !== null
-      );
-      if (
-        !object ||
-        !definition ||
-        new Set(fields).size !== fields.length ||
-        GEOMETRY_KEYS.some((key) => {
-          const id = message.binding[key];
-          if (id === null)
-            return key !== "rotation" || message.values.rotation !== 0;
-          const field = definition.fields.find((item) => item.id === id);
-          const value = object.values[id];
-          return (
-            field?.type !== "number" ||
-            typeof value !== "number" ||
-            !sameStudioValue(value, message.values[key]) ||
-            (field.unit !== undefined &&
-              field.unit !== (key === "rotation" ? "deg" : "px")) ||
-            ((key === "width" || key === "height") && value < 1)
-          );
-        })
-      ) {
-        result(
-          message.requestId,
-          "This object does not declare editable geometry."
-        );
-        return;
-      }
-      geometry.current = {
-        binding: message.binding,
-        generation: message.generation,
-        objectId: object.id,
-        owner,
-        requestId: message.requestId,
-        snapshot: owner.snapshot,
-      };
-      publish();
+      beginGeometry(message);
       return;
     }
-    if (message.type !== "studio.geometry.commit") return;
-    const gesture = geometry.current;
-    if (gesture?.requestId !== message.requestId) return;
-    const { owner, snapshot, objectId, binding } = gesture;
-    geometry.current = null;
+    if (message.type === "studio.geometry.commit") {
+      commitGeometry(message);
+    }
+  };
+  const textReply = (requestId: string, error: string | null) =>
+    send({
+      error,
+      requestId,
+      source: "remocn-studio",
+      type: "studio.text.close",
+    });
+  const requestInline = (message: TextRequest) => {
+    cancelInline();
+    const owner = active.current;
     if (
       !inlineAllowed.current ||
-      active.current !== owner ||
-      owner.generation !== gesture.generation ||
-      owner.snapshot?.revision !== snapshot.revision ||
+      owner === null ||
+      owner.video !== message.video ||
+      owner.generation !== message.generation
+    ) {
+      textReply(
+        message.requestId,
+        "Text editing is unavailable in this preview."
+      );
+      return;
+    }
+    if (
       owner.loading ||
       owner.writing ||
       owner.undoing ||
-      owner.drafts.size > 0
+      owner.drafts.size > 0 ||
+      geometry.current
     ) {
-      result(
+      textReply(
         message.requestId,
-        "The object changed during the gesture. Try again."
+        "Finish saving the current properties, then edit this text."
       );
-      publish();
       return;
     }
-    const object = snapshot.document.objects.find(
-      (item) => item.id === objectId
-    )!;
-    const definition = snapshot.document.definitions.find(
-      (item) => item.id === object.definition
-    )!;
-    const changes = GEOMETRY_KEYS.flatMap((key) => {
-      const field = binding[key];
-      return field === null ||
-        sameStudioValue(object.values[field], message.values[key])
-        ? []
-        : [{ field, before: object.values[field], after: message.values[key] }];
-    });
-    const problem = changes
-      .map((change) =>
-        fieldProblem(
-          definition.fields.find((field) => field.id === change.field)!,
-          change.after
-        )
-      )
-      .find((error) => error !== null);
-    if (problem) {
-      result(message.requestId, problem);
-    } else if (changes.length > 0) {
-      const [first, ...rest] = changes;
-      const operation: StudioOperation = {
-        ...first,
-        changes: rest,
-        definition,
-        id: crypto.randomUUID(),
-        objectId,
-      };
-      owner.drafts.set(JSON.stringify([objectId, first.field]), {
-        operation,
-        attempted: false,
-        error: null,
-        saving: false,
-      });
-      broadcast(owner, operation);
-      commitOwner(owner);
-      result(message.requestId, null);
-    } else {
-      result(message.requestId, null);
+    const object = owner.snapshot?.document.objects.find(
+      (item) => item.id === message.objectId
+    );
+    const declared = owner.snapshot?.document.definitions.find(
+      (item) => item.id === object?.definition
+    );
+    const match =
+      object && declared
+        ? inlineTextField(object, declared, message.candidates)
+        : null;
+    if (!(object && declared && match)) {
+      textReply(
+        message.requestId,
+        "Edit this text in Properties; its text field is not uniquely bound."
+      );
+      return;
     }
+    const value = object.values[match.field.id];
+    if (typeof value !== "string") {
+      return;
+    }
+    inline.current = {
+      generation: message.generation,
+      operation: {
+        after: value,
+        before: value,
+        definition: declared,
+        field: match.field.id,
+        id: crypto.randomUUID(),
+        objectId: object.id,
+      },
+      owner,
+      requestId: message.requestId,
+    };
+    owner.selected = object.id;
+    owner.open = true;
+    owner.dismissed = false;
+    send({
+      candidate: match.candidate,
+      label: match.field.label,
+      requestId: message.requestId,
+      source: "remocn-studio",
+      type: "studio.text.open",
+      value,
+    });
     publish();
   };
-  inlineMessage.current = (message) => {
-    const reply = (requestId: string, error: string | null) =>
-      send({
-        error,
-        requestId,
-        source: "remocn-studio",
-        type: "studio.text.close",
-      });
-
-    if (message.type === "studio.text.cancel") {
-      if (inline.current?.requestId === message.requestId) {
-        inline.current = null;
-        publish();
-      }
-      return;
-    }
-    if (message.type === "studio.text.request") {
-      cancelInline();
-      const owner = active.current;
-      if (
-        !inlineAllowed.current ||
-        owner === null ||
-        owner.video !== message.video ||
-        owner.generation !== message.generation
-      ) {
-        reply(
-          message.requestId,
-          "Text editing is unavailable in this preview."
-        );
-        return;
-      }
-      if (
-        owner.loading ||
-        owner.writing ||
-        owner.undoing ||
-        owner.drafts.size > 0 ||
-        geometry.current
-      ) {
-        reply(
-          message.requestId,
-          "Finish saving the current properties, then edit this text."
-        );
-        return;
-      }
-      const object = owner.snapshot?.document.objects.find(
-        (item) => item.id === message.objectId
-      );
-      const definition = owner.snapshot?.document.definitions.find(
-        (item) => item.id === object?.definition
-      );
-      const match =
-        object && definition
-          ? inlineTextField(object, definition, message.candidates)
-          : null;
-      if (!object || !definition || !match) {
-        reply(
-          message.requestId,
-          "Edit this text in Properties; its text field is not uniquely bound."
-        );
-        return;
-      }
-      const value = object.values[match.field.id];
-      if (typeof value !== "string") {
-        return;
-      }
-      inline.current = {
-        generation: message.generation,
-        operation: {
-          after: value,
-          before: value,
-          definition,
-          field: match.field.id,
-          id: crypto.randomUUID(),
-          objectId: object.id,
-        },
-        owner,
-        requestId: message.requestId,
-      };
-      owner.selected = object.id;
-      owner.open = true;
-      owner.dismissed = false;
-      send({
-        candidate: match.candidate,
-        label: match.field.label,
-        requestId: message.requestId,
-        source: "remocn-studio",
-        type: "studio.text.open",
-        value,
-      });
-      publish();
-      return;
-    }
-    if (message.type !== "studio.text.commit") {
-      return;
-    }
+  const commitInline = (message: TextCommit) => {
     const editing = inline.current;
     if (editing === null || editing.requestId !== message.requestId) {
       return;
@@ -811,7 +755,7 @@ export function useManagedObjects({
       owner.undoing ||
       owner.drafts.size > 0
     ) {
-      reply(
+      textReply(
         message.requestId,
         "Properties changed during editing. Copy your text, then reopen the field."
       );
@@ -829,8 +773,24 @@ export function useManagedObjects({
       broadcast(owner, updated);
       commitOwner(owner);
     }
-    reply(message.requestId, null);
+    textReply(message.requestId, null);
     publish();
+  };
+  inlineMessage.current = (message) => {
+    if (message.type === "studio.text.cancel") {
+      if (inline.current?.requestId === message.requestId) {
+        inline.current = null;
+        publish();
+      }
+      return;
+    }
+    if (message.type === "studio.text.request") {
+      requestInline(message);
+      return;
+    }
+    if (message.type === "studio.text.commit") {
+      commitInline(message);
+    }
   };
   const commit = useCallback(() => commitOwner(active.current), [commitOwner]);
   const acceptsPreview = useCallback((ready: StagedDocument | null) => {
@@ -876,9 +836,9 @@ export function useManagedObjects({
       broadcast(owner, {
         ...draft.operation,
         after: object?.values[draft.operation.field] ?? draft.operation.before,
-        changes: draft.operation.changes?.map((change) => ({
-          ...change,
-          after: object?.values[change.field] ?? change.before,
+        changes: draft.operation.changes?.map((item) => ({
+          ...item,
+          after: object?.values[item.field] ?? item.before,
         })),
       });
       owner.drafts.delete(address);
@@ -888,14 +848,7 @@ export function useManagedObjects({
   }, [broadcast, publish, reload]);
 
   const operations = session?.snapshot?.document.operations ?? [];
-  const undone = new Set(
-    operations.flatMap((operation) =>
-      operation.undoOf ? [operation.undoOf] : []
-    )
-  );
-  const undoable = operations.findLast(
-    (operation) => !(operation.undoOf || undone.has(operation.id))
-  );
+  const undoable = lastUndoable(operations);
   const undo = useCallback(() => {
     const owner = active.current;
     if (
@@ -953,7 +906,10 @@ export function useManagedObjects({
   const drafts = [...(session?.drafts.values() ?? [])];
   return {
     acceptsPreview,
-    awaitingPreview: session === null ? false : rendersBehind(session, session.renderedOperation),
+    awaitingPreview:
+      session === null
+        ? false
+        : rendersBehind(session, session.renderedOperation),
     busy:
       drafts.some((draft) => draft.saving) ||
       (session?.undoing ?? false) ||
@@ -972,24 +928,12 @@ export function useManagedObjects({
     discard,
     editingText: inline.current !== null,
     error: session?.error ?? drafts.find((draft) => draft.error)?.error ?? null,
-    fields:
-      definition?.fields.map((field) => {
-        const held =
-          session && selected
-            ? draftForField(session, selected.id, field.id)
-            : null;
-        const draft = held?.draft;
-        return {
-          ...field,
-          error: draft?.error ?? null,
-          saving:
-            geometry.current !== null ||
-            inline.current !== null ||
-            (draft?.attempted ?? false),
-          value:
-            held?.change.after ?? selected?.values[field.id] ?? field.default,
-        };
-      }) ?? [],
+    fields: fieldStates(
+      session,
+      selected,
+      definition,
+      geometry.current !== null || inline.current !== null
+    ),
     isOpen,
     loading: session?.loading ?? false,
     objects: session?.snapshot?.document.objects ?? [],
@@ -1005,18 +949,174 @@ export function useManagedObjects({
 
 export type ManagedObjects = ReturnType<typeof useManagedObjects>;
 
-function draftForField(owner: Session, objectId: string, field: string) {
-  for (const draft of owner.drafts.values()) {
-    if (draft.operation.objectId !== objectId) continue;
-    const change = studioOperationChanges(draft.operation).find(
-      (item) => item.field === field
+function registerSession(
+  sessions: Map<string, Session>,
+  projectId: string | null,
+  video: string | null
+) {
+  if (projectId === null || video === null) {
+    return null;
+  }
+  const key = JSON.stringify([projectId, video]);
+  if (!sessions.has(key)) {
+    sessions.set(key, newSession(projectId, video));
+  }
+  return key;
+}
+
+function newSession(projectId: string, video: string): Session {
+  return {
+    awaitingOperation: null,
+    commitAgain: false,
+    dismissed: false,
+    drafts: new Map(),
+    epoch: 0,
+    error: null,
+    generation: null,
+    loading: false,
+    open: false,
+    projectId,
+    renderedOperation: null,
+    selected: null,
+    snapshot: null,
+    undoing: false,
+    video,
+    writing: false,
+  };
+}
+
+function geometryFields(
+  session: Session | null,
+  selected: StudioObject | null,
+  definition: StudioDefinition | null
+) {
+  return (
+    definition?.fields.flatMap((field) => {
+      const held =
+        session && selected
+          ? draftForField(session, selected.id, field.id)
+          : null;
+      const value = held?.change.after ?? selected?.values[field.id];
+      return field.type === "number" && typeof value === "number"
+        ? [
+            {
+              id: field.id,
+              max: field.max ?? null,
+              min: field.min ?? null,
+              value,
+            },
+          ]
+        : [];
+    }) ?? []
+  );
+}
+
+function fieldStates(
+  session: Session | null,
+  selected: StudioObject | null,
+  definition: StudioDefinition | null,
+  locked: boolean
+) {
+  return (
+    definition?.fields.map((field) => {
+      const held =
+        session && selected
+          ? draftForField(session, selected.id, field.id)
+          : null;
+      const draft = held?.draft;
+      return {
+        ...field,
+        error: draft?.error ?? null,
+        saving: locked || (draft?.attempted ?? false),
+        value:
+          held?.change.after ?? selected?.values[field.id] ?? field.default,
+      };
+    }) ?? []
+  );
+}
+
+function lastUndoable(operations: readonly StudioOperation[]) {
+  const undone = new Set(
+    operations.flatMap((operation) =>
+      operation.undoOf ? [operation.undoOf] : []
+    )
+  );
+  return operations.findLast(
+    (operation) => !(operation.undoOf || undone.has(operation.id))
+  );
+}
+
+function geometryMismatch(
+  object: StudioObject,
+  declared: StudioDefinition,
+  message: GeometryBegin
+) {
+  return GEOMETRY_KEYS.some((axis) => {
+    const id = message.binding[axis];
+    if (id === null) {
+      return axis !== "rotation" || message.values.rotation !== 0;
+    }
+    const field = declared.fields.find((item) => item.id === id);
+    const value = object.values[id];
+    return (
+      field?.type !== "number" ||
+      typeof value !== "number" ||
+      !sameStudioValue(value, message.values[axis]) ||
+      (field.unit !== undefined &&
+        field.unit !== (axis === "rotation" ? "deg" : "px")) ||
+      ((axis === "width" || axis === "height") && value < 1)
     );
-    if (change) return { draft, change };
+  });
+}
+
+function geometryChanges(
+  object: StudioObject,
+  binding: GeometryBinding,
+  values: GeometryCommit["values"]
+) {
+  return GEOMETRY_KEYS.flatMap((axis) => {
+    const field = binding[axis];
+    return field === null || sameStudioValue(object.values[field], values[axis])
+      ? []
+      : [{ after: values[axis], before: object.values[field], field }];
+  });
+}
+
+function geometryProblem(
+  declared: StudioDefinition,
+  changes: readonly { after: StudioValue; field: string }[]
+) {
+  for (const item of changes) {
+    const field = declared.fields.find((entry) => entry.id === item.field);
+    const problem = field
+      ? fieldProblem(field, item.after)
+      : "This object does not declare editable geometry.";
+    if (problem !== null) {
+      return problem;
+    }
   }
   return null;
 }
 
-function rendersBehind(session: Session, lastOperationId: string | null): boolean {
+function draftForField(owner: Session, objectId: string, field: string) {
+  for (const draft of owner.drafts.values()) {
+    if (draft.operation.objectId !== objectId) {
+      continue;
+    }
+    const change = studioOperationChanges(draft.operation).find(
+      (item) => item.field === field
+    );
+    if (change) {
+      return { change, draft };
+    }
+  }
+  return null;
+}
+
+function rendersBehind(
+  session: Session,
+  lastOperationId: string | null
+): boolean {
   if (!session.awaitingOperation) {
     return false;
   }

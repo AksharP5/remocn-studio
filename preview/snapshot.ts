@@ -1,7 +1,7 @@
-import { elementsAt, lockCamera, overlayRoot, surfaceEvents } from "./surface";
 import { post } from "./bridge";
 import { ACCENT, ACCENT_SOFT, canvas, TOP } from "./inspect";
 import { covers, OVERLAY_ATTR } from "./picker";
+import { elementsAt, lockCamera, overlayRoot, surfaceEvents } from "./surface";
 
 export const DRAG_THRESHOLD = 6;
 
@@ -118,13 +118,20 @@ function start(container: HTMLElement, frame: Frame): Session {
   const releasePointer = () => {
     const id = captured;
     captured = null;
-    if (id !== null && container.hasPointerCapture(id)) container.releasePointerCapture(id);
+    if (id !== null && container.hasPointerCapture(id)) {
+      container.releasePointerCapture(id);
+    }
   };
 
   container.style.cursor = "crosshair";
 
   const onDown = (event: PointerEvent) => {
-    if (event.button !== 0 || !elementsAt(event.clientX, event.clientY).some((node) => container.contains(node))) {
+    if (
+      event.button !== 0 ||
+      !elementsAt(event.clientX, event.clientY).some((node) =>
+        container.contains(node)
+      )
+    ) {
       return;
     }
 
@@ -176,10 +183,10 @@ function start(container: HTMLElement, frame: Frame): Session {
     if (event.key === "Escape" && !event.defaultPrevented) {
       event.preventDefault();
       event.stopPropagation();
-      if (dragging !== null) {
-        onCancel();
-      } else {
+      if (dragging === null) {
         post({ type: "inspect.clear" });
+      } else {
+        onCancel();
       }
     }
   };

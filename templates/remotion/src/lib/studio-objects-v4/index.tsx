@@ -1,6 +1,6 @@
 import {
-  createContext,
   type CSSProperties,
+  createContext,
   type ReactNode,
   useContext,
   useEffect,
@@ -93,6 +93,68 @@ function acceptsDraft(
   return typeof command.value === "string";
 }
 
+type BatchCommand = z.infer<typeof Command> & { type: "studio.batch" };
+type Definition = ObjectDocument["definitions"][number];
+type GeometryKey = "x" | "y" | "width" | "height" | "rotation";
+type GeometryValues = Record<GeometryKey, number>;
+
+const GEOMETRY_KEYS = ["x", "y", "width", "height", "rotation"] as const;
+
+function acceptsBatch(
+  document: ObjectDocument,
+  generation: string,
+  command: BatchCommand
+): boolean {
+  const entries = Object.entries(command.values);
+  return (
+    command.generation === generation &&
+    entries.length > 0 &&
+    entries.every(([field, draft]) =>
+      acceptsDraft(document, {
+        field,
+        generation,
+        objectId: command.objectId,
+        source: "remocn-studio",
+        type: "studio.draft",
+        value: draft,
+      })
+    )
+  );
+}
+
+function baseGeometry(
+  label: string,
+  definition: Definition | undefined,
+  values: Readonly<Record<string, Value | undefined>>,
+  bindings: Record<GeometryKey, string | null>
+): GeometryValues {
+  const geometry = { height: 0, rotation: 0, width: 0, x: 0, y: 0 };
+  for (const key of GEOMETRY_KEYS) {
+    const bound = bindings[key];
+    if (bound === null) {
+      continue;
+    }
+    const field = definition?.fields.find((item) => item.id === bound);
+    const value = values[bound];
+    const rotation = key === "rotation";
+    if (
+      field?.type !== "number" ||
+      typeof value !== "number" ||
+      !Number.isFinite(value) ||
+      (field.unit !== undefined && field.unit !== (rotation ? "deg" : "px"))
+    ) {
+      throw new Error(
+        `${label}: ${bound} must be a numeric geometry field in ${rotation ? "degrees" : "pixels"}.`
+      );
+    }
+    if ((key === "width" || key === "height") && value < 1) {
+      throw new Error(`${label}: ${bound} must be at least one pixel.`);
+    }
+    geometry[key] = value;
+  }
+  return geometry;
+}
+
 const Objects = createContext<ContextValue | null>(null);
 
 export function StudioObjects({
@@ -138,22 +200,9 @@ export function StudioObjects({
         return;
       }
       if (command.type === "studio.batch") {
-        const entries = Object.entries(command.values);
-        if (
-          command.generation !== generation ||
-          entries.length === 0 ||
-          !entries.every(([field, value]) =>
-            acceptsDraft(document, {
-              source: "remocn-studio",
-              type: "studio.draft",
-              generation,
-              objectId: command.objectId,
-              field,
-              value,
-            })
-          )
-        )
+        if (!acceptsBatch(document, generation, command)) {
           return;
+        }
         setDrafts((previous) => ({
           ...previous,
           [command.objectId]: {
@@ -212,66 +261,6 @@ export function useStudioObject(id: string, occurrence = "main") {
       "data-studio-occurrence": occurrence,
       "data-studio-video": context.document.video,
     },
-    geometry: (fields: {
-      x: string;
-      y: string;
-      width: string;
-      height: string;
-      rotation?: string;
-    }) => {
-      const definition = context.document.definitions.find(
-        (item) => item.id === object.definition
-      );
-      const keys = ["x", "y", "width", "height", "rotation"] as const;
-      const bindings = { ...fields, rotation: fields.rotation ?? null };
-      const ids = Object.values(bindings).filter((field) => field !== null);
-      if (new Set(ids).size !== ids.length) {
-        throw new Error(
-          `${object.label}: geometry fields must be independent.`
-        );
-      }
-      const geometry = { x: 0, y: 0, width: 0, height: 0, rotation: 0 };
-      for (const key of keys) {
-        const id = bindings[key];
-        if (id === null) continue;
-        const field = definition?.fields.find((item) => item.id === id);
-        const value = values[id];
-        if (
-          field?.type !== "number" ||
-          typeof value !== "number" ||
-          !Number.isFinite(value) ||
-          (field.unit !== undefined &&
-            field.unit !== (key === "rotation" ? "deg" : "px"))
-        ) {
-          throw new Error(
-            `${object.label}: ${id} must be a numeric geometry field in ${key === "rotation" ? "degrees" : "pixels"}.`
-          );
-        }
-        if ((key === "width" || key === "height") && value < 1) {
-          throw new Error(`${object.label}: ${id} must be at least one pixel.`);
-        }
-        geometry[key] = value;
-      }
-      const style: CSSProperties = {
-        position: "absolute",
-        left: geometry.x,
-        top: geometry.y,
-        width: geometry.width,
-        height: geometry.height,
-        rotate: `${geometry.rotation}deg`,
-        transformOrigin: "center",
-        boxSizing: "border-box",
-        margin: 0,
-        touchAction: "none",
-      };
-      return {
-        bind: {
-          "data-studio-geometry": JSON.stringify(bindings),
-          "data-studio-geometry-values": JSON.stringify(geometry),
-        },
-        style,
-      };
-    },
     bindText: (field: string) => {
       const definition = context.document.definitions.find(
         (item) => item.id === object.definition
@@ -301,6 +290,44 @@ export function useStudioObject(id: string, occurrence = "main") {
         throw new Error(`${object.label}: ${field} must be a switch value.`);
       }
       return value;
+    },
+    geometry: (fields: {
+      x: string;
+      y: string;
+      width: string;
+      height: string;
+      rotation?: string;
+    }) => {
+      const definition = context.document.definitions.find(
+        (item) => item.id === object.definition
+      );
+      const bindings = { ...fields, rotation: fields.rotation ?? null };
+      const ids = Object.values(bindings).filter((field) => field !== null);
+      if (new Set(ids).size !== ids.length) {
+        throw new Error(
+          `${object.label}: geometry fields must be independent.`
+        );
+      }
+      const geometry = baseGeometry(object.label, definition, values, bindings);
+      const style: CSSProperties = {
+        boxSizing: "border-box",
+        height: geometry.height,
+        left: geometry.x,
+        margin: 0,
+        position: "absolute",
+        rotate: `${geometry.rotation}deg`,
+        top: geometry.y,
+        touchAction: "none",
+        transformOrigin: "center",
+        width: geometry.width,
+      };
+      return {
+        bind: {
+          "data-studio-geometry": JSON.stringify(bindings),
+          "data-studio-geometry-values": JSON.stringify(geometry),
+        },
+        style,
+      };
     },
     number: (field: string): number => {
       const value = values[field];

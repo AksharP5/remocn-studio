@@ -33,7 +33,9 @@ export function ExportButton({
           <DownloadIcon data-icon="inline-start" />
           Export
         </Button>
-        {renderDialog ? <ExportDialog composition={composition} exporting={exporting} /> : null}
+        {renderDialog ? (
+          <ExportDialog composition={composition} exporting={exporting} />
+        ) : null}
       </>
     );
   }

@@ -11,10 +11,13 @@ import {
 } from "lucide-react";
 import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupTextarea,
+} from "@/components/ui/input-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { InputGroup, InputGroupAddon, InputGroupTextarea } from "@/components/ui/input-group";
-import { DOCK_ACTIONS, DOCK_INSET, DOCK_SURFACE } from "./dock-layout";
 import {
   Tooltip,
   TooltipContent,
@@ -40,6 +43,7 @@ import { changedFields, subtitleOf, titleOf } from "@/lib/studio/tuning";
 import { cn } from "@/lib/utils";
 import type { TuningValue } from "@/shared/ipc";
 import { DialKitSurface } from "./dialkit-surface";
+import { DOCK_ACTIONS, DOCK_INSET, DOCK_SURFACE } from "./dock-layout";
 import { ManagedPropsPane } from "./managed-props-pane";
 import { Pane, PaneActions, PaneBody, PaneHeader, PaneTitle } from "./pane";
 import { GroupHeading } from "./prop-group-heading";
@@ -307,41 +311,41 @@ export function PropsPanel({
           )}
 
           <InputGroup className={DOCK_SURFACE}>
-          <InputGroupTextarea
-            {...VERBATIM_INPUT}
-            aria-label="What should change about this element?"
-            className="max-h-32 flex-1 resize-none text-sm"
-            onChange={comment.onChange}
-            onKeyDown={comment.onKeyDown}
-            placeholder="What should change?"
-            ref={comment.ref}
-            rows={2}
-            value={comment.value}
-          />
+            <InputGroupTextarea
+              {...VERBATIM_INPUT}
+              aria-label="What should change about this element?"
+              className="max-h-32 flex-1 resize-none text-sm"
+              onChange={comment.onChange}
+              onKeyDown={comment.onKeyDown}
+              placeholder="What should change?"
+              ref={comment.ref}
+              rows={2}
+              value={comment.value}
+            />
 
-          <InputGroupAddon align="block-end">
-          <div className={cn(DOCK_ACTIONS, "flex-wrap")}>
-            <Button
-              className="text-muted-foreground"
-              onClick={comment.keep}
-              size="xs"
-              title="Ask Claude to put this in the asset library"
-              variant="ghost"
-            >
-              <LibraryBigIcon />
-              Save to library
-            </Button>
-            <div className="ms-auto flex items-center gap-1">
-              <Button onClick={onCancel} size="xs" variant="ghost">
-                Cancel
-              </Button>
-              <Button onClick={comment.submit} size="xs">
-                <CornerDownLeftIcon />
-                {changes === 0 ? "Add" : `Add ${changes}`}
-              </Button>
-            </div>
-          </div>
-          </InputGroupAddon>
+            <InputGroupAddon align="block-end">
+              <div className={cn(DOCK_ACTIONS, "flex-wrap")}>
+                <Button
+                  className="text-muted-foreground"
+                  onClick={comment.keep}
+                  size="xs"
+                  title="Ask Claude to put this in the asset library"
+                  variant="ghost"
+                >
+                  <LibraryBigIcon />
+                  Save to library
+                </Button>
+                <div className="ms-auto flex items-center gap-1">
+                  <Button onClick={onCancel} size="xs" variant="ghost">
+                    Cancel
+                  </Button>
+                  <Button onClick={comment.submit} size="xs">
+                    <CornerDownLeftIcon />
+                    {changes === 0 ? "Add" : `Add ${changes}`}
+                  </Button>
+                </div>
+              </div>
+            </InputGroupAddon>
           </InputGroup>
         </div>
       </PaneBody>

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, jest, mock } from "bun:test";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import {
+  type PreviewControl,
   type PreviewListener,
   useOnPreview,
   usePreview,
@@ -10,7 +11,7 @@ import type { PreviewEvent, SidecarPhase } from "@/shared/ipc";
 
 const FOLDER = "/Users/me/projects/my-video";
 const URL = "http://127.0.0.1:51749";
-let previewWindow: Window | null = null;
+let deliver: ((message: unknown) => void) | null = null;
 
 interface Internals {
   runCallback: (id: number, data: unknown) => void;
@@ -53,44 +54,55 @@ function mockPreview() {
   };
 }
 
-function post(data: unknown, origin = URL) {
+function attach(preview: PreviewControl) {
+  let receive: ((message: unknown) => void) | null = null;
   act(() => {
-    window.dispatchEvent(
-      new MessageEvent("message", { data, origin, source: previewWindow })
-    );
+    preview.attachSurface({
+      dispose: () => {
+        receive = null;
+      },
+      focus: () => undefined,
+      send: () => undefined,
+      subscribe: (listen) => {
+        receive = listen;
+        return () => {
+          receive = null;
+        };
+      },
+    });
+  });
+  const surface = (message: unknown) => receive?.(message);
+  deliver = surface;
+  return (data: unknown) => act(() => surface(data));
+}
+
+function post(data: unknown) {
+  act(() => {
+    deliver?.(data);
   });
 }
 
-function announce(
-  pick: { compositionId: string; reason: string },
-  origin = URL
-) {
-  post(
-    {
-      ...pick,
-      compositions: ["Main", "Intro"],
-      source: "remocn-preview",
-      total: 2,
-      type: "composition",
-      unmeasured: false,
-    },
-    origin
-  );
+function announce(pick: { compositionId: string; reason: string }) {
+  post({
+    ...pick,
+    compositions: ["Main", "Intro"],
+    source: "remocn-preview",
+    total: 2,
+    type: "composition",
+    unmeasured: false,
+  });
 }
 
-function announceEmpty(origin = URL) {
-  post(
-    {
-      compositionId: null,
-      compositions: [],
-      reason: "none",
-      source: "remocn-preview",
-      total: 0,
-      type: "composition",
-      unmeasured: false,
-    },
-    origin
-  );
+function announceEmpty() {
+  post({
+    compositionId: null,
+    compositions: [],
+    reason: "none",
+    source: "remocn-preview",
+    total: 0,
+    type: "composition",
+    unmeasured: false,
+  });
 }
 
 const SELECTION = {
@@ -127,16 +139,16 @@ async function served(
     expect(rendered.result.current.preview.phase).toBe("building");
   });
 
-  const stage = document.createElement("iframe");
-  document.body.append(stage);
-  rendered.result.current.stage.current = stage;
-  previewWindow = stage.contentWindow;
+  attach(rendered.result.current);
   host.send({ type: "ready", url: URL });
 
   return { host, rendered };
 }
 
-afterEach(() => jest.useRealTimers());
+afterEach(() => {
+  jest.useRealTimers();
+  deliver = null;
+});
 
 describe("usePreview", () => {
   it("asks the served page for the video it is showing", async () => {
@@ -463,11 +475,13 @@ describe("usePreview", () => {
     );
   });
 
-  it("ignores a selection that did not come from the preview's origin", async () => {
+  it("ignores a surface that has since been replaced", async () => {
     const listen = listener();
-    await served(listen);
+    const { rendered } = await served(listen);
+    const replaced = attach(rendered.result.current);
+    attach(rendered.result.current);
 
-    post(SELECTION, "http://evil.example");
+    replaced(SELECTION);
 
     expect(listen).not.toHaveBeenCalled();
   });

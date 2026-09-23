@@ -1,6 +1,5 @@
 "use client";
 
-import { DOCK_ACTIONS, DOCK_INSET, DOCK_SURFACE } from "./dock-layout";
 import {
   ArrowUpIcon,
   ChevronDownIcon,
@@ -48,6 +47,7 @@ import {
 import { type AgentProvider, capabilitiesOf } from "@/shared/providers";
 import { AssetRow } from "./asset-row";
 import { ContextMeter } from "./context-meter";
+import { DOCK_ACTIONS, DOCK_INSET, DOCK_SURFACE } from "./dock-layout";
 import { MediaRow } from "./media-row";
 import { MentionPopup } from "./mention-popup";
 import { MessageText } from "./message-text";
@@ -242,7 +242,7 @@ function ComposerBlock({
             <textarea
               {...VERBATIM_INPUT}
               aria-label="Message"
-              className="field-sizing-content relative max-h-64 w-full rounded-none border-0 bg-transparent px-3 py-[calc(--spacing(3)-1px)] text-base text-transparent caret-foreground shadow-none outline-none [scrollbar-gutter:stable] selection:bg-primary/30 placeholder:text-muted-foreground/72 dark:placeholder:text-muted-foreground sm:text-sm"
+              className="field-sizing-content relative max-h-64 w-full rounded-none border-0 bg-transparent px-3 py-[calc(--spacing(3)-1px)] text-base text-transparent caret-foreground shadow-none outline-none [scrollbar-gutter:stable] selection:bg-primary/30 placeholder:text-muted-foreground/72 sm:text-sm dark:placeholder:text-muted-foreground"
               data-slot="textarea"
               disabled={isLocked}
               onBlur={composer.onBlur}

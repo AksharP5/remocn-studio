@@ -1,4 +1,5 @@
 import { nativeSurface, surfaceHref } from "./surface";
+
 /**
  * What an `asset` field's value is, on each side of the wire.
  *
@@ -25,7 +26,10 @@ const SCHEME = /^[a-z][a-z\d+\-.]*:/i;
 const IMAGE = /\.(avif|gif|jpe?g|png|svg|webp)$/i;
 
 export function staticBase(): string {
-  if (nativeSurface()) return nativeSurface()!.assets;
+  const surface = nativeSurface();
+  if (surface) {
+    return surface.assets;
+  }
   const value = (window as { remotion_staticBase?: unknown })
     .remotion_staticBase;
 
@@ -65,7 +69,9 @@ export function assetValue(name: string): string {
     return name;
   }
 
-  return nativeSurface() ? `${staticBase()}/${encodeSegments(name)}` : `${FILE_TOKEN}${encodeSegments(name)}`;
+  return nativeSurface()
+    ? `${staticBase()}/${encodeSegments(name)}`
+    : `${FILE_TOKEN}${encodeSegments(name)}`;
 }
 
 export function isImageName(name: string): boolean {

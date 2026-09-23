@@ -44,10 +44,7 @@ export function AssetGrid({
   return (
     <div className="columns-2 gap-2 px-1 pb-1">
       {assets.map((asset) => (
-        <div
-          className="mb-2 break-inside-avoid"
-          key={asset.slug}
-        >
+        <div className="mb-2 break-inside-avoid" key={asset.slug}>
           <AssetItem
             asset={asset}
             onPick={onPick}
