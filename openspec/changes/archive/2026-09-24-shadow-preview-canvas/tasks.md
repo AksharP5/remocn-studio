@@ -19,7 +19,7 @@
 ## 4. Delivery
 
 - [x] 4.1 Package the new runtime resources and add a changeset describing the main-app migration.
-- [ ] 4.2 After the user enables verification, cover stale connection/disposal, iframe regressions, camera boundaries, native bundling, reload/media cleanup, and packaged resources; run bun run check, bun run typecheck, touched tests and the full suite. No verification commands or new tests have been run/written under the current no-checks instruction.
+- [ ] 4.2 After the user enables verification, cover stale connection/disposal, iframe regressions, camera boundaries, native bundling, reload/media cleanup, and packaged resources; run bun run check, bun run typecheck, touched tests and the full suite. No verification commands or new tests have been run/written under the current no-checks instruction. → moved to `canvas-follow-ups` 3.1
 - [x] 4.3 Promote the canvas to the main application under the user’s explicit request, mount the real inspector, remove the lab-only settings entry and update affected capability deltas. User evaluation remains deferred.
 
 ## 5. Rebuilds without a gap
@@ -36,8 +36,8 @@
 - [x] 6.2 Move the canvas logic into `useCanvasPreview`; the component only renders.
 - [x] 6.3 Fit and zoom-to-selection measure the panels that cover the canvas (`data-canvas-occludes`) instead of fixed insets.
 - [x] 6.4 The canvas shows compile progress ("Building the project — N%") that only the iframe page showed.
-- [ ] 6.5 Remove the grab script the sidecar still serves for the removed page: `GRAB_SCRIPT_ENV` in Rust and the sidecar, the `grab/index.global.js` resource, `/__remocn/grab.js`, `withoutWebFonts`. Cross-layer; needs `cargo check`.
-- [ ] 6.6 Suspend the render compiler between renders (separate change): the main watcher also reports ready/failed to the pane and resets the still cache, so the native compiler has to take those over first.
+- [ ] 6.5 Remove the grab script the sidecar still serves for the removed page: `GRAB_SCRIPT_ENV` in Rust and the sidecar, the `grab/index.global.js` resource, `/__remocn/grab.js`, `withoutWebFonts`. Cross-layer; needs `cargo check`. → moved to `canvas-follow-ups` 2.1
+- [ ] 6.6 Suspend the render compiler between renders (separate change): the main watcher also reports ready/failed to the pane and resets the still cache, so the native compiler has to take those over first. → moved to `canvas-follow-ups` 2.2
 
 Runtime behavior was verified by the user in the running app on 2026-09-23;
 4.2 still wants the automated coverage it lists. See app/lab/preview-canvas/README.md for compatibility boundaries.

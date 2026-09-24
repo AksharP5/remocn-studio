@@ -7,7 +7,7 @@ The right pane plays the video the open chat is about, compiled by the project's
 
 ### Requirement: Playback controls sit below the frame
 
-The preview SHALL use a persistent playback panel below the frame, with a seek bar, Play/Pause, previous and next frame actions, elapsed and total time, and a mute control. Wider panels SHALL also show a volume slider. The embedded player's controls, click-to-play and double-click-to-fullscreen SHALL be disabled so playback interactions do not intercept editing gestures on the frame. The frame SHALL fit the resolved video dimensions while leaving room for the playback panel.
+The preview SHALL use a persistent playback panel fixed at the bottom of the canvas, outside the video content, with a seek bar, Play/Pause, previous and next frame actions, elapsed and total time, and a mute control. Wider panels SHALL also show a volume slider. The embedded player's controls, click-to-play and double-click-to-fullscreen SHALL be disabled so playback interactions do not intercept editing gestures on the frame. Explicit Fit SHALL use the resolved dimensions and leave room for the playback and inspector overlays. The video SHALL otherwise retain the user’s camera.
 
 #### Scenario: Playback is controlled from the panel
 
@@ -24,7 +24,7 @@ The preview SHALL use a persistent playback panel below the frame, with a seek b
 #### Scenario: Playback shortcuts are used
 
 - **WHEN** the preview has focus outside text inputs and other interactive controls
-- **THEN** Space toggles playback and Left/Right move one frame
+- **THEN** K toggles playback; Space is reserved for canvas navigation and Left/Right move one frame
 - **AND** those shortcuts do not intercept input elsewhere in the app
 
 #### Scenario: The player is not ready
@@ -177,13 +177,26 @@ There SHALL be at most one preview host per Project, serving one compiled bundle
 
 ### Requirement: A rebuild reaches the pane
 
-When the project's files change and the host recompiles, the page SHALL be told, SHALL apply the update or reload itself, and SHALL report the rebuild to the studio. Compile progress arriving after the first compile has settled SHALL NOT replace a playing preview with a progress screen.
+When the project's files change and the host recompiles, the native surface SHALL prepare the new runtime out of sight beside the one on screen and swap to it only once it has drawn its first frame, preserving camera, frame, playback state and sound. The canvas SHALL NOT show a loading screen or an empty frame for a rebuild once a version has been shown. When the new version cannot be shown, the previous one SHALL stay on screen with a notice. Compile progress arriving after the first compile has settled SHALL NOT replace a playing preview with a progress screen. A compile that succeeds after a failed one SHALL be announced as ready again, so the pane that dropped the player for the compiler's messages mounts it again on its own.
 
 #### Scenario: The agent writes to the project
 
 - **WHEN** a turn edits a file the bundle includes and the host recompiles it
-- **THEN** the page applies the update, or reloads when it cannot
-- **AND** the studio is told the preview was rebuilt
+- **THEN** the current version keeps playing while the new runtime loads hidden
+- **AND** the canvas swaps to the new runtime at the same frame, playback state and sound once it has drawn, without reloading the app window
+- **AND** the studio is told the preview was rebuilt when the swap happens
+
+#### Scenario: Rebuilds arrive faster than a version can draw
+
+- **WHEN** another rebuild is announced while a new runtime is still loading
+- **THEN** the loading runtime is discarded and only the latest one is prepared
+
+#### Scenario: A new version cannot be shown
+
+- **WHEN** the new runtime fails to load, throws while rendering, or has not drawn within 30 seconds
+- **THEN** the previous version stays on screen and remains playable and editable
+- **AND** a notice says the latest change could not be shown
+- **AND** the next version that draws replaces it and clears the notice
 
 #### Scenario: Progress after the preview is already serving
 
@@ -194,8 +207,14 @@ When the project's files change and the host recompiles, the page SHALL be told,
 #### Scenario: A rebuild fails
 
 - **WHEN** a recompile fails
-- **THEN** the pane shows the compiler's messages
+- **THEN** the pane shows a readable native compilation failure with recovery actions
 - **AND** the failure is remembered, so a render pinned to the bundle refuses rather than rendering from a broken one
+
+#### Scenario: A failed rebuild is fixed
+
+- **WHEN** the compile after a failed one succeeds
+- **THEN** the studio is told the preview was rebuilt and then that it is ready
+- **AND** the pane plays again without Restart being pressed, and no progress screen is left at 100%
 
 ### Requirement: The preview comes back after the sidecar does
 

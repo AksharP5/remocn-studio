@@ -29,7 +29,7 @@ preview/properties-pane.
 - **WHEN** the selected element has no tunable properties
 - **THEN** the inspector keeps its Layers view and the compact comment card is used
 
-#### Scenario: The inspector is collapsed
+#### Scenario: The inspector is hidden
 - **WHEN** the person clicks the active view's icon or the collapse control
 - **THEN** only the bar remains, selection and edits are preserved, and any view's icon expands it again
 

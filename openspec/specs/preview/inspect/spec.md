@@ -359,12 +359,13 @@ Moving the selection to another element SHALL revert the changes that element's 
 
 ### Requirement: A rebuild clears what refers to the old render
 
-When the preview reports that it rebuilt, legacy selections tied to the old render SHALL be cleared: pending card values are reset, the card is closed, markers are removed, and references already added are marked as no longer reopenable. Managed objects retain their stable-ID behavior. Element selection SHALL be enabled again automatically when the preview is ready and editing is available. The text being typed in the composer and the references already in it SHALL NOT be removed.
+When the preview reports that it rebuilt, legacy selections tied to the old render SHALL be cleared: pending card values are reset, the card is closed, markers are removed, and references already added are marked as no longer reopenable. On the canvas, the element that was picked SHALL then be picked again in the rebuilt runtime when it can still be found by its per-instance anchor, reopening its card. Managed objects retain their stable-ID behavior. Element selection SHALL be enabled again automatically when the preview is ready and editing is available. The text being typed in the composer and the references already in it SHALL NOT be removed.
 
 #### Scenario: A turn writes to the project while a card is open
 
 - **WHEN** the preview rebuilds
-- **THEN** the legacy card closes, its pending values are reset, and its markers go
+- **THEN** the legacy card's pending values are reset and its markers go
+- **AND** on the canvas the card reopens on the same element when it still exists
 - **AND** the next ready preview supports selection automatically
 - **AND** what was typed in the composer is still there
 
@@ -481,3 +482,237 @@ selected without moving the playhead.
 
 - **WHEN** a scene object's label matches no scene on the seek bar
 - **THEN** clicking it selects it and the playhead stays where it is
+
+### Requirement: Managed selection follows object identity
+
+For managed videos the studio SHALL select declared semantic roots and preserve the selected object ID through rebuilds and temporary unmounts.
+
+#### Scenario: Text is split into letters
+- **WHEN** a letter inside a managed heading is picked
+- **THEN** the heading object is selected
+
+#### Scenario: The selected object is deleted
+- **WHEN** the next valid catalogue no longer contains the ID
+- **THEN** selection is cleared rather than moved to another object
+
+### Requirement: Editing is scoped to the native surface
+Main preview picking SHALL query the mounted video’s ShadowRoot. Geometry and
+text overlays SHALL remain in unscaled screen space and repaint on camera
+changes, including when playback is paused. Geometry ancestor traversal SHALL
+include the camera outside the shadow host. Comment rectangles SHALL remain
+normalized to video coordinates. Properties and playback chrome SHALL not
+initiate a pick. Existing field eligibility and operation validation SHALL apply.
+
+#### Scenario: A zoomed element is resized
+- **WHEN** a supported managed geometry handle is dragged at a non-default zoom
+- **THEN** the committed size and position use video units
+- **AND** the camera remains fixed for the gesture
+
+#### Scenario: Native text editing begins
+- **WHEN** supported managed text is double-clicked
+- **THEN** the existing inline editor opens above its text in the canvas
+- **AND** saving uses the same operation and rendered receipt protocol
+
+#### Scenario: A snapshot is drawn while zoomed
+- **WHEN** the user drags a snapshot region over the video
+- **THEN** it maps to the corresponding video region independently of pan and zoom
+
+#### Scenario: An existing provider loads
+- **WHEN** the native compiler encounters the supported studio-objects-v5 provider
+- **THEN** its transport is adapted to the local surface without rewriting authored source
+- **AND** generation and operation acknowledgments remain intact
+
+### Requirement: Direct manipulation snaps to the frame and other objects
+Moving or resizing an unrotated managed object SHALL snap the sides that the
+gesture moves to the frame's edges and centre and to the edges and centres of
+other visible managed objects when within six screen pixels, independent of zoom.
+A guide line SHALL show each active snap. Holding ⌘ or Ctrl SHALL disable
+snapping for the gesture. Rotation and aspect-locked corner resizing SHALL NOT snap.
+
+#### Scenario: Centring an object
+- **WHEN** a dragged object's centre comes within six screen pixels of the frame's centre
+- **THEN** the object aligns to the centre and a guide is drawn across the frame
+- **AND** the committed value is in composition units
+
+#### Scenario: Snapping is turned off
+- **WHEN** ⌘ or Ctrl is held during the drag
+- **THEN** the object follows the pointer exactly and no guide is drawn
+
+### Requirement: The keyboard nudges a selected object
+With a managed object selected and editable, arrow keys on the canvas SHALL move
+it by one composition unit, or ten with Shift; with a resize or rotation handle
+focused they SHALL change that edge or angle. Consecutive presses SHALL be one
+operation with one Undo. Without an editable selection, arrow keys SHALL keep
+stepping frames.
+
+#### Scenario: Holding an arrow key
+- **WHEN** an arrow key is held on a selected object
+- **THEN** the object keeps moving and one operation is written after the key is released
+
+#### Scenario: Nothing editable is selected
+- **WHEN** an arrow key is pressed on the canvas without a managed selection
+- **THEN** the playhead moves one frame
+
+### Requirement: Entry and exit poses are edited on the canvas
+A managed object that moves between two field-backed poses through the v5
+`geometryBetween` helper SHALL be edited in the pose that dominates the current
+frame: the start pose while its weight is at least one half, the other pose from
+the midpoint on. The canvas SHALL name the edited pose, draw the other pose as an
+outline and draw the path between the two. When the move declares the local
+frames of both poses, clicking the outline SHALL move the playhead to that pose.
+A selected managed object SHALL keep its handles while transparent. Saving SHALL write only the edited
+pose's fields as one operation. Objects moved by an unbound CSS offset keep editing
+their resting geometry.
+
+#### Scenario: Dragging an object before it has entered
+- **WHEN** the playhead is early in an entry and the object, still outside the frame, is dragged
+- **THEN** its start pose moves and its resting pose stays
+- **AND** the label reads "Entry start" and the resting pose is outlined with the path to it
+
+#### Scenario: Dragging an object that has almost left
+- **WHEN** the playhead is late in an exit and the object is dragged
+- **THEN** its end pose moves and the label reads "Exit end"
+
+#### Scenario: Going to the other pose
+- **WHEN** the move declares the frames of its two poses and the outline of the other pose is clicked
+- **THEN** playback pauses and the playhead moves to the frame of that pose
+- **AND** the object stays selected, now editing that pose, even if it is transparent there
+
+#### Scenario: Moving a start pose that is transparent and outside the frame
+- **WHEN** the selected object is transparent at the current frame or cannot be hit where it is drawn
+- **THEN** it is shown half-transparent in the editor and its label says so
+- **AND** dragging inside its selection frame moves it instead of panning the canvas
+
+#### Scenario: The helper in an older project
+- **WHEN** a project created before the helper is opened
+- **THEN** the helper file is added next to its authored v5 runtime and nothing authored changes
+
+### Requirement: The inspector lists the video's editable objects
+
+When nothing is selected, the inspector SHALL list the open video's managed
+objects as a tree by their labels and parents, in document order, followed by
+the video's dimensions, frame rate and duration on one line. Objects not
+mounted at the current frame SHALL be listed dimmed. The list SHALL follow a
+rebuild and an edit of the objects document. A video without managed objects
+SHALL show a sentence saying it has no editable objects, with the video details.
+
+#### Scenario: Nothing is selected
+
+- **WHEN** a video with managed objects is open and nothing is selected
+- **THEN** the inspector shows its objects as a tree and the video details below it
+
+#### Scenario: An object is off screen
+
+- **WHEN** an object is not mounted at the current frame
+- **THEN** its row is dimmed
+- **AND** it becomes undimmed once the playhead reaches a frame where it is mounted
+
+#### Scenario: A video without editable objects
+
+- **WHEN** the open video declares no managed objects
+- **THEN** the inspector says the video has no editable objects and shows its details
+
+#### Scenario: The document cannot be read
+
+- **WHEN** the objects document fails to load
+- **THEN** the inspector shows the failure as a sentence and the video details
+
+### Requirement: The object list is a tree of collapsible groups
+
+An object with children SHALL be listed as a group with a control that expands
+and collapses it. An object whose definition is `scene` SHALL be listed as a
+scene group, distinguished from ordinary groups. A group SHALL start expanded
+when it or any of its descendants is mounted at the current frame, or when it
+contains the selection, and collapsed otherwise; a group the person expanded or
+collapsed SHALL keep that state while the video stays open, except that a new
+selection inside a collapsed group SHALL expand the groups above it. Collapsing
+a group SHALL NOT change the selection.
+
+#### Scenario: A video described by scenes
+
+- **WHEN** the video's objects are parented to scene objects
+- **THEN** the list shows one scene group per scene with its objects inside
+- **AND** the scene on screen is expanded and the others are collapsed
+
+#### Scenario: Collapsing a group
+
+- **WHEN** the person collapses an expanded group
+- **THEN** its descendants are hidden from the list and the group stays collapsed as the playhead moves
+
+#### Scenario: Selecting inside a collapsed group
+
+- **WHEN** the person clicks on the canvas an object inside a collapsed group
+- **THEN** the groups above it expand and its row is marked as selected
+
+#### Scenario: A flat video
+
+- **WHEN** no object has a parent
+- **THEN** the list shows every object at one level, as before
+
+### Requirement: The object list selects and points at objects
+
+Hovering a row SHALL outline its object on the canvas with the quiet hover
+style while the object is mounted; leaving the row SHALL remove the outline.
+Clicking a row SHALL select the object exactly as clicking it on the canvas
+does, opening its properties. Selecting an object that is not mounted SHALL open
+its properties without an outline on the canvas.
+
+#### Scenario: Hovering a row
+
+- **WHEN** the pointer rests on a mounted object's row
+- **THEN** the object is outlined on the canvas
+
+#### Scenario: Selecting a hidden object
+
+- **WHEN** the person clicks the row of a transparent or covered object
+- **THEN** the object is selected and its properties open
+- **AND** its selection outline and handles are drawn on the canvas
+
+#### Scenario: Selecting an off-screen object
+
+- **WHEN** the person clicks a dimmed row
+- **THEN** the object's properties open
+- **AND** nothing is outlined on the canvas
+
+### Requirement: The object list stays reachable while something is selected
+
+While a selection is open and editable objects are listed, the inspector SHALL
+offer Layers and Properties views. A new selection, from the canvas or the list,
+SHALL show Properties. Choosing Layers SHALL show the list without changing the
+selection: the object stays outlined with its handles on the canvas, and its row
+is marked as selected. Clicking a row SHALL select that object and show
+Properties. With nothing selected, only Layers SHALL be available.
+
+#### Scenario: Going back to the list
+
+- **WHEN** an object is selected and the person chooses Layers
+- **THEN** the list is shown with the object's row marked
+- **AND** the object remains selected on the canvas
+
+#### Scenario: Picking another object from the list
+
+- **WHEN** the list is shown during a selection and the person clicks another row
+- **THEN** that object is selected and its properties are shown
+
+#### Scenario: Selecting on the canvas while the list is shown
+
+- **WHEN** the list is shown and the person clicks another element on the canvas
+- **THEN** the inspector shows Properties for the new selection
+
+### Requirement: Tab moves the selection between objects on screen
+
+With focus on the canvas and no edit in progress, Tab SHALL select the next
+mounted managed object in list order and Shift+Tab the previous one, wrapping
+around. With nothing selected, Tab SHALL select the first. Tab SHALL do nothing
+when no managed object is mounted, and SHALL NOT be taken from text fields or
+panel controls.
+
+#### Scenario: Cycling through objects
+
+- **WHEN** the canvas has focus and the person presses Tab repeatedly
+- **THEN** each mounted object is selected in turn, in list order, wrapping at the end
+
+#### Scenario: Editing text
+
+- **WHEN** inline text editing is active and Tab is pressed
+- **THEN** the selection does not change

@@ -83,22 +83,44 @@ Collapsing the preview panel by dragging the divider past its minimum SHALL be t
 
 ### Requirement: The properties pane exists only while it has something in it
 
-The properties pane SHALL be mounted only while an element with tunable properties is selected in the preview, and SHALL be unmounted when that selection is cancelled. What it contains and how it is closed belongs to preview/properties-pane.
+The canvas inspector SHALL be visible by default and flush with the top and
+right edges of the preview workspace. It SHALL consist of a vertical bar of
+icon buttons along its outer edge and a content area beside it. The bar SHALL
+hold the inspector's views — Layers (or the video's details when the object list
+is unavailable) and Properties — then Snapshot, and a control that collapses and
+expands the content area. The active view SHALL be marked; Properties SHALL be
+disabled without a selection. Clicking the active view's icon SHALL collapse the
+content area, and clicking any view's icon while collapsed SHALL expand it on
+that view. Collapsed, only the bar SHALL remain, with selection and edits
+preserved. The video SHALL NOT automatically reframe when the inspector
+collapses or expands. Export SHALL be in the preview pane's header, in Preview
+and Docs alike. Playback controls SHALL remain beside the inspector without
+overlapping it. What the properties controls edit belongs to
+preview/properties-pane.
+
+#### Scenario: Nothing is selected
+- **WHEN** the canvas opens or selection is cleared
+- **THEN** the inspector shows its Layers view and its bar, with Properties disabled
 
 #### Scenario: An element with a schema is picked
-
-- **WHEN** Inspect selects an element that declares tunable properties
-- **THEN** the properties pane appears as a fourth column beside the preview
+- **WHEN** an element with editable properties is selected
+- **THEN** the inspector shows its Properties view with the element's properties
 
 #### Scenario: An element with no schema is picked
+- **WHEN** the selected element has no tunable properties
+- **THEN** the inspector keeps its Layers view and the compact comment card is used
 
-- **WHEN** the selected element declares no tunable properties
-- **THEN** no properties pane appears and the compact comment card over the frame is used instead
+#### Scenario: The inspector is hidden
+- **WHEN** the person clicks the active view's icon or the collapse control
+- **THEN** only the bar remains, selection and edits are preserved, and any view's icon expands it again
+
+#### Scenario: Exporting from Preview
+- **WHEN** the canvas is shown
+- **THEN** Export is in the pane header, where it also is in Docs
 
 #### Scenario: The preview is hidden
-
 - **WHEN** the preview is hidden
-- **THEN** the properties pane is not shown either
+- **THEN** the inspector is hidden with it
 
 ### Requirement: The sidebar collapses and is remembered
 
@@ -131,7 +153,7 @@ The sidebar SHALL show exactly one of Videos, Assets or Components at a time, SH
 
 ### Requirement: The preview's header switches between Preview and Docs
 
-The preview pane's header SHALL carry a two-way switch between Preview and Docs in place of a title. The choice and the open document SHALL be kept per video for as long as the app runs and SHALL NOT be written to disk, so moving to another video and back lands on the tab that was open and a relaunch starts on the preview.
+The preview pane's header SHALL NOT carry a Preview / Docs switch while the pane shows the preview. Docs SHALL be opened with ⌘D, the View menu, the command palette or a stage row, and while the pane is in Docs its header SHALL carry a Preview button in place of a title that returns to the preview. The choice and the open document SHALL be kept per video for as long as the app runs and SHALL NOT be written to disk, so moving to another video and back lands on the tab that was open and a relaunch starts on the preview.
 
 #### Scenario: Reading a document and coming back
 
@@ -149,6 +171,13 @@ The preview pane's header SHALL carry a two-way switch between Preview and Docs 
 - **WHEN** the pane is in Docs
 - **THEN** Inspect and Snapshot leave the header
 - **AND** Export stays
+- **AND** a Preview button returns the pane to the preview
+
+#### Scenario: The preview is shown
+
+- **WHEN** the pane shows the preview
+- **THEN** its header carries no Preview / Docs switch
+- **AND** ⌘D still opens Docs
 
 ### Requirement: The studio is dark by default and follows the system only if asked
 

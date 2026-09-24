@@ -5,4 +5,4 @@
 ## 2. Verification
 
 - [x] 2.1 `bun run check`, `bun run typecheck`, the touched test files and the full suite once; add a changeset.
-- [ ] 2.2 In the running app: the canvas header has no switch; ⌘D and a stage row open Docs; the Preview button returns.
+- [x] 2.2 In the running app: the canvas header has no switch; ⌘D and a stage row open Docs; the Preview button returns.

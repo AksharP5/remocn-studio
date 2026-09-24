@@ -13,4 +13,4 @@
 ## 4. Verification
 
 - [x] 4.1 `bun run check`, `bun run typecheck`, the touched test files and the full suite once; add a changeset.
-- [ ] 4.2 In the running app: a turn shows its steps and reasoning scrolling under a shimmering phrase; the finished turn reads "Worked for …" and expands into its steps; a relaunch shows no reasoning; reduced motion stills the movement.
+- [x] 4.2 In the running app: a turn shows its steps and reasoning scrolling under a shimmering phrase; the finished turn reads "Worked for …" and expands into its steps; a relaunch shows no reasoning; reduced motion stills the movement.
