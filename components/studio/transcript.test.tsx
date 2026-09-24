@@ -7,6 +7,7 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
+import type { LiveLine } from "@/lib/studio/reasoning";
 import type { TranscriptEntry } from "@/shared/ipc";
 
 const CWD = "/Users/me/projects/my-video";
@@ -94,11 +95,14 @@ const ENTRIES: TranscriptEntry[] = [
   { id: "assistant-0", kind: "assistant", text: ANSWER },
 ];
 
+const WORKED = /^Worked/;
+
 function renderTranscript(
   entries: TranscriptEntry[],
   isRunning = false,
   isWaiting = false,
-  startedAt: number | null = STARTED
+  startedAt: number | null = STARTED,
+  extra: { live?: readonly LiveLine[]; workedMs?: number | null } = {}
 ) {
   return render(
     <MessageScrollerProvider>
@@ -113,6 +117,7 @@ function renderTranscript(
               isWaiting={isWaiting}
               now={NOW}
               startedAt={startedAt}
+              {...extra}
             />
           </MessageScrollerContent>
         </MessageScrollerViewport>
@@ -125,9 +130,7 @@ describe("Transcript", () => {
   it("keeps completed work behind one disclosure", () => {
     renderTranscript(ENTRIES);
 
-    expect(
-      screen.getByRole("button", { name: "Show work details" })
-    ).toBeVisible();
+    expect(screen.getByRole("button", { name: WORKED })).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "Edit src/Scene1.tsx" })
     ).not.toBeInTheDocument();
@@ -145,7 +148,7 @@ describe("Transcript", () => {
   it("expands one of those lines into a readable diff", () => {
     renderTranscript(ENTRIES);
 
-    fireEvent.click(screen.getByRole("button", { name: "Show work details" }));
+    fireEvent.click(screen.getByRole("button", { name: WORKED }));
     fireEvent.click(
       screen.getByRole("button", { name: "Edit src/Scene2.tsx" })
     );
@@ -176,6 +179,28 @@ describe("Transcript", () => {
     renderTranscript(ENTRIES);
 
     expect(screen.getByText("Build me a title card")).toBeVisible();
+  });
+
+  it("names the finished turn's work by its duration, and expands it", () => {
+    renderTranscript(ENTRIES, false, false, STARTED, { workedMs: 134_000 });
+
+    const summary = screen.getByRole("button", { name: "Worked for 2m 14s" });
+    expect(summary).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(summary);
+
+    expect(summary).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("shows the latest steps and thoughts under the marker while running", () => {
+    renderTranscript([ENTRIES[0] as TranscriptEntry], true, false, STARTED, {
+      live: [
+        { id: "thought-0", kind: "thought", text: "Checking the scene order." },
+      ],
+    });
+
+    expect(screen.getByText("Checking the scene order.")).toBeVisible();
+    expect(screen.getByText("Thinking…")).toBeVisible();
   });
 
   it("says it is thinking, in the transcript, while a turn waits", () => {

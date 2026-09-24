@@ -1,14 +1,17 @@
 import { DotmSquare11 } from "@/components/ui/dotm-square-11";
 import { Marker, MarkerContent } from "@/components/ui/marker";
 import { runningTime } from "@/lib/studio/time";
+import { cn } from "@/lib/utils";
 
 export function Thinking({
   label,
   now,
+  shimmer = false,
   startedAt,
 }: {
   label: string | null;
   now: number;
+  shimmer?: boolean;
   startedAt: number | null;
 }) {
   return (
@@ -26,7 +29,10 @@ export function Thinking({
         size={14}
         speed={1.05}
       />
-      <MarkerContent className="min-w-0 truncate" title={label ?? "Thinking…"}>
+      <MarkerContent
+        className={cn("min-w-0 truncate", shimmer && "shimmer")}
+        title={label ?? "Thinking…"}
+      >
         {label ?? "Thinking…"}
       </MarkerContent>
       {startedAt === null ? null : (

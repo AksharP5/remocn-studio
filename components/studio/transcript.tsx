@@ -1,12 +1,18 @@
 "use client";
 
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { memo, useCallback, useMemo, useState } from "react";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Message, MessageContent } from "@/components/ui/message";
 import { MessageScrollerItem } from "@/components/ui/message-scroller";
+import {
+  type LiveLine,
+  reasoningLines,
+  workedLabel,
+} from "@/lib/studio/reasoning";
 import { groupActivity, type TranscriptItem } from "@/lib/studio/runs";
 import { activeForm, currentTasks } from "@/lib/studio/tasks";
+import { cn } from "@/lib/utils";
 import type { TranscriptEntry } from "@/shared/ipc";
 import { ActivityLine } from "./activity-line";
 import { ActivityRun } from "./activity-run";
@@ -14,9 +20,11 @@ import { AssetRow } from "./asset-row";
 import { Markdown } from "./markdown";
 import { MediaRow } from "./media-row";
 import { MessageText } from "./message-text";
+import { ReasoningSteps } from "./reasoning-steps";
 import { SoundResultCard } from "./sound-result-card";
 import { TaskChecklist } from "./task-checklist";
-import { Thinking } from "./thinking";
+
+const NO_LINES: readonly LiveLine[] = [];
 
 export function Transcript({
   cwd,
@@ -24,16 +32,20 @@ export function Transcript({
   error,
   isRunning,
   isWaiting,
+  live = NO_LINES,
   now,
   startedAt,
+  workedMs = null,
 }: {
   cwd: string | null;
   entries: readonly TranscriptEntry[];
   error: string | null;
   isRunning: boolean;
   isWaiting: boolean;
+  live?: readonly LiveLine[];
   now: number;
   startedAt: number | null;
+  workedMs?: number | null;
 }) {
   const items = useMemo(() => groupActivity(entries), [entries]);
   const [expanded, setExpanded] = useState(false);
@@ -69,6 +81,10 @@ export function Transcript({
   const lastItem = items.at(-1);
   const lastId = lastItem ? lastItem.id : null;
   const label = activeForm(currentTasks(entries));
+  const lines = useMemo(
+    () => reasoningLines(live, entries, cwd),
+    [cwd, entries, live]
+  );
 
   // The pane re-renders every second for the Thinking timer; the transcript
   // rows depend on none of that, so the element array is kept stable across
@@ -94,29 +110,46 @@ export function Transcript({
       {isThinking || (quiet && technical.length > 0) ? (
         <MessageScrollerItem>
           <div className="flex min-w-0 flex-col gap-2">
-            <div className="flex min-w-0 items-center gap-2">
-              {isThinking ? (
-                <Thinking label={label} now={now} startedAt={startedAt} />
-              ) : (
-                <span className="text-muted-foreground text-xs">
-                  Work details
-                </span>
-              )}
-              {technical.length > 0 ? (
-                <button
-                  aria-expanded={expanded}
-                  aria-label="Show work details"
-                  className="rounded p-1 text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-                  onClick={toggleExpanded}
-                  type="button"
-                >
-                  <ChevronRightIcon
-                    aria-hidden
-                    className={expanded ? "size-3.5 rotate-90" : "size-3.5"}
-                  />
-                </button>
-              ) : null}
-            </div>
+            {isThinking ? (
+              <div className="flex min-w-0 items-start gap-2">
+                <ReasoningSteps
+                  label={label}
+                  lines={lines}
+                  now={now}
+                  startedAt={startedAt}
+                />
+                {technical.length > 0 ? (
+                  <button
+                    aria-expanded={expanded}
+                    aria-label="Show every step"
+                    className="rounded p-1 text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={toggleExpanded}
+                    type="button"
+                  >
+                    <ChevronRightIcon
+                      aria-hidden
+                      className={expanded ? "size-3.5 rotate-90" : "size-3.5"}
+                    />
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <button
+                aria-expanded={expanded}
+                className="flex w-fit items-center gap-1 rounded text-muted-foreground text-xs outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={toggleExpanded}
+                type="button"
+              >
+                {workedLabel(workedMs, technical.length)}
+                <ChevronDownIcon
+                  aria-hidden
+                  className={cn(
+                    "size-3.5 transition-transform duration-150",
+                    expanded && "rotate-180"
+                  )}
+                />
+              </button>
+            )}
             {expanded
               ? technical.map((item) => (
                   <Row

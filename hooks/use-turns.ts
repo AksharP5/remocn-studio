@@ -11,6 +11,7 @@ import {
 import { loadTranscript, recordMessage } from "@/lib/studio/history";
 import type { PermissionAction } from "@/lib/studio/permission";
 import { loadPipeline } from "@/lib/studio/pipeline";
+import { appendLive } from "@/lib/studio/reasoning";
 import type { SidecarError } from "@/lib/studio/sidecar";
 import {
   dropQueued,
@@ -289,8 +290,10 @@ export function useTurns(
         }),
         error: null,
         isRunning: true,
+        live: [],
         startedAt: Date.now(),
         unread: false,
+        workedMs: null,
       }));
 
       const request = promptAgent(
@@ -370,9 +373,17 @@ export function useTurns(
             }));
             return;
           }
+          if (event.type === "thinking") {
+            update(historyId, (current) => ({
+              ...current,
+              live: appendLive(current.live, event),
+            }));
+            return;
+          }
           update(historyId, (current) => ({
             ...current,
             entries: fold(current.entries, event),
+            live: appendLive(current.live, event),
           }));
         }
       ).pipe(
@@ -389,10 +400,15 @@ export function useTurns(
               const settled = {
                 ...(head === null ? current : dropQueued(current, head.id)),
                 isRunning: false,
+                live: [],
                 permissions: [],
                 sources: [],
                 startedAt: null,
                 unread: away,
+                workedMs:
+                  current.startedAt === null
+                    ? null
+                    : Date.now() - current.startedAt,
               };
 
               if (exit._tag === "Failure") {
