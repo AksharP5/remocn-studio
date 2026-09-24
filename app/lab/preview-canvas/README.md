@@ -50,6 +50,6 @@ sandboxed or rewritten. Extracted CSS configurations are rejected; worker and
 unusual webpack configurations require individual adaptation. Existing managed
 geometry and plain-text eligibility rules still apply.
 
-No tests, builds, type checks, browser automation or visual verification were
-run. The five existing videos, reload/disposal, packaged behavior and editing
-parity remain for the user's runtime evaluation.
+The canvas was verified by the user in the running app on 2026-09-23. Automated
+coverage of stale connection/disposal, camera boundaries, native bundling,
+reload/media cleanup and packaged resources is still to be written.

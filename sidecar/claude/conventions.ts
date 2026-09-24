@@ -14,6 +14,7 @@ import {
   type StageTemplate,
   stageTemplate,
 } from "@/shared/pipeline";
+import { SCENE_DEFINITION } from "@/shared/studio-document";
 import {
   BUNDLE_NAME,
   INTERACTIVITY_SKILL,
@@ -55,8 +56,10 @@ A project holds several videos, and you are working on exactly one of them. Your
 lane is its folder under \`src/videos/\`: the \`index.tsx\` there default-exports
 the component and names the composition, and \`Root.tsx\` registers every such
 folder by scanning — so never edit \`Root.tsx\`, and every other video's folder is
-another chat's lane. A new scene is a component inside your video, sequenced with
-\`<Series>\` or, across a transition, \`<TransitionSeries>\`. What is reused
+another chat's lane. A new scene is a component inside your video, sequenced in
+its \`index.tsx\` with \`<Series>\` or, across a transition, \`<TransitionSeries>\`,
+and every scene's sequence carries a short human \`name\` the person would use
+for it ("Intro", "Pricing"). What is reused
 between videos goes in \`src/shared/\`; editing there changes other people's
 videos, so say so in your answer.
 
@@ -213,6 +216,7 @@ export const MANAGED_OBJECTS = `New Studio videos use the managed object format.
 and the video's studio.json before writing its components. Keep scene structure and animation in React.
 Keep editable values and definitions in src/videos/<video-slug>/studio.json (version 1, matching video slug).
 Wrap the video in StudioObjects and use useStudioObject(stableId); spread its bind onto the existing semantic root.
+Describe every scene in studio.json. Each named scene sequence has one scene object: definition id "${SCENE_DEFINITION}" (a definition with no fields), label exactly the sequence's name, its bind spread onto the scene component's root. Set every other object's parentId to its scene's object, or to the object it is drawn inside; only an object that spans the whole video, such as the background or the soundtrack, stays at the root. The design check reports a scene without a name or without its scene object as an error, and an object outside every scene as a warning.
 Import the provider and hook from src/lib/studio-objects-v5. Use its text/number/flag/easing readers for every declared editable value. Spread object.bindText("fieldId") onto each plain-text region that renders object.text("fieldId"), inside that object's bound root (or on the root itself). Bind Title, Status, Footer and other text fields separately. Bind a split-letter animation at the whole text region, never at each letter. Do not use text bindings for colors, enums, rich text or composite strings assembled from multiple fields.
 For an independently positioned design object, declare numeric x/y/width/height fields in pixels (width and height at least 1) and an optional rotation field in degrees. Call object.geometry({x: "x", y: "y", width: "width", height: "height", rotation: "rotation"}), spread geometry.bind alongside object.bind onto the same semantic root, and spread geometry.style into that root's styles. This declares the base absolute border box relative to its positioned parent; keep its transform origin at the center. Pass motion through the second geometry argument: {offset: {rotation: animatedDegrees}, multiplier: {width: positiveWeight}, scale: positiveUniformScale}. The rendered property is base * multiplier + offset; the preview inverts this mapping on save. Keep every multiplier positive and avoid tiny interpolation weights: bind the dominant endpoint of a two-pose animation. Do not derive an offset or an ancestor transform from the same field it maps. Use separate path/pivot fields for motion; keep their values independent of dragged geometry. A rotation that collapses to zero needs a separate additive rotation-offset field. When an object travels into the frame from a position of its own, or leaves it for one, give that position its own fields (for example entryX/entryY/entryWidth/entryHeight, or exitX/exitY/exitWidth/exitHeight) and render the move with geometryBetween(object, {from, to}, easedProgress, {kind}) from src/lib/studio-objects-v5/between instead of a CSS translate: {from: entry fields, to: resting fields, kind: "entry"} for an entrance, {from: resting fields, to: exit fields, kind: "exit"} for an exit, with the eased 0..1 progress of that move and frames: {from, to} set to the local frames where that progress is 0 and 1. Dragging the object early in the move then edits its start pose, late in the move its resting or end pose, and the canvas draws the path between them. CSS translate remains for small independent offsets that nobody positions. Do not override geometry.style layout, rotation or scale. Each helper binding captures the local frame so changing frames cancels a gesture. Only opt in objects that own their layout box. Keep internal flex/grid content and text regions in their existing flow. Rotated and uniformly scaled 2D ancestors support preview handles; skew, perspective, reflection and nonuniform scaling remain property edits. To migrate an existing object, preserve its resting layout, increment the changed definition version and add explicit values to every affected object; preserve operation history.
 Every independent repeated object has a stable ID and its own values; never use array indices, display text or random render-time IDs.

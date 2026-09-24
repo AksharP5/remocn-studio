@@ -73,6 +73,7 @@ export type PreviewCommand =
   | { type: "transport.toggle" }
   | { type: "transport.step"; direction: -1 | 1 }
   | { type: "transport.audio"; muted: boolean; volume: number }
+  | { type: "transport.rate"; rate: number }
   | { type: "studio.request" }
   | {
       type: "studio.draft";
@@ -91,6 +92,7 @@ export type PreviewCommand =
       generation: string;
       video: string;
     }
+  | { objectId: string | null; type: "studio.hover" }
   | { armed: boolean; type: "inspect" }
   | { type: "inspect.clear" }
   | { armed: boolean; type: "snapshot" }

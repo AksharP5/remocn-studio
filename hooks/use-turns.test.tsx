@@ -73,12 +73,14 @@ function harness(options: { holdBlocks?: boolean } = {}) {
   const modes = new Map<string, string>();
   const plans = new Map<string, string>();
   const blocks: ((entries: TranscriptEntry[]) => void)[] = [];
+  const streams = new Map<string, (event: unknown) => void>();
 
   mockIPC((cmd, payload) => {
     if (cmd === "sidecar_request") {
       const call = payload as {
         id: string;
         method: string;
+        onStream?: { onmessage: (event: unknown) => void };
         params: {
           historyId?: string;
           mode?: string;
@@ -88,6 +90,9 @@ function harness(options: { holdBlocks?: boolean } = {}) {
       };
       if (call.method === "agent.prompt") {
         byHistory.set(call.params.historyId ?? "", call.id);
+        if (call.onStream) {
+          streams.set(call.params.historyId ?? "", call.onStream.onmessage);
+        }
         modes.set(call.params.historyId ?? "", call.params.mode ?? "");
         plans.set(call.params.historyId ?? "", call.params.plan ?? "");
         return new Promise<PromptResult>((resolve) => {
@@ -143,6 +148,10 @@ function harness(options: { holdBlocks?: boolean } = {}) {
     },
     sentMode: (historyId: string) => modes.get(historyId) ?? null,
     sentPlan: (historyId: string) => plans.get(historyId) ?? null,
+    stream: (historyId: string, event: unknown) =>
+      act(() => {
+        streams.get(historyId)?.(event);
+      }),
     wasCancelled: (historyId: string) =>
       cancelled.includes(byHistory.get(historyId) ?? ""),
   };
@@ -153,6 +162,37 @@ afterEach(() => {
 });
 
 describe("useTurns", () => {
+  it("shows reasoning live and never folds it into the transcript", async () => {
+    const ipc = harness();
+    const { result } = renderHook(() => useTurns(mock()));
+    act(() => {
+      result.current.markOpen("a");
+      result.current.sendTurn(turn("a"));
+    });
+    await waitFor(() =>
+      expect(result.current.turns.get("a")?.isRunning).toBe(true)
+    );
+
+    ipc.stream("a", { text: "Checking the scene order.", type: "thinking" });
+    ipc.stream("a", {
+      id: "tool-1",
+      input: { file_path: "/p/src/Scene.tsx" },
+      name: "Read",
+      type: "tool_use",
+      verb: "read",
+    });
+
+    const running = result.current.turns.get("a");
+    expect(running?.live.map((line) => line.kind)).toEqual(["thought", "step"]);
+    expect(JSON.stringify(running?.entries)).not.toContain("scene order");
+
+    await ipc.finish("a");
+
+    const settled = result.current.turns.get("a");
+    expect(settled?.live).toEqual([]);
+    expect(settled?.workedMs).not.toBeNull();
+  });
+
   it("puts a stored session's blocks on screen when it is opened", async () => {
     harness();
     const { result } = renderHook(() => useTurns(mock()));

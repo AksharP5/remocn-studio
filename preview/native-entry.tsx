@@ -14,6 +14,7 @@ import {
 import { mountStyles } from "./native-style";
 import type { PlaybackPosition } from "./playback-position";
 import { configurePlayback, Preview } from "./player-runtime";
+import { watchPresence } from "./presence";
 import { configureSurface, type SurfaceEnvironment } from "./surface";
 
 const PAINT_GRACE_MS = 3000;
@@ -101,6 +102,9 @@ export function mount(element: HTMLElement, environment: NativeEnvironment) {
   const stopStyles = mountStyles(environment.root);
   const root = createRoot(element);
   const stopMedia = releaseDetachedMedia(element);
+  const stopPresence = watchPresence(element, (ids) =>
+    environment.emit({ ids, type: "studio.present" })
+  );
   const stopClips = releaseFrameClips(environment.root, element);
   const registrationTimeout = window.setTimeout(() => {
     environment.emit({
@@ -140,6 +144,7 @@ export function mount(element: HTMLElement, environment: NativeEnvironment) {
         disposeNativeRemotion();
         stopPlayback();
         stopMedia();
+        stopPresence();
         stopClips();
         stopStyles();
         stopSurface();

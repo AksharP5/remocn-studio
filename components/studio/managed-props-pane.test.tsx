@@ -17,6 +17,7 @@ function fixture(): ManagedObjects {
     definition: documentFixture.definitions[0],
     discard: mock(),
     editingText: false,
+    enabled: true,
     error: null,
     fields: [
       {

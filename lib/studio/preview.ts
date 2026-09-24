@@ -64,6 +64,18 @@ export const SnapshotStatus = Schema.Literals([
 
 const from = Schema.Literal(PREVIEW_MESSAGE_SOURCE);
 
+export const PLAYBACK_RATES = [0.25, 0.5, 1, 2] as const;
+export type PlaybackRate = (typeof PLAYBACK_RATES)[number];
+
+const Frame = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
+const PreviewScene = Schema.Struct({
+  duration: Frame,
+  from: Schema.Int,
+  id: Schema.NonEmptyString,
+  name: Schema.NonEmptyString,
+});
+export type PreviewScene = typeof PreviewScene.Type;
+
 export const TuningValue = Schema.Union([
   Schema.Finite,
   Schema.String,
@@ -251,6 +263,11 @@ export const PreviewMessage = Schema.Union([
     video: Schema.NonEmptyString,
   }),
   Schema.Struct({
+    ids: Schema.Array(Schema.NonEmptyString),
+    source: from,
+    type: Schema.Literal("studio.present"),
+  }),
+  Schema.Struct({
     compositionId: Schema.NullOr(Schema.String),
     compositions: Schema.Array(Schema.NonEmptyString),
     // What the Player is really mounted with, calculateMetadata resolved. A
@@ -315,6 +332,12 @@ export const PreviewMessage = Schema.Union([
     source: from,
     type: Schema.Literal("transport.state"),
     volume: Schema.Finite.check(Schema.isBetween({ maximum: 1, minimum: 0 })),
+  }),
+  Schema.Struct({
+    compositionId: Schema.NonEmptyString,
+    scenes: Schema.Array(PreviewScene),
+    source: from,
+    type: Schema.Literal("scenes"),
   }),
   Schema.Struct({
     paused: Schema.Boolean,
@@ -408,6 +431,11 @@ export const PreviewCommand = Schema.Union([
     type: Schema.Literal("transport.audio"),
     volume: Schema.Finite.check(Schema.isBetween({ maximum: 1, minimum: 0 })),
   }),
+  Schema.Struct({
+    rate: Schema.Literals(PLAYBACK_RATES),
+    source: to,
+    type: Schema.Literal("transport.rate"),
+  }),
   Schema.Struct({ source: to, type: Schema.Literal("studio.request") }),
   Schema.Struct({
     field: Schema.NonEmptyString,
@@ -423,6 +451,11 @@ export const PreviewCommand = Schema.Union([
     source: to,
     type: Schema.Literal("studio.highlight"),
     video: Schema.NonEmptyString,
+  }),
+  Schema.Struct({
+    objectId: Schema.NullOr(Schema.NonEmptyString),
+    source: to,
+    type: Schema.Literal("studio.hover"),
   }),
   Schema.Struct({
     armed: Schema.Boolean,

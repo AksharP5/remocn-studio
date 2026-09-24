@@ -1,9 +1,8 @@
 "use client";
 
 import {
-  FileTextIcon,
+  ArrowLeftIcon,
   FolderOpenIcon,
-  MonitorPlayIcon,
   PanelRightCloseIcon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -13,12 +12,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { Docs, PreviewMode } from "@/hooks/use-docs";
 import type { Snapshot } from "@/hooks/use-snapshot";
 import type { Tools } from "@/hooks/use-tools";
 import { exportLabel } from "@/lib/studio/export";
 import { fileManagerName } from "@/lib/studio/platform";
-import { cn } from "@/lib/utils";
 import { DocsView } from "./docs-view";
 import { ExportButton } from "./export-button";
 import { Pane, PaneActions, PaneHeader } from "./pane";
@@ -34,15 +31,23 @@ export function PreviewPane() {
 
   const header = (
     <PaneHeader data-tauri-drag-region>
-      <ModeSwitch mode={docs.mode} onPick={docs.onPickMode} />
-      <PaneActions>
-        {isDocs ? (
-          <ExportButton
-            composition={tools.preview.composition}
-            exporting={tools.exporting}
-            renderDialog={false}
-          />
-        ) : null}
+      {isDocs ? (
+        <Button
+          className="text-muted-foreground"
+          onClick={docs.onPickMode}
+          size="sm"
+          value="preview"
+          variant="ghost"
+        >
+          <ArrowLeftIcon data-icon="inline-start" />
+          Preview
+        </Button>
+      ) : null}
+      <PaneActions className="ms-auto">
+        <ExportButton
+          composition={tools.preview.composition}
+          exporting={tools.exporting}
+        />
         <Tooltip>
           <TooltipTrigger
             render={
@@ -199,50 +204,4 @@ function canvasHint(editingText: boolean, selecting: boolean) {
     return "Double-click text to edit · Esc to clear selection";
   }
   return "Click to select · Double-click text to edit";
-}
-
-const MODES: readonly {
-  icon: typeof MonitorPlayIcon;
-  label: string;
-  mode: PreviewMode;
-}[] = [
-  { icon: MonitorPlayIcon, label: "Preview", mode: "preview" },
-  { icon: FileTextIcon, label: "Docs", mode: "docs" },
-];
-
-/**
- * The pane's two modes, said once. It replaces the title rather than joining
- * it: the switch already names what is on screen, and the header's four
- * actions leave no room for a word that repeats one of them.
- */
-function ModeSwitch({
-  mode,
-  onPick,
-}: {
-  mode: PreviewMode;
-  onPick: Docs["onPickMode"];
-}) {
-  return (
-    <div className="flex h-8 shrink-0 items-stretch rounded-md bg-input/30 p-0.5 ring-1 ring-border ring-inset sm:h-7">
-      {MODES.map(({ icon: Icon, label, mode: value }) => (
-        <button
-          aria-pressed={mode === value}
-          className={cn(
-            "flex cursor-pointer items-center gap-1.5 rounded-sm px-2 font-medium text-xs outline-none transition-[color,background-color] duration-150 ease-out",
-            "focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-1",
-            mode === value
-              ? "bg-accent text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-          key={value}
-          onClick={onPick}
-          type="button"
-          value={value}
-        >
-          <Icon aria-hidden="true" className="size-3.5 shrink-0" />
-          {label}
-        </button>
-      ))}
-    </div>
-  );
 }

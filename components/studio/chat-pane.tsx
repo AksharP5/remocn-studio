@@ -437,8 +437,10 @@ function ConversationBody({
         error={turn.turnError}
         isRunning={turn.isRunning}
         isWaiting={Boolean(turn.permission ?? turn.source)}
+        live={turn.live}
         now={now}
         startedAt={turn.startedAt}
+        workedMs={turn.workedMs}
       />
     );
   }

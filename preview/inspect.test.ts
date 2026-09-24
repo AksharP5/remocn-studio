@@ -1,11 +1,14 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import {
   armInspect,
   clearSelection,
   componentAt,
+  highlightManaged,
   highlightTarget,
+  hoverManaged,
   nameOf,
   type Stage,
+  TOP,
 } from "./inspect";
 
 const STAGE: Stage = {
@@ -289,6 +292,75 @@ describe("the selection box", () => {
       document.body.querySelector<HTMLElement>("div[data-remocn-selection]")
         ?.style.display
     ).toBe("none");
+  });
+});
+
+describe("hovering an object from the list", () => {
+  function armed() {
+    const canvas = document.createElement("div");
+    canvas.className = "__remotion-player";
+    document.body.append(canvas);
+    armInspect(true, STAGE);
+
+    return canvas;
+  }
+
+  function mounted(canvas: HTMLElement, id: string) {
+    const element = document.createElement("div");
+    element.setAttribute("data-studio-object", id);
+    element.setAttribute("data-studio-video", "intro");
+    element.setAttribute("data-studio-generation", "g1");
+    spyOn(element, "getBoundingClientRect").mockReturnValue(
+      new DOMRect(40, 60, 200, 80)
+    );
+    canvas.append(element);
+
+    return element;
+  }
+
+  function hoverBox(): HTMLElement | undefined {
+    return [
+      ...document.body.querySelectorAll<HTMLElement>(
+        "div[data-remocn-inspect]"
+      ),
+    ].find((node) => node.style.zIndex === String(TOP));
+  }
+
+  afterEach(() => {
+    hoverManaged(null);
+    highlightManaged(null, "intro", "g1");
+  });
+
+  it("outlines the mounted object the row names", () => {
+    mounted(armed(), "title");
+    hoverManaged("title");
+
+    expect(hoverBox()?.style.display).toBe("block");
+    expect(hoverBox()?.style.left).toBe("40px");
+    expect(hoverBox()?.style.width).toBe("200px");
+  });
+
+  it("outlines nothing for an object that is not mounted", () => {
+    mounted(armed(), "title");
+    hoverManaged("price");
+
+    expect(hoverBox()?.style.display).toBe("none");
+  });
+
+  it("hands the outline back when the row is left", () => {
+    mounted(armed(), "title");
+    hoverManaged("title");
+    hoverManaged(null);
+
+    expect(hoverBox()?.style.display).toBe("none");
+  });
+
+  it("does not outline the object that is already selected", () => {
+    mounted(armed(), "title");
+    highlightManaged("title", "intro", "g1");
+    hoverManaged("title");
+
+    expect(hoverBox()?.style.display).toBe("none");
   });
 });
 

@@ -465,3 +465,182 @@ describe("managed object sources", () => {
     ).toBe("managed-document");
   });
 });
+
+describe("scenes", () => {
+  function sceneDocument(
+    labels: readonly string[],
+    parents: Readonly<Record<string, string>> = {}
+  ): string {
+    return JSON.stringify({
+      ...documentFixture,
+      definitions: [
+        ...documentFixture.definitions,
+        { fields: [], id: "scene", version: 1 },
+      ],
+      objects: [
+        ...labels.map((label, index) => ({
+          definition: "scene",
+          id: `scene-${index}`,
+          label,
+          parentId: null,
+          values: {},
+        })),
+        ...documentFixture.objects.map((object) => ({
+          ...object,
+          parentId: parents[object.id] ?? null,
+        })),
+      ],
+    });
+  }
+
+  const film = (...sequences: string[]) =>
+    [
+      "export default function Film() {",
+      "  return (",
+      "    <Series>",
+      ...sequences.map(
+        (attributes) =>
+          `      <Series.Sequence ${attributes}><Scene /></Series.Sequence>`
+      ),
+      "    </Series>",
+      "  );",
+      "}",
+    ].join("\n");
+
+  const everyObjectIn = {
+    first: "scene-0",
+    second: "scene-0",
+    third: "scene-1",
+  };
+
+  function check(index: string, document: string) {
+    return tunabilityFindings([
+      { path: "index.tsx", source: index },
+      { path: "studio.json", source: document },
+    ]);
+  }
+
+  it("accepts scenes that are named and described", () => {
+    expect(
+      check(
+        film(
+          'name="Intro" durationInFrames={30}',
+          'name="Outro" durationInFrames={30}'
+        ),
+        sceneDocument(["Intro", "Outro"], everyObjectIn)
+      )
+    ).toEqual([]);
+  });
+
+  it("reports a scene sequenced without a name, on its line", () => {
+    const [finding] = check(
+      film("durationInFrames={30}", 'name="Outro" durationInFrames={30}'),
+      sceneDocument(["Intro", "Outro"], everyObjectIn)
+    );
+
+    expect(finding?.rule).toBe("unnamed-scene");
+    expect(finding?.line).toBe(4);
+    expect(finding?.file).toBe("index.tsx");
+  });
+
+  it("reports a named scene with no scene object of that label", () => {
+    const findings = check(
+      film(
+        'name="Intro" durationInFrames={30}',
+        'name="Pricing" durationInFrames={30}'
+      ),
+      sceneDocument(["Intro", "Outro"], everyObjectIn)
+    );
+
+    expect(findings.map((finding) => [finding.rule, finding.snippet])).toEqual([
+      ["scene-without-object", 'name="Pricing"'],
+    ]);
+  });
+
+  it("warns about an object outside every scene, but not one index.tsx renders", () => {
+    const outside = check(
+      film(
+        'name="Intro" durationInFrames={30}',
+        'name="Outro" durationInFrames={30}'
+      ),
+      sceneDocument(["Intro", "Outro"], { first: "scene-0", second: "scene-0" })
+    );
+
+    expect(outside.map((finding) => [finding.rule, finding.file])).toEqual([
+      ["object-outside-scene", "studio.json"],
+    ]);
+    expect(outside[0]?.snippet).toContain("third");
+
+    const videoWide = check(
+      `const stage = useStudioObject('third');\n${film('name="Intro" durationInFrames={30}', 'name="Outro" durationInFrames={30}')}`,
+      sceneDocument(["Intro", "Outro"], { first: "scene-0", second: "scene-0" })
+    );
+
+    expect(videoWide).toEqual([]);
+  });
+
+  it("counts a nested object as in its scene", () => {
+    expect(
+      check(
+        film(
+          'name="Intro" durationInFrames={30}',
+          'name="Outro" durationInFrames={30}'
+        ),
+        sceneDocument(["Intro", "Outro"], {
+          first: "scene-0",
+          second: "first",
+          third: "second",
+        })
+      )
+    ).toEqual([]);
+  });
+
+  it("reports only the missing names on a video written before scenes", () => {
+    const findings = check(
+      film("durationInFrames={30}", "durationInFrames={30}"),
+      JSON.stringify(documentFixture)
+    );
+
+    expect(findings.map((finding) => finding.rule)).toEqual([
+      "unnamed-scene",
+      "unnamed-scene",
+    ]);
+  });
+
+  it("reads TransitionSeries and a braced literal, and trusts an expression", () => {
+    const index = [
+      "<TransitionSeries>",
+      '  <TransitionSeries.Sequence name={"Intro"} durationInFrames={30}><A /></TransitionSeries.Sequence>',
+      "  <TransitionSeries.Sequence name={scene.title} durationInFrames={30}><B /></TransitionSeries.Sequence>",
+      "</TransitionSeries>",
+    ].join("\n");
+
+    expect(
+      check(
+        index,
+        sceneDocument(["Intro"], {
+          first: "scene-0",
+          second: "scene-0",
+          third: "scene-0",
+        })
+      )
+    ).toEqual([]);
+  });
+
+  it("gives each scene rule a code and a severity", () => {
+    const findings = tunabilityDesignFindings(
+      check(
+        film("durationInFrames={30}", 'name="Pricing" durationInFrames={30}'),
+        sceneDocument(["Intro"], { first: "scene-0", second: "scene-0" })
+      )
+    );
+
+    expect(findings.map((finding) => [finding.code, finding.severity])).toEqual(
+      [
+        ["tunability_unnamed_scene", "error"],
+        ["tunability_scene_without_object", "error"],
+        ["tunability_object_outside_scene", "warning"],
+      ]
+    );
+  });
+});

@@ -7,8 +7,11 @@ import {
   usePreviewFrame,
 } from "@/hooks/use-preview";
 import {
+  PLAYBACK_RATES,
+  type PlaybackRate,
   PREVIEW_COMMAND_SOURCE,
   type PreviewMessage,
+  type PreviewScene,
   seekCommand,
 } from "@/lib/studio/preview";
 
@@ -30,6 +33,20 @@ export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
   const [fullscreen, setFullscreen] = useState(false);
   const [canFullscreen, setCanFullscreen] = useState(false);
   const [fullscreenError, setFullscreenError] = useState<string | null>(null);
+  const [sceneReport, setSceneReport] = useState<{
+    composition: string;
+    scenes: readonly PreviewScene[];
+    url: string;
+  } | null>(null);
+  const [chosenRate, setChosenRate] = useState<{
+    composition: string | null;
+    rate: PlaybackRate;
+  } | null>(null);
+  const rate = chosenRate?.composition === composition ? chosenRate.rate : 1;
+  const scenes =
+    sceneReport?.url === url && sceneReport.composition === composition
+      ? sceneReport.scenes
+      : NO_SCENES;
   const state =
     reported?.url === url && reported?.state.compositionId === composition
       ? reported.state
@@ -48,6 +65,12 @@ export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
         url
       ) {
         setReported({ state: message, url });
+      } else if (message.type === "scenes" && url) {
+        setSceneReport({
+          composition: message.compositionId,
+          scenes: message.scenes,
+          url,
+        });
       } else if (message.type === "playhead") {
         setSeek((pending) =>
           pending?.frame === message.frame ? null : pending
@@ -55,9 +78,10 @@ export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
       } else if (message.type === "rebuilt") {
         setSeek(null);
         send({ source: PREVIEW_COMMAND_SOURCE, type: "transport.request" });
+        send({ rate, source: PREVIEW_COMMAND_SOURCE, type: "transport.rate" });
       }
     },
-    [composition, send, url]
+    [composition, rate, send, url]
   );
   useOnPreview(preview, receive);
 
@@ -66,6 +90,26 @@ export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
       send({ source: PREVIEW_COMMAND_SOURCE, type: "transport.request" });
     }
   }, [composition, send, url]);
+
+  useEffect(() => {
+    if (url !== null && composition !== null) {
+      send({ rate, source: PREVIEW_COMMAND_SOURCE, type: "transport.rate" });
+    }
+  }, [composition, rate, send, url]);
+
+  const setRate = useCallback(
+    (chosen: unknown) => {
+      const found = PLAYBACK_RATES.find((item) => item === chosen);
+      if (found !== undefined) {
+        setChosenRate({ composition, rate: found });
+      }
+    },
+    [composition]
+  );
+  const setRateStep = useCallback(
+    (position: unknown) => setRate(PLAYBACK_RATES[Number(position)]),
+    [setRate]
+  );
 
   const toggle = useCallback(() => {
     if (ready) {
@@ -206,8 +250,15 @@ export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
     playing: preview.playing,
     position: previewTime(at / fps),
     previous,
+    rate,
+    rateMarks: RATE_MARKS,
+    rateStep: PLAYBACK_RATES.indexOf(rate),
+    rates: PLAYBACK_RATES,
     ready,
+    scenes,
     seekTo,
+    setRate,
+    setRateStep,
     setVolume,
     surface,
     toggle,
@@ -218,6 +269,12 @@ export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
 }
 
 export type PreviewTransport = ReturnType<typeof usePreviewTransport>;
+
+const NO_SCENES: readonly PreviewScene[] = [];
+
+const RATE_MARKS: readonly number[] = PLAYBACK_RATES.map(
+  (_, index) => index / (PLAYBACK_RATES.length - 1)
+);
 
 function previewTime(seconds: number): string {
   const total = Math.floor(Math.max(0, seconds));

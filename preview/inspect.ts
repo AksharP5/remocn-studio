@@ -131,6 +131,7 @@ interface Session {
 let api: GrabApi | null = null;
 let session: Session | null = null;
 let hovered: Element | null = null;
+let listHovered: string | null = null;
 let exact = false;
 let point: { x: number; y: number } | null = null;
 let painting = 0;
@@ -199,6 +200,11 @@ export function highlightTarget(targetId: string | null, open: boolean): void {
   }
 
   selected = targetId === null ? picked : (chain.get(targetId) ?? picked);
+  paint();
+}
+
+export function hoverManaged(objectId: string | null): void {
+  listHovered = objectId;
   paint();
 }
 
@@ -515,6 +521,7 @@ function close(): void {
   session?.stop();
   session = null;
   hovered = null;
+  listHovered = null;
   point = null;
   exact = false;
   paint();
@@ -677,17 +684,23 @@ function paintHover(): void {
     return;
   }
 
+  const showing =
+    listHovered === null
+      ? hovered
+      : (managedRoots(listHovered).find(
+          (node) => node.getBoundingClientRect().width > 0
+        ) ?? null);
   const isSelected =
-    hovered !== null &&
-    (hovered === selected ||
+    showing !== null &&
+    (showing === selected ||
       (managedSelected !== null &&
-        managedIdentity(hovered)?.objectId === managedSelected.id));
+        managedIdentity(showing)?.objectId === managedSelected.id));
   place(
     session.box,
     session.label,
     isSelected || session.inline.active() || session.geometry.active()
       ? null
-      : hovered
+      : showing
   );
   session.label.style.display = "none";
 }

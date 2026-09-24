@@ -14,6 +14,7 @@ import type { PromptAsset } from "@/shared/library";
 import type { PipelineStage } from "@/shared/pipeline";
 import { type AgentProvider, DEFAULT_AGENT_PROVIDER } from "@/shared/providers";
 import type { ReferenceCounts } from "@/shared/references";
+import type { LiveLine } from "./reasoning";
 
 export type SessionStatus = "failed" | "idle" | "running" | "waiting";
 
@@ -54,6 +55,7 @@ export interface TurnState {
   error: string | null;
   isLoading: boolean;
   isRunning: boolean;
+  live: readonly LiveLine[];
   mode: SessionMode;
   permissions: readonly PendingPermission[];
   provider: AgentProvider;
@@ -63,6 +65,7 @@ export interface TurnState {
   stages: readonly PipelineStage[];
   startedAt: number | null;
   unread: boolean;
+  workedMs: number | null;
 }
 
 export const IDLE_TURN: TurnState = {
@@ -71,6 +74,7 @@ export const IDLE_TURN: TurnState = {
   error: null,
   isLoading: false,
   isRunning: false,
+  live: [],
   mode: DEFAULT_SESSION_MODE,
   permissions: [],
   provider: DEFAULT_AGENT_PROVIDER,
@@ -80,6 +84,7 @@ export const IDLE_TURN: TurnState = {
   stages: [],
   startedAt: null,
   unread: false,
+  workedMs: null,
 };
 
 export function enqueue(turn: TurnState, message: QueuedMessage): TurnState {

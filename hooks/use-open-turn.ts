@@ -9,6 +9,7 @@ import {
 import type { Selection } from "@/hooks/use-selections";
 import type { Turns } from "@/hooks/use-turns";
 import type { PermissionAction } from "@/lib/studio/permission";
+import type { LiveLine } from "@/lib/studio/reasoning";
 import {
   IDLE_TURN,
   type PendingPermission,
@@ -65,6 +66,7 @@ export interface OpenTurn {
   entries: readonly TranscriptEntry[];
   isLoadingTranscript: boolean;
   isRunning: boolean;
+  live: readonly LiveLine[];
   mode: SessionMode;
   onModeChange: (value: string) => void;
   onProviderChange: (value: string) => void;
@@ -85,6 +87,7 @@ export interface OpenTurn {
   startedAt: number | null;
   stop: () => void;
   turnError: string | null;
+  workedMs: number | null;
   writes: CodeWrites;
   /** Why a message carrying code edits cannot go out yet, or nothing. */
   writesBlocked: string | null;
@@ -279,6 +282,7 @@ export function useOpenTurn({
       entries: turn.entries,
       isLoadingTranscript: turn.isLoading,
       isRunning: turn.isRunning,
+      live: turn.live,
       mode: turn.mode,
       onModeChange,
       onProviderChange,
@@ -293,6 +297,7 @@ export function useOpenTurn({
       startedAt: turn.startedAt,
       stop,
       turnError: turn.error,
+      workedMs: turn.workedMs,
       writes,
       writesBlocked,
     }),

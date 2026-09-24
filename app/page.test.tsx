@@ -4,6 +4,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
   waitForElementToBeRemoved,
   within,
 } from "@testing-library/react";
@@ -171,20 +172,34 @@ describe("app shell", () => {
 
     expect(screen.getByRole("heading", { name: "Videos" })).toBeVisible();
     expect(await screen.findByRole("heading", { name: "Chat" })).toBeVisible();
-    // The right pane's title is its Preview | Docs switch: the word is the
-    // control now, so there is nothing left for a heading to repeat.
     expect(
-      await screen.findByRole("button", { name: "Preview" })
+      await screen.findByRole("button", { name: "Hide the preview" })
     ).toBeVisible();
+  });
+
+  it("keeps Docs behind a shortcut and offers the way back from it", async () => {
+    mockStudio({ projects: [PROJECT], sessions: [STORED_SESSION] });
+    await renderShell();
+    fireEvent.click(await screen.findByText("My video"));
+    await screen.findByRole("button", { name: "Hide the preview" });
+
+    expect(screen.queryByRole("button", { name: "Preview" })).toBeNull();
+
+    fireEvent.keyDown(window, { key: "d", metaKey: true });
+    fireEvent.click(await screen.findByRole("button", { name: "Preview" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Preview" })).toBeNull()
+    );
   });
 
   it("keeps the preview out of the way until there is a project", async () => {
     await renderShell();
     await showPreviewButton();
 
-    await waitForElementToBeRemoved(() =>
-      screen.queryByRole("button", { name: "Preview" })
-    );
+    expect(
+      screen.queryByRole("button", { name: "Hide the preview" })
+    ).toBeNull();
   });
 
   it("does not reveal onboarding while stored projects are loading", async () => {
@@ -240,17 +255,19 @@ describe("app shell", () => {
   it("brings the preview back, and lets it be dismissed again", async () => {
     mockStudio({ projects: [PROJECT] });
     await renderShell();
-    await screen.findByRole("button", { name: "Preview" });
-
-    fireEvent.click(screen.getByRole("button", { name: "Hide the preview" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Hide the preview" })
+    );
 
     await waitForElementToBeRemoved(() =>
-      screen.queryByRole("button", { name: "Preview" })
+      screen.queryByRole("button", { name: "Hide the preview" })
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Show the preview" }));
 
-    expect(screen.getByRole("button", { name: "Preview" })).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Hide the preview" })
+    ).toBeVisible();
   });
 
   // "Clicking a video opens its most recent chat" is the invariant the rest of

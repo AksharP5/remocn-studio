@@ -36,6 +36,19 @@ describe("conventionsFor on Free", () => {
     expect(text).toContain("[Element #N]");
   });
 
+  it("asks for every scene to be named and described by a scene object", () => {
+    for (const plan of ["free", "pro"] as const) {
+      const compact = conventionsFor(false, null, plan).replaceAll("\n", " ");
+
+      expect(compact).toContain("carries a short human `name`");
+      expect(compact).toContain('definition id "scene"');
+      expect(compact).toContain("label exactly the sequence's name");
+      expect(compact).toContain(
+        "Set every other object's parentId to its scene's object"
+      );
+    }
+  });
+
   it("drops every craft mandate and every Pro tool, whatever the bundle said", () => {
     for (const text of [
       conventionsFor(true, null, "free"),
