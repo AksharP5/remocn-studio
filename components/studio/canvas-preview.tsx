@@ -120,14 +120,13 @@ export function CanvasPreview({
         )}
 
         <div
-          className="absolute top-0 right-(--canvas-inspector-width) left-0 z-20"
+          className="absolute top-0 right-(--canvas-inspector-width) left-0 z-20 pt-2"
           data-canvas-chrome
           data-canvas-occludes="top"
         >
           {header}
+          <CanvasToolbar canvas={canvas} />
         </div>
-
-        <CanvasToolbar canvas={canvas} />
 
         <CanvasInspector
           duration={canvas.transport.duration}
@@ -163,81 +162,79 @@ function CanvasToolbar({ canvas }: { canvas: Canvas }) {
   const dimmed = camera.outside === "dim";
 
   return (
-    <div
-      className="absolute top-12 left-4 z-20 flex items-center gap-1 rounded-lg border border-border bg-field p-1"
-      data-canvas-chrome
-      data-canvas-occludes="top"
-    >
-      <Button
-        aria-label="Pan tool"
-        aria-pressed={camera.hand}
-        onClick={camera.toggleHand}
-        size="icon-sm"
-        variant={camera.hand ? "secondary" : "ghost"}
-      >
-        <HandIcon />
-      </Button>
-      <Button
-        disabled={metadata === null}
-        onClick={camera.fit}
-        size="sm"
-        title="Fit (⇧1)"
-        variant="ghost"
-      >
-        Fit
-      </Button>
-      <Button
-        aria-label="Zoom to selection"
-        disabled={!hasSelection}
-        onClick={camera.zoomToSelection}
-        size="icon-sm"
-        title="Zoom to selection (⇧2)"
-        variant="ghost"
-      >
-        <FocusIcon />
-      </Button>
-      <Button
-        aria-label="Zoom out"
-        onClick={camera.zoomOut}
-        size="icon-sm"
-        title="Zoom out (⌘−)"
-        variant="ghost"
-      >
-        <MinusIcon />
-      </Button>
-      <Button
-        aria-label="Zoom to 100%"
-        className="w-14 tabular-nums"
-        onClick={camera.zoomReset}
-        size="sm"
-        title="Zoom to 100% (⌘0)"
-        variant="ghost"
-      >
-        {Math.round(camera.camera.zoom * 100)}%
-      </Button>
-      <Button
-        aria-label="Zoom in"
-        onClick={camera.zoomIn}
-        size="icon-sm"
-        title="Zoom in (⌘+)"
-        variant="ghost"
-      >
-        <PlusIcon />
-      </Button>
-      <Button
-        aria-label="Show content outside the frame"
-        aria-pressed={dimmed}
-        onClick={camera.toggleOutside}
-        size="icon-sm"
-        title={
-          dimmed
-            ? "Hide content outside the frame"
-            : "Show content outside the frame"
-        }
-        variant={dimmed ? "secondary" : "ghost"}
-      >
-        <SquareDashedIcon />
-      </Button>
+    <div className="absolute top-2 left-4 flex h-10 items-center">
+      <div className="flex items-center gap-0.5 rounded-lg border border-border bg-field p-0.5">
+        <Button
+          aria-label="Pan tool"
+          aria-pressed={camera.hand}
+          onClick={camera.toggleHand}
+          size="icon-sm"
+          variant={camera.hand ? "secondary" : "ghost"}
+        >
+          <HandIcon />
+        </Button>
+        <Button
+          disabled={metadata === null}
+          onClick={camera.fit}
+          size="sm"
+          title="Fit (⇧1)"
+          variant="ghost"
+        >
+          Fit
+        </Button>
+        <Button
+          aria-label="Zoom to selection"
+          disabled={!hasSelection}
+          onClick={camera.zoomToSelection}
+          size="icon-sm"
+          title="Zoom to selection (⇧2)"
+          variant="ghost"
+        >
+          <FocusIcon />
+        </Button>
+        <Button
+          aria-label="Zoom out"
+          onClick={camera.zoomOut}
+          size="icon-sm"
+          title="Zoom out (⌘−)"
+          variant="ghost"
+        >
+          <MinusIcon />
+        </Button>
+        <Button
+          aria-label="Zoom to 100%"
+          className="w-14 tabular-nums"
+          onClick={camera.zoomReset}
+          size="sm"
+          title="Zoom to 100% (⌘0)"
+          variant="ghost"
+        >
+          {Math.round(camera.camera.zoom * 100)}%
+        </Button>
+        <Button
+          aria-label="Zoom in"
+          onClick={camera.zoomIn}
+          size="icon-sm"
+          title="Zoom in (⌘+)"
+          variant="ghost"
+        >
+          <PlusIcon />
+        </Button>
+        <Button
+          aria-label="Show content outside the frame"
+          aria-pressed={dimmed}
+          onClick={camera.toggleOutside}
+          size="icon-sm"
+          title={
+            dimmed
+              ? "Hide content outside the frame"
+              : "Show content outside the frame"
+          }
+          variant={dimmed ? "secondary" : "ghost"}
+        >
+          <SquareDashedIcon />
+        </Button>
+      </div>
     </div>
   );
 }
