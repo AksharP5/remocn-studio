@@ -46,6 +46,9 @@ const TITLEBAR_SHADER_KEY = "titlebarShader";
 const TITLEBAR_MOTION_KEY = "titlebarMotion";
 const PANE_VIEW_KEY = "paneView";
 const TRIAL_CARDS_KEY = "trialCardsDismissed";
+const CANVAS_CAMERAS_KEY = "canvasCameras";
+const CANVAS_RULERS_KEY = "canvasRulers";
+const CANVAS_CAMERA_LIMIT = 50;
 const LAYOUT_KEY_PREFIX = "layout:";
 
 const cache = new Map<string, string>();
@@ -58,6 +61,7 @@ export interface StudioSettings {
   assetOffers: boolean | null;
   claudeEffort: EffortLevel | null;
   claudeModel: string | null;
+  canvasRulers: boolean | null;
   codexModel: string | null;
   /** The property groups folded shut, by name. Collapsed rather than expanded,
       so a group the pane gains later opens with everything else. */
@@ -92,6 +96,7 @@ export const hydrateSettings: Effect.Effect<StudioSettings> = openStore.pipe(
     return {
       assetOffers: enabledOf(cache.get(ASSET_OFFERS_KEY)),
       claudeEffort: effortOf(cache.get(CLAUDE_EFFORT_KEY)),
+      canvasRulers: shownOf(cache.get(CANVAS_RULERS_KEY)),
       claudeModel: cache.get(CLAUDE_MODEL_KEY) ?? null,
       codexModel: cache.get(CODEX_MODEL_KEY) ?? null,
       collapsedPropGroups: idsOf(cache.get(PROP_GROUPS_KEY)),
@@ -220,6 +225,68 @@ export function saveCollapsedPropGroups(
   groups: readonly string[]
 ): Effect.Effect<void> {
   return remember(PROP_GROUPS_KEY, JSON.stringify(groups));
+}
+
+export function saveCanvasRulers(shown: boolean): Effect.Effect<void> {
+  return remember(CANVAS_RULERS_KEY, shown ? "shown" : "hidden");
+}
+
+export interface RememberedCamera {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
+interface RememberedCameraEntry extends RememberedCamera {
+  key: string;
+}
+
+function camerasOf(value: string | undefined): RememberedCameraEntry[] {
+  if (value === undefined) {
+    return [];
+  }
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter(isCameraEntry) : [];
+  } catch {
+    return [];
+  }
+}
+
+function isCameraEntry(value: unknown): value is RememberedCameraEntry {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const { key, x, y, zoom } = value as Record<string, unknown>;
+  return (
+    typeof key === "string" &&
+    [x, y, zoom].every(
+      (number) => typeof number === "number" && Number.isFinite(number)
+    ) &&
+    (zoom as number) > 0
+  );
+}
+
+export function readCanvasCamera(key: string): RememberedCamera | null {
+  const entry = camerasOf(cache.get(CANVAS_CAMERAS_KEY)).find(
+    (item) => item.key === key
+  );
+  return entry ? { x: entry.x, y: entry.y, zoom: entry.zoom } : null;
+}
+
+export function saveCanvasCamera(
+  key: string,
+  camera: RememberedCamera
+): Effect.Effect<void> {
+  return Effect.suspend(() => {
+    const entries = [
+      { key, x: camera.x, y: camera.y, zoom: camera.zoom },
+      ...camerasOf(cache.get(CANVAS_CAMERAS_KEY)).filter(
+        (item) => item.key !== key
+      ),
+    ].slice(0, CANVAS_CAMERA_LIMIT);
+    return remember(CANVAS_CAMERAS_KEY, JSON.stringify(entries));
+  });
 }
 
 export function saveOnboarding(progress: OnboardingProgress) {

@@ -7,6 +7,7 @@ import type { PipelineStage } from "@/shared/pipeline";
 
 const SETTINGS: StudioSettings = {
   assetOffers: null,
+  canvasRulers: null,
   claudeEffort: null,
   claudeModel: null,
   codexModel: null,

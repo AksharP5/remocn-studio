@@ -1,28 +1,43 @@
 "use client";
 
+import { Effect } from "effect";
 import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import {
   type CanvasPoint,
+  cameraAt,
+  cameraCentre,
+  easeOutCubic,
   fitPreviewCamera,
   INITIAL_PREVIEW_CAMERA,
+  interpolateCamera,
   OCCLUDES_ATTR,
   type Occluder,
   occludedInsets,
   type PreviewCamera,
   panPreviewCamera,
+  pixelGrid,
   SELECTION_BOUNDS_ATTR,
   SELECTION_ZOOM,
   screenToCanvas,
+  surroundOf,
   zoomPreviewCamera,
 } from "@/lib/studio/preview-camera";
+import {
+  type RememberedCamera,
+  readCanvasCamera,
+  saveCanvasCamera,
+} from "@/lib/studio/settings";
 
-const savedCameras = new Map<string, PreviewCamera>();
+const JUMP_MS = 200;
+const SETTLE_MS = 500;
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 
 const INTERACTIVE =
   "button,input,textarea,select,a,[contenteditable],[data-canvas-chrome]";
@@ -63,25 +78,30 @@ function wheelFactor(event: WheelEvent, node: HTMLElement) {
   return 1;
 }
 
+function reducedMotion() {
+  return typeof matchMedia === "function" && matchMedia(REDUCED_MOTION).matches;
+}
+
 interface ViewActions {
   fit: () => void;
-  zoom: number;
-  zoomTo: (zoom: number) => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  zoomReset: () => void;
   zoomToSelection: () => void;
 }
 
 function zoomShortcut(
   event: KeyboardEvent,
-  { zoom, zoomTo }: ViewActions
+  actions: ViewActions
 ): (() => void) | null {
   if (event.key === "0") {
-    return () => zoomTo(1);
+    return actions.zoomReset;
   }
   if (event.key === "=" || event.key === "+") {
-    return () => zoomTo(zoom * ZOOM_STEP);
+    return actions.zoomIn;
   }
   if (event.key === "-") {
-    return () => zoomTo(zoom / ZOOM_STEP);
+    return actions.zoomOut;
   }
   return null;
 }
@@ -122,8 +142,16 @@ export function usePreviewCamera(
   const spaceHeld = useRef(false);
   const fitted = useRef<string | null>(null);
   const drag = useRef<{ id: number; point: CanvasPoint } | null>(null);
+  const latest = useRef(camera);
+  latest.current = camera;
+  const tween = useRef<{ frame: number; to: PreviewCamera } | null>(null);
+  const moved = useRef(false);
+  const pending = useRef<{ camera: RememberedCamera; key: string } | null>(
+    null
+  );
   const width = size ? size.width : 0;
   const height = size ? size.height : 0;
+  const key = identity ? `${identity}:${width}:${height}` : null;
 
   useEffect(() => {
     const node = viewport.current;
@@ -147,42 +175,80 @@ export function usePreviewCamera(
     []
   );
 
-  const fit = useCallback(() => {
-    if (editing()) {
-      return;
+  const stopTween = useCallback(() => {
+    if (tween.current) {
+      cancelAnimationFrame(tween.current.frame);
+      tween.current = null;
     }
-    setCamera((current) =>
-      fitPreviewCamera(
-        current,
-        { height, width, x: 0, y: 0 },
-        bounds,
-        insetsOf(viewport.current, FIT_MARGIN)
-      )
-    );
-  }, [bounds, editing, height, width]);
+  }, []);
 
-  const zoomTo = useCallback(
-    (zoom: number) => {
+  const jump = useCallback(
+    (next: (base: PreviewCamera) => PreviewCamera) => {
       if (editing()) {
         return;
       }
-      setCamera((current) =>
-        zoomPreviewCamera(
-          current,
-          {
-            x: bounds.width / 2,
-            y: bounds.height / 2,
-          },
-          zoom
-        )
-      );
+      const base = tween.current?.to ?? latest.current;
+      const target = next(base);
+      if (target === base) {
+        return;
+      }
+      stopTween();
+      moved.current = true;
+      if (reducedMotion()) {
+        setCamera(target);
+        return;
+      }
+      const from = latest.current;
+      const start = performance.now();
+      const step = () => {
+        if (editing()) {
+          tween.current = null;
+          return;
+        }
+        const progress = (performance.now() - start) / JUMP_MS;
+        setCamera(
+          interpolateCamera(from, target, easeOutCubic(progress), bounds)
+        );
+        tween.current =
+          progress >= 1
+            ? null
+            : { frame: requestAnimationFrame(step), to: target };
+      };
+      tween.current = { frame: requestAnimationFrame(step), to: target };
     },
-    [bounds, editing]
+    [bounds, editing, stopTween]
+  );
+
+  useEffect(() => stopTween, [stopTween]);
+
+  const framed = useCallback(
+    (view: PreviewCamera) =>
+      fitPreviewCamera(
+        view,
+        { height, width, x: 0, y: 0 },
+        bounds,
+        insetsOf(viewport.current, FIT_MARGIN)
+      ),
+    [bounds, height, width]
+  );
+
+  const fit = useCallback(() => jump(framed), [framed, jump]);
+
+  const zoomBy = useCallback(
+    (factor: number) =>
+      jump((view) =>
+        zoomPreviewCamera(
+          view,
+          { x: bounds.width / 2, y: bounds.height / 2 },
+          view.zoom * factor
+        )
+      ),
+    [bounds, jump]
   );
 
   const zoomToSelection = useCallback(() => {
     const node = viewport.current;
-    if (!node || editing()) {
+    if (!node) {
       return;
     }
     const origin = node.getBoundingClientRect();
@@ -194,58 +260,94 @@ export function usePreviewCamera(
     if (!box) {
       return;
     }
-    setCamera((current) => {
+    jump((base) => {
+      const shown = latest.current;
       const corner = screenToCanvas(
         { x: box.left - origin.left, y: box.top - origin.top },
-        current
+        shown
       );
       return fitPreviewCamera(
-        current,
+        base,
         {
           ...corner,
-          height: box.height / current.zoom,
-          width: box.width / current.zoom,
+          height: box.height / shown.zoom,
+          width: box.width / shown.zoom,
         },
         bounds,
         insetsOf(node, SELECTION_MARGIN),
         SELECTION_ZOOM
       );
     });
-  }, [bounds, editing]);
+  }, [bounds, jump]);
 
   const toggleOutside = useCallback(
     () => setOutside((value) => (value === "dim" ? "hide" : "dim")),
     []
   );
   const toggleHand = useCallback(() => setHand((value) => !value), []);
-  const zoomIn = useCallback(
-    () => zoomTo(camera.zoom * ZOOM_STEP),
-    [camera.zoom, zoomTo]
+  const zoomIn = useCallback(() => zoomBy(ZOOM_STEP), [zoomBy]);
+  const zoomOut = useCallback(() => zoomBy(1 / ZOOM_STEP), [zoomBy]);
+  const zoomReset = useCallback(
+    () =>
+      jump((view) =>
+        zoomPreviewCamera(
+          view,
+          { x: bounds.width / 2, y: bounds.height / 2 },
+          1
+        )
+      ),
+    [bounds, jump]
   );
-  const zoomOut = useCallback(
-    () => zoomTo(camera.zoom / ZOOM_STEP),
-    [camera.zoom, zoomTo]
-  );
-  const zoomReset = useCallback(() => zoomTo(1), [zoomTo]);
 
   const actions = useRef({
     fit,
     togglePlayback,
-    zoom: camera.zoom,
-    zoomTo,
+    zoomIn,
+    zoomOut,
+    zoomReset,
     zoomToSelection,
   });
   actions.current = {
     fit,
     togglePlayback,
-    zoom: camera.zoom,
-    zoomTo,
+    zoomIn,
+    zoomOut,
+    zoomReset,
     zoomToSelection,
   };
 
+  const saveNow = useCallback(() => {
+    const held = pending.current;
+    if (held) {
+      pending.current = null;
+      Effect.runFork(saveCanvasCamera(held.key, held.camera));
+    }
+  }, []);
+
   useEffect(() => {
     if (
-      !identity ||
+      key === null ||
+      fitted.current !== key ||
+      !moved.current ||
+      !bounds.width
+    ) {
+      return;
+    }
+    const settled = tween.current?.to ?? camera;
+    pending.current = {
+      camera: { ...cameraCentre(settled, bounds), zoom: settled.zoom },
+      key,
+    };
+    const timer = setTimeout(saveNow, SETTLE_MS);
+    return () => clearTimeout(timer);
+  }, [bounds, camera, key, saveNow]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new video writes what the previous one left pending
+  useEffect(() => saveNow, [key, saveNow]);
+
+  useEffect(() => {
+    if (
+      key === null ||
       width <= 0 ||
       height <= 0 ||
       bounds.width <= 64 ||
@@ -253,18 +355,18 @@ export function usePreviewCamera(
     ) {
       return;
     }
-    const key = `${identity}:${width}:${height}`;
     if (fitted.current === key) {
       return;
     }
     fitted.current = key;
-    const saved = savedCameras.get(key);
-    if (saved) {
-      setCamera(saved);
-    } else {
-      fit();
-    }
-  }, [bounds, fit, height, identity, width]);
+    stopTween();
+    moved.current = false;
+    const saved = readCanvasCamera(key);
+    const restored = saved
+      ? cameraAt({ x: saved.x, y: saved.y }, saved.zoom, bounds)
+      : null;
+    setCamera(restored ?? framed(latest.current));
+  }, [bounds, framed, height, key, stopTween, width]);
 
   useLayoutEffect(() => {
     const node = viewport.current;
@@ -281,21 +383,6 @@ export function usePreviewCamera(
   useLayoutEffect(() => {
     viewport.current?.dispatchEvent(new Event("preview-view-change"));
   }, [camera, bounds]);
-
-  useEffect(() => {
-    const key = `${identity}:${width}:${height}`;
-    return () => {
-      if (identity && fitted.current === key) {
-        savedCameras.set(key, camera);
-        if (savedCameras.size > 50) {
-          const oldest = savedCameras.keys().next();
-          if (!oldest.done) {
-            savedCameras.delete(oldest.value);
-          }
-        }
-      }
-    };
-  }, [camera, height, identity, width]);
 
   useEffect(() => {
     const node = viewport.current;
@@ -316,6 +403,8 @@ export function usePreviewCamera(
       }
     };
     const schedule = (step: (view: PreviewCamera) => PreviewCamera) => {
+      stopTween();
+      moved.current = true;
       queued.push(step);
       if (scheduled === 0) {
         scheduled = requestAnimationFrame(flush);
@@ -397,6 +486,7 @@ export function usePreviewCamera(
       }
       event.preventDefault();
       event.stopImmediatePropagation();
+      stopTween();
       drag.current = { id: event.pointerId, point: point(event) };
       node.setPointerCapture(event.pointerId);
       setPanning(true);
@@ -505,21 +595,26 @@ export function usePreviewCamera(
       window.removeEventListener("keyup", keyup);
       window.removeEventListener("blur", reset);
     };
-  }, [hand]);
+  }, [hand, stopTween]);
+
+  const surround = useMemo(
+    () => surroundOf(camera, { height, width }, bounds),
+    [bounds, camera, height, width]
+  );
+  const grid = useMemo(
+    () => pixelGrid(camera, { height, width }, bounds),
+    [bounds, camera, height, width]
+  );
 
   return {
     bounds,
     camera,
     cursor: navigationCursor(panning, hand, space) ?? "default",
     fit,
-    frame: {
-      height: height * camera.zoom,
-      left: camera.x,
-      top: camera.y,
-      width: width * camera.zoom,
-    },
+    grid,
     hand,
     outside,
+    surround,
     toggleHand,
     toggleOutside,
     transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`,

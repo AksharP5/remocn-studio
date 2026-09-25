@@ -161,3 +161,213 @@ export function fitPreviewCamera(
   };
   return validCamera(next) ? next : camera;
 }
+
+export interface CanvasSize {
+  height: number;
+  width: number;
+}
+
+function centreOf(viewport: CanvasSize): CanvasPoint {
+  return { x: viewport.width / 2, y: viewport.height / 2 };
+}
+
+export function cameraCentre(
+  camera: PreviewCamera,
+  viewport: CanvasSize
+): CanvasPoint {
+  return screenToCanvas(centreOf(viewport), camera);
+}
+
+export function cameraAt(
+  centre: CanvasPoint,
+  zoom: number,
+  viewport: CanvasSize
+): PreviewCamera | null {
+  const bounded = Math.max(MIN_PREVIEW_ZOOM, Math.min(MAX_PREVIEW_ZOOM, zoom));
+  const middle = centreOf(viewport);
+  const next = {
+    x: middle.x - centre.x * bounded,
+    y: middle.y - centre.y * bounded,
+    zoom: bounded,
+  };
+  return finitePoint(centre) && validCamera(next) ? next : null;
+}
+
+export function interpolateCamera(
+  from: PreviewCamera,
+  to: PreviewCamera,
+  progress: number,
+  viewport: CanvasSize
+): PreviewCamera {
+  if (progress >= 1 || !validCamera(from)) {
+    return to;
+  }
+  if (progress <= 0 || !validCamera(to)) {
+    return from;
+  }
+  const start = cameraCentre(from, viewport);
+  const end = cameraCentre(to, viewport);
+  const zoom = Math.exp(
+    Math.log(from.zoom) + (Math.log(to.zoom) - Math.log(from.zoom)) * progress
+  );
+  return (
+    cameraAt(
+      {
+        x: start.x + (end.x - start.x) * progress,
+        y: start.y + (end.y - start.y) * progress,
+      },
+      zoom,
+      viewport
+    ) ?? to
+  );
+}
+
+export function easeOutCubic(progress: number): number {
+  const rest = 1 - Math.max(0, Math.min(1, progress));
+  return 1 - rest * rest * rest;
+}
+
+const TICK_MANTISSAS = [1, 2, 5] as const;
+const MAX_TICKS = 2000;
+
+export interface RulerTicks {
+  major: readonly number[];
+  minor: readonly number[];
+  step: number;
+}
+
+const NO_TICKS: RulerTicks = { major: [], minor: [], step: 0 };
+
+export function rulerStep(zoom: number, spacing = 60): number {
+  if (!(Number.isFinite(zoom) && zoom > 0 && spacing > 0)) {
+    return 0;
+  }
+  for (let power = 1; ; power *= 10) {
+    for (const mantissa of TICK_MANTISSAS) {
+      if (mantissa * power * zoom >= spacing) {
+        return mantissa * power;
+      }
+    }
+  }
+}
+
+function multiplesOf(step: number, from: number, to: number): number[] {
+  const values: number[] = [];
+  const first = Math.ceil(from / step);
+  const last = Math.floor(to / step);
+  if (last - first > MAX_TICKS) {
+    return values;
+  }
+  for (let index = first; index <= last; index += 1) {
+    values.push(index * step);
+  }
+  return values;
+}
+
+export function rulerTicks(
+  from: number,
+  to: number,
+  zoom: number,
+  spacing = 60
+): RulerTicks {
+  const step = rulerStep(zoom, spacing);
+  if (step === 0 || !(Number.isFinite(from) && Number.isFinite(to))) {
+    return NO_TICKS;
+  }
+  const low = Math.min(from, to);
+  const high = Math.max(from, to);
+  const divisions = String(step).startsWith("2") ? 2 : 5;
+  const minorStep = step / divisions;
+  return {
+    major: multiplesOf(step, low, high),
+    minor:
+      minorStep >= 1
+        ? multiplesOf(minorStep, low, high).filter(
+            (value) => Math.round(value / minorStep) % divisions !== 0
+          )
+        : [],
+    step,
+  };
+}
+
+export const PIXEL_GRID_ZOOM = 8;
+
+export interface PixelGrid extends CanvasRect {
+  offsetX: number;
+  offsetY: number;
+  size: number;
+}
+
+export function pixelGrid(
+  camera: PreviewCamera,
+  video: CanvasSize,
+  viewport: CanvasSize
+): PixelGrid | null {
+  if (!validCamera(camera) || camera.zoom < PIXEL_GRID_ZOOM - 1e-6) {
+    return null;
+  }
+  const left = Math.max(0, camera.x);
+  const top = Math.max(0, camera.y);
+  const right = Math.min(viewport.width, camera.x + video.width * camera.zoom);
+  const bottom = Math.min(
+    viewport.height,
+    camera.y + video.height * camera.zoom
+  );
+  if (right <= left || bottom <= top) {
+    return null;
+  }
+  const size = camera.zoom;
+  const offset = (start: number, edge: number) =>
+    (((start - edge) % size) + size) % size;
+  return {
+    height: bottom - top,
+    offsetX: offset(camera.x, left),
+    offsetY: offset(camera.y, top),
+    size,
+    width: right - left,
+    x: left,
+    y: top,
+  };
+}
+
+export interface SurroundRect extends CanvasRect {
+  id: "bottom" | "left" | "right" | "top";
+}
+
+export function surroundOf(
+  camera: PreviewCamera,
+  video: CanvasSize,
+  viewport: CanvasSize
+): readonly SurroundRect[] {
+  const clamp = (value: number, max: number) =>
+    Math.max(0, Math.min(max, value));
+  const frameLeft = clamp(camera.x, viewport.width);
+  const frameRight = clamp(
+    camera.x + video.width * camera.zoom,
+    viewport.width
+  );
+  const frameTop = clamp(camera.y, viewport.height);
+  const frameBottom = clamp(
+    camera.y + video.height * camera.zoom,
+    viewport.height
+  );
+  const middle = frameBottom - frameTop;
+  return [
+    { height: frameTop, id: "top", width: viewport.width, x: 0, y: 0 },
+    {
+      height: viewport.height - frameBottom,
+      id: "bottom",
+      width: viewport.width,
+      x: 0,
+      y: frameBottom,
+    },
+    { height: middle, id: "left", width: frameLeft, x: 0, y: frameTop },
+    {
+      height: middle,
+      id: "right",
+      width: viewport.width - frameRight,
+      x: frameRight,
+      y: frameTop,
+    },
+  ];
+}

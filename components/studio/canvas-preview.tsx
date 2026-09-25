@@ -12,6 +12,7 @@ import {
   PanelRightCloseIcon,
   PanelRightOpenIcon,
   PlusIcon,
+  RulerIcon,
   SlidersHorizontalIcon,
   SquareDashedIcon,
 } from "lucide-react";
@@ -24,6 +25,7 @@ import { useCanvasPreview } from "@/hooks/use-canvas-preview";
 import type { Tools } from "@/hooks/use-tools";
 import type { LayerRow } from "@/lib/studio/layers";
 import { cn } from "@/lib/utils";
+import { CanvasRulers } from "./canvas-rulers";
 import { DOCK_SURFACE } from "./dock-layout";
 import { InspectOverlay } from "./inspect-overlay";
 import { PreviewControls } from "./preview-controls";
@@ -34,6 +36,8 @@ const PropsPane = dynamic(() =>
 );
 
 const DIMMED = "color-mix(in oklab, var(--background) 72%, transparent)";
+const GRID_LINE = "color-mix(in oklab, var(--foreground) 22%, transparent)";
+const GRID = `linear-gradient(to right, ${GRID_LINE} 1px, transparent 1px), linear-gradient(to bottom, ${GRID_LINE} 1px, transparent 1px)`;
 
 type Canvas = ReturnType<typeof useCanvasPreview>;
 type Metadata = Canvas["metadata"];
@@ -47,13 +51,14 @@ export function CanvasPreview({
   hidden: boolean;
   status: ReactNode;
 }) {
-  const { tools, activeProject, openedProject } = useStudio();
+  const { tools, activeProject, openedProject, settings } = useStudio();
   const canvas = useCanvasPreview({
     hidden,
     projectId: activeProject?.id ?? null,
+    settings,
     tools,
   });
-  const { camera, failure, metadata, native, overlay } = canvas;
+  const { camera, failure, metadata, native, overlay, rulers } = canvas;
   const shown = metadata !== null && failure === null;
 
   return (
@@ -69,11 +74,12 @@ export function CanvasPreview({
           "--canvas-inspector-width": canvas.layers.shown
             ? "min(340px, calc(100% - 24px))"
             : "3rem",
+          "--canvas-ruler": `${rulers.size}px`,
         } as CSSProperties
       }
     >
       <div
-        aria-label="Video canvas. Click to select; double-click text to edit; arrow keys nudge the selection. Space and drag to pan; pinch to zoom; Shift 1 fits, Shift 2 zooms to the selection; K to play."
+        aria-label="Video canvas. Click to select; double-click text to edit; arrow keys nudge the selection. Space and drag to pan; pinch to zoom; Shift 1 fits, Shift 2 zooms to the selection; Shift R shows or hides the rulers; K to play."
         className="relative min-h-0 flex-1 touch-none overflow-hidden outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset"
         ref={camera.viewport}
         role="application"
@@ -93,13 +99,37 @@ export function CanvasPreview({
           <div className="relative size-full" ref={native.stage} />
         </div>
 
-        {shown ? (
+        {shown
+          ? camera.surround.map((rect) => (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute z-[5]"
+                key={rect.id}
+                style={{
+                  background:
+                    camera.outside === "hide" ? "var(--background)" : DIMMED,
+                  height: rect.height,
+                  left: rect.x,
+                  top: rect.y,
+                  width: rect.width,
+                }}
+              />
+            ))
+          : null}
+
+        {shown && camera.grid !== null ? (
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute z-[5]"
+            className="pointer-events-none absolute z-[6]"
+            data-pixel-grid
             style={{
-              ...camera.frame,
-              boxShadow: `0 0 0 20000px ${camera.outside === "hide" ? "var(--background)" : DIMMED}`,
+              backgroundImage: GRID,
+              backgroundPosition: `${camera.grid.offsetX}px ${camera.grid.offsetY}px`,
+              backgroundSize: `${camera.grid.size}px ${camera.grid.size}px`,
+              height: camera.grid.height,
+              left: camera.grid.x,
+              top: camera.grid.y,
+              width: camera.grid.width,
             }}
           />
         ) : null}
@@ -119,8 +149,10 @@ export function CanvasPreview({
           />
         )}
 
+        {rulers.shown ? <CanvasRulers rulers={rulers} /> : null}
+
         <div
-          className="absolute top-0 right-(--canvas-inspector-width) left-0 z-20 pt-2"
+          className="absolute top-(--canvas-ruler) right-(--canvas-inspector-width) left-(--canvas-ruler) z-20 pt-2"
           data-canvas-chrome
           data-canvas-occludes="top"
         >
@@ -141,7 +173,7 @@ export function CanvasPreview({
         <div
           className={cn(
             DOCK_SURFACE,
-            "absolute right-[calc(var(--canvas-inspector-width)+16px)] bottom-4 left-4 z-20 flex min-h-0 flex-col p-[11px]"
+            "absolute right-[calc(var(--canvas-inspector-width)+16px)] bottom-4 left-[calc(var(--canvas-ruler)+16px)] z-20 flex min-h-0 flex-col p-[11px]"
           )}
           data-canvas-chrome
           data-canvas-occludes="bottom"
@@ -158,7 +190,7 @@ export function CanvasPreview({
 }
 
 function CanvasToolbar({ canvas }: { canvas: Canvas }) {
-  const { camera, hasSelection, metadata } = canvas;
+  const { camera, hasSelection, metadata, rulers } = canvas;
   const dimmed = camera.outside === "dim";
 
   return (
@@ -233,6 +265,16 @@ function CanvasToolbar({ canvas }: { canvas: Canvas }) {
           variant={dimmed ? "secondary" : "ghost"}
         >
           <SquareDashedIcon />
+        </Button>
+        <Button
+          aria-label="Rulers"
+          aria-pressed={rulers.shown}
+          onClick={rulers.toggle}
+          size="icon-sm"
+          title={rulers.shown ? "Hide rulers (⇧R)" : "Show rulers (⇧R)"}
+          variant={rulers.shown ? "secondary" : "ghost"}
+        >
+          <RulerIcon />
         </Button>
       </div>
     </div>
