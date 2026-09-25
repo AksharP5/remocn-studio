@@ -5,7 +5,6 @@ import type { AgentProvider } from "@/shared/providers";
 
 export const SETTINGS_SECTIONS = [
   "project",
-  "account",
   "appearance",
   "behavior",
   "notifications",
@@ -29,7 +28,6 @@ export interface SettingsView {
   close: () => void;
   isOpen: boolean;
   open: () => void;
-  openAccount: () => void;
   openAccounts: (provider: AgentProvider) => void;
   openProject: (projectId: string) => void;
   projectId: string | null;
@@ -88,11 +86,6 @@ export function useSettingsView(
     setIsOpen(true);
   }, []);
 
-  const openAccount = useCallback(() => {
-    setSection("account");
-    setIsOpen(true);
-  }, [setSection]);
-
   const openAccounts = useCallback(
     (target: AgentProvider) => {
       setSection("integrations");
@@ -136,7 +129,6 @@ export function useSettingsView(
       close,
       isOpen,
       open,
-      openAccount,
       openAccounts,
       openProject,
       projectId,
@@ -154,7 +146,6 @@ export function useSettingsView(
       close,
       isOpen,
       open,
-      openAccount,
       openAccounts,
       provider,
       section,

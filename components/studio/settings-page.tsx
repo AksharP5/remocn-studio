@@ -5,7 +5,6 @@ import {
   BellIcon,
   CheckIcon,
   CircleArrowUpIcon,
-  CircleUserRoundIcon,
   CopyIcon,
   KeyboardIcon,
   LightbulbIcon,
@@ -38,7 +37,6 @@ import {
   type ThemeChoice,
   useThemeChoice,
 } from "@/hooks/use-theme-choice";
-import { shortDay } from "@/lib/studio/account";
 import type { NotifyEvent } from "@/lib/studio/attention";
 import {
   formatShortcut,
@@ -49,6 +47,7 @@ import {
 } from "@/lib/studio/command-registry";
 import type { ShellMood } from "@/lib/studio/mood";
 import { modKeyLabel } from "@/lib/studio/platform";
+import { shortDay } from "@/lib/studio/time";
 import { downloadedLabel, downloadedShare } from "@/lib/studio/updates";
 import { cn } from "@/lib/utils";
 import type {
@@ -61,7 +60,6 @@ import {
   type AgentProvider,
   PROVIDER_INFO,
 } from "@/shared/providers";
-import { AccountSection } from "./account-section";
 import { CHECK_ICONS } from "./environment-checklist";
 import { IntegrationsSection } from "./integrations-section";
 import { ProjectSettingsSection } from "./project-settings-section";
@@ -85,12 +83,6 @@ const SECTIONS: readonly {
     icon: SlidersHorizontalIcon,
     id: "project",
     label: "Project",
-  },
-  {
-    description: "Your Remocn account, plan and devices",
-    icon: CircleUserRoundIcon,
-    id: "account",
-    label: "Account",
   },
   {
     description: "How the studio looks",
@@ -200,7 +192,6 @@ export function SettingsPage() {
                   key={settingsView.projectId ?? "none"}
                 />
               ) : null}
-              {section === "account" ? <AccountSection /> : null}
               {section === "appearance" ? <AppearanceSection /> : null}
               {section === "behavior" ? <BehaviorSection /> : null}
               {section === "notifications" ? <NotificationsSection /> : null}

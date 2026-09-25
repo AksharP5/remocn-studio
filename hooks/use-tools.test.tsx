@@ -2,16 +2,12 @@ import { afterEach, describe, expect, it, mock } from "bun:test";
 import { act, renderHook } from "@testing-library/react";
 import type { Composer } from "@/hooks/use-composer";
 import type { PreviewControl } from "@/hooks/use-preview";
-import { PRO_ONLY, type ToolSettings, useTools } from "@/hooks/use-tools";
-import { PRO_FEATURES } from "@/shared/entitlement";
+import { type ToolSettings, useTools } from "@/hooks/use-tools";
 import { stubGlobal, unstubAllGlobals } from "@/test/stub-global";
 
 const PROJECT = "project-1";
 
-function harness(
-  options: { isDocs?: boolean; isLocked?: boolean; lockedReason?: string } = {}
-) {
-  const onArm = mock();
+function harness(options: { isDocs?: boolean } = {}) {
   stubGlobal("requestAnimationFrame", () => 1);
   stubGlobal("cancelAnimationFrame", () => undefined);
 
@@ -38,26 +34,20 @@ function harness(
   const settings = (isDocs: boolean): ToolSettings => ({
     composer,
     isDocs,
-    isLocked: options.isLocked ?? false,
     isMissing: false,
     isShown: true,
     isWaiting: false,
-    lockedReason: options.lockedReason,
-    onArm,
     openedProjectId: PROJECT,
     preview,
     previewProjectId: PROJECT,
   });
 
-  return {
-    ...renderHook(
-      (props: { isDocs: boolean }) => useTools(settings(props.isDocs)),
-      {
-        initialProps: { isDocs: options.isDocs ?? false },
-      }
-    ),
-    onArm,
-  };
+  return renderHook(
+    (props: { isDocs: boolean }) => useTools(settings(props.isDocs)),
+    {
+      initialProps: { isDocs: options.isDocs ?? false },
+    }
+  );
 }
 
 afterEach(() => {
@@ -101,42 +91,15 @@ describe("useTools in Docs", () => {
   });
 });
 
-// The two buttons are the webview's half of the Pro list; the sidecar's
-// half is pinned in `sidecar/agent/plan.test.ts`.
-describe("useTools on Free", () => {
-  it("gates exactly the two features the plan list says it does", () => {
-    expect(PRO_FEATURES).toContain("inspect");
-    expect(PRO_FEATURES).toContain("snapshot");
-  });
+describe("useTools with nothing in the way", () => {
+  it("offers Inspect and Snapshot with no account and no plan", () => {
+    const { result } = harness();
 
-  it("disables both buttons with the Pro reason and arms nothing", () => {
-    const { result } = harness({ isLocked: true });
+    expect(result.current.inspect.canInspect).toBe(true);
+    expect(result.current.snapshot.canSnapshot).toBe(true);
+    expect(result.current.inspect.unavailable).toBeNull();
 
-    expect(result.current.inspect.canInspect).toBe(false);
-    expect(result.current.snapshot.canSnapshot).toBe(false);
-    expect(result.current.inspect.unavailable).toBe(PRO_ONLY);
-    expect(result.current.snapshot.unavailable).toBe(PRO_ONLY);
-
-    act(() => result.current.inspect.toggle());
-    expect(result.current.inspect.isArmed).toBe(false);
     act(() => result.current.snapshot.toggle());
-    expect(result.current.snapshot.isArmed).toBe(false);
-  });
-
-  it("words the reason for whoever is reading it", () => {
-    const { result } = harness({ isLocked: true, lockedReason: "Upgrade." });
-
-    expect(result.current.inspect.unavailable).toBe("Upgrade.");
-  });
-
-  // A click on a locked button is the way back to the trial card, which is
-  // what `onArm` opens on Free.
-  it("opens the trial card on a click instead", () => {
-    const { onArm, result } = harness({ isLocked: true });
-
-    act(() => result.current.inspect.toggle());
-    act(() => result.current.snapshot.toggle());
-
-    expect(onArm).toHaveBeenCalledTimes(2);
+    expect(result.current.snapshot.isArmed).toBe(true);
   });
 });

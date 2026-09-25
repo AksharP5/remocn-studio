@@ -50,7 +50,6 @@ function harness(write: (params: WriteParams) => WriteResult | Error) {
 
   const rendered = renderHook(() =>
     useCodeWrites({
-      plan: () => "pro",
       projectId: "project-1",
       write: (params) => {
         calls.push(params);
@@ -229,7 +228,7 @@ describe("writing values into the code at Send", () => {
   it("does nothing at all with no project open", async () => {
     const write = mock();
     const { result } = renderHook(() =>
-      useCodeWrites({ plan: () => "pro", projectId: null, write })
+      useCodeWrites({ projectId: null, write })
     );
 
     const outcome = await act(() => result.current.run(ONE));

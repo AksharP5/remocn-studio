@@ -28,7 +28,6 @@ import {
   SHIPPED,
   VENDORED,
 } from "@/sidecar/agent/knowledge";
-import { PLAN_REASON } from "@/sidecar/agent/plan";
 
 const PLUGIN = join(process.cwd(), "agent");
 const NAME = /^name:\s*(\S+)/m;
@@ -133,40 +132,6 @@ describe("the runtime manifests", () => {
 
   it("falls back rather than throwing on a directory with no manifest", () => {
     expect(bundleVersion(join(PLUGIN, "skills"))).toBe("0.0.0");
-  });
-});
-
-describe("locateBundle on Free", () => {
-  it("withholds the bundle before looking at the disk, and raises no notice", () => {
-    const bundle = locateBundle("/videos/promo", "free");
-
-    expect(bundle.loaded).toBe(false);
-    expect(bundle.reason).toBe(PLAN_REASON);
-    expect(bundle.path).toBeNull();
-    expect(knowledgeNotice(bundle)).toBeNull();
-  });
-
-  it("logs the withholding as Free rather than as a failure", async () => {
-    const lines: string[] = [];
-    const events: AgentEvent[] = [];
-
-    await Effect.runPromise(
-      announce(locateBundle("/videos/promo", "free"), {
-        emit: (event) =>
-          Effect.sync(() => {
-            events.push(event);
-          }),
-        log: (line) =>
-          Effect.sync(() => {
-            lines.push(line);
-          }),
-      })
-    );
-
-    expect(lines).toEqual([
-      "knowledge: bundled skills withheld — the session is on Free",
-    ]);
-    expect(events).toEqual([]);
   });
 });
 

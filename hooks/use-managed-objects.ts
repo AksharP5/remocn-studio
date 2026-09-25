@@ -479,7 +479,6 @@ export function useManagedObjects({
               const result = yield* Effect.exit(
                 write({
                   operation: draft.operation,
-                  plan: "pro",
                   projectId: owner.projectId,
                   video: owner.video,
                 })
@@ -869,7 +868,6 @@ export function useManagedObjects({
     Effect.runPromiseExit(
       write({
         operation,
-        plan: "pro",
         projectId: owner.projectId,
         video: owner.video,
       })

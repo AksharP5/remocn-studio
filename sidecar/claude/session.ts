@@ -115,8 +115,7 @@ function optionsOf(params: PromptParams, callbacks: TurnCallbacks): Options {
   const plugins = pluginsFor(callbacks.knowledge);
   const conventions = conventionsFor(
     callbacks.knowledge.loaded,
-    callbacks.video,
-    params.plan
+    callbacks.video
   );
 
   const hooks = gateHooks(params.mode, callbacks.cwd);

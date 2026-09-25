@@ -60,7 +60,6 @@ import { useStudio } from "./studio-provider";
 import { TaskDock } from "./task-dock";
 import { TemplateList } from "./template-list";
 import { Transcript } from "./transcript";
-import { TrialCard } from "./trial-card";
 import { WriteFailureCard } from "./write-failure-card";
 
 const PLACEHOLDERS = ["one", "two", "three"];
@@ -286,7 +285,6 @@ function Conversation({
                 {isCreating ? null : (
                   <>
                     <ChatResult key={turn.openId} />
-                    <TrialCard />
                     <AssetOfferCard offer={offer} />
                     <SoundPrompt disabled={composerDisabled} />
                   </>

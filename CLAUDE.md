@@ -29,8 +29,8 @@ Different product. Do not carry its timeline / project-JSON design into this rep
 ### Where the truth lives
 
 - **`openspec/specs/<domain>/<capability>/spec.md` is the source of truth for what the studio
-  does.** Thirty-nine capabilities in ten domains (`shell/ sidecar/ projects/ agent/ history/
-  composer/ preview/ export/ library/ account/`), each a set of requirements with WHEN/THEN
+  does.** Forty-one capabilities in nine domains (`shell/ sidecar/ projects/ agent/ history/
+  composer/ preview/ export/ library/`), each a set of requirements with WHEN/THEN
   scenarios, verified against the code on 2026-09-11. Read the capability a change touches
   before planning it; `openspec list --specs` names them all.
 - **Every behaviour change is an OpenSpec change.** `/opsx:explore` to think it through,
@@ -196,8 +196,8 @@ must install a fake with `mockIPC` from `@tauri-apps/api/mocks`; `test/setup.ts`
 calls `clearMocks()` after each test so one test's fake cannot leak into the
 next. `app/page.test.tsx` is the worked example. A `mock.module` is not hoisted,
 so a module already imported keeps its binding live rather than being replaced:
-the two suites that swap `ENTITLEMENT_PUBLIC_KEY` import the real module first
-and spread it into the factory.
+a suite that swaps one export imports the real module first and spreads it into
+the factory.
 
 **A mounted pane is not a ready one.** `turn.send` returns false while
 `projectId` or `videoId` is still null — both arrive over IPC — and the Send
@@ -356,11 +356,10 @@ One seam per line: what it owns, the specs that define it, the records that expl
   Records: `the-first-second`, `the-pane-never-hides-what-needs-you`, `settings-is-a-page`,
   `tips-not-a-tour`, `the-title-bars-shader-is-a-preference`.
 - **Rust core** (`src-tauri/`) — the window, Tauri commands, the sidecar supervisor, the
-  account token in the keychain, deep links, the updater, pasted-image writes, the asset
-  protocol, panics. Specs `sidecar/supervision`, `shell/quit-and-updates`,
-  `shell/crash-reporting`, `account/sign-in`, `projects/open-template-link`. Records:
-  `the-sidecar`, `updating-in-place`, `crash-reports-with-consent`, `signing-in`,
-  `opening-a-link`.
+  integrations' secrets in the keychain, deep links, the updater, pasted-image writes, the
+  asset protocol, panics. Specs `sidecar/supervision`, `shell/quit-and-updates`,
+  `shell/crash-reporting`, `projects/open-template-link`. Records: `the-sidecar`,
+  `updating-in-place`, `crash-reports-with-consent`, `opening-a-link`.
 - **Sidecar** (`sidecar/`) — one bun process, Effect end to end, stdio frames in, stderr as
   the log; SQLite history, the agent adapters, the stdio-MCP tool hosts, the preview host,
   stills and export, the library. Spec `sidecar/ipc-contract`. Record: `the-sidecar`.
@@ -402,10 +401,10 @@ One seam per line: what it owns, the specs that define it, the records that expl
   their motion roles. Specs `library/*`. Records: `the-asset-library`,
   `the-library-is-a-grid-of-cards`, `a-track-carries-its-audiomap`, `entry-emphasis-exit`,
   `the-moodboard`.
-- **Account and plans** — device-flow sign-in and every account request in the core; the
-  signed entitlement document; `PRO_FEATURES` in `shared/entitlement.ts` is the one list of
-  what Pro adds and every gate must agree with it. Specs `account/*`. Records: `signing-in`,
-  `the-line-between-free-and-pro`, `upgrading-from-the-app`.
+- **No account, no plan** — there is no remocn sign-in and no paid tier (REM-520); every
+  feature is available to everyone. `legacy_account.rs` deletes what an older build left
+  (the keychain `session-token` and the plan cache in app data) once. Records `signing-in`,
+  `the-line-between-free-and-pro` and `upgrading-from-the-app` are history only.
 
 ### Invariants to plan with
 
@@ -446,7 +445,6 @@ One seam per line: what it owns, the specs that define it, the records that expl
 - **Rust**: the `crash-reports` Cargo feature is off by default and switched on by the
   release job; `cargo check --features crash-reports` on a Mac stands in for a CI gate.
   `ClientOptions` is `#[non_exhaustive]` — build it by assignment.
-  `REMOCN_STUDIO_ACCOUNT_URL` is baked from `.env` by `src-tauri/build.rs`.
 - **Preview entry** (`preview/`): compiled by the *project's* webpack, so it has no access to
   the app's alias — it duplicates the message shapes and `lib/studio/preview.test.ts` is what
   keeps the two in step. Excluded from `tsconfig.json`; every file needs its own entry in
@@ -464,13 +462,10 @@ One seam per line: what it owns, the specs that define it, the records that expl
   reference to a keychain entry. Every secret is in the login keychain under
   `com.remocn.remocn-studio` / `integration:<connectionId>`, one entry per connection, read
   and used only by Rust. An unsigned debug build therefore raises the system's keychain prompt
-  **once per connection** after each `cargo build`, where the account token alone raised one;
-  a signed release asks once. Nothing in the app can suppress it.
+  **once per connection** after each `cargo build`; a signed release asks once. Nothing in the app can suppress it.
 - **History**: schema changes are one more entry in `MIGRATIONS` in
   `sidecar/history/migrations.ts`, applied in one transaction with foreign keys off. There
   are no users yet, so a migration may drop rather than convert.
-- **Free / Pro**: a feature added to Pro is gated on both sides and listed in `PRO_FEATURES`;
-  a test on each side asserts the gates and the list agree.
 
 ## Layout
 
@@ -505,9 +500,7 @@ shared/               codemod.ts: what the studio may write and what it must ask
                       motion.ts: the movement taxonomy — roles, the props each
                       expects, and the dictionary of named behaviours;
                       pipeline.ts: the seven stages, their templates, and
-                      `docsFolderOf` — the one place a video's documents live;
-                      account.ts + entitlement.ts: the account server's answers
-                      and the signed entitlement document, as Schema
+                      `docsFolderOf` — the one place a video's documents live
 sidecar/              bun: frame loop, method handlers, SQLite history;
                       crash.ts gates @sentry/bun on the consent Rust passes in;
                       contained.ts is the one containment check the permission
@@ -562,8 +555,7 @@ sidecar/preview/      the --preview-host child: project resolution, webpack watc
                       with text, never with a write
 src-tauri/            Rust core (Tauri v2), the sidecar supervisor, pasted-image writes;
                       crash.rs reads the consent and holds the panic reporter;
-                      account.rs holds the session token in the keychain and is
-                      the only thing that talks to the account server
+                      legacy_account.rs forgets an older build's sign-in once
 public/               static assets
 openspec/             the source of truth: specs/ per capability, config.yaml, archived changes
 docs/decisions/       the design records moved out of CLAUDE.md; history, not authority

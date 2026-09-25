@@ -22,7 +22,6 @@ import {
   type TurnState,
   waitingSibling,
 } from "@/lib/studio/turns";
-import type { PlanTier } from "@/shared/entitlement";
 import type {
   EffortLevel,
   HistorySession,
@@ -138,15 +137,7 @@ function startOf(
   };
 }
 
-const FREE = (): PlanTier => "free";
-
-// The plan is read at dispatch, not captured with the message, for the same
-// reason the provider is: it is a property of the account at the moment the
-// turn starts, so a downgrade bites the next turn and never the running one.
-export function useTurns(
-  onSession: (session: HistorySession) => void,
-  plan: () => PlanTier = FREE
-): Turns {
+export function useTurns(onSession: (session: HistorySession) => void): Turns {
   const [turns, setTurns] = useState<ReadonlyMap<string, TurnState>>(
     () => new Map()
   );
@@ -309,7 +300,6 @@ export function useTurns(
           media: input.media,
           mode: input.mode,
           model: input.model,
-          plan: plan(),
           playing: input.playing,
           projectId: input.projectId,
           prompt: trimmed,
@@ -455,7 +445,7 @@ export function useTurns(
       videos.current.set(historyId, input.videoId);
       fibers.current.set(historyId, Effect.runFork(request));
     },
-    [onSession, plan, update, videoFor]
+    [onSession, update, videoFor]
   );
 
   launcher.current = launch;
@@ -521,7 +511,6 @@ export function useTurns(
           media: input.media,
           mode: input.mode,
           model: input.model,
-          plan: plan(),
           playing: input.playing,
           projectId: input.projectId,
           prompt: trimmed,
@@ -545,7 +534,7 @@ export function useTurns(
 
       return true;
     },
-    [onSession, plan, update]
+    [onSession, update]
   );
 
   const removeQueued = useCallback(

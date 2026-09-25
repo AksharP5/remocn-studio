@@ -1,9 +1,9 @@
-mod account;
 mod app_icon;
 mod commands;
 mod crash;
 mod integrations;
 mod ipc;
+mod legacy_account;
 mod links;
 mod paste;
 mod sidecar;
@@ -63,16 +63,6 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
-            account::account_checkout,
-            account::account_entitlement,
-            account::account_me,
-            account::account_portal,
-            account::account_revoke_device,
-            account::account_sign_in_cancel,
-            account::account_sign_in_poll,
-            account::account_sign_in_start,
-            account::account_sign_out,
-            account::account_status,
             app_icon::set_app_icon,
             commands::quit_studio,
             commands::reveal_studio,
@@ -105,7 +95,7 @@ pub fn run() {
             }
         })
         .setup(|app| {
-            app.manage(account::Account::new(app.handle()));
+            legacy_account::forget(app.handle());
             app.manage(links::DeepLinks::default());
 
             // The URLs that started the app, where the platform hands them over

@@ -1,5 +1,10 @@
 # The line between Free and Pro
 
+> **Removed on 2026-09-24 (REM-520).** Creem declined the store, so the studio has no paid
+> plan and no remocn sign-in: everything that was Pro is available to everyone, and the code
+> this record explains was deleted in the `remove-paid-plan` change. Read it as history only —
+> the specs it links to are gone.
+
 > Design record — the reasoning and the measurements behind the decisions, written as they were
 > taken and moved out of CLAUDE.md on 2026-09-11. **It is not the source of truth.** The behaviour
 > is specified in [`account/plans-and-entitlement`](../../openspec/specs/account/plans-and-entitlement/spec.md); where this text and the spec disagree, the spec is right and

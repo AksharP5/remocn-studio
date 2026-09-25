@@ -20,12 +20,6 @@ import { templateProjectName } from "@/shared/templates";
 import { makeAccountCache } from "./agent/account";
 import { makeGate } from "./agent/gate";
 import { makeModeSwitch } from "./agent/mode";
-import {
-  pipelineAllowed,
-  serversFor,
-  WRITES_ARE_PRO,
-  writesAllowed,
-} from "./agent/plan";
 import { adapterFor } from "./agent/registry";
 import {
   abandonSourceAssets,
@@ -133,6 +127,7 @@ import {
   mintFolder,
 } from "./scaffold/templates";
 import { makeGateway } from "./tools/gateway";
+import { TOOL_SERVERS } from "./tools/specs";
 
 const TOKENS = [
   "Streaming",
@@ -495,9 +490,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
                   assets: assetBrief(placed, addCommandFor(project.path)),
                   brand,
                   media: mediaBrief(placedMedia),
-                  pipeline: pipelineAllowed(params.plan)
-                    ? pipelineBrief(stages, video)
-                    : null,
+                  pipeline: pipelineBrief(stages, video),
                 },
                 cwd: project.path,
                 emit,
@@ -507,7 +500,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
                 onMode: switcher.bind,
                 record: recorder.event,
                 tools: Object.fromEntries(
-                  serversFor(params.plan).map((server) => [
+                  TOOL_SERVERS.map((server) => [
                     server,
                     gateway.transport(server, turnId),
                   ])
@@ -767,12 +760,6 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
   // already the permission gate's own.
   "preview.write": ({ log, params }) =>
     Effect.gen(function* () {
-      if (!writesAllowed(params.plan)) {
-        return yield* Effect.fail(
-          new HandlerError({ message: WRITES_ARE_PRO })
-        );
-      }
-
       const project = yield* located(params.projectId);
 
       yield* insideProject(
@@ -1121,11 +1108,6 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
     })),
   "studio.patch": ({ params }) =>
     Effect.gen(function* () {
-      if (!writesAllowed(params.plan)) {
-        return yield* Effect.fail(
-          new HandlerError({ message: WRITES_ARE_PRO })
-        );
-      }
       const project = yield* located(params.projectId);
       return yield* writeStudioDocument(
         project.path,

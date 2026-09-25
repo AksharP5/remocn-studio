@@ -45,7 +45,6 @@ const PROP_GROUPS_KEY = "collapsedPropGroups";
 const TITLEBAR_SHADER_KEY = "titlebarShader";
 const TITLEBAR_MOTION_KEY = "titlebarMotion";
 const PANE_VIEW_KEY = "paneView";
-const TRIAL_CARDS_KEY = "trialCardsDismissed";
 const CANVAS_CAMERAS_KEY = "canvasCameras";
 const CANVAS_RULERS_KEY = "canvasRulers";
 const CANVAS_CAMERA_LIMIT = 50;
@@ -59,9 +58,9 @@ const openStore = Effect.runSync(
 
 export interface StudioSettings {
   assetOffers: boolean | null;
+  canvasRulers: boolean | null;
   claudeEffort: EffortLevel | null;
   claudeModel: string | null;
-  canvasRulers: boolean | null;
   codexModel: string | null;
   /** The property groups folded shut, by name. Collapsed rather than expanded,
       so a group the pane gains later opens with everything else. */
@@ -80,7 +79,6 @@ export interface StudioSettings {
   taskDock: boolean | null;
   titlebarMotion: boolean | null;
   titlebarShader: boolean | null;
-  trialCardsDismissed: readonly string[];
 }
 
 export const hydrateSettings: Effect.Effect<StudioSettings> = openStore.pipe(
@@ -95,8 +93,8 @@ export const hydrateSettings: Effect.Effect<StudioSettings> = openStore.pipe(
     }
     return {
       assetOffers: enabledOf(cache.get(ASSET_OFFERS_KEY)),
-      claudeEffort: effortOf(cache.get(CLAUDE_EFFORT_KEY)),
       canvasRulers: shownOf(cache.get(CANVAS_RULERS_KEY)),
+      claudeEffort: effortOf(cache.get(CLAUDE_EFFORT_KEY)),
       claudeModel: cache.get(CLAUDE_MODEL_KEY) ?? null,
       codexModel: cache.get(CODEX_MODEL_KEY) ?? null,
       collapsedPropGroups: idsOf(cache.get(PROP_GROUPS_KEY)),
@@ -119,7 +117,6 @@ export const hydrateSettings: Effect.Effect<StudioSettings> = openStore.pipe(
       taskDock: shownOf(cache.get(TASK_DOCK_KEY)),
       titlebarMotion: enabledOf(cache.get(TITLEBAR_MOTION_KEY)),
       titlebarShader: shownOf(cache.get(TITLEBAR_SHADER_KEY)),
-      trialCardsDismissed: idsOf(cache.get(TRIAL_CARDS_KEY)),
     };
   })
 );
@@ -302,12 +299,6 @@ export function saveOnboarding(progress: OnboardingProgress) {
       )
     )
   );
-}
-
-export function saveTrialCardsDismissed(
-  ids: readonly string[]
-): Effect.Effect<void> {
-  return remember(TRIAL_CARDS_KEY, JSON.stringify(ids));
 }
 
 export function savePaneView(view: PaneView): Effect.Effect<void> {

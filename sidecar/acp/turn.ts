@@ -216,8 +216,7 @@ export function acpTurn(
 
       const conventions = conventionsFor(
         config.knowledge.loaded,
-        services.video,
-        params.plan
+        services.video
       );
       const briefed =
         services.briefs.pipeline === null

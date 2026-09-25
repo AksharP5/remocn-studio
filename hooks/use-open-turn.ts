@@ -17,7 +17,6 @@ import {
   type QueuedMessage,
   type TurnState,
 } from "@/lib/studio/turns";
-import type { PlanTier } from "@/shared/entitlement";
 import {
   type ContextUsage,
   type EffortLevel,
@@ -40,7 +39,6 @@ export interface OpenTurnSettings {
   draftId: string;
   effort: EffortLevel | null;
   models: Record<AgentProvider, string>;
-  plan?: () => PlanTier;
   playing: () => PromptFrame | null;
   projectId: string | null;
   session: HistorySession | null;
@@ -93,14 +91,11 @@ export interface OpenTurn {
   writesBlocked: string | null;
 }
 
-const FREE = (): PlanTier => "free";
-
 export function useOpenTurn({
   changeMode,
   draftId,
   effort,
   models,
-  plan = FREE,
   playing,
   projectId,
   session,
@@ -130,7 +125,7 @@ export function useOpenTurn({
     }
   }, [loadTurn, session]);
 
-  const writes = useCodeWrites({ plan, projectId, write: writeCode });
+  const writes = useCodeWrites({ projectId, write: writeCode });
   const { isVideoBusy, recordTurn } = turns;
 
   // One turn at a time is already per video; a write is stricter, because it

@@ -87,3 +87,10 @@ export function runningTime(since: number, now: number): string {
 
   return elapsedTime(since, now);
 }
+
+export function shortDay(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    day: "numeric",
+    month: "short",
+  });
+}

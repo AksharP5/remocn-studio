@@ -7,7 +7,6 @@ import {
   ProjectBrandSnapshot,
 } from "./brand";
 import { DesignImport } from "./design-import";
-import { PlanTier } from "./entitlement";
 import {
   DEFAULT_FORMAT,
   EXPORT_FORMATS,
@@ -40,7 +39,7 @@ import {
 } from "./studio-document";
 import { TemplateDraft } from "./templates";
 
-export const SIDECAR_PROTOCOL = 36;
+export const SIDECAR_PROTOCOL = 37;
 
 export const SIDECAR_STATUS_EVENT = "sidecar://status";
 export const SIDECAR_NOTIFY_EVENT = "sidecar://notify";
@@ -329,12 +328,6 @@ const provider = AgentProvider.pipe(
   Schema.withDecodingDefault(Effect.succeed(DEFAULT_AGENT_PROVIDER))
 );
 
-// A turn that names no plan runs as Free: the tier is what the webview could
-// prove, and a field that went missing must never read as Pro.
-const plan = PlanTier.pipe(
-  Schema.withDecodingDefault(Effect.succeed<PlanTier>("free"))
-);
-
 export const PromptParams = Schema.Struct({
   assets,
   attachments: Schema.Array(PromptAttachment),
@@ -345,7 +338,6 @@ export const PromptParams = Schema.Struct({
   media,
   mode: SessionMode,
   model: Schema.NullOr(Schema.NonEmptyString),
-  plan,
   playing: frame,
   projectId: Schema.NonEmptyString,
   prompt: Schema.String,
@@ -1149,7 +1141,6 @@ export const WriteParams = Schema.Struct({
   // attempt is always `false` — nothing is written until everything can be —
   // and only the person answering the card turns it on.
   partial: Schema.Boolean,
-  plan: PlanTier,
   projectId: Schema.NonEmptyString,
 });
 
@@ -1482,7 +1473,6 @@ export const SIDECAR_METHODS = {
     params: Schema.Struct({
       ...StudioDocumentRef.fields,
       operation: StudioOperation,
-      plan: PlanTier,
     }),
     result: StudioSnapshot,
     stream: Schema.Never,

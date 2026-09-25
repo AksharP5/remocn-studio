@@ -28,12 +28,9 @@ export interface Tools {
 export interface ToolSettings {
   composer: Composer;
   isDocs: boolean;
-  isLocked?: boolean;
   isMissing: boolean;
   isShown: boolean;
   isWaiting: boolean;
-  lockedReason?: string;
-  onArm?: () => void;
   openedProjectId: string | null;
   preview: PreviewControl;
   previewProjectId: string | null;
@@ -44,12 +41,9 @@ export interface ToolSettings {
 export function useTools({
   composer,
   isDocs,
-  isLocked = false,
-  lockedReason = PRO_ONLY,
   isMissing,
   isShown,
   isWaiting,
-  onArm,
   openedProjectId,
   preview,
   previewProjectId,
@@ -60,12 +54,10 @@ export function useTools({
 
   const unavailable = unavailableOf({
     isDocs,
-    isLocked,
     isMissing,
     isServing: preview.isServing,
     isShown,
     isWaiting,
-    lockedReason,
     openedProjectId,
     previewProjectId,
   });
@@ -78,7 +70,7 @@ export function useTools({
 
   const managed = useManagedObjects({
     armed: false,
-    enabled: !isLocked && openedProjectId === previewProjectId,
+    enabled: openedProjectId === previewProjectId,
     inlineEnabled: unavailable === null && tool === null,
     preview,
     projectId: writeProjectId,
@@ -87,31 +79,20 @@ export function useTools({
   const { focus, send } = preview;
 
   const toggleInspect = useCallback(() => {
-    if (isLocked) {
-      onArm?.();
-      return;
-    }
     if (unavailable !== null) {
       return;
     }
     setTool(null);
     openObjects();
     focus();
-  }, [focus, isLocked, onArm, openObjects, unavailable]);
+  }, [focus, openObjects, unavailable]);
 
   const toggleSnapshot = useCallback(() => {
-    if (isLocked) {
-      onArm?.();
-      return;
-    }
     if (unavailable !== null) {
       return;
     }
-    if (tool !== "snapshot") {
-      onArm?.();
-    }
     setTool(tool === "snapshot" ? null : "snapshot");
-  }, [isLocked, onArm, tool, unavailable]);
+  }, [tool, unavailable]);
 
   const inspect = useInspect({
     composer,
@@ -189,27 +170,16 @@ export function useTools({
   );
 }
 
-export const PRO_ONLY =
-  "Inspect and Snapshot are part of Pro. Sign in to start the free trial.";
-
-export const PRO_ONLY_UPGRADE =
-  "Inspect and Snapshot are part of Pro. Upgrade to keep them.";
-
 function unavailableOf(state: {
   isDocs: boolean;
-  isLocked: boolean;
   isMissing: boolean;
   isServing: boolean;
-  lockedReason: string;
   isShown: boolean;
   isWaiting: boolean;
   openedProjectId: string | null;
   previewProjectId: string | null;
   projectPath?: string;
 }): string | null {
-  if (state.isLocked) {
-    return state.lockedReason;
-  }
   if (!state.isShown) {
     return "The preview pane is hidden.";
   }

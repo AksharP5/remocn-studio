@@ -7,7 +7,6 @@ import { causeMessage } from "@/lib/error-message";
 import { editsOf, failuresOf, writtenFiles } from "@/lib/studio/code-writes";
 import { writeCode } from "@/lib/studio/preview";
 import { titleOf } from "@/lib/studio/tuning";
-import type { PlanTier } from "@/shared/entitlement";
 import type { CodeWritten } from "@/shared/ipc";
 
 export interface WriteRefusal {
@@ -41,7 +40,6 @@ export interface CodeWrites {
 }
 
 export interface CodeWriteSettings {
-  plan: () => PlanTier;
   projectId: string | null;
   /** The write itself, injected so a test can answer without a sidecar. */
   write?: typeof writeCode;
@@ -50,7 +48,6 @@ export interface CodeWriteSettings {
 const NOTHING: WriteOutcome = { failed: new Set(), ok: false, written: [] };
 
 export function useCodeWrites({
-  plan,
   projectId,
   write = writeCode,
 }: CodeWriteSettings): CodeWrites {
@@ -124,7 +121,6 @@ export function useCodeWrites({
           write({
             edits,
             partial: false,
-            plan: plan(),
             projectId,
           })
         );
@@ -149,7 +145,7 @@ export function useCodeWrites({
 
         return await asked(selections, first.value.results, async () => {
           const second = await Effect.runPromiseExit(
-            write({ edits, partial: true, plan: plan(), projectId })
+            write({ edits, partial: true, projectId })
           );
 
           return Exit.isFailure(second) ? null : second.value.results;
@@ -158,7 +154,7 @@ export function useCodeWrites({
         setIsWriting(false);
       }
     },
-    [asked, plan, projectId, write]
+    [asked, projectId, write]
   );
 
   return useMemo(

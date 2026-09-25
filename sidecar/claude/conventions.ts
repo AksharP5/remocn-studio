@@ -1,4 +1,3 @@
-import type { PlanTier } from "@/shared/entitlement";
 import {
   ELEMENT_ROLES,
   MOTION_DICTIONARY,
@@ -45,9 +44,8 @@ durations chosen for the gesture. When nothing in the dictionary fits, write the
 behaviour as its own named, tunable component and give its role when it is saved
 with \`mcp__remocn-library__save_asset\`: that is how the dictionary grows.`;
 
-// What every turn is told, whatever the plan: the lane, the audiomap, and
-// that the result must stay editable. Without the lane the preview cannot
-// find the composition, so none of this is a thing to withhold.
+// The lane, the audiomap, and that the result must stay editable. Without the
+// lane the preview cannot find the composition.
 const STRUCTURE = `You are running inside remocn studio, which previews a Remotion project live and
 exports it. These conventions are the app's, not the project's; the bundled
 skills do not know them.
@@ -238,10 +236,6 @@ export const STUDIO_CONVENTIONS = [
   PRODUCTION,
 ].join("\n\n");
 
-export const FREE_CONVENTIONS = [STRUCTURE, MANAGED_OBJECTS, REFERENCES].join(
-  "\n\n"
-);
-
 const BUNDLE = `The studio ships its knowledge as a skill bundle named \`${BUNDLE_NAME}\`:
 \`${SHIPPED.join("`, `")}\`. Your runtime has already loaded it into its own skill
 catalog — invoke a skill by its bare name or with the bundle's name in front,
@@ -278,19 +272,10 @@ function workingOn(video: string | null): string {
     : `\n\nYour video for this conversation is \`${video}\` — the folder \`src/videos/${video}/\`, which registers the composition \`${video}\`.`;
 }
 
-// A Pro turn reads exactly what it read before plans existed. A Free turn
-// reads the structure and the references and nothing that names a skill or a
-// pipeline tool — `hasSkills` cannot be true on Free, since the bundle is
-// withheld before it is located, but the text does not rely on that.
 export function conventionsFor(
   hasSkills: boolean,
-  video: string | null = null,
-  plan: PlanTier = "pro"
+  video: string | null = null
 ): string {
-  if (plan !== "pro") {
-    return `${FREE_CONVENTIONS}${workingOn(video)}`;
-  }
-
   const base = `${STUDIO_CONVENTIONS}${workingOn(video)}`;
 
   return hasSkills

@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, use, useCallback, useMemo } from "react";
-import { type Account, useAccount } from "@/hooks/use-account";
 import { useAppMenu } from "@/hooks/use-app-menu";
 import { type ClaudeEffort, useClaudeEffort } from "@/hooks/use-claude-effort";
 import { useCommandPalette } from "@/hooks/use-command-palette";
@@ -24,11 +23,6 @@ import {
 import { type Onboarding, useOnboarding } from "@/hooks/use-onboarding";
 import { type OpenTurn, useOpenTurn } from "@/hooks/use-open-turn";
 import { type Panes, usePanes } from "@/hooks/use-panes";
-import {
-  type PlanHandle,
-  useFollowPlanTier,
-  usePlanTier,
-} from "@/hooks/use-plan-tier";
 import { type Preferences, usePreferences } from "@/hooks/use-preferences";
 import { usePlayingFrame, usePreview } from "@/hooks/use-preview";
 import { useProjectMenu } from "@/hooks/use-project-menu";
@@ -44,18 +38,11 @@ import { useSidecar } from "@/hooks/use-sidecar";
 import { useSidecarStatus } from "@/hooks/use-sidecar-status";
 import { useStudioAttention } from "@/hooks/use-studio-attention";
 import { useTemplateLinks } from "@/hooks/use-template-links";
-import {
-  PRO_ONLY,
-  PRO_ONLY_UPGRADE,
-  type Tools,
-  useTools,
-} from "@/hooks/use-tools";
-import { type TrialCardState, useTrialCard } from "@/hooks/use-trial-card";
+import { type Tools, useTools } from "@/hooks/use-tools";
 import { type Updates, useUpdates } from "@/hooks/use-updates";
 import { useWorkspace, type Workspace } from "@/hooks/use-workspace";
 import type { VideoFormat } from "@/lib/studio/formats";
 import type { StudioSettings } from "@/lib/studio/settings";
-import type { PlanTier } from "@/shared/entitlement";
 import type { ProjectDraft } from "@/shared/ipc";
 import { PROVIDER_INFO } from "@/shared/providers";
 import { CommandPalette } from "./command-palette";
@@ -65,7 +52,6 @@ export type Studio = ClaudeEffort &
   StudioModels &
   Panes &
   Workspace & {
-    account: Account;
     accounts: Accounts;
     composer: Composer;
     docs: Docs;
@@ -82,7 +68,6 @@ export type Studio = ClaudeEffort &
     settingsView: SettingsView;
     tools: Tools;
     onboarding: Onboarding;
-    trialCard: TrialCardState;
     turn: OpenTurn;
     updates: Updates;
   };
@@ -99,12 +84,10 @@ export function useStudio(): Studio {
 
 export function StudioProvider({
   children,
-  plan,
   settings,
   workspace,
 }: {
   children: React.ReactNode;
-  plan?: PlanHandle;
   settings?: StudioSettings | null;
   workspace?: Workspace;
 }) {
@@ -113,11 +96,7 @@ export function StudioProvider({
   }
 
   return (
-    <StudioStateProvider
-      plan={plan ?? null}
-      settings={settings ?? null}
-      workspace={workspace}
-    >
+    <StudioStateProvider settings={settings ?? null} workspace={workspace}>
       {children}
     </StudioStateProvider>
   );
@@ -125,11 +104,10 @@ export function StudioProvider({
 
 function HydratedStudioProvider({ children }: { children: React.ReactNode }) {
   const settings = useHydratedSettings();
-  const plan = usePlanTier();
-  const workspace = useWorkspace(settings, plan.read);
+  const workspace = useWorkspace(settings);
 
   return (
-    <StudioStateProvider plan={plan} settings={settings} workspace={workspace}>
+    <StudioStateProvider settings={settings} workspace={workspace}>
       {children}
     </StudioStateProvider>
   );
@@ -137,19 +115,14 @@ function HydratedStudioProvider({ children }: { children: React.ReactNode }) {
 
 function StudioStateProvider({
   children,
-  plan,
   settings,
   workspace,
 }: {
   children: React.ReactNode;
-  plan: PlanHandle | null;
   settings: StudioSettings | null;
   workspace: Workspace;
 }) {
   const model = useModels(settings);
-  const account = useAccount();
-  useFollowPlanTier(plan, account.tier);
-  const trialCard = useTrialCard({ account, settings });
   const accounts = useProviderAccounts();
   const effort = useClaudeEffort(settings);
   const preferences = usePreferences(settings);
@@ -254,7 +227,6 @@ function StudioStateProvider({
     draftId: workspace.draftId,
     effort: effort.claudeEffort,
     models: model.models,
-    plan: planReaderOf(plan),
     playing,
     projectId: workspace.activeProject?.id ?? null,
     session: workspace.openedSession,
@@ -288,13 +260,9 @@ function StudioStateProvider({
   const tools = useTools({
     composer,
     isDocs: docs.mode === "docs",
-    isLocked: trialCard.isOnFree,
     isMissing: openedMissing,
     isShown: panes.isPreviewShown,
     isWaiting: turn.permission !== null || turn.source !== null,
-    lockedReason:
-      account.phase.kind === "signedIn" ? PRO_ONLY_UPGRADE : PRO_ONLY,
-    onArm: trialCard.reopen,
     openedProjectId: openedId,
     preview,
     previewProjectId,
@@ -397,8 +365,7 @@ function StudioStateProvider({
       environment.isUpgrading ||
       environment.error !== null ||
       newProject.isOpen ||
-      newVideo.isOpen ||
-      trialCard.card !== null,
+      newVideo.isOpen,
     hasProject:
       openedId !== null &&
       !openedMissing &&
@@ -415,7 +382,6 @@ function StudioStateProvider({
       ...model,
       ...effort,
       ...panes,
-      account,
       accounts,
       composer,
       docs,
@@ -432,12 +398,10 @@ function StudioStateProvider({
       settings,
       settingsView,
       tools,
-      trialCard,
       turn,
       updates,
     }),
     [
-      account,
       accounts,
       composer,
       docs,
@@ -457,7 +421,6 @@ function StudioStateProvider({
       settingsView,
       tools,
       onboarding,
-      trialCard,
       turn,
       updates,
       workspace,
@@ -475,10 +438,6 @@ function StudioStateProvider({
       <CommandPalette palette={palette} />
     </StudioContext>
   );
-}
-
-function planReaderOf(plan: PlanHandle | null): (() => PlanTier) | undefined {
-  return plan === null ? undefined : plan.read;
 }
 
 function previewTarget(workspace: Workspace): string | null {
