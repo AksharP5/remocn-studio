@@ -13,6 +13,7 @@ import type { EnvironmentCheck } from "@/shared/ipc";
 import { stubGlobal, unstubAllGlobals } from "@/test/stub-global";
 
 const STORE_RID = 7;
+const REMOCN_ACCOUNT = /Remocn account/;
 
 const SIDECAR_READY = {
   attempt: 0,
@@ -158,6 +159,14 @@ describe("the settings page", () => {
     expect(
       screen.getByRole("switch", { name: "Library suggestions" })
     ).toBeVisible();
+  });
+
+  it("offers no account section and no account row", async () => {
+    await renderShell();
+    await openSettings();
+
+    expect(screen.queryByRole("button", { name: "Account" })).toBeNull();
+    expect(screen.queryByText(REMOCN_ACCOUNT)).toBeNull();
   });
 
   it("lists every shortcut under Hotkeys, read-only", async () => {

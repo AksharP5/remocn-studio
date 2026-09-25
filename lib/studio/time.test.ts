@@ -5,6 +5,7 @@ import {
   frameTime,
   relativeTime,
   runningTime,
+  shortDay,
 } from "@/lib/studio/time";
 
 const NOW = Date.UTC(2026, 6, 25, 12, 0, 0);
@@ -133,5 +134,11 @@ describe("clipTime", () => {
     expect(clipTime(Number.NaN)).toBeNull();
     expect(clipTime(-1)).toBeNull();
     expect(clipTime(Number.POSITIVE_INFINITY)).toBeNull();
+  });
+});
+
+describe("shortDay", () => {
+  it("names the month and the day, and nothing else", () => {
+    expect(shortDay("2026-09-14T12:00:00Z")).toBe("Sep 14");
   });
 });

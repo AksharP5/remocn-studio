@@ -2,7 +2,7 @@
 
 ### Requirement: The rail lists the sections and flags a waiting update
 
-The rail SHALL list Project, Account, Appearance, Behavior, Notifications, Hotkeys, Integrations, Updates and Feedback, each with a one-line description shown as the heading of the section it opens, and SHALL mark the open one. The Updates row SHALL carry a dot whenever a release is waiting, so the page never hides it.
+The rail SHALL list Project, Appearance, Behavior, Notifications, Hotkeys, Integrations, Updates and Feedback, each with a one-line description shown as the heading of the section it opens, and SHALL mark the open one. The Updates row SHALL carry a dot whenever a release is waiting, so the page never hides it. The rail SHALL NOT offer an Account section.
 
 #### Scenario: Switching section
 
@@ -14,9 +14,14 @@ The rail SHALL list Project, Account, Appearance, Behavior, Notifications, Hotke
 - **WHEN** a newer release has been found
 - **THEN** the Updates row carries a marker announcing that an update is available
 
+#### Scenario: No account to manage
+
+- **WHEN** the person reads the rail
+- **THEN** no row offers an account, a plan, devices or billing
+
 ### Requirement: Settings opens from several places, each on the section it is about
 
-Settings SHALL open from the Settings row in the sidebar's footer, from ⌘, anywhere in the app, from the account row in the sidebar's footer, from the trial card's Upgrade, from a provider's *Sign in* in the model menu, and from Project Settings in the application's Project menu. The last four SHALL open on the section they concern, and the model menu's entry SHALL additionally bring that provider's row into view and mark it.
+Settings SHALL open from the Settings row in the sidebar's footer, from ⌘, anywhere in the app, from a provider's *Sign in* in the model menu, and from Project Settings in the application's Project menu. The last two SHALL open on the section they concern, and the model menu's entry SHALL additionally bring that provider's row into view and mark it.
 
 #### Scenario: The keyboard shortcut
 
@@ -37,6 +42,11 @@ Settings SHALL open from the Settings row in the sidebar's footer, from ⌘, any
 
 - **WHEN** Project Settings is chosen in the application's Project menu
 - **THEN** Settings opens on the Project section bound to the open project
+
+#### Scenario: The sidebar footer
+
+- **WHEN** the person reads the sidebar's footer
+- **THEN** it holds Send feedback and Settings, and no account row
 
 ## REMOVED Requirements
 

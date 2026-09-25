@@ -139,7 +139,6 @@ describe("requestSidecar", () => {
           media: [],
           mode: "acceptEdits",
           model: null,
-          plan: "pro",
           playing: null,
           projectId: "project-1",
           prompt: "list the videos",

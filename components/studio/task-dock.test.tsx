@@ -26,7 +26,6 @@ const SETTINGS: StudioSettings = {
   taskDock: null,
   titlebarMotion: null,
   titlebarShader: null,
-  trialCardsDismissed: [],
 };
 
 const ANALYSIS_ROW = /Analysis/;

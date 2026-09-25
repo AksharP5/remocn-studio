@@ -1,7 +1,7 @@
 # shell/settings-page Specification
 
 ## Purpose
-Settings as a full-window page over an inert shell rather than a dialog: the section rail, the ways in and out, and what each section offers — appearance, behaviour, stock media, updates, AI accounts, the account itself, the open project, and feedback.
+Settings as a full-window page over an inert shell rather than a dialog: the section rail, the ways in and out, and what each section offers — appearance, behaviour, stock media, updates, AI accounts, the open project, and feedback.
 
 ## Requirements
 

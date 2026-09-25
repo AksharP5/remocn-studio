@@ -26,7 +26,6 @@ const SETTINGS: StudioSettings = {
   taskDock: null,
   titlebarMotion: null,
   titlebarShader: null,
-  trialCardsDismissed: [],
 };
 
 function project(id: string): Project {
@@ -108,7 +107,7 @@ function harness(sessions: readonly HistorySession[]) {
     { shouldMockEvents: true }
   );
 
-  return renderHook(() => useWorkspace(SETTINGS, () => "pro"));
+  return renderHook(() => useWorkspace(SETTINGS));
 }
 
 afterEach(() => {

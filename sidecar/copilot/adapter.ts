@@ -60,7 +60,7 @@ export const copilotAdapter: AgentAdapter = {
         } satisfies PromptResult);
       }
 
-      const knowledge = locateBundle(services.cwd, params.plan);
+      const knowledge = locateBundle(services.cwd);
 
       return acpTurn(
         {

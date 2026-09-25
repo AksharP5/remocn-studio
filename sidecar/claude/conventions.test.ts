@@ -14,7 +14,6 @@ import {
 } from "@/sidecar/agent/knowledge";
 import {
   conventionsFor,
-  FREE_CONVENTIONS,
   pipelineBrief,
   STUDIO_CONVENTIONS,
 } from "@/sidecar/claude/conventions";
@@ -23,12 +22,11 @@ const NAMED = `\`${LESSONS_SKILL}\``;
 const MARKUP = `\`${INTERACTIVITY_SKILL}\``;
 const MOTION = `\`${MOTION_SKILL}\``;
 
-describe("conventionsFor on Free", () => {
+describe("conventionsFor structure", () => {
   it("keeps the structure: the lane, Root.tsx, the audiomap, editability", () => {
-    const text = conventionsFor(false, null, "free");
+    const text = conventionsFor(false);
     const compact = text.replaceAll("\n", " ");
 
-    expect(text).toBe(FREE_CONVENTIONS);
     expect(compact).toContain("working on exactly one of them");
     expect(text).toContain("never edit `Root.tsx`");
     expect(text).toContain("beat_cut");
@@ -37,46 +35,14 @@ describe("conventionsFor on Free", () => {
   });
 
   it("asks for every scene to be named and described by a scene object", () => {
-    for (const plan of ["free", "pro"] as const) {
-      const compact = conventionsFor(false, null, plan).replaceAll("\n", " ");
+    const compact = conventionsFor(false).replaceAll("\n", " ");
 
-      expect(compact).toContain("carries a short human `name`");
-      expect(compact).toContain('definition id "scene"');
-      expect(compact).toContain("label exactly the sequence's name");
-      expect(compact).toContain(
-        "Set every other object's parentId to its scene's object"
-      );
-    }
-  });
-
-  it("drops every craft mandate and every Pro tool, whatever the bundle said", () => {
-    for (const text of [
-      conventionsFor(true, null, "free"),
-      conventionsFor(false, null, "free"),
-    ]) {
-      expect(text).not.toContain(BUNDLE_NAME);
-      expect(text).not.toContain(LESSONS_SKILL);
-      expect(text).not.toContain(MOTION_SKILL);
-      expect(text).not.toContain(INTERACTIVITY_SKILL);
-      expect(text).not.toContain("mcp__remocn-pipeline__");
-      expect(text).not.toContain("design_check");
-      expect(text).not.toContain("Unless the project's brand");
-      expect(text).not.toContain("InteractivitySchema");
-      expect(text).not.toContain("runs inside a camera");
-      expect(text).not.toContain("the movement dictionary");
-      expect(text).not.toContain("seven-stage");
-      expect(text).not.toContain("moodboard");
-    }
-  });
-
-  it("is the whole of what a Pro turn reads, minus the craft and the pipeline", () => {
-    expect(STUDIO_CONVENTIONS).toContain(
-      FREE_CONVENTIONS.split("\n\n")[0] ?? ""
+    expect(compact).toContain("carries a short human `name`");
+    expect(compact).toContain('definition id "scene"');
+    expect(compact).toContain("label exactly the sequence's name");
+    expect(compact).toContain(
+      "Set every other object's parentId to its scene's object"
     );
-    for (const paragraph of FREE_CONVENTIONS.split("\n\n")) {
-      expect(STUDIO_CONVENTIONS).toContain(paragraph);
-    }
-    expect(STUDIO_CONVENTIONS.length).toBeGreaterThan(FREE_CONVENTIONS.length);
   });
 });
 
@@ -390,10 +356,8 @@ describe("draft-first production instructions", () => {
 });
 
 it("gives managed videos precedence over legacy Interactive authoring rules", () => {
-  for (const plan of ["free", "pro"] as const) {
-    const text = conventionsFor(true, "intro", plan);
-    expect(text).toContain("studio-objects-v5/README.md");
-    expect(text).toContain("useStudioObject(stableId)");
-    expect(text).toContain("takes precedence over the legacy Interactive");
-  }
+  const text = conventionsFor(true, "intro");
+  expect(text).toContain("studio-objects-v5/README.md");
+  expect(text).toContain("useStudioObject(stableId)");
+  expect(text).toContain("takes precedence over the legacy Interactive");
 });

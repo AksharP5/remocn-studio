@@ -12,7 +12,6 @@ function params(shape: Partial<PromptParams>): PromptParams {
     media: [],
     mode: "auto",
     model: null,
-    plan: "pro",
     playing: null,
     projectId: "project-1",
     prompt: "",

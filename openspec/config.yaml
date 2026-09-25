@@ -26,7 +26,7 @@ context: |
     Radix), lucide icons, Streamdown for assistant markdown, Shiki (own plugin),
     dialkit 2.0 for the properties pane, react-resizable-panels for the layout.
   - Desktop core: Tauri v2 (Rust) — window and splash, Tauri commands, the sidecar
-    supervisor, keychain-held account token, deep links, updater, pasted-image
+    supervisor, keychain-held integration secrets, deep links, updater, pasted-image
     writes, the asset protocol, crash reporting behind a Cargo feature.
   - Sidecar: one bun process (bun 1.4.x, shipped inside the .app) written in
     Effect 4 (effect@4.0.0-beta.101) end to end — SQLite history via bun:sqlite,
@@ -66,8 +66,6 @@ context: |
     there is no telemetry, the skills bundle never writes into ~/.claude,
     ~/.codex, ~/.copilot or ~/.grok, and nothing is written into the person's
     project except what a turn or an explicit gesture asked for.
-  - Free / Pro: shared/entitlement.ts PRO_FEATURES is the one list of what Pro
-    adds; a feature added to Pro must be gated on both sides and listed there.
   - Every user-facing failure is a worded sentence — never a protocol token, a raw
     renderer message or a stack trace. Degrade to a notice; fail the turn only
     when the words themselves cannot be delivered.
@@ -88,7 +86,7 @@ context: |
   - Measure before designing around a claim: a number from the real CLI, the real
     package or the running app beats an argument. Record the measurement.
   - Vocabulary: Project, Video, Chat, turn, permission card, Inspect, Snapshot,
-    Export, library, Docs, plan (Free / Pro). "Composition" and "session" never
+    Export, library, Docs, plan (the agent's checklist). "Composition" and "session" never
     appear in user-facing text.
 
 rules:
@@ -100,9 +98,9 @@ rules:
   specs:
     - Write requirements as observable behaviour (SHALL), not implementation; name a file or function only where the behaviour is defined by it
     - Every requirement carries at least one WHEN/THEN scenario, and every mechanism that can fail carries its failure-direction scenario (what the person sees when it goes wrong)
-    - Use the product vocabulary — Project, Video, Chat, turn, permission card, Inspect, Snapshot, Export, library, plan — never "composition" or "session" in user-facing wording
+    - Use the product vocabulary — Project, Video, Chat, turn, permission card, Inspect, Snapshot, Export, library — never "composition" or "session" in user-facing wording
     - Keep a capability to one seam; when a requirement spans webview, sidecar and core, say which side owns the decision
-    - Prefer nested capability paths by domain (shell/, sidecar/, projects/, agent/, history/, composer/, preview/, export/, library/, account/) and reuse an existing path before creating one
+    - Prefer nested capability paths by domain (shell/, sidecar/, projects/, agent/, history/, composer/, preview/, export/, library/) and reuse an existing path before creating one
   design:
     - Record the measurement or the failed run that ruled an alternative out, not only the decision taken
     - State which process owns each new piece of state (webview, sidecar, preview host, Rust core) and how it crosses the wire (shared/ipc.ts method, Tauri command, host frame, MCP tool)
