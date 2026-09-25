@@ -60,8 +60,10 @@ entries (most recent first) keyed `projectId:composition:width:height`, written
 by the webview through `lib/studio/settings.ts` 500 ms after the camera settles
 and on unmount. `canvasRulers` holds the toggle. Both are read with the
 hydrated settings. Writes use the existing store functions (Effect); a failed
-write is logged and the session keeps working from memory. It is never shown
-to the person.
+write is ignored like every other settings write, and the session keeps working
+from the in-memory cache. It is never shown to the person. Only a camera the
+person moved is written: an automatic Fit is not, so a video never touched is
+fitted again to whatever window it opens in.
 
 ## Risks / Trade-offs
 

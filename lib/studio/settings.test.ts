@@ -3,6 +3,9 @@ import { mockIPC } from "@tauri-apps/api/mocks";
 import { Effect } from "effect";
 import {
   hydrateSettings,
+  readCanvasCamera,
+  saveCanvasCamera,
+  saveCanvasRulers,
   saveNotifications,
   saveNotifyEvent,
 } from "@/lib/studio/settings";
@@ -83,5 +86,65 @@ describe("hydrateSettings", () => {
     await Effect.runPromise(saveNotifications(true));
 
     expect(written.get("notifications")).toBe("enabled");
+  });
+});
+
+describe("canvas settings", () => {
+  it("reads the rulers switch back and writes it as a word", async () => {
+    store([["canvasRulers", "hidden"]]);
+    expect((await Effect.runPromise(hydrateSettings)).canvasRulers).toBe(false);
+
+    const written = store([]);
+    const settings = await Effect.runPromise(hydrateSettings);
+    expect(settings.canvasRulers).toBeNull();
+
+    await Effect.runPromise(saveCanvasRulers(true));
+    expect(written.get("canvasRulers")).toBe("shown");
+  });
+
+  it("reads a remembered camera back after a launch", async () => {
+    store([
+      [
+        "canvasCameras",
+        JSON.stringify([
+          { key: "p:intro:1920:1080", x: 960, y: 540, zoom: 2 },
+          { key: "broken", x: "left", y: 0, zoom: 1 },
+        ]),
+      ],
+    ]);
+    await Effect.runPromise(hydrateSettings);
+
+    expect(readCanvasCamera("p:intro:1920:1080")).toEqual({
+      x: 960,
+      y: 540,
+      zoom: 2,
+    });
+    expect(readCanvasCamera("broken")).toBeNull();
+    expect(readCanvasCamera("p:outro:1920:1080")).toBeNull();
+  });
+
+  it("keeps the fifty most recent cameras, newest first", async () => {
+    const written = store([]);
+    await Effect.runPromise(hydrateSettings);
+
+    await Effect.runPromise(
+      Effect.forEach(
+        Array.from({ length: 52 }, (_, index) => index),
+        (index) =>
+          saveCanvasCamera(`video-${index}`, { x: index, y: 0, zoom: 1 }),
+        { discard: true }
+      )
+    );
+    await Effect.runPromise(
+      saveCanvasCamera("video-10", { x: 5, y: 5, zoom: 3 })
+    );
+
+    const saved = JSON.parse(String(written.get("canvasCameras"))) as {
+      key: string;
+    }[];
+    expect(saved).toHaveLength(50);
+    expect(saved[0]).toEqual({ key: "video-10", x: 5, y: 5, zoom: 3 });
+    expect(saved.map((entry) => entry.key)).not.toContain("video-1");
+    expect(readCanvasCamera("video-10")).toEqual({ x: 5, y: 5, zoom: 3 });
   });
 });

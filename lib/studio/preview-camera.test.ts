@@ -1,11 +1,19 @@
 import { describe, expect, it } from "bun:test";
 import {
+  cameraAt,
+  cameraCentre,
   fitPreviewCamera,
   INITIAL_PREVIEW_CAMERA,
+  interpolateCamera,
   MAX_PREVIEW_ZOOM,
   occludedInsets,
+  PIXEL_GRID_ZOOM,
+  pixelGrid,
+  rulerStep,
+  rulerTicks,
   SELECTION_ZOOM,
   screenToCanvas,
+  surroundOf,
   zoomPreviewCamera,
 } from "./preview-camera";
 
@@ -126,5 +134,130 @@ describe("zoomPreviewCamera", () => {
     const before = screenToCanvas(anchor, INITIAL_PREVIEW_CAMERA);
     const camera = zoomPreviewCamera(INITIAL_PREVIEW_CAMERA, anchor, 2.5);
     expect(screenToCanvas(anchor, camera)).toEqual(before);
+  });
+});
+
+describe("interpolateCamera", () => {
+  const from = { x: 100, y: 50, zoom: 0.5 };
+  const to = { x: -3000, y: -1800, zoom: 4 };
+
+  it("starts and ends exactly at the two cameras", () => {
+    expect(interpolateCamera(from, to, 0, viewport)).toBe(from);
+    expect(interpolateCamera(from, to, 1, viewport)).toBe(to);
+  });
+
+  it("moves the zoom geometrically", () => {
+    const half = interpolateCamera(from, to, 0.5, viewport);
+    expect(half.zoom).toBeCloseTo(Math.sqrt(from.zoom * to.zoom));
+  });
+
+  it("moves the video point at the centre in a straight line", () => {
+    const start = cameraCentre(from, viewport);
+    const end = cameraCentre(to, viewport);
+    const quarter = cameraCentre(
+      interpolateCamera(from, to, 0.25, viewport),
+      viewport
+    );
+    expect(quarter.x).toBeCloseTo(start.x + (end.x - start.x) * 0.25);
+    expect(quarter.y).toBeCloseTo(start.y + (end.y - start.y) * 0.25);
+  });
+});
+
+describe("cameraAt", () => {
+  it("keeps the same video point at the centre of a different viewport", () => {
+    const camera = { x: -2400, y: -900, zoom: 3 };
+    const centre = cameraCentre(camera, { height: 900, width: 1400 });
+    const smaller = { height: 500, width: 700 };
+    const restored = cameraAt(centre, camera.zoom, smaller);
+    expect(restored?.zoom).toBe(3);
+    const after = cameraCentre(restored ?? camera, smaller);
+    expect(after.x).toBeCloseTo(centre.x);
+    expect(after.y).toBeCloseTo(centre.y);
+  });
+
+  it("refuses a centre that is not a number", () => {
+    expect(cameraAt({ x: Number.NaN, y: 0 }, 1, viewport)).toBeNull();
+  });
+});
+
+describe("rulerTicks", () => {
+  it("picks the smallest 1, 2, 5 step whose labels stay 60px apart", () => {
+    expect(rulerStep(1)).toBe(100);
+    expect(rulerStep(0.5)).toBe(200);
+    expect(rulerStep(0.25)).toBe(500);
+    expect(rulerStep(2)).toBe(50);
+    expect(rulerStep(MAX_PREVIEW_ZOOM)).toBe(10);
+    expect(rulerStep(0.05)).toBe(2000);
+  });
+
+  it("keeps labels at least 60px apart at every zoom", () => {
+    for (let zoom = 0.05; zoom <= MAX_PREVIEW_ZOOM; zoom *= 1.07) {
+      const step = rulerStep(zoom);
+      expect(step * zoom).toBeGreaterThanOrEqual(60);
+      expect(step * zoom).toBeLessThan(60 * 2.5);
+    }
+  });
+
+  it("lists the multiples of the step inside the range", () => {
+    const ticks = rulerTicks(-150, 420, 1);
+    expect(ticks.major).toEqual([-100, 0, 100, 200, 300, 400]);
+    expect(ticks.minor).toContain(20);
+    expect(ticks.minor).not.toContain(100);
+  });
+
+  it("draws nothing for a zoom that is not a number", () => {
+    expect(rulerTicks(0, 100, Number.NaN).major).toEqual([]);
+  });
+});
+
+describe("pixelGrid", () => {
+  const video = { height: 1080, width: 1920 };
+
+  it("is absent below 800%", () => {
+    expect(pixelGrid({ x: 0, y: 0, zoom: 7.9 }, video, viewport)).toBeNull();
+  });
+
+  it("covers the visible part of the frame from 800%, aligned to video pixels", () => {
+    const grid = pixelGrid(
+      { x: -1003, y: 20, zoom: PIXEL_GRID_ZOOM },
+      video,
+      viewport
+    );
+    expect(grid).toEqual({
+      height: 780,
+      offsetX: 5,
+      offsetY: 0,
+      size: 8,
+      width: 1000,
+      x: 0,
+      y: 20,
+    });
+  });
+});
+
+describe("surroundOf", () => {
+  it("covers the viewport around the frame and nothing beyond it", () => {
+    const rects = surroundOf(
+      { x: 100, y: 50, zoom: 0.25 },
+      { height: 1080, width: 1920 },
+      viewport
+    );
+    expect(rects).toEqual([
+      { height: 50, id: "top", width: 1000, x: 0, y: 0 },
+      { height: 480, id: "bottom", width: 1000, x: 0, y: 320 },
+      { height: 270, id: "left", width: 100, x: 0, y: 50 },
+      { height: 270, id: "right", width: 420, x: 580, y: 50 },
+    ]);
+  });
+
+  it("stays inside the viewport when the frame is larger than it", () => {
+    const rects = surroundOf(
+      { x: -5000, y: -5000, zoom: 8 },
+      { height: 1080, width: 1920 },
+      viewport
+    );
+    for (const rect of rects) {
+      expect(rect.width * rect.height).toBe(0);
+    }
   });
 });

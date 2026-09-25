@@ -3,7 +3,9 @@
 import { useMemo } from "react";
 import type { NativePreviewState } from "@/lib/studio/native-preview";
 import type { PreviewComposition } from "@/lib/studio/preview";
+import type { StudioSettings } from "@/lib/studio/settings";
 import { useCanvasLayers } from "./use-canvas-layers";
+import { useCanvasRulers } from "./use-canvas-rulers";
 import { useNativePreview } from "./use-native-preview";
 import type { Preview, PreviewControl } from "./use-preview";
 import { usePreviewCamera } from "./use-preview-camera";
@@ -69,10 +71,12 @@ function selectionOf(
 export function useCanvasPreview({
   hidden,
   projectId,
+  settings,
   tools,
 }: {
   hidden: boolean;
   projectId: string | null;
+  settings: StudioSettings | null;
   tools: Tools;
 }) {
   const { inspect, managed, preview } = tools;
@@ -83,12 +87,20 @@ export function useCanvasPreview({
     projectId === null ? null : `${projectId}:${preview.composition}`,
     transport.toggle
   );
+  const selection = selectionOf(managed, inspect.card);
   const layers = useCanvasLayers({
     managed,
     preview,
     scenes: transport.scenes,
     seekTo: transport.seekTo,
-    selection: selectionOf(managed, inspect.card),
+    selection,
+    viewport: camera.viewport,
+  });
+  const rulers = useCanvasRulers({
+    camera: camera.camera,
+    selection: inspect.card?.rect ?? managed?.selected ?? selection,
+    settings,
+    video: metadata,
     viewport: camera.viewport,
   });
   const native = useNativePreview(
@@ -126,12 +138,13 @@ export function useCanvasPreview({
   return {
     camera,
     failure,
-    hasSelection: selectionOf(managed, inspect.card) !== null,
+    hasSelection: selection !== null,
     layers,
     metadata,
     native,
     notice,
     overlay,
+    rulers,
     stale,
     transport,
   };

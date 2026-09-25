@@ -5,6 +5,7 @@ import type { StudioSettings } from "@/lib/studio/settings";
 
 const SETTINGS = {
   assetOffers: null,
+  canvasRulers: null,
   claudeEffort: null,
   collapsedPropGroups: ["Timing"],
 } as unknown as StudioSettings;

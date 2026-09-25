@@ -7,6 +7,7 @@ import type { HistorySession, Project, Video } from "@/shared/ipc";
 
 const SETTINGS: StudioSettings = {
   assetOffers: null,
+  canvasRulers: null,
   claudeEffort: null,
   claudeModel: null,
   codexModel: null,
