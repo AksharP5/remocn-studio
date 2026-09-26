@@ -24,7 +24,7 @@ import {
 } from "./export";
 import type { RenderContext } from "./failure";
 import type { RenderOptions } from "./project";
-import type { Renderer } from "./still";
+import type { RenderBrowser, Renderer } from "./still";
 
 const SERVE_URL = "http://127.0.0.1:51749/__remocn/render/index.html";
 
@@ -120,6 +120,7 @@ function ship(
   renderer: Exporter & Renderer,
   target: string,
   options: {
+    browser?: RenderBrowser;
     context?: RenderContext;
     onEvent?: (event: ExportEvent) => void;
     plan?: Partial<RenderPlan>;
@@ -127,6 +128,7 @@ function ship(
   } = {}
 ) {
   return exportMedia({
+    browser: options.browser ?? null,
     composition: "Main",
     ...(options.context === undefined ? {} : { context: options.context }),
     measured: MEASURED,
@@ -165,6 +167,18 @@ describe("exportMedia", () => {
     expect(state.rendered[0].serveUrl).toBe(SERVE_URL);
     expect(exported.path).toBe(path.join(target, OUT_DIR, "Main.mp4"));
     expect(readFileSync(exported.path, "utf8")).toBe("a whole video");
+  });
+
+  it("renders in the browser it is handed instead of opening its own", async () => {
+    const browser: RenderBrowser = { close: () => Promise.resolve() };
+    const shared = fake();
+    const alone = fake();
+
+    await Effect.runPromise(ship(shared.renderer, root(), { browser }));
+    await Effect.runPromise(ship(alone.renderer, root()));
+
+    expect(shared.rendered[0].puppeteerInstance).toBe(browser);
+    expect("puppeteerInstance" in (alone.rendered[0] ?? {})).toBe(false);
   });
 
   it("reports the size of the file it wrote", async () => {

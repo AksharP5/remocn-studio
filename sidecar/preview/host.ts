@@ -20,6 +20,7 @@ import {
   type BrowserReading,
   browserOptionsOf,
   prepareBrowser,
+  sharedBrowser,
   signatureOf,
 } from "./browser";
 import {
@@ -1012,7 +1013,10 @@ function shipClip(booted: Booted, command: ClipCommand): Effect.Effect<void> {
 
     yield* log(`clip of ${composition} at ${frame} starting`);
 
+    const browser = yield* sharedBrowser(tools.renderer, tools.options);
+
     const path_ = yield* clipMedia({
+      browser,
       cache: booted.cache,
       composition,
       context: tools.context,
@@ -1027,6 +1031,7 @@ function shipClip(booted: Booted, command: ClipCommand): Effect.Effect<void> {
 
     return yield* write({ id, path: path_, type: "clip-done" });
   }).pipe(
+    Effect.scoped,
     Effect.catch((error) =>
       Effect.andThen(
         log(`clip failed: ${error.message}`),
@@ -1076,10 +1081,7 @@ function ship(booted: Booted, command: ExportCommand): Effect.Effect<void> {
     yield* agreedVersionIn(booted.root);
     yield* compiledBuild(booted);
 
-    // A fresh read every time: a remotion.config.ts edited since the last
-    // export has to reach this job, and a module cache in a long-lived host
-    // is exactly what would hide it.
-    const tools = yield* toolsFor(booted, () => undefined, true);
+    const tools = yield* toolsFor(booted);
     const renderer = yield* exporterOf(tools.renderer);
 
     const job = yield* pinBundle({
@@ -1095,7 +1097,10 @@ function ship(booted: Booted, command: ExportCommand): Effect.Effect<void> {
       `export of ${composition} starting from pinned bundle ${job.id} into ${command.format}`
     );
 
+    const browser = yield* sharedBrowser(tools.renderer, tools.options);
+
     const measured = yield* measureComposition({
+      browser,
       composition,
       context: tools.context,
       options: tools.options,
@@ -1155,6 +1160,7 @@ function ship(booted: Booted, command: ExportCommand): Effect.Effect<void> {
     }
 
     const exported = yield* exportMedia({
+      browser,
       composition,
       context: tools.context,
       measured,
@@ -1225,11 +1231,10 @@ function answer(booted: Booted, command: StillCommand): Effect.Effect<void> {
 // all come through here, so a GL backend is decided once and measured once.
 function toolsFor(
   booted: Booted,
-  onEvent: (event: StillEvent) => void = () => undefined,
-  fresh = false
+  onEvent: (event: StillEvent) => void = () => undefined
 ): Effect.Effect<Tools, PreviewError> {
   return Effect.gen(function* () {
-    const config = yield* booted.config.read(booted.root, fresh);
+    const config = yield* booted.config.read(booted.root);
 
     const internals = yield* warmInternalsOf(booted.root).pipe(
       Effect.catch(() => Effect.succeed(null))
