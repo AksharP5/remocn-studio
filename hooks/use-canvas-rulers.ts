@@ -18,6 +18,7 @@ import {
   SELECTION_BOUNDS_ATTR,
 } from "@/lib/studio/preview-camera";
 import { type StudioSettings, saveCanvasRulers } from "@/lib/studio/settings";
+import type { CameraView } from "./use-preview-camera";
 
 export const RULER_SIZE = 20;
 
@@ -256,7 +257,7 @@ export function useCanvasRulers({
   video,
   viewport,
 }: {
-  camera: PreviewCamera;
+  camera: CameraView;
   selection: unknown;
   settings: StudioSettings | null;
   video: CanvasSize | null;
@@ -267,8 +268,6 @@ export function useCanvasRulers({
   const top = useRef<HTMLCanvasElement>(null);
   const left = useRef<HTMLCanvasElement>(null);
   const pointer = useRef<CanvasPoint | null>(null);
-  const view = useRef(camera);
-  view.current = camera;
   const frame = useRef(0);
 
   const toggle = useCallback(() => {
@@ -287,7 +286,7 @@ export function useCanvasRulers({
       return;
     }
     const origin = node.getBoundingClientRect();
-    const { current } = view;
+    const current = camera.current();
     const box = selectionBox(node);
     const extent = (start: number, size: number, shift: number) => ({
       end: (start + size - shift) / current.zoom,
@@ -310,7 +309,7 @@ export function useCanvasRulers({
           : null,
       });
     }
-  }, [shown, video, viewport]);
+  }, [camera, shown, video, viewport]);
 
   const schedule = useCallback(() => {
     if (frame.current === 0) {

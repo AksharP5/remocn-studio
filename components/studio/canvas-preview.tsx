@@ -21,7 +21,11 @@ import { type CSSProperties, memo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { CanvasLayers } from "@/hooks/use-canvas-layers";
-import { useCanvasPreview } from "@/hooks/use-canvas-preview";
+import { useCanvasOverlay, useCanvasPreview } from "@/hooks/use-canvas-preview";
+import {
+  type PreviewCameraControl,
+  useCameraView,
+} from "@/hooks/use-preview-camera";
 import type { Tools } from "@/hooks/use-tools";
 import type { LayerRow } from "@/lib/studio/layers";
 import { cn } from "@/lib/utils";
@@ -58,7 +62,7 @@ export function CanvasPreview({
     settings,
     tools,
   });
-  const { camera, failure, metadata, native, overlay, rulers } = canvas;
+  const { camera, failure, metadata, native, rulers } = canvas;
   const shown = metadata !== null && failure === null;
 
   return (
@@ -87,52 +91,12 @@ export function CanvasPreview({
         // biome-ignore lint/a11y/noNoninteractiveTabindex: the canvas is a keyboard-driven editing surface and must take focus for its shortcuts
         tabIndex={0}
       >
-        <div
-          className="absolute top-0 left-0 origin-top-left bg-black shadow-lg"
-          style={{
-            height: metadata?.height ?? 1080,
-            transform: camera.transform,
-            visibility: shown ? "visible" : "hidden",
-            width: metadata?.width ?? 1920,
-          }}
-        >
-          <div className="relative size-full" ref={native.stage} />
-        </div>
-
-        {shown
-          ? camera.surround.map((rect) => (
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute z-[5]"
-                key={rect.id}
-                style={{
-                  background:
-                    camera.outside === "hide" ? "var(--background)" : DIMMED,
-                  height: rect.height,
-                  left: rect.x,
-                  top: rect.y,
-                  width: rect.width,
-                }}
-              />
-            ))
-          : null}
-
-        {shown && camera.grid !== null ? (
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute z-[6]"
-            data-pixel-grid
-            style={{
-              backgroundImage: GRID,
-              backgroundPosition: `${camera.grid.offsetX}px ${camera.grid.offsetY}px`,
-              backgroundSize: `${camera.grid.size}px ${camera.grid.size}px`,
-              height: camera.grid.height,
-              left: camera.grid.x,
-              top: camera.grid.y,
-              width: camera.grid.width,
-            }}
-          />
-        ) : null}
+        <CanvasStage
+          camera={camera}
+          metadata={metadata}
+          nativeStage={native.stage}
+          shown={shown}
+        />
 
         <div
           className="pointer-events-none absolute inset-0 z-10 [clip-path:inset(0)]"
@@ -140,12 +104,11 @@ export function CanvasPreview({
         />
 
         {tools.managed?.isOpen ? null : (
-          <InspectOverlay
-            card={overlay.card}
+          <CanvasInspectOverlay
+            camera={camera}
             cwd={openedProject?.path ?? null}
-            markers={overlay.markers}
-            onCancel={tools.inspect.cancelComment}
-            onSubmit={tools.inspect.submitComment}
+            inspect={tools.inspect}
+            metadata={metadata}
           />
         )}
 
@@ -187,6 +150,102 @@ export function CanvasPreview({
       </div>
     </section>
   );
+}
+
+function CanvasStage({
+  camera,
+  metadata,
+  nativeStage,
+  shown,
+}: {
+  camera: PreviewCameraControl;
+  metadata: Metadata;
+  nativeStage: Canvas["native"]["stage"];
+  shown: boolean;
+}) {
+  const { grid, surround, transform } = useCameraView(camera);
+
+  return (
+    <>
+      <div
+        className="absolute top-0 left-0 origin-top-left bg-black shadow-lg"
+        ref={camera.stage}
+        style={{
+          height: metadata?.height ?? 1080,
+          transform,
+          visibility: shown ? "visible" : "hidden",
+          width: metadata?.width ?? 1920,
+        }}
+      >
+        <div className="relative size-full" ref={nativeStage} />
+      </div>
+
+      {shown
+        ? surround.map((rect) => (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute z-[5]"
+              key={rect.id}
+              style={{
+                background:
+                  camera.outside === "hide" ? "var(--background)" : DIMMED,
+                height: rect.height,
+                left: rect.x,
+                top: rect.y,
+                width: rect.width,
+              }}
+            />
+          ))
+        : null}
+
+      {shown && grid !== null ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute z-[6]"
+          data-pixel-grid
+          style={{
+            backgroundImage: GRID,
+            backgroundPosition: `${grid.offsetX}px ${grid.offsetY}px`,
+            backgroundSize: `${grid.size}px ${grid.size}px`,
+            height: grid.height,
+            left: grid.x,
+            top: grid.y,
+            width: grid.width,
+          }}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function CanvasInspectOverlay({
+  camera,
+  cwd,
+  inspect,
+  metadata,
+}: {
+  camera: PreviewCameraControl;
+  cwd: string | null;
+  inspect: Tools["inspect"];
+  metadata: Metadata;
+}) {
+  const overlay = useCanvasOverlay(camera, inspect, metadata);
+
+  return (
+    <InspectOverlay
+      card={overlay.card}
+      cwd={cwd}
+      markers={overlay.markers}
+      onCancel={inspect.cancelComment}
+      onSubmit={inspect.submitComment}
+    />
+  );
+}
+
+function ZoomReadout({ camera }: { camera: PreviewCameraControl }) {
+  const { zoom } = useCameraView(camera).camera;
+
+  return <>{Math.round(zoom * 100)}%</>;
 }
 
 function CanvasToolbar({ canvas }: { canvas: Canvas }) {
@@ -241,7 +300,7 @@ function CanvasToolbar({ canvas }: { canvas: Canvas }) {
           title="Zoom to 100% (⌘0)"
           variant="ghost"
         >
-          {Math.round(camera.camera.zoom * 100)}%
+          <ZoomReadout camera={camera} />
         </Button>
         <Button
           aria-label="Zoom in"

@@ -8,7 +8,11 @@ import { useCanvasLayers } from "./use-canvas-layers";
 import { useCanvasRulers } from "./use-canvas-rulers";
 import { useNativePreview } from "./use-native-preview";
 import type { Preview, PreviewControl } from "./use-preview";
-import { usePreviewCamera } from "./use-preview-camera";
+import {
+  type PreviewCameraControl,
+  useCameraView,
+  usePreviewCamera,
+} from "./use-preview-camera";
 import { usePreviewTransport } from "./use-preview-transport";
 import type { Tools } from "./use-tools";
 
@@ -97,7 +101,7 @@ export function useCanvasPreview({
     viewport: camera.viewport,
   });
   const rulers = useCanvasRulers({
-    camera: camera.camera,
+    camera: camera.view,
     selection: inspect.card?.rect ?? managed?.selected ?? selection,
     settings,
     video: metadata,
@@ -112,9 +116,29 @@ export function useCanvasPreview({
   const notice = noticeOf(projectId, preview, native.state, metadata);
   const stale = native.state.phase === "ready" ? native.state.stale : null;
 
+  return {
+    camera,
+    failure,
+    hasSelection: selection !== null,
+    layers,
+    metadata,
+    native,
+    notice,
+    rulers,
+    stale,
+    transport,
+  };
+}
+
+export function useCanvasOverlay(
+  camera: PreviewCameraControl,
+  inspect: Tools["inspect"],
+  metadata: Metadata | null
+) {
   const { bounds } = camera;
-  const view = camera.camera;
-  const overlay = useMemo(() => {
+  const view = useCameraView(camera).camera;
+
+  return useMemo(() => {
     const scaleX = ((metadata?.width ?? 0) * view.zoom) / (bounds.width || 1);
     const scaleY = ((metadata?.height ?? 0) * view.zoom) / (bounds.height || 1);
     const onCanvas = (rect: Rect): Rect => ({
@@ -134,18 +158,4 @@ export function useCanvasPreview({
       })),
     };
   }, [bounds, inspect.card, inspect.markers, metadata, view]);
-
-  return {
-    camera,
-    failure,
-    hasSelection: selection !== null,
-    layers,
-    metadata,
-    native,
-    notice,
-    overlay,
-    rulers,
-    stale,
-    transport,
-  };
 }
