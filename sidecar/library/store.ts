@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
-import { constants, existsSync, mkdirSync } from "node:fs";
+import { constants, createReadStream, existsSync, mkdirSync } from "node:fs";
 import {
   copyFile,
   mkdir,
   readdir,
   readFile,
   rm,
+  stat,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -419,9 +420,38 @@ function ownPreview(manifest: AssetManifest): string | null {
     : null;
 }
 
+let knownMemo: { hashes: ReadonlySet<string>; stamp: string } | null = null;
+
+async function stampOf(files: readonly string[]): Promise<string> {
+  const parts = await Promise.all(
+    files.map(async (file) => {
+      const found = await stat(file).catch(() => null);
+      return found === null
+        ? `${file}:-`
+        : `${file}:${found.mtimeMs}:${found.size}`;
+    })
+  );
+  return parts.join("|");
+}
+
 async function knownHashes(): Promise<ReadonlySet<string>> {
   const root = libraryRoot();
   const dir = join(root, ASSETS);
+  const stamp = await stampOf([dir, join(root, DISMISSED)]);
+
+  if (knownMemo !== null && knownMemo.stamp === stamp) {
+    return knownMemo.hashes;
+  }
+
+  const hashes = await readKnownHashes(root, dir);
+  knownMemo = { hashes, stamp };
+  return hashes;
+}
+
+async function readKnownHashes(
+  root: string,
+  dir: string
+): Promise<ReadonlySet<string>> {
   const entries = await readdir(dir, { withFileTypes: true });
 
   const manifests = await Promise.all(
@@ -458,14 +488,43 @@ async function dismissedHashes(root: string): Promise<Set<string>> {
   }
 }
 
+const fileHashes = new Map<
+  string,
+  { hash: string; mtimeMs: number; size: number }
+>();
+
 async function hashOf(path: string): Promise<string | null> {
   try {
-    return createHash("sha256")
-      .update(await readFile(path))
-      .digest("hex");
+    const found = await stat(path);
+    const held = fileHashes.get(path);
+    if (
+      held !== undefined &&
+      held.size === found.size &&
+      held.mtimeMs === found.mtimeMs
+    ) {
+      return held.hash;
+    }
+
+    const hash = await streamedHash(path);
+    fileHashes.set(path, {
+      hash,
+      mtimeMs: found.mtimeMs,
+      size: found.size,
+    });
+    return hash;
   } catch {
     return null;
   }
+}
+
+function streamedHash(path: string): Promise<string> {
+  return new Promise((done, broke) => {
+    const hash = createHash("sha256");
+    createReadStream(path)
+      .on("data", (chunk) => hash.update(chunk))
+      .on("error", broke)
+      .on("end", () => done(hash.digest("hex")));
+  });
 }
 
 function commonDir(files: readonly string[]): string {
