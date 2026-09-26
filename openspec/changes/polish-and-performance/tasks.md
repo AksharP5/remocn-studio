@@ -18,22 +18,22 @@
 
 ## 3. Sidecar, preview host and core
 
-- [ ] 3.1 design-progress travels as a frame, not through the redirected stdout
-- [ ] 3.2 The render-only bundle drops HMR, React Refresh and progress plugins and cleans its output
-- [ ] 3.3 The native compile starts with the host instead of after the main compile's ready
-- [ ] 3.4 Account probes run concurrently, share an in-flight probe and paint from the last result
-- [ ] 3.5 A provider switch re-probes only the account row; lockfile drift is cached by file fingerprint
-- [ ] 3.6 An export opens one browser for measuring and rendering, and trusts the render-config fingerprint
-- [ ] 3.7 A turn's tool servers cost one process, and re-exec'd children load only their own module graph
-- [ ] 3.8 The render compiler is suspended between renders (REM-535, `canvas-follow-ups` 2.2)
-- [ ] 3.9 The warm render browser closes after it has been idle
-- [ ] 3.10 Preview output folders of unknown projects are pruned at start
-- [ ] 3.11 File-writing and process-spawning Tauri commands run off the main thread
-- [ ] 3.12 Copilot and Grok keep one ACP peer per chat with an idle timeout
-- [ ] 3.13 Webpack progress is sent only when the whole percent changes
-- [ ] 3.14 `library.offer` hashes by stream and compares sizes first
-- [ ] 3.15 The recorder persists streamed text at a bounded rate and at block end
-- [ ] 3.16 The sidecar log rotates by size while running
+- [x] 3.1 design-progress travels as a frame, not through the redirected stdout
+- [x] 3.2 The render-only bundle drops HMR, React Refresh and progress plugins and cleans its output
+- [x] 3.3 The native compile starts with the host instead of after the main compile's ready
+- [x] 3.4 Account probes run concurrently, share an in-flight probe and paint from the last result
+- [x] 3.5 A provider switch re-probes only the account row; lockfile drift is cached by file fingerprint
+- [x] 3.6 An export opens one browser for measuring and rendering, and trusts the render-config fingerprint
+- [x] 3.7 A turn's tool servers cost one process, and re-exec'd children load only their own module graph
+- [x] 3.8 The render compiler is suspended between renders (REM-535, `canvas-follow-ups` 2.2)
+- [x] 3.9 The warm render browser closes after it has been idle
+- [x] 3.10 Preview output folders of unknown projects are pruned at start
+- [x] 3.11 File-writing and process-spawning Tauri commands run off the main thread
+- [x] 3.12 Copilot and Grok keep one ACP peer per chat with an idle timeout
+- [x] 3.13 Webpack progress is sent only when the whole percent changes
+- [x] 3.14 `library.offer` hashes by stream and compares sizes first
+- [x] 3.15 The recorder persists streamed text at a bounded rate and at block end
+- [x] 3.16 The sidecar log rotates by size while running
 
 ## 4. Look and feel
 
