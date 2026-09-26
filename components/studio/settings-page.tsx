@@ -730,7 +730,7 @@ function CrashReportsRow({
 // so "what leaves the app" is answered where the sending happens, not in a
 // second group the eye has to connect back.
 function FeedbackSection() {
-  const { feedback, turn, updates } = useStudio();
+  const { feedback, provider, updates } = useStudio();
 
   return (
     <Group
@@ -766,7 +766,7 @@ function FeedbackSection() {
                   : ENVIRONMENTS[updates.environment],
               ],
               ["macOS", updates.os ?? "—"],
-              ["Agent", PROVIDER_INFO[turn.provider].name],
+              ["Agent", PROVIDER_INFO[provider].name],
             ]}
           />
         </div>

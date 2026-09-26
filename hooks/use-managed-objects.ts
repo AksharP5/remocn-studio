@@ -902,49 +902,91 @@ export function useManagedObjects({
   }, [cancelGeometry, cancelInline, commit, publish]);
 
   const drafts = [...(session?.drafts.values() ?? [])];
-  return {
-    acceptsPreview,
-    awaitingPreview:
-      session === null
-        ? false
-        : rendersBehind(session, session.renderedOperation),
-    busy:
-      drafts.some((draft) => draft.saving) ||
-      (session?.undoing ?? false) ||
-      geometry.current !== null,
-    canUndo:
-      enabled &&
-      undoable !== undefined &&
-      drafts.length === 0 &&
-      geometry.current === null &&
-      inline.current === null &&
-      !session?.undoing,
-    change,
-    close,
-    commit,
-    definition,
-    discard,
-    editingText: inline.current !== null,
-    enabled,
-    error: session?.error ?? drafts.find((draft) => draft.error)?.error ?? null,
-    fields: fieldStates(
-      session,
-      selected,
+  const awaitingPreview =
+    session === null
+      ? false
+      : rendersBehind(session, session.renderedOperation);
+  const isGesturing = geometry.current !== null;
+  const editingText = inline.current !== null;
+  const busy =
+    drafts.some((draft) => draft.saving) ||
+    (session?.undoing ?? false) ||
+    isGesturing;
+  const canUndo =
+    enabled &&
+    undoable !== undefined &&
+    drafts.length === 0 &&
+    !isGesturing &&
+    !editingText &&
+    !session?.undoing;
+  const failure =
+    session?.error ?? drafts.find((draft) => draft.error)?.error ?? null;
+  const isLoading = session?.loading ?? false;
+  const objects = session?.snapshot?.document.objects ?? NO_OBJECTS;
+  const pending = drafts.length;
+  const isLocked = isGesturing || editingText;
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the session is mutated in place and `localRevision` is what every mutation publishes
+  const fields = useMemo(
+    () => fieldStates(session, selected, definition, isLocked),
+    [localRevision, session, selected, definition, isLocked]
+  );
+
+  return useMemo(
+    () => ({
+      acceptsPreview,
+      awaitingPreview,
+      busy,
+      canUndo,
+      change,
+      close,
+      commit,
       definition,
-      geometry.current !== null || inline.current !== null
-    ),
-    isOpen,
-    loading: session?.loading ?? false,
-    objects: session?.snapshot?.document.objects ?? [],
-    open,
-    pending: drafts.length,
-    reload,
-    retry,
-    select,
-    selected,
-    undo,
-  };
+      discard,
+      editingText,
+      enabled,
+      error: failure,
+      fields,
+      isOpen,
+      loading: isLoading,
+      objects,
+      open,
+      pending,
+      reload,
+      retry,
+      select,
+      selected,
+      undo,
+    }),
+    [
+      acceptsPreview,
+      awaitingPreview,
+      busy,
+      canUndo,
+      change,
+      close,
+      commit,
+      definition,
+      discard,
+      editingText,
+      enabled,
+      failure,
+      fields,
+      isLoading,
+      isOpen,
+      objects,
+      open,
+      pending,
+      reload,
+      retry,
+      select,
+      selected,
+      undo,
+    ]
+  );
 }
+
+const NO_OBJECTS: readonly StudioObject[] = [];
 
 export type ManagedObjects = ReturnType<typeof useManagedObjects>;
 

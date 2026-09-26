@@ -340,7 +340,9 @@ export function usePlayingFrame(
   );
 }
 
-export function usePreviewFrame(preview: PreviewControl): number {
+export type PreviewFrames = Pick<PreviewControl, "frameOf" | "onFrame">;
+
+export function usePreviewFrame(preview: PreviewFrames): number {
   const { frameOf, onFrame } = preview;
 
   return useSyncExternalStore(onFrame, frameOf, frameOf);

@@ -105,6 +105,66 @@ export function paneGroups(
   return promoted(groups);
 }
 
+export function reuseGroups(
+  previous: readonly PaneGroup[],
+  next: readonly PaneGroup[]
+): readonly PaneGroup[] {
+  const rows = new Map<string, SessionRow>();
+  const groups = new Map<string, PaneGroup>();
+  for (const group of previous) {
+    groups.set(group.video.id, group);
+    for (const row of group.rows) {
+      rows.set(row.session.id, row);
+    }
+  }
+
+  const shared = next.map((group) => {
+    const reused = group.rows.map((row) => {
+      const was = rows.get(row.session.id);
+      return was !== undefined && sameRow(was, row) ? was : row;
+    });
+    const byId = new Map(reused.map((row) => [row.session.id, row]));
+    const visible = group.visible.map((row) => byId.get(row.session.id) ?? row);
+    const kept = groups.get(group.video.id);
+
+    if (
+      kept !== undefined &&
+      kept.video === group.video &&
+      kept.hidden === group.hidden &&
+      sameList(kept.rows, reused) &&
+      sameList(kept.visible, visible)
+    ) {
+      return kept;
+    }
+
+    return { ...group, rows: reused, visible };
+  });
+
+  return sameList(previous, shared) ? previous : shared;
+}
+
+function sameList<T>(left: readonly T[], right: readonly T[]): boolean {
+  return (
+    left.length === right.length &&
+    left.every((item, index) => item === right[index])
+  );
+}
+
+function sameRow(left: SessionRow, right: SessionRow): boolean {
+  return (
+    left.session === right.session &&
+    left.status === right.status &&
+    left.unread === right.unread &&
+    left.error === right.error &&
+    left.askedAt === right.askedAt &&
+    left.startedAt === right.startedAt &&
+    left.task === right.task &&
+    left.tool === right.tool &&
+    left.progress?.done === right.progress?.done &&
+    left.progress?.total === right.progress?.total
+  );
+}
+
 export function paneSections(groups: readonly PaneGroup[]): PaneSections {
   return {
     active: groups.filter((group) => !group.video.missing),

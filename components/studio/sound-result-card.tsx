@@ -6,7 +6,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useSoundResult } from "@/hooks/use-sound-result";
 import type { SoundResult } from "@/shared/ipc";
 import { AudioTransport } from "./audio-transport";
-import { useStudio } from "./studio-provider";
+import { useStudio, useStudioTurn } from "./studio-provider";
 
 const ACTION_LABELS = {
   idle: "Use in video",
@@ -16,8 +16,16 @@ const ACTION_LABELS = {
 } as const;
 
 export function SoundResultCard({ result }: { result: SoundResult }) {
-  const studio = useStudio();
-  const model = useSoundResult(result, studio);
+  const { composerActions, environment, openedProject, openedVideo } =
+    useStudio();
+  const turn = useStudioTurn();
+  const model = useSoundResult(result, {
+    composer: composerActions,
+    environment,
+    openedProject,
+    openedVideo,
+    turn,
+  });
   return <SoundResultView model={model} result={result} />;
 }
 

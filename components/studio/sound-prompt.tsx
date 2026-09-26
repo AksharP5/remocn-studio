@@ -5,10 +5,12 @@ import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useSoundPrompt } from "@/hooks/use-sound-prompt";
-import { useStudio } from "./studio-provider";
+import { useStudio, useStudioComposer, useStudioTurn } from "./studio-provider";
 
 export function SoundPrompt({ disabled }: { disabled: boolean }) {
-  const { composer, settingsView, turn } = useStudio();
+  const { settingsView } = useStudio();
+  const composer = useStudioComposer();
+  const turn = useStudioTurn();
   const prompt = useSoundPrompt(
     composer,
     settingsView,
