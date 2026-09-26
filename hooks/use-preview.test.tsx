@@ -258,7 +258,7 @@ describe("usePreview", () => {
 
     await waitFor(() => {
       expect(rendered.result.current.preview).toEqual({
-        message: "The preview stopped when the sidecar restarted.",
+        message: "The preview stopped when the studio's helper restarted.",
         phase: "failed",
       });
     });

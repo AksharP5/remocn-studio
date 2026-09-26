@@ -102,7 +102,7 @@ export function ProjectBrandApply({
         playing: null,
         projectId,
         prompt:
-          "Apply the selected project brand revision to this video. Preserve local exceptions and unrelated changes. Verify all affected compositions, and report the result for my review before Studio confirms the new brand snapshot.",
+          "Apply the selected project brand revision to this video. Preserve local exceptions and unrelated changes. Verify every scene it affects, and report the result for my review before Studio confirms the new brand snapshot.",
       });
     }
     setJobs((current) => [

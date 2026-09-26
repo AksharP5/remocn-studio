@@ -7,6 +7,7 @@ import type { StudioSettings } from "@/lib/studio/settings";
 import { useCanvasLayers } from "./use-canvas-layers";
 import { useCanvasRulers } from "./use-canvas-rulers";
 import { useNativePreview } from "./use-native-preview";
+import { usePresence } from "./use-presence";
 import type { Preview, PreviewControl } from "./use-preview";
 import {
   type PreviewCameraControl,
@@ -114,16 +115,24 @@ export function useCanvasPreview({
   );
   const failure = failureOf(preview.preview, native.state);
   const notice = noticeOf(projectId, preview, native.state, metadata);
+  const card = usePresence(failure ?? notice);
+  const served = preview.preview;
+  const building = served.phase === "building";
+  const percent =
+    served.phase === "building" && served.percent > 0 ? served.percent : null;
   const stale = native.state.phase === "ready" ? native.state.stale : null;
 
   return {
+    building,
     camera,
+    card,
     failure,
     hasSelection: selection !== null,
     layers,
     metadata,
     native,
     notice,
+    percent,
     rulers,
     stale,
     transport,

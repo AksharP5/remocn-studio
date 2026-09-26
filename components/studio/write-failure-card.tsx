@@ -15,9 +15,11 @@ const TITLE = "Some values could not be written into the code";
  * studio's own doing, not a tool asking for permission.
  */
 export function WriteFailureCard({
+  agent,
   failure,
   onAnswer,
 }: {
+  agent: string;
   failure: Failure;
   onAnswer: (accept: boolean) => void;
 }) {
@@ -60,8 +62,8 @@ export function WriteFailureCard({
             <span className="shrink-0 font-medium text-sm">Send anyway</span>
             <span className="min-w-0 text-pretty text-muted-foreground text-xs">
               {failure.kept === 0
-                ? "Ask Claude for all of them"
-                : `Write the ${failure.kept} that worked and ask Claude for the rest`}
+                ? `Ask ${agent} for all of them`
+                : `Write the ${failure.kept} that worked and ask ${agent} for the rest`}
             </span>
           </button>
           <button

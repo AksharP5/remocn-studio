@@ -23,6 +23,7 @@ const LAUNCH_TEASER_ROW = /^Launch teaser/;
 const WORDMARK = /^emocn/;
 const STARTUP = "Make a video by describing it";
 const SIDECAR_DOWN = /the sidecar is not running/;
+const VIDEO_ROW = { selector: '[data-slot="sidebar-menu-button"] > span' };
 
 const SIDECAR_READY = {
   attempt: 0,
@@ -180,7 +181,7 @@ describe("app shell", () => {
   it("keeps Docs behind a shortcut and offers the way back from it", async () => {
     mockStudio({ projects: [PROJECT], sessions: [STORED_SESSION] });
     await renderShell();
-    fireEvent.click(await screen.findByText("My video"));
+    fireEvent.click(await screen.findByText("My video", VIDEO_ROW));
     await screen.findByRole("button", { name: "Hide the preview" });
 
     expect(screen.queryByRole("button", { name: "Preview" })).toBeNull();
@@ -217,7 +218,7 @@ describe("app shell", () => {
     ).not.toBeInTheDocument();
 
     finishLoading([PROJECT]);
-    expect(await screen.findByText("My video")).toBeVisible();
+    expect(await screen.findByText("My video", VIDEO_ROW)).toBeVisible();
   });
 
   // A list that failed is not a list that is empty. Onboarding here told a
@@ -249,7 +250,7 @@ describe("app shell", () => {
 
     fireEvent.click(conversation.getByRole("button", { name: "Try again" }));
 
-    expect(await screen.findByText("My video")).toBeVisible();
+    expect(await screen.findByText("My video", VIDEO_ROW)).toBeVisible();
   });
 
   it("brings the preview back, and lets it be dismissed again", async () => {
@@ -285,7 +286,7 @@ describe("app shell", () => {
     });
     await renderShell();
 
-    fireEvent.click(await screen.findByText("My video"));
+    fireEvent.click(await screen.findByText("My video", VIDEO_ROW));
 
     expect(
       await screen.findByRole("heading", { name: "The newer one" })
@@ -356,7 +357,7 @@ describe("app shell", () => {
   it("lights the band once there is a project", async () => {
     mockStudio({ projects: [PROJECT] });
     const { container } = render(<Page />);
-    await screen.findByText("My video");
+    await screen.findByText("My video", VIDEO_ROW);
 
     expect(
       container.querySelector('[data-slot="titlebar-mood"]')
@@ -370,18 +371,18 @@ describe("app shell", () => {
       screen.getByRole("button", { name: "Hide the project list" })
     );
 
-    const [cta] = screen.getAllByRole("button", { name: "New Project" });
+    const [cta] = screen.getAllByRole("button", { name: "New Project…" });
     fireEvent.click(cta);
 
     expect(
-      await screen.findByRole("heading", { name: "New project" })
+      await screen.findByRole("heading", { name: "New Project" })
     ).toBeVisible();
   });
 
   it("lets the project list be dismissed and brought back", async () => {
     mockStudio({ projects: [PROJECT], sessions: [STORED_SESSION] });
     await renderShell();
-    await screen.findByText("My video");
+    await screen.findByText("My video", VIDEO_ROW);
 
     fireEvent.click(
       screen.getByRole("button", { name: "Hide the project list" })
@@ -390,14 +391,14 @@ describe("app shell", () => {
     await waitForElementToBeRemoved(() =>
       screen.queryByRole("heading", { name: "Videos" })
     );
-    expect(screen.queryByText("My video")).not.toBeInTheDocument();
+    expect(screen.queryByText("My video", VIDEO_ROW)).not.toBeInTheDocument();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Show the project list" })
     );
 
     expect(screen.getByRole("heading", { name: "Videos" })).toBeVisible();
-    expect(await screen.findByText("My video")).toBeVisible();
+    expect(await screen.findByText("My video", VIDEO_ROW)).toBeVisible();
   });
 
   it("keeps the chat clear of the window buttons on its own", async () => {
@@ -428,7 +429,7 @@ describe("app shell", () => {
 
     // The pane's own copies moved into the project switcher's menu, so the
     // startup screen is the only one on screen without opening it.
-    const create = screen.getAllByRole("button", { name: "New Project" });
+    const create = screen.getAllByRole("button", { name: "New Project…" });
 
     expect(screen.getByRole("heading", { name: STARTUP })).toBeVisible();
     expect(create).toHaveLength(1);
@@ -462,7 +463,7 @@ describe("app shell", () => {
 
     // The open project's name lives in the native File menu now, so the
     // sidebar never spells a folder at all — only the videos inside it.
-    await screen.findByText("My video");
+    await screen.findByText("My video", VIDEO_ROW);
     expect(screen.queryByText("my-video")).not.toBeInTheDocument();
   });
 
@@ -472,7 +473,7 @@ describe("app shell", () => {
 
     fireEvent.click(await openFolderButton());
 
-    expect(await screen.findByText("My video")).toBeVisible();
+    expect(await screen.findByText("My video", VIDEO_ROW)).toBeVisible();
     expect(
       screen.queryByRole("heading", { name: STARTUP })
     ).not.toBeInTheDocument();
@@ -487,7 +488,7 @@ describe("app shell", () => {
     fireEvent.click(await openFolderButton());
 
     expect(await screen.findByRole("heading", { name: STARTUP })).toBeVisible();
-    expect(screen.queryByText("My video")).not.toBeInTheDocument();
+    expect(screen.queryByText("My video", VIDEO_ROW)).not.toBeInTheDocument();
   });
 
   it("lists stored sessions and opens the one that is clicked", async () => {
@@ -500,7 +501,7 @@ describe("app shell", () => {
       })
     );
 
-    expect(await screen.findByText("My video")).toBeVisible();
+    expect(await screen.findByText("My video", VIDEO_ROW)).toBeVisible();
     expect(
       await screen.findByRole("heading", { name: "A promo for the launch" })
     ).toBeVisible();
@@ -553,7 +554,7 @@ describe("app shell", () => {
     ).not.toBeInTheDocument();
     expect(await screen.findByText("No chats yet")).toBeVisible();
     expect(
-      await screen.findByRole("heading", { name: "New session" })
+      await screen.findByRole("heading", { name: "New chat" })
     ).toBeVisible();
   });
 
@@ -567,7 +568,7 @@ describe("app shell", () => {
       screen.getByRole("button", { name: "Delete A promo for the launch" })
     );
 
-    expect(await screen.findByText("Session deleted")).toBeVisible();
+    expect(await screen.findByText("Chat deleted")).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
 
@@ -583,7 +584,7 @@ describe("app shell", () => {
     await renderShell();
 
     const [header] = await screen.findAllByRole("button", {
-      name: "New Project",
+      name: "New Project…",
     });
 
     expect(header).toBeVisible();

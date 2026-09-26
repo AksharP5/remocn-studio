@@ -15,7 +15,7 @@ function MentionPopupBlock({ mentions }: { mentions: Mentions }) {
 
   return (
     <div className="absolute right-0 bottom-full left-0 z-20 mb-2">
-      <div className="overflow-hidden rounded-xl bg-popover p-1.5 shadow-[var(--elevation-floating)]">
+      <div className="surface-floating overflow-hidden p-1.5">
         {mentions.items.length > 0 ? (
           <div
             className="flex max-h-64 flex-col gap-0.5 overflow-y-auto"

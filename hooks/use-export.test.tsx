@@ -10,7 +10,11 @@ import {
 import userEvent from "@testing-library/user-event";
 import { Effect } from "effect";
 import { ExportDialog } from "@/components/studio/export-dialog";
-import { type ExportOptions, useExport } from "@/hooks/use-export";
+import {
+  CONFIRM_CANCEL_AFTER_MS,
+  type ExportOptions,
+  useExport,
+} from "@/hooks/use-export";
 import type { ExportEvent, Exported } from "@/shared/ipc";
 
 const PROJECT = "project-1";
@@ -342,7 +346,7 @@ describe("useExport", () => {
 
     expect(result.current.canExport).toBe(false);
     expect(result.current.unavailable).toBe(
-      "The preview is showing a different project than this session."
+      "The preview is showing another project, not the one this chat belongs to."
     );
   });
 
@@ -408,6 +412,85 @@ describe("useExport", () => {
     expect(host.state.cancels).toBe(1);
     expect(rendered.result.current.trouble).toBeNull();
     expect(rendered.result.current.result).toBeNull();
+  });
+
+  it("cancels a render that has only just started without asking", async () => {
+    const { host, rendered } = await started();
+
+    act(() => {
+      rendered.result.current.requestCancel();
+    });
+
+    await waitFor(() => {
+      expect(rendered.result.current.isRunning).toBe(false);
+    });
+    expect(host.state.cancels).toBe(1);
+    expect(rendered.result.current.isConfirmingCancel).toBe(false);
+  });
+
+  it("asks before cancelling a render that has run a while", async () => {
+    const { host, rendered } = await started();
+    const { now } = Date;
+    Date.now = () => now() + CONFIRM_CANCEL_AFTER_MS + 1;
+
+    try {
+      act(() => {
+        rendered.result.current.requestCancel();
+      });
+    } finally {
+      Date.now = now;
+    }
+
+    expect(rendered.result.current.isConfirmingCancel).toBe(true);
+    expect(rendered.result.current.isRunning).toBe(true);
+
+    act(() => {
+      rendered.result.current.keepExporting();
+    });
+    expect(rendered.result.current.isConfirmingCancel).toBe(false);
+    expect(host.state.cancels).toBe(0);
+
+    act(() => {
+      rendered.result.current.confirmCancel();
+    });
+    await waitFor(() => {
+      expect(rendered.result.current.isRunning).toBe(false);
+    });
+    expect(host.state.cancels).toBe(1);
+  });
+
+  it("lets a finished file be dismissed", async () => {
+    const { host, rendered } = await started();
+
+    await host.finish();
+    await waitFor(() => {
+      expect(rendered.result.current.result).toEqual(EXPORTED);
+    });
+
+    act(() => {
+      rendered.result.current.dismiss();
+    });
+    expect(rendered.result.current.result).toBeNull();
+  });
+
+  it("retries a failed render with the settings it ran with", async () => {
+    const { host, rendered } = await started();
+
+    await host.spoil("Cannot find module ./missing");
+    await waitFor(() => {
+      expect(rendered.result.current.canRetry).toBe(true);
+    });
+
+    await act(async () => {
+      rendered.result.current.retry();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(rendered.result.current.isRunning).toBe(true);
+    });
+    expect(host.state.requests).toBe(2);
+    expect(rendered.result.current.trouble).toBeNull();
   });
 
   it("surfaces why a render failed", async () => {

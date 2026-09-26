@@ -43,6 +43,7 @@ export interface CommandSources {
   readonly selectSession: (session: HistorySession) => void;
   readonly showPane: (view: PaneView) => void;
   readonly snapshotUnavailable: string | null;
+  readonly startSessionIn: (videoId: string) => void;
   readonly stopTurn: () => void;
   readonly toggleInspect: () => void;
   readonly togglePreview: () => void;
@@ -96,7 +97,21 @@ function fileAndProjectCommands(sources: CommandSources): readonly Command[] {
       menu: "project",
     });
 
+  const { openedVideoId, startSessionIn } = sources;
   return [
+    action(
+      "new-chat",
+      "New Chat",
+      () => {
+        if (openedVideoId !== null) {
+          startSessionIn(openedVideoId);
+        }
+      },
+      {
+        enabled: enabledWhen(openedVideoId === null ? NO_VIDEO : null),
+        menu: "file",
+      }
+    ),
     action("new-video", "New Video…", sources.openNewVideo, {
       enabled: enabledWhen(sources.canCreateVideo ? null : NO_PROJECT),
       menu: "file",
@@ -332,6 +347,7 @@ export function useCommands(sources: CommandSources): readonly Command[] {
     selectSession,
     showPane,
     snapshotUnavailable,
+    startSessionIn,
     stopTurn,
     toggleInspect,
     togglePreview,
@@ -372,6 +388,7 @@ export function useCommands(sources: CommandSources): readonly Command[] {
         selectSession,
         showPane,
         snapshotUnavailable,
+        startSessionIn,
         stopTurn,
         toggleInspect,
         togglePreview,
@@ -409,6 +426,7 @@ export function useCommands(sources: CommandSources): readonly Command[] {
       selectSession,
       showPane,
       snapshotUnavailable,
+      startSessionIn,
       stopTurn,
       toggleInspect,
       togglePreview,

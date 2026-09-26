@@ -27,6 +27,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { useCopyCommand } from "@/hooks/use-copy-command";
 import type { NotificationConsent } from "@/hooks/use-notification-consent";
+import { usePresence } from "@/hooks/use-presence";
 import { useScrolledIntoView } from "@/hooks/use-scrolled-into-view";
 import {
   isSettingsSection,
@@ -131,12 +132,13 @@ const SECTIONS: readonly {
 // Settings takes the window: a rail on the left, one readable column on the
 // right, and nothing floating. The shell stays mounted underneath — inert, so
 // keys and clicks cannot reach it — which is what keeps the preview's iframe
-// and a running turn exactly where they were when the page closes. There is
-// no entrance animation on purpose: this should feel like switching a tab,
-// not opening a window.
+// and a running turn exactly where they were when the page closes. It only
+// crossfades, briefly and without moving: this should feel like switching a
+// tab, not opening a window.
 export function SettingsPage() {
   const { settingsView } = useStudio();
   const { section, setSection } = settingsView;
+  const presence = usePresence(settingsView.isOpen ? true : null);
 
   const onPickSection = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
@@ -148,7 +150,7 @@ export function SettingsPage() {
     [setSection]
   );
 
-  if (!settingsView.isOpen) {
+  if (presence.shown === null) {
     return null;
   }
 
@@ -157,7 +159,9 @@ export function SettingsPage() {
   return (
     <section
       aria-label="Settings"
-      className="fixed inset-0 z-40 flex bg-background text-foreground"
+      className="fixed inset-0 z-40 flex animate-fade-in bg-background text-foreground transition-opacity duration-fast ease-out [animation-duration:var(--transition-duration-fast)] data-leaving:pointer-events-none data-leaving:opacity-0"
+      data-leaving={presence.isLeaving ? "" : undefined}
+      inert={presence.isLeaving || undefined}
     >
       <SectionRail
         active={section}
@@ -252,7 +256,7 @@ function SectionRail({
           <button
             aria-current={active === entry.id ? "true" : undefined}
             className={cn(
-              "flex h-8 items-center gap-2 rounded-md px-2 text-left text-sm outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/50 active:bg-accent",
+              "flex h-8 items-center gap-2 rounded-md px-2 text-left text-sm outline-none transition-colors duration-fast focus-visible:ring-2 focus-visible:ring-ring/50 active:bg-accent",
               active === entry.id
                 ? "bg-accent text-foreground"
                 : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
@@ -814,7 +818,7 @@ function UpdatesSection() {
   return (
     <>
       <Group
-        description="Releases are checked on launch and once a day; installing replaces the app and restarts it"
+        description="Releases are checked once each time the studio opens; installing replaces the app and restarts it"
         title="This build"
       >
         <div className="grid min-w-0 gap-4">
@@ -899,7 +903,7 @@ function UpdatesSection() {
                 Install and restart
               </Button>
               {hasRunningTurns && !updates.isInstalling ? (
-                <span className="text-amber-500 text-xs">
+                <span className="text-warning-foreground text-xs">
                   A turn is still running — installing restarts the app and
                   stops it.
                 </span>
@@ -932,7 +936,7 @@ function AccountsSection() {
           Recheck
         </Button>
       }
-      description="Each provider is asked with its own probe; a session can only start on one that is signed in"
+      description="Each provider is asked with its own probe; a chat can only start on one that is signed in"
       title="Providers"
     >
       <div className="flex flex-col divide-y divide-border/60">

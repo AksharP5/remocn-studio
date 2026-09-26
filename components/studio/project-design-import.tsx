@@ -3,6 +3,7 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { type ChangeEvent, useCallback, useRef, useState } from "react";
 import { useAsyncAction } from "@/hooks/use-async-action";
+import { errorMessage } from "@/lib/error-message";
 import { importProjectDesign } from "@/lib/studio/projects";
 import type { ProjectBrand } from "@/shared/brand";
 import {
@@ -59,7 +60,7 @@ export function ProjectDesignImport({
           setPending({ data, selection: initialDesignSelection(data, value) });
         }
       } catch (cause) {
-        setLocalError(String(cause));
+        setLocalError(errorMessage(cause));
       } finally {
         busy.current = false;
         setLoading(false);

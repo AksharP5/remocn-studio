@@ -42,7 +42,7 @@ export function SoundResultView({
   return (
     <section
       aria-label={`Generated ${result.request.kind === "music" ? "music" : "sound"}: ${asset.name}`}
-      className="my-1 min-w-0 rounded-2xl bg-card p-4 text-card-foreground shadow-sm ring-1 ring-border/60"
+      className="my-1 min-w-0 rounded-xl bg-card p-4 text-card-foreground ring-1 ring-border/60"
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <p className="flex items-center gap-1.5 font-medium text-foreground text-xs">

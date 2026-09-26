@@ -28,7 +28,7 @@ export function renderExport(
 const STAGE_LABELS: Record<string, string> = {
   finalizing: "Writing the file…",
   preparing: "Taking a copy of the compiled project…",
-  rendering: "Measuring the composition…",
+  rendering: "Measuring the video…",
 };
 
 const STAGE_BRIEFS: Record<string, string> = {
@@ -55,7 +55,7 @@ export function exportStatus(event: ExportEvent | null): string | null {
   }
 
   if (event.total === 0) {
-    return "Measuring the composition…";
+    return "Measuring the video…";
   }
 
   if (event.rendered < event.total) {

@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import type { Asset } from "@/shared/library";
 import { AssetGrid } from "./asset-grid";
 import { AssetSearchField, NothingFound, OVER_TILES } from "./assets-pane";
+import { FailureText } from "./failure-text";
 import { PaneScreen } from "./pane-screen";
 
 const PLACEHOLDERS = ["one", "two", "three"];
@@ -123,7 +124,13 @@ function ComponentsBody({
           <EmptyTitle className="text-balance">
             The library is unavailable
           </EmptyTitle>
-          <EmptyDescription className="break-words">{error}</EmptyDescription>
+          <EmptyDescription>
+            <FailureText
+              align="center"
+              fallback="Something went wrong while reading the library."
+              text={error}
+            />
+          </EmptyDescription>
         </EmptyHeader>
         <Button onClick={onRetry} size="sm" variant="outline">
           Try again
@@ -150,7 +157,7 @@ function ComponentsBody({
         <EmptyHeader>
           <EmptyTitle className="text-base">No components yet</EmptyTitle>
           <EmptyDescription className="text-pretty">
-            Ask Claude to save an animation or a scene you like, and it will
+            Ask the agent to save an animation or a scene you like, and it will
             land here, ready to drop into any other video.
           </EmptyDescription>
         </EmptyHeader>

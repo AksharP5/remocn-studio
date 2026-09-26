@@ -311,7 +311,7 @@ function Picking({
       </p>
       {catalogue.map((provider) => (
         <button
-          className="group flex min-w-0 cursor-pointer items-center gap-3 rounded-xl border border-border/60 bg-muted/30 p-4 text-start text-sm transition-colors duration-150 hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 active:bg-accent"
+          className="group flex min-w-0 cursor-pointer items-center gap-3 rounded-xl border border-border/60 bg-muted/30 p-4 text-start text-sm transition-colors duration-fast hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 active:bg-accent"
           key={provider.id}
           onClick={onPick}
           type="button"

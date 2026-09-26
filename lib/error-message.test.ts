@@ -16,6 +16,12 @@ describe("errorMessage", () => {
     );
   });
 
+  it("reads the message of an error that is not an Error", () => {
+    expect(errorMessage({ _tag: "SidecarError", message: "no project" })).toBe(
+      "no project"
+    );
+  });
+
   it("survives values JSON cannot represent", () => {
     expect(errorMessage(undefined)).toBe("undefined");
   });

@@ -4,18 +4,22 @@ import { LibraryBigIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { AssetOffer } from "@/hooks/use-asset-offer";
+import { usePresence } from "@/hooks/use-presence";
 import { MediaRow } from "./media-row";
 import { AboveComposer, NoticeCard } from "./notice-card";
 
-export function AssetOfferCard({ offer }: { offer: AssetOffer }) {
-  if (offer.items.length === 0) {
+export function AssetOfferCard({ offer: current }: { offer: AssetOffer }) {
+  const presence = usePresence(current.items.length === 0 ? null : current);
+  const offer = presence.shown;
+
+  if (offer === null) {
     return null;
   }
 
   const count = offer.items.length;
 
   return (
-    <AboveComposer>
+    <AboveComposer isLeaving={presence.isLeaving}>
       <NoticeCard>
         <div className="flex items-center gap-2">
           <LibraryBigIcon

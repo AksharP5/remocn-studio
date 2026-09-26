@@ -1,11 +1,11 @@
 ## 1. Quick wins
 
-- [ ] 1.1 `--font-mono` resolves to Geist Mono instead of referring to itself (`app/globals.css:206`)
-- [ ] 1.2 No "session" or "composition" in user-facing text: chat header, delete toast, model menu, permission card, settings, update status, export stages, environment rows, the recorder's fallback title; the updates copy stops promising a daily check; the animated badge tells the truth for keyframed keys
+- [x] 1.1 `--font-mono` resolves to Geist Mono instead of referring to itself (`app/globals.css:206`)
+- [x] 1.2 No "session" or "composition" in user-facing text: chat header, delete toast, model menu, permission card, settings, update status, export stages, environment rows, the recorder's fallback title; the updates copy stops promising a daily check; the animated badge tells the truth for keyframed keys
 - [x] 1.3 The splash's 50 ms tick re-renders only the splash, not the shell
 - [x] 1.4 fast-check is aliased out of the client bundle
 - [x] 1.5 `lib/studio/design-review.ts` moves from zod to Effect Schema and zod leaves the webview bundle
-- [ ] 1.6 The title bar shader stops drawing while the window is unfocused
+- [x] 1.6 The title bar shader stops drawing while the window is unfocused
 
 ## 2. Webview responsiveness
 
@@ -37,23 +37,23 @@
 
 ## 4. Look and feel
 
-- [ ] 4.1 Failures read as sentences with a Details disclosure and Copy details, never `JSON.stringify` or `Error: …`
-- [ ] 4.2 Projects, videos and chats have native context menus; the webview's own menu is suppressed outside text
-- [ ] 4.3 Preview build progress shows a bar and the frame fades in
-- [ ] 4.4 Export results can be dismissed, failures retried and copied, and a long render asks before cancelling
-- [ ] 4.5 Copy names the active provider instead of always saying Claude
-- [ ] 4.6 One user-facing word for the sidecar
-- [ ] 4.7 Motion tokens for easing and duration in `@theme`, used across the studio
-- [ ] 4.8 Reduced motion covers the toast shake and bounce, the easing preview, the title bar filter and the drop zone spinner
-- [ ] 4.9 Settings, notice cards and preview status rows enter and leave with a transition
-- [ ] 4.10 Buttons use the default cursor and fade their hover background
-- [ ] 4.11 One tooltip system with shortcut hints; the Pan tool has one
-- [ ] 4.12 Status colours come from tokens and read in light mode; "running" has one look
-- [ ] 4.13 One floating-surface recipe
-- [ ] 4.14 A New Chat command with a shortcut; rows can be renamed and deleted from the keyboard
-- [ ] 4.15 Layers and docs show skeletons; the transcript skeleton looks like messages
-- [ ] 4.16 Scaffold install shows elapsed time, can be cancelled and words its failure
-- [ ] 4.17 Small things: the inspector shows the video's name, `--text-2xs` instead of arbitrary sizes, the onboarding save error uses the toast system, the window background matches the theme, consistent labels, the export dialog warns only when the file exists, the transport sliders match the seek bar
+- [x] 4.1 Failures read as sentences with a Details disclosure and Copy details, never `JSON.stringify` or `Error: …`
+- [x] 4.2 Projects, videos and chats have native context menus; the webview's own menu is suppressed outside text
+- [x] 4.3 Preview build progress shows a bar and the frame fades in
+- [x] 4.4 Export results can be dismissed, failures retried and copied, and a long render asks before cancelling
+- [x] 4.5 Copy names the active provider instead of always saying Claude
+- [x] 4.6 One user-facing word for the sidecar
+- [x] 4.7 Motion tokens for easing and duration in `@theme`, used across the studio
+- [x] 4.8 Reduced motion covers the toast shake and bounce, the easing preview, the title bar filter and the drop zone spinner
+- [x] 4.9 Settings, notice cards and preview status rows enter and leave with a transition
+- [x] 4.10 Buttons use the default cursor and fade their hover background
+- [x] 4.11 One tooltip system with shortcut hints; the Pan tool has one
+- [x] 4.12 Status colours come from tokens and read in light mode; "running" has one look
+- [x] 4.13 One floating-surface recipe
+- [x] 4.14 A New Chat command with a shortcut; rows can be renamed and deleted from the keyboard
+- [x] 4.15 Layers and docs show skeletons; the transcript skeleton looks like messages
+- [x] 4.16 Scaffold install shows elapsed time, can be cancelled and words its failure
+- [x] 4.17 Small things: the inspector shows the video's name, `--text-2xs` instead of arbitrary sizes, the onboarding save error uses the toast system, the window background matches the theme, consistent labels, the export dialog warns only when the file exists, the transport sliders match the seek bar
 
 ## 5. Bundle and memory
 
@@ -64,7 +64,7 @@
 
 ## 6. Splash
 
-- [ ] 6.1 The splash minimum is shortened to the length of its draw, with the delta spec for `shell/startup`
+- [x] 6.1 The splash minimum is shortened to the length of its draw, with the delta spec for `shell/startup`
 
 ## 7. Verification
 

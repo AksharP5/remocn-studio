@@ -19,6 +19,7 @@ import {
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Tooltip,
   TooltipContent,
@@ -40,12 +41,14 @@ import type { StudioSettings } from "@/lib/studio/settings";
 import { currentTasks } from "@/lib/studio/tasks";
 import { cn } from "@/lib/utils";
 import type { HistorySession, Project } from "@/shared/ipc";
+import { PROVIDER_INFO } from "@/shared/providers";
 import { AssetOfferCard } from "./asset-offer-card";
 import { AssetSourceCard } from "./asset-source-card";
 import { ChatResult } from "./chat-result";
 import { Composer } from "./composer";
 import { DockStack } from "./dock";
 import { EnvironmentChecklist } from "./environment-checklist";
+import { FailureText } from "./failure-text";
 import { LogoMark } from "./logo-mark";
 import { MarkdownProvider } from "./markdown";
 import { NewProjectWizard } from "./new-project-wizard";
@@ -63,7 +66,12 @@ import { TemplateList } from "./template-list";
 import { Transcript } from "./transcript";
 import { WriteFailureCard } from "./write-failure-card";
 
-const PLACEHOLDERS = ["one", "two", "three"];
+const PLACEHOLDERS = [
+  { id: "ask", lines: ["w-3/5"], role: "user" },
+  { id: "answer", lines: ["w-full", "w-11/12", "w-2/3"], role: "assistant" },
+  { id: "follow-up", lines: ["w-2/5"], role: "user" },
+  { id: "reply", lines: ["w-10/12", "w-1/2"], role: "assistant" },
+] as const;
 const TICK = "1 second";
 
 export function ChatPane() {
@@ -95,7 +103,7 @@ export function ChatPane() {
     <Pane>
       <PaneHeader
         className={cn(
-          "transition-[padding] duration-250 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none",
+          "transition-[padding] duration-base ease-out motion-reduce:transition-none",
           isProjectsShown ? undefined : "pl-(--titlebar-inline-inset)"
         )}
         data-tauri-drag-region
@@ -108,7 +116,7 @@ export function ChatPane() {
         >
           <div
             className={cn(
-              "flex shrink-0 items-center overflow-hidden transition-[width,margin,opacity,scale] duration-250 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none",
+              "flex shrink-0 items-center overflow-hidden transition-[width,margin,opacity,scale] duration-base ease-out motion-reduce:transition-none",
               isProjectsShown
                 ? "-mr-1 w-0 scale-75 opacity-0"
                 : "mr-0 w-8 scale-100 opacity-100 sm:w-7"
@@ -180,16 +188,35 @@ function titleOf(
   if (project === null) {
     return "Chat";
   }
-  return session?.title ?? "New session";
+  return session?.title ?? "New chat";
 }
 
 function LoadingTranscript() {
   return (
     <PaneBody>
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 py-6">
-        {PLACEHOLDERS.map((placeholder) => (
-          <Skeleton className="h-16 w-full rounded-xl" key={placeholder} />
-        ))}
+      <div
+        aria-busy="true"
+        aria-label="Loading the chat"
+        className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-6"
+        role="status"
+      >
+        {PLACEHOLDERS.map((placeholder) =>
+          placeholder.role === "user" ? (
+            <Skeleton
+              className={cn("ml-auto h-9 rounded-xl", placeholder.lines[0])}
+              key={placeholder.id}
+            />
+          ) : (
+            <div className="flex flex-col gap-2" key={placeholder.id}>
+              {placeholder.lines.map((width) => (
+                <Skeleton
+                  className={cn("h-3.5 rounded-sm", width)}
+                  key={width}
+                />
+              ))}
+            </div>
+          )
+        )}
       </div>
     </PaneBody>
   );
@@ -346,6 +373,7 @@ function Conversation({
             {turn.writes.card === null ? null : (
               <AboveComposer>
                 <WriteFailureCard
+                  agent={PROVIDER_INFO[turn.provider].name}
                   failure={turn.writes.card}
                   onAnswer={turn.writes.answer}
                 />
@@ -450,7 +478,15 @@ function ConversationBody({
   }
 
   if (isLoadingProjects) {
-    return null;
+    return (
+      <div
+        className="m-auto flex animate-fade-in items-center gap-2 text-muted-foreground text-sm"
+        role="status"
+      >
+        <Spinner className="size-3.5" />
+        Reading your projects…
+      </div>
+    );
   }
 
   // A list that failed is not a list that is empty. Onboarding here told a
@@ -483,8 +519,12 @@ function ProjectsFailed({
         <EmptyTitle className="text-balance text-2xl">
           The project list could not be read
         </EmptyTitle>
-        <EmptyDescription className="break-words" role="alert">
-          {message}
+        <EmptyDescription>
+          <FailureText
+            fallback="Something went wrong while reading it."
+            role="alert"
+            text={message}
+          />
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent className="items-start">

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { Onboarding } from "@/hooks/use-onboarding";
 import { useOnboardingStill } from "@/hooks/use-onboarding-still";
+import { useSaveErrorToast } from "@/hooks/use-save-error-toast";
 import {
   ONBOARDING_CHAPTERS,
   type OnboardingChapter,
@@ -19,10 +20,10 @@ import { LogoMark } from "./logo-mark";
 import { useStudio } from "./studio-provider";
 
 const ENTER =
-  "motion-reduce:translate-none motion-reduce:starting:translate-none duration-300 ease-[cubic-bezier(0.19,1,0.22,1)] group-data-[motion=backward]/onboarding:starting:opacity-0 group-data-[motion=forward]/onboarding:starting:opacity-0 group-data-[motion=backward]/onboarding:transition-[opacity,translate] group-data-[motion=forward]/onboarding:transition-[opacity,translate] motion-safe:group-data-[motion=backward]/onboarding:starting:-translate-x-3 motion-safe:group-data-[motion=forward]/onboarding:starting:translate-x-3 motion-reduce:transition-opacity";
+  "motion-reduce:translate-none motion-reduce:starting:translate-none duration-base ease-out group-data-[motion=backward]/onboarding:starting:opacity-0 group-data-[motion=forward]/onboarding:starting:opacity-0 group-data-[motion=backward]/onboarding:transition-[opacity,translate] group-data-[motion=forward]/onboarding:transition-[opacity,translate] motion-safe:group-data-[motion=backward]/onboarding:starting:-translate-x-3 motion-safe:group-data-[motion=forward]/onboarding:starting:translate-x-3 motion-reduce:transition-opacity";
 
 const DEAL =
-  "absolute inset-0 transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] starting:translate-y-4 starting:opacity-0 group-data-[motion=instant]/onboarding:transition-none motion-reduce:starting:translate-y-0";
+  "absolute inset-0 transition-[opacity,translate] duration-base ease-out starting:translate-y-4 starting:opacity-0 group-data-[motion=instant]/onboarding:transition-none motion-reduce:starting:translate-y-0";
 
 function step(position: number) {
   return String(position + 1).padStart(2, "0");
@@ -45,115 +46,95 @@ export function OnboardingOverview({
   suspended?: boolean;
 }) {
   const { chapter, index, onCover } = onboarding;
+  useSaveErrorToast(onboarding.saveError, onboarding.retrySave);
   const shown = onboarding.isOpen && !suspended;
   const last = index === ONBOARDING_CHAPTERS.length - 1;
   return (
-    <>
-      <Dialog
-        disablePointerDismissal
-        onOpenChange={onboarding.onOpenChange}
-        open={shown}
+    <Dialog
+      disablePointerDismissal
+      onOpenChange={onboarding.onOpenChange}
+      open={shown}
+    >
+      <DialogContent
+        aria-describedby={undefined}
+        bottomStickOnMobile={false}
+        className="group/onboarding row-span-3 row-start-1 max-h-[calc(100dvh-2rem)] w-[min(68rem,calc(100vw-2rem))] max-w-none self-center overflow-hidden duration-base ease-out data-[motion=instant]:transition-none data-ending-style:duration-fast motion-reduce:transition-opacity motion-reduce:duration-fast motion-reduce:sm:data-ending-style:scale-100 motion-reduce:sm:data-starting-style:scale-100"
+        closeProps={{
+          className: "absolute top-3 end-3 z-20 size-11 sm:size-10",
+        }}
+        data-motion={onboarding.motion}
+        onKeyDownCapture={onboarding.onKeyDownCapture}
       >
-        <DialogContent
-          aria-describedby={undefined}
-          bottomStickOnMobile={false}
-          className="group/onboarding row-span-3 row-start-1 max-h-[calc(100dvh-2rem)] w-[min(68rem,calc(100vw-2rem))] max-w-none self-center overflow-hidden duration-240 ease-[cubic-bezier(0.19,1,0.22,1)] data-[motion=instant]:transition-none data-ending-style:duration-150 motion-reduce:transition-opacity motion-reduce:duration-150 motion-reduce:sm:data-ending-style:scale-100 motion-reduce:sm:data-starting-style:scale-100"
-          closeProps={{
-            className: "absolute top-3 end-3 z-20 size-11 sm:size-10",
-          }}
-          data-motion={onboarding.motion}
-          onKeyDownCapture={onboarding.onKeyDownCapture}
-        >
-          <DialogTitle className="sr-only">Explore Studio</DialogTitle>
-          <div className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:none]">
-            {shown && onCover ? <Cover /> : null}
-            {shown && !onCover ? (
-              <Chapter chapter={chapter} index={index} key={chapter.id} />
-            ) : null}
-          </div>
-          <footer className="relative flex shrink-0 items-center justify-between gap-4 border-t bg-popover px-3 py-2 sm:px-4">
-            <nav aria-label="Studio features" className="flex items-center">
-              {ONBOARDING_CHAPTERS.map((item, position) => (
-                <button
-                  aria-current={
-                    !onCover && item.id === chapter.id ? "step" : undefined
-                  }
-                  aria-label={`${step(position)} ${item.label}`}
-                  className="group/segment flex h-11 w-8 items-center px-1 outline-none focus-visible:ring-2 focus-visible:ring-foreground/50 focus-visible:ring-inset sm:w-10"
-                  key={item.id}
-                  onClick={onboarding.onChapterClick}
-                  title={item.label}
-                  type="button"
-                  value={item.id}
-                >
-                  <span
-                    className={cn(
-                      "h-1 w-full rounded-full transition-colors duration-200",
-                      !onCover && position === index && "bg-foreground",
-                      !onCover &&
-                        position < index &&
-                        "bg-foreground/45 group-hover/segment:bg-foreground/70",
-                      (onCover || position > index) &&
-                        "bg-foreground/15 group-hover/segment:bg-foreground/40"
-                    )}
-                  />
-                </button>
-              ))}
-            </nav>
-            <div className="flex items-center gap-2">
-              <Button
-                className="h-11 sm:h-10"
-                onClick={onboarding.close}
-                size="sm"
-                variant="ghost"
-              >
-                Skip
-              </Button>
-              {onCover ? null : (
-                <Button
-                  aria-label="Previous chapter"
-                  className="size-11 sm:size-10"
-                  onClick={onboarding.previous}
-                  size="icon-sm"
-                  variant="outline"
-                >
-                  <ArrowLeftIcon />
-                </Button>
-              )}
-              <Button
-                className="h-11 sm:h-10"
-                onClick={onCover ? onboarding.start : onboarding.next}
-                size="sm"
-              >
-                {onCover ? "Take the tour" : null}
-                {!onCover && last ? "Done" : null}
-                {onCover || last ? null : "Next"}
-                {!onCover && last ? <CheckIcon /> : <ArrowRightIcon />}
-              </Button>
-            </div>
-          </footer>
-          {onboarding.saveError ? <SaveNotice onboarding={onboarding} /> : null}
-        </DialogContent>
-      </Dialog>
-      {onboarding.saveError && !onboarding.isOpen ? (
-        <div className="fixed right-4 bottom-4 z-50 max-w-sm rounded-xl border bg-popover shadow-lg">
-          <SaveNotice onboarding={onboarding} />
+        <DialogTitle className="sr-only">Explore Studio</DialogTitle>
+        <div className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:none]">
+          {shown && onCover ? <Cover /> : null}
+          {shown && !onCover ? (
+            <Chapter chapter={chapter} index={index} key={chapter.id} />
+          ) : null}
         </div>
-      ) : null}
-    </>
-  );
-}
-
-function SaveNotice({ onboarding }: { onboarding: Onboarding }) {
-  return (
-    <div className="flex items-center gap-3 border-t px-4 py-2" role="alert">
-      <p className="text-sm">
-        Your place couldn't be saved. The overview may return next time.
-      </p>
-      <Button onClick={onboarding.retrySave} size="sm" variant="outline">
-        Retry
-      </Button>
-    </div>
+        <footer className="relative flex shrink-0 items-center justify-between gap-4 border-t bg-popover px-3 py-2 sm:px-4">
+          <nav aria-label="Studio features" className="flex items-center">
+            {ONBOARDING_CHAPTERS.map((item, position) => (
+              <button
+                aria-current={
+                  !onCover && item.id === chapter.id ? "step" : undefined
+                }
+                aria-label={`${step(position)} ${item.label}`}
+                className="group/segment flex h-11 w-8 items-center px-1 outline-none focus-visible:ring-2 focus-visible:ring-foreground/50 focus-visible:ring-inset sm:w-10"
+                key={item.id}
+                onClick={onboarding.onChapterClick}
+                title={item.label}
+                type="button"
+                value={item.id}
+              >
+                <span
+                  className={cn(
+                    "h-1 w-full rounded-full transition-colors duration-fast",
+                    !onCover && position === index && "bg-foreground",
+                    !onCover &&
+                      position < index &&
+                      "bg-foreground/45 group-hover/segment:bg-foreground/70",
+                    (onCover || position > index) &&
+                      "bg-foreground/15 group-hover/segment:bg-foreground/40"
+                  )}
+                />
+              </button>
+            ))}
+          </nav>
+          <div className="flex items-center gap-2">
+            <Button
+              className="h-11 sm:h-10"
+              onClick={onboarding.close}
+              size="sm"
+              variant="ghost"
+            >
+              Skip
+            </Button>
+            {onCover ? null : (
+              <Button
+                aria-label="Previous chapter"
+                className="size-11 sm:size-10"
+                onClick={onboarding.previous}
+                size="icon-sm"
+                variant="outline"
+              >
+                <ArrowLeftIcon />
+              </Button>
+            )}
+            <Button
+              className="h-11 sm:h-10"
+              onClick={onCover ? onboarding.start : onboarding.next}
+              size="sm"
+            >
+              {onCover ? "Take the tour" : null}
+              {!onCover && last ? "Done" : null}
+              {onCover || last ? null : "Next"}
+              {!onCover && last ? <CheckIcon /> : <ArrowRightIcon />}
+            </Button>
+          </div>
+        </footer>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -272,7 +253,7 @@ export function ChapterStill({ chapter }: { chapter: OnboardingChapter }) {
         >
           <p className="text-sm">This picture couldn’t load.</p>
           <Button onClick={still.retry} size="sm" variant="secondary">
-            <RotateCcwIcon /> Retry
+            <RotateCcwIcon /> Try again
           </Button>
         </div>
       ) : null}

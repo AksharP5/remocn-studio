@@ -89,7 +89,7 @@ function CommentCard({
 
   return (
     <div
-      className="pointer-events-auto absolute flex flex-col gap-2 rounded-xl border bg-popover p-2 shadow-lg"
+      className="surface-floating pointer-events-auto absolute flex flex-col gap-2 p-2"
       data-canvas-chrome
       style={{
         left: `${placement.x}px`,
@@ -125,7 +125,7 @@ function CommentCard({
           className="text-muted-foreground"
           onClick={comment.keep}
           size="xs"
-          title="Ask Claude to put this in the asset library"
+          title="Ask the agent to put this in the asset library"
           variant="ghost"
         >
           <LibraryBigIcon />

@@ -4,21 +4,22 @@ import {
   CheckIcon,
   CircleCheckIcon,
   CircleDashedIcon,
-  CircleDotDashedIcon,
   type LucideIcon,
 } from "lucide-react";
+import { DotmSquare1 } from "@/components/ui/dotm-square-1";
 import type { TaskGlyph } from "@/lib/studio/tasks";
 import { cn } from "@/lib/utils";
 
-const ICONS: Record<Exclude<TaskGlyph, "finished">, LucideIcon> = {
+const ICONS: Record<
+  Exclude<TaskGlyph, "finished" | "in_progress">,
+  LucideIcon
+> = {
   completed: CircleCheckIcon,
-  in_progress: CircleDotDashedIcon,
   pending: CircleDashedIcon,
 };
 
-const STATES: Record<Exclude<TaskGlyph, "finished">, string> = {
+const STATES: Record<Exclude<TaskGlyph, "finished" | "in_progress">, string> = {
   completed: "text-muted-foreground",
-  in_progress: "animate-pulse text-amber-500",
   pending: "text-muted-foreground/60",
 };
 
@@ -44,15 +45,27 @@ export function TaskStatusIcon({
       <span
         aria-label={LABELS.finished}
         className={cn(
-          "inline-flex size-4 shrink-0 items-center justify-center rounded-full border border-emerald-500/50 border-dashed",
+          "inline-flex size-4 shrink-0 items-center justify-center rounded-full border border-success/50 border-dashed",
           className
         )}
         role="img"
       >
-        <span className="flex size-2.5 items-center justify-center rounded-full bg-emerald-500">
+        <span className="flex size-2.5 items-center justify-center rounded-full bg-success">
           <CheckIcon className="size-1.5 text-background" strokeWidth={4} />
         </span>
       </span>
+    );
+  }
+
+  if (glyph === "in_progress") {
+    return (
+      <DotmSquare1
+        ariaLabel={LABELS.in_progress}
+        className={cn("size-4 shrink-0 text-foreground", className)}
+        dotSize={2}
+        role="img"
+        size={16}
+      />
     );
   }
 

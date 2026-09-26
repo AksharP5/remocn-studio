@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useIsWindowFocused } from "./use-is-window-focused";
 
 export interface ShaderBackdrop {
   isReady: boolean;
@@ -14,6 +15,7 @@ interface Support {
 
 export function useShaderBackdrop(speed: number): ShaderBackdrop {
   const [support, setSupport] = useState<Support | null>(null);
+  const isFocused = useIsWindowFocused();
 
   useEffect(() => {
     setSupport(probe());
@@ -21,7 +23,7 @@ export function useShaderBackdrop(speed: number): ShaderBackdrop {
 
   return {
     isReady: support?.hasWebgl ?? false,
-    speed: support?.isStill === true ? 0 : speed,
+    speed: support?.isStill === true || !isFocused ? 0 : speed,
   };
 }
 

@@ -32,18 +32,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useVideoMenu, type VideoCommands } from "@/hooks/use-video-menu";
+import type { VideoMenu as Menu } from "@/hooks/use-video-menu";
 import type { Video } from "@/shared/ipc";
 
-export function VideoMenu({
-  commands,
-  video,
-}: {
-  commands: VideoCommands;
-  video: Video;
-}) {
-  const menu = useVideoMenu(video, commands);
-
+export function VideoMenu({ menu, video }: { menu: Menu; video: Video }) {
   return (
     <>
       <DropdownMenu>

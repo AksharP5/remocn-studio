@@ -182,7 +182,8 @@ export function ExportDialog({
               </div>
             </div>
             <p className="text-pretty text-muted-foreground text-xs">
-              An existing file with this name will be replaced.
+              If a file with this name is already there, it is replaced once the
+              render finishes.
             </p>
           </section>
 

@@ -62,7 +62,7 @@ const ICONS: ReadonlyMap<string, LucideIcon> = new Map<string, LucideIcon>([
 const STATES: Record<ActivityState, string> = {
   done: "text-muted-foreground",
   failed: "text-destructive",
-  running: "animate-pulse text-amber-500",
+  running: "animate-pulse text-foreground",
 };
 
 export function ActivityIcon({

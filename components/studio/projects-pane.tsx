@@ -42,11 +42,13 @@ import type { ScaffoldState } from "@/hooks/use-scaffold";
 import type { VideoCommands } from "@/hooks/use-video-menu";
 import { type PaneGroup, paneSections } from "@/lib/studio/groups";
 import { isPaneView, type PaneView } from "@/lib/studio/pane-view";
+import { runningTime } from "@/lib/studio/time";
 import { cn } from "@/lib/utils";
 import { isMediaAsset } from "@/shared/library";
 import { AssetsPane } from "./assets-pane";
 import { AssetsScopeSwitch } from "./assets-scope";
 import { ComponentsPane } from "./components-pane";
+import { FailureDetails, FailureText } from "./failure-text";
 import { LogoWordmark } from "./logo-mark";
 import { PaneScreen } from "./pane-screen";
 import { StockPane } from "./stock-pane";
@@ -90,6 +92,7 @@ export function ProjectsPane() {
     newVideo,
     onNewSession,
     onOpenVideo,
+    onCancelScaffold,
     onRemoveSession,
     onRetryScaffold,
     onSelectSession,
@@ -147,6 +150,7 @@ export function ProjectsPane() {
       <h2 className="sr-only">Videos</h2>
       {activeProject === null ? null : (
         <Scaffolding
+          onCancel={onCancelScaffold}
           onRetry={onRetryScaffold}
           projectId={activeProject.id}
           scaffold={scaffolds.get(activeProject.id)}
@@ -388,7 +392,7 @@ function NewVideoAction({
         variant="default"
       >
         <PlusIcon data-icon="inline-start" />
-        New video
+        New Video…
       </Button>
     </div>
   );
@@ -432,7 +436,13 @@ function VideosBody({
           <EmptyTitle className="text-balance">
             History is unavailable
           </EmptyTitle>
-          <EmptyDescription className="break-words">{error}</EmptyDescription>
+          <EmptyDescription>
+            <FailureText
+              align="center"
+              fallback="Something went wrong while reading the history."
+              text={error}
+            />
+          </EmptyDescription>
         </EmptyHeader>
         <Button onClick={onRetry} size="sm" variant="outline">
           Try again
@@ -521,14 +531,21 @@ const FAILED: Record<ScaffoldState["step"], string> = {
   template: "Could not copy the template.",
 };
 
+const CANCELLED: Record<ScaffoldState["step"], string> = {
+  install: "The install was cancelled.",
+  template: "Setting up the project was cancelled.",
+};
+
 // Scaffolding belongs to the project, so it reports under the switcher rather
 // than on a video: the template and the install are what the whole folder is
 // waiting for, not one composition in it.
 function Scaffolding({
+  onCancel,
   onRetry,
   projectId,
   scaffold,
 }: {
+  onCancel: (event: MouseEvent<HTMLButtonElement>) => void;
   onRetry: (event: MouseEvent<HTMLButtonElement>) => void;
   projectId: string;
   scaffold: ScaffoldState | undefined;
@@ -539,20 +556,27 @@ function Scaffolding({
 
   if (scaffold.isRunning) {
     return (
-      <p className="flex items-center gap-2 px-3 py-1 text-muted-foreground text-xs">
-        <Spinner className="size-3" />
-        {DOING[scaffold.step]}
-      </p>
+      <ScaffoldRunning
+        onCancel={onCancel}
+        projectId={projectId}
+        scaffold={scaffold}
+      />
     );
   }
 
   return (
-    <div className="flex flex-col gap-1 px-3 py-1">
-      <p className="text-destructive text-xs">{FAILED[scaffold.step]}</p>
+    <div className="flex animate-fade-in flex-col gap-1.5 px-3 py-1">
+      <p
+        className={cn(
+          "text-xs",
+          scaffold.cancelled ? "text-muted-foreground" : "text-destructive"
+        )}
+        role={scaffold.cancelled ? "status" : "alert"}
+      >
+        {scaffold.cancelled ? CANCELLED[scaffold.step] : FAILED[scaffold.step]}
+      </p>
       {scaffold.error === null ? null : (
-        <p className="line-clamp-3 break-all font-mono text-2xs text-muted-foreground">
-          {scaffold.error}
-        </p>
+        <FailureDetails details={scaffold.error} />
       )}
       <Button
         className="self-start text-xs"
@@ -561,7 +585,41 @@ function Scaffolding({
         value={projectId}
         variant="outline"
       >
-        Retry
+        Try again
+      </Button>
+    </div>
+  );
+}
+
+function ScaffoldRunning({
+  onCancel,
+  projectId,
+  scaffold,
+}: {
+  onCancel: (event: MouseEvent<HTMLButtonElement>) => void;
+  projectId: string;
+  scaffold: ScaffoldState;
+}) {
+  const now = useNow("1 second");
+
+  return (
+    <div
+      className="flex animate-fade-in items-center gap-2 px-3 py-1 text-muted-foreground text-xs"
+      role="status"
+    >
+      <Spinner className="size-3 shrink-0" />
+      <span className="min-w-0 flex-1 truncate">{DOING[scaffold.step]}</span>
+      <span className="shrink-0 tabular-nums">
+        {runningTime(scaffold.startedAt, now)}
+      </span>
+      <Button
+        className="-my-1 shrink-0 text-xs"
+        onClick={onCancel}
+        size="xs"
+        value={projectId}
+        variant="ghost"
+      >
+        Cancel
       </Button>
     </div>
   );

@@ -69,7 +69,7 @@ const StillChatPane = memo(ChatPane);
 const StillPreviewPane = memo(PreviewPane);
 
 const PANE_SLIDE =
-  "transition-[flex-grow] duration-250 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none";
+  "transition-[flex-grow] duration-base ease-out motion-reduce:transition-none";
 
 /* The preview holds the compiled bundle in an iframe, and an iframe that
    changes size every frame of a pane slide is a cross-document layout plus
@@ -137,7 +137,7 @@ function ShellPanes({
 
       <ResizableHandle
         className={cn(
-          "studio-boot-transition bg-pane-border transition-opacity duration-250",
+          "studio-boot-transition bg-pane-border transition-opacity duration-base",
           isPreviewShown ? "opacity-100" : "opacity-0"
         )}
         disabled={!isPreviewShown}
@@ -192,7 +192,7 @@ function ShellLayout({ isBooting }: { isBooting: boolean }) {
 
       <div
         className={cn(
-          "studio-boot-transition relative z-10 grid min-h-0 flex-1 transition-[grid-template-columns] duration-250 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none",
+          "studio-boot-transition relative z-10 grid min-h-0 flex-1 transition-[grid-template-columns] duration-base ease-out motion-reduce:transition-none",
           collapse.isExpanded
             ? "grid-cols-[18rem_minmax(0,1fr)]"
             : "grid-cols-[0rem_minmax(0,1fr)]"
@@ -214,7 +214,7 @@ function ShellLayout({ isBooting }: { isBooting: boolean }) {
 
         <div
           className={cn(
-            "studio-boot-transition relative my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-xl border border-pane-border bg-background transition-[margin] duration-250 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none",
+            "studio-boot-transition relative my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-xl border border-pane-border bg-background transition-[margin] duration-base ease-out motion-reduce:transition-none",
             isProjectsShown ? "ml-0" : "ml-2"
           )}
         >
@@ -233,7 +233,7 @@ function ShowPreviewButton() {
     <div
       aria-hidden={isPreviewShown}
       className={cn(
-        "studio-boot-transition absolute top-0 right-2 flex h-10 items-center transition-opacity duration-150 ease-out",
+        "studio-boot-transition absolute top-0 right-2 flex h-10 items-center transition-opacity duration-fast ease-out",
         isPreviewShown ? "pointer-events-none opacity-0" : "opacity-100"
       )}
       inert={isPreviewShown}

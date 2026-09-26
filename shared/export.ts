@@ -409,7 +409,7 @@ export function reviewExport(
   const warnings: string[] = [];
 
   if (!(size.width > 0 && size.height > 0)) {
-    problems.push("The composition has no measured size yet.");
+    problems.push("The video has no measured size yet.");
   } else if (scale > MAX_SCALE) {
     problems.push(
       `${RESOLUTION_LABELS[settings.resolution]} is more than ${MAX_SCALE}× this video, which the renderer refuses.`

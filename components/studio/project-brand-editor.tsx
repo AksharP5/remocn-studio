@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAsyncAction } from "@/hooks/use-async-action";
+import { errorMessage } from "@/lib/error-message";
 import { addBrandFile, importGoogleFont } from "@/lib/studio/projects";
 import { type BrandFile, emptyBrand, type ProjectBrand } from "@/shared/brand";
 import { DialKitSurface } from "./dialkit-surface";
@@ -202,7 +203,7 @@ export function ProjectBrandEditor({
         update({ typography: { ...brand.typography, [role]: next } });
         setFileError(null);
       } catch (cause) {
-        setFileError(String(cause));
+        setFileError(errorMessage(cause));
       } finally {
         setLoading(false);
       }
