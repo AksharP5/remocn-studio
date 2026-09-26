@@ -2,14 +2,7 @@
 
 import type { Dialog } from "@base-ui/react/dialog";
 import { Effect } from "effect";
-import {
-  type ChangeEvent,
-  type MouseEvent,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type MouseEvent, useCallback, useMemo, useRef, useState } from "react";
 import {
   ONBOARDING_CHAPTERS,
   type OnboardingProgress,
@@ -34,6 +27,7 @@ export function useOnboarding({
 }: OnboardingInputs) {
   const [draft, setDraft] = useState<OnboardingProgress | null>(null);
   const [manual, setManual] = useState(false);
+  const [onCover, setOnCover] = useState(true);
   const [motion, setMotion] = useState<
     "idle" | "instant" | "forward" | "backward"
   >("idle");
@@ -74,6 +68,7 @@ export function useOnboarding({
   }, []);
   const open = useCallback((event?: MouseEvent<HTMLButtonElement>) => {
     setMotion(event && event.detail > 0 ? "idle" : "instant");
+    setOnCover(false);
     setManual(true);
   }, []);
   const onKeyDownCapture = useCallback(() => setMotion("instant"), []);
@@ -84,6 +79,10 @@ export function useOnboarding({
   const select = useCallback(
     (id: string, animate = false) => {
       const selected = onboardingChapter(id);
+      if (onCover) {
+        setMotion(animate ? "forward" : "instant");
+        setOnCover(false);
+      }
       if (selected.id === chapter.id) {
         return;
       }
@@ -92,24 +91,30 @@ export function useOnboarding({
       setMotion(animate ? direction : "instant");
       persist({ ...progress, chapter: selected.id });
     },
-    [chapter.id, index, persist, progress]
+    [chapter.id, index, onCover, persist, progress]
   );
   const onChapterClick = useCallback(
     (event: MouseEvent<HTMLButtonElement>) =>
       select(event.currentTarget.value, event.detail > 0),
     [select]
   );
-  const onChapterChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) =>
-      select(event.currentTarget.value),
+  const start = useCallback(
+    (event?: MouseEvent<HTMLButtonElement>) =>
+      select(ONBOARDING_CHAPTERS[0].id, Boolean(event && event.detail > 0)),
     [select]
   );
   const previous = useCallback(
-    (event?: MouseEvent<HTMLButtonElement>) =>
-      select(
-        ONBOARDING_CHAPTERS[Math.max(0, index - 1)].id,
-        Boolean(event && event.detail > 0)
-      ),
+    (event?: MouseEvent<HTMLButtonElement>) => {
+      if (index === 0) {
+        setMotion(event && event.detail > 0 ? "backward" : "instant");
+        setOnCover(true);
+      } else {
+        select(
+          ONBOARDING_CHAPTERS[index - 1].id,
+          Boolean(event && event.detail > 0)
+        );
+      }
+    },
     [index, select]
   );
   const next = useCallback(
@@ -143,14 +148,15 @@ export function useOnboarding({
       isOpen,
       motion,
       next,
-      onChapterChange,
       onChapterClick,
+      onCover,
       onKeyDownCapture,
       onOpenChange,
       open,
       previous,
       retrySave,
       saveError,
+      start,
     }),
     [
       chapter,
@@ -160,13 +166,14 @@ export function useOnboarding({
       motion,
       next,
       onKeyDownCapture,
-      onChapterChange,
       onChapterClick,
+      onCover,
       onOpenChange,
       open,
       previous,
       retrySave,
       saveError,
+      start,
     ]
   );
 }

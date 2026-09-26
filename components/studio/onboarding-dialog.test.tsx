@@ -1,19 +1,9 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  mock,
-  spyOn,
-} from "bun:test";
+import { beforeEach, describe, expect, it } from "bun:test";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import { OnboardingOverview } from "./onboarding-dialog";
 
-const play = mock(() => Promise.resolve());
-const pause = mock(() => undefined);
 function Harness({ manual = false }: { manual?: boolean }) {
   const onboarding = useOnboarding({
     blocked: false,
@@ -32,28 +22,51 @@ function Harness({ manual = false }: { manual?: boolean }) {
   );
 }
 beforeEach(() => {
-  play.mockClear();
-  pause.mockClear();
-  spyOn(HTMLMediaElement.prototype, "play").mockImplementation(play);
-  spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(pause);
   mockIPC((cmd) => (cmd === "plugin:store|load" ? 1 : null));
 });
-afterEach(() => mock.restore());
+
+function still() {
+  return document.querySelector<HTMLImageElement>('img[alt$="in Studio"]');
+}
 
 describe("feature overview", () => {
-  it("renders one video, navigates freely, and stops the previous recording", async () => {
+  it("opens on the cover the first time and starts the tour from it", () => {
     render(<Harness />);
-    expect(document.querySelectorAll("video")).toHaveLength(1);
-    await waitFor(() => expect(play).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole("button", { name: "06 Export" }));
-    expect(screen.getByLabelText("Export demonstration")).toBeInTheDocument();
-    expect(document.querySelectorAll("video")).toHaveLength(1);
-    expect(document.querySelector("video")?.src).toContain(
-      "/onboarding/export.mp4"
-    );
-    expect(pause).toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    expect(
+      screen.getByRole("heading", { name: "Welcome to Remocn Studio" })
+    ).toBeInTheDocument();
+    expect(still()).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Take the tour" }));
+    expect(
+      screen.getByRole("heading", { name: "Point at anything in the frame" })
+    ).toBeInTheDocument();
+    expect(still()?.src).toContain("/onboarding/inspect.webp");
+    fireEvent.click(screen.getByRole("button", { name: "Previous chapter" }));
+    expect(
+      screen.getByRole("heading", { name: "Welcome to Remocn Studio" })
+    ).toBeInTheDocument();
+  });
+  it("skips the cover when opened from Settings", async () => {
+    render(<Harness manual />);
+    fireEvent.click(screen.getByRole("button", { name: "Explore Studio" }));
+    await screen.findByRole("dialog");
+    expect(still()?.src).toContain("/onboarding/inspect.webp");
+  });
+  it("renders one picture per chapter and navigates freely", () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("button", { name: "Take the tour" }));
+    expect(document.querySelectorAll('img[alt$="in Studio"]')).toHaveLength(1);
     expect(document.querySelector("video")).toBeNull();
+    expect(still()?.src).toContain("/onboarding/inspect.webp");
+    fireEvent.click(screen.getByRole("button", { name: "06 Export" }));
+    expect(screen.getByAltText("Export in Studio")).toBeInTheDocument();
+    expect(document.querySelectorAll('img[alt$="in Studio"]')).toHaveLength(1);
+    expect(still()?.src).toContain("/onboarding/export.webp");
+    expect(
+      screen.getByRole("heading", { name: "Ship it anywhere" })
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    expect(still()).toBeNull();
   });
   it("follows pointer navigation direction and skips motion for keyboard navigation", () => {
     render(<Harness />);
@@ -66,47 +79,29 @@ describe("feature overview", () => {
       detail: 1,
     });
     expect(dialog.getAttribute("data-motion")).toBe("backward");
-    expect(document.querySelectorAll("video")).toHaveLength(1);
-    expect(document.querySelector("video")?.src).toContain(
-      "/onboarding/snapshot.mp4"
-    );
-    expect(pause).toHaveBeenCalled();
+    expect(still()?.src).toContain("/onboarding/snapshot.webp");
     fireEvent.keyDown(dialog, { key: "Tab" });
     expect(dialog.getAttribute("data-motion")).toBe("instant");
     fireEvent.click(screen.getByRole("button", { name: "Next" }), {
       detail: 0,
     });
     expect(dialog.getAttribute("data-motion")).toBe("instant");
-    expect(document.querySelector("video")?.src).toContain(
-      "/onboarding/assets.mp4"
-    );
+    expect(still()?.src).toContain("/onboarding/assets.webp");
   });
-  it("leaves retry and chapter navigation usable when video fails", () => {
+  it("leaves retry and chapter navigation usable when the picture fails", () => {
     render(<Harness />);
-    const video = document.querySelector("video");
-    if (!video) {
-      throw new Error("video missing");
+    fireEvent.click(screen.getByRole("button", { name: "Take the tour" }));
+    const image = still();
+    if (!image) {
+      throw new Error("picture missing");
     }
-    fireEvent.error(video);
-    expect(
-      screen.getByRole("button", { name: "Retry video" })
-    ).toBeInTheDocument();
+    fireEvent.error(image);
     expect(screen.getByRole("alert")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(still()).not.toBe(image);
+    expect(still()?.src).toContain("/onboarding/inspect.webp");
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(screen.getByLabelText("Snapshot demonstration")).toBeInTheDocument();
-  });
-  it("uses a poster and manual play with reduced motion", () => {
-    spyOn(window, "matchMedia").mockReturnValue({
-      addEventListener: mock(),
-      matches: true,
-      removeEventListener: mock(),
-    } as unknown as MediaQueryList);
-    render(<Harness />);
-    expect(play).not.toHaveBeenCalled();
-    expect(document.querySelector("video")?.getAttribute("poster")).toContain(
-      "/onboarding/inspect.jpg"
-    );
-    expect(document.querySelector("video")?.controls).toBe(true);
+    expect(screen.getByAltText("Snapshot in Studio")).toBeInTheDocument();
   });
   it("closes with Escape and restores focus to the manual entry", async () => {
     render(<Harness manual />);
@@ -115,7 +110,7 @@ describe("feature overview", () => {
     fireEvent.click(trigger);
     const dialog = await screen.findByRole("dialog");
     fireEvent.keyDown(dialog, { code: "Escape", key: "Escape" });
-    await waitFor(() => expect(document.querySelector("video")).toBeNull());
+    await waitFor(() => expect(still()).toBeNull());
     await waitFor(() => expect(trigger).toHaveFocus());
   });
   it("does not dismiss on an outside press", async () => {

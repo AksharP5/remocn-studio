@@ -9,3 +9,8 @@
 ## 3. Verification
 - [x] 3.1 Add changeset and update recording guide to six chapters.
 - [x] 3.2 Run fix, typecheck, check, touched tests, full suite once and static build; verify bundled media. Record desktop-only playback/focus checks.
+
+## 4. Stills
+
+- [x] 4.1 Replace the six recordings and posters with Paper-exported WebP stills in `public/onboarding/`; update the README gallery.
+- [x] 4.2 Swap the video for a still with a load-failure retry (`use-onboarding-still`), widen the dialog; update `components/studio/onboarding-dialog.test.tsx`.
