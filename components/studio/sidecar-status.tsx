@@ -16,18 +16,21 @@ import { SidecarStreamTest } from "./sidecar-stream-test";
 type Phase = Sidecar["phase"];
 
 const LABELS: Record<Phase, string> = {
-  down: "Sidecar down",
-  ready: "Sidecar",
-  restarting: "Sidecar restarting",
-  starting: "Sidecar starting",
-  unknown: "Sidecar",
+  down: "Helper stopped",
+  ready: "Helper",
+  restarting: "Helper restarting",
+  starting: "Helper starting",
+  unknown: "Helper",
 };
 
 const DOTS: Record<Phase, string> = {
   down: "text-destructive border-destructive hover:text-destructive",
-  ready: "text-emerald-500 border-emerald-500 hover:text-emerald-500",
-  restarting: "text-amber-500 border-amber-500 hover:text-amber-500",
-  starting: "text-amber-500 border-amber-500 hover:text-amber-500",
+  ready:
+    "text-success-foreground border-success-foreground hover:text-success-foreground",
+  restarting:
+    "text-warning-foreground border-warning-foreground hover:text-warning-foreground",
+  starting:
+    "text-warning-foreground border-warning-foreground hover:text-warning-foreground",
   unknown:
     "text-muted-foreground border-muted-foreground hover:text-muted-foreground",
 };

@@ -32,7 +32,7 @@ export function DocTabs({ tabs }: { tabs: readonly DocumentTab[] }) {
           {tabs.map((tab) => (
             <TabsPrimitive.Tab
               className={cn(
-                "relative -mb-px flex h-8 shrink-0 cursor-pointer select-none items-center gap-1.5 whitespace-nowrap border-pane-border border-r border-b px-3 text-muted-foreground text-xs outline-none transition-[color,background-color] duration-150 ease-out",
+                "relative -mb-px flex h-8 shrink-0 cursor-pointer select-none items-center gap-1.5 whitespace-nowrap border-pane-border border-r border-b px-3 text-muted-foreground text-xs outline-none transition-[color,background-color] duration-fast ease-out",
                 "hover:bg-muted/40 hover:text-foreground",
                 "focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2",
                 "data-active:border-b-transparent data-active:bg-background data-active:text-foreground"

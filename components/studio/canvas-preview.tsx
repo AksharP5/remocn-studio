@@ -496,7 +496,7 @@ function LayerItem({ layers, row }: { layers: CanvasLayers; row: LayerRow }) {
         >
           <ChevronRightIcon
             className={cn(
-              "size-3.5 transition-transform duration-150 ease-out",
+              "size-3.5 transition-transform duration-fast ease-out",
               open && "rotate-90"
             )}
           />

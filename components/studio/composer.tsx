@@ -480,7 +480,7 @@ function ComposerStatus({
   if (sidecar.phase === "down") {
     return (
       <span className="flex items-center gap-1 text-destructive">
-        The sidecar is not running.
+        The studio's helper is not running.
         <Button
           className="relative h-auto p-0 text-destructive text-xs after:absolute after:-inset-2"
           onClick={sidecar.restart}
@@ -497,7 +497,7 @@ function ComposerStatus({
     return (
       <span className="flex items-center gap-2">
         <Spinner className="size-3" />
-        Starting the sidecar…
+        Starting the studio's helper…
       </span>
     );
   }

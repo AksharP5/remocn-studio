@@ -52,7 +52,7 @@ export function ExportButton({
       {brief.percent === null ? null : (
         <span
           aria-hidden="true"
-          className="absolute inset-y-0 left-0 bg-primary/15 transition-[width] duration-300 ease-out"
+          className="absolute inset-y-0 left-0 bg-primary/15 transition-[width] duration-base ease-out"
           style={{ width: `${brief.percent}%` }}
         />
       )}

@@ -116,7 +116,7 @@ export function UpdatesBody({ updates }: { updates: Updates }) {
       </div>
 
       {release !== null && hasRunningTurns && !updates.isInstalling ? (
-        <p className="text-amber-500 text-xs">
+        <p className="text-warning-foreground text-xs">
           A turn is still running — installing restarts the app and stops it.
         </p>
       ) : null}

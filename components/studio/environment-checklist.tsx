@@ -34,7 +34,7 @@ export const CHECK_TONES = {
   failed: "text-destructive",
   ok: "text-muted-foreground",
   pending: "text-muted-foreground",
-  warn: "text-amber-500",
+  warn: "text-warning-foreground",
 } satisfies Record<EnvironmentState, string>;
 
 export function EnvironmentChecklist({

@@ -42,14 +42,14 @@
 - [ ] 4.3 Preview build progress shows a bar and the frame fades in
 - [ ] 4.4 Export results can be dismissed, failures retried and copied, and a long render asks before cancelling
 - [ ] 4.5 Copy names the active provider instead of always saying Claude
-- [ ] 4.6 One user-facing word for the sidecar
-- [ ] 4.7 Motion tokens for easing and duration in `@theme`, used across the studio
-- [ ] 4.8 Reduced motion covers the toast shake and bounce, the easing preview, the title bar filter and the drop zone spinner
+- [x] 4.6 One user-facing word for the sidecar
+- [x] 4.7 Motion tokens for easing and duration in `@theme`, used across the studio
+- [x] 4.8 Reduced motion covers the toast shake and bounce, the easing preview, the title bar filter and the drop zone spinner
 - [ ] 4.9 Settings, notice cards and preview status rows enter and leave with a transition
-- [ ] 4.10 Buttons use the default cursor and fade their hover background
+- [x] 4.10 Buttons use the default cursor and fade their hover background
 - [ ] 4.11 One tooltip system with shortcut hints; the Pan tool has one
-- [ ] 4.12 Status colours come from tokens and read in light mode; "running" has one look
-- [ ] 4.13 One floating-surface recipe
+- [x] 4.12 Status colours come from tokens and read in light mode; "running" has one look
+- [x] 4.13 One floating-surface recipe
 - [ ] 4.14 A New Chat command with a shortcut; rows can be renamed and deleted from the keyboard
 - [ ] 4.15 Layers and docs show skeletons; the transcript skeleton looks like messages
 - [ ] 4.16 Scaffold install shows elapsed time, can be cancelled and words its failure

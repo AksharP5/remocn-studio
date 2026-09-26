@@ -57,7 +57,7 @@ describe("previewFailure", () => {
   // an otherwise empty pane. Nobody cancelled anything — the process died.
   it("words the protocol token the sidecar answers with when it dies", () => {
     expect(previewFailure("cancelled")).toBe(
-      "The preview stopped when the sidecar restarted."
+      "The preview stopped when the studio's helper restarted."
     );
   });
 

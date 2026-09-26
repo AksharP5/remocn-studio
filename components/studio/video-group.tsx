@@ -136,7 +136,7 @@ function VideoGroupBlock({
         >
           <ChevronRight
             className={cn(
-              "size-3 transition-transform duration-150 ease-out",
+              "size-3 transition-transform duration-fast ease-out",
               isExpanded && "rotate-90"
             )}
           />

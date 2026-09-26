@@ -19,10 +19,10 @@ import { LogoMark } from "./logo-mark";
 import { useStudio } from "./studio-provider";
 
 const ENTER =
-  "motion-reduce:translate-none motion-reduce:starting:translate-none duration-300 ease-[cubic-bezier(0.19,1,0.22,1)] group-data-[motion=backward]/onboarding:starting:opacity-0 group-data-[motion=forward]/onboarding:starting:opacity-0 group-data-[motion=backward]/onboarding:transition-[opacity,translate] group-data-[motion=forward]/onboarding:transition-[opacity,translate] motion-safe:group-data-[motion=backward]/onboarding:starting:-translate-x-3 motion-safe:group-data-[motion=forward]/onboarding:starting:translate-x-3 motion-reduce:transition-opacity";
+  "motion-reduce:translate-none motion-reduce:starting:translate-none duration-base ease-out group-data-[motion=backward]/onboarding:starting:opacity-0 group-data-[motion=forward]/onboarding:starting:opacity-0 group-data-[motion=backward]/onboarding:transition-[opacity,translate] group-data-[motion=forward]/onboarding:transition-[opacity,translate] motion-safe:group-data-[motion=backward]/onboarding:starting:-translate-x-3 motion-safe:group-data-[motion=forward]/onboarding:starting:translate-x-3 motion-reduce:transition-opacity";
 
 const DEAL =
-  "absolute inset-0 transition-[opacity,translate] duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] starting:translate-y-4 starting:opacity-0 group-data-[motion=instant]/onboarding:transition-none motion-reduce:starting:translate-y-0";
+  "absolute inset-0 transition-[opacity,translate] duration-base ease-out starting:translate-y-4 starting:opacity-0 group-data-[motion=instant]/onboarding:transition-none motion-reduce:starting:translate-y-0";
 
 function step(position: number) {
   return String(position + 1).padStart(2, "0");
@@ -57,7 +57,7 @@ export function OnboardingOverview({
         <DialogContent
           aria-describedby={undefined}
           bottomStickOnMobile={false}
-          className="group/onboarding row-span-3 row-start-1 max-h-[calc(100dvh-2rem)] w-[min(68rem,calc(100vw-2rem))] max-w-none self-center overflow-hidden duration-240 ease-[cubic-bezier(0.19,1,0.22,1)] data-[motion=instant]:transition-none data-ending-style:duration-150 motion-reduce:transition-opacity motion-reduce:duration-150 motion-reduce:sm:data-ending-style:scale-100 motion-reduce:sm:data-starting-style:scale-100"
+          className="group/onboarding row-span-3 row-start-1 max-h-[calc(100dvh-2rem)] w-[min(68rem,calc(100vw-2rem))] max-w-none self-center overflow-hidden duration-base ease-out data-[motion=instant]:transition-none data-ending-style:duration-fast motion-reduce:transition-opacity motion-reduce:duration-fast motion-reduce:sm:data-ending-style:scale-100 motion-reduce:sm:data-starting-style:scale-100"
           closeProps={{
             className: "absolute top-3 end-3 z-20 size-11 sm:size-10",
           }}
@@ -88,7 +88,7 @@ export function OnboardingOverview({
                 >
                   <span
                     className={cn(
-                      "h-1 w-full rounded-full transition-colors duration-200",
+                      "h-1 w-full rounded-full transition-colors duration-fast",
                       !onCover && position === index && "bg-foreground",
                       !onCover &&
                         position < index &&

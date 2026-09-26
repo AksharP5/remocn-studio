@@ -731,7 +731,7 @@ describe("Composer", () => {
     fireEvent.change(textarea, { target: { value: "build a scene" } });
 
     expect(
-      await screen.findByText("The sidecar is not running.")
+      await screen.findByText("The studio's helper is not running.")
     ).toBeVisible();
     expect(screen.getByRole("button", { name: "Restart it" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
@@ -741,12 +741,14 @@ describe("Composer", () => {
     mockShellReadyOnSecondLook();
     await renderComposer(mock(), { opens: false });
 
-    expect(await screen.findByText("Starting the sidecar…")).toBeVisible();
+    expect(
+      await screen.findByText("Starting the studio's helper…")
+    ).toBeVisible();
 
     await waitFor(
       () =>
         expect(
-          screen.queryByText("Starting the sidecar…")
+          screen.queryByText("Starting the studio's helper…")
         ).not.toBeInTheDocument(),
       { timeout: 3000 }
     );
@@ -758,7 +760,9 @@ describe("Composer", () => {
 
     fireEvent.change(textarea, { target: { value: "build a scene" } });
 
-    expect(await screen.findByText("Starting the sidecar…")).toBeVisible();
+    expect(
+      await screen.findByText("Starting the studio's helper…")
+    ).toBeVisible();
     expect(screen.getByRole("button", { name: "Send" })).toBeEnabled();
   });
 

@@ -252,7 +252,7 @@ function SectionRail({
           <button
             aria-current={active === entry.id ? "true" : undefined}
             className={cn(
-              "flex h-8 items-center gap-2 rounded-md px-2 text-left text-sm outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/50 active:bg-accent",
+              "flex h-8 items-center gap-2 rounded-md px-2 text-left text-sm outline-none transition-colors duration-fast focus-visible:ring-2 focus-visible:ring-ring/50 active:bg-accent",
               active === entry.id
                 ? "bg-accent text-foreground"
                 : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
@@ -899,7 +899,7 @@ function UpdatesSection() {
                 Install and restart
               </Button>
               {hasRunningTurns && !updates.isInstalling ? (
-                <span className="text-amber-500 text-xs">
+                <span className="text-warning-foreground text-xs">
                   A turn is still running — installing restarts the app and
                   stops it.
                 </span>

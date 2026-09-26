@@ -9,7 +9,7 @@ import type { DiffLine, DiffLineKind } from "@/lib/studio/diff";
 import { cn } from "@/lib/utils";
 
 const DIFF_STYLES: Record<DiffLineKind, string> = {
-  added: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  added: "bg-success/10 text-success-foreground",
   context: "text-muted-foreground",
   removed: "bg-destructive/10 text-destructive",
 };

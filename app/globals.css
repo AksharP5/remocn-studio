@@ -199,6 +199,16 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@theme static {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --transition-duration-fast: 150ms;
+  --transition-duration-base: 250ms;
+  --transition-duration-slow: 700ms;
+  --default-transition-duration: var(--transition-duration-fast);
+  --default-transition-timing-function: var(--ease-out);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -257,21 +267,30 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-  --animate-titlebar: titlebar-in 900ms ease-out both;
-  --animate-card-in: card-in 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-drawer-in: drawer-in 200ms cubic-bezier(0.25, 1, 0.5, 1) both;
-  --animate-stage-in: titlebar-in 200ms ease-out both;
-  --animate-screen-in: screen-in 200ms cubic-bezier(0.32, 0.72, 0, 1) both;
-  --animate-screen-back: screen-back 200ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  --animate-titlebar: titlebar-in var(--transition-duration-slow)
+    var(--ease-out) both;
+  --animate-card-in: card-in var(--transition-duration-base) var(--ease-out)
+    both;
+  --animate-drawer-in: drawer-in var(--transition-duration-base) var(--ease-out)
+    both;
+  --animate-stage-in: titlebar-in var(--transition-duration-base)
+    var(--ease-out) both;
+  --animate-screen-in: screen-in var(--transition-duration-base) var(--ease-out)
+    both;
+  --animate-screen-back: screen-back var(--transition-duration-base)
+    var(--ease-out) both;
+  --animate-fade-in: titlebar-in var(--transition-duration-base) var(--ease-out)
+    both;
   --animate-skeleton: skeleton 2s -1s infinite linear;
   --animate-caret-blink: 1s ease-out infinite caret-blink;
-  --animate-toast-success-odd: toast-success-odd 0.32s
-    cubic-bezier(0.5, 1, 0.89, 1);
-  --animate-toast-success-even: toast-success-even 0.32s
-    cubic-bezier(0.5, 1, 0.89, 1);
-  --animate-toast-error-odd: toast-error-odd 0.28s cubic-bezier(0.5, 1, 0.89, 1);
-  --animate-toast-error-even: toast-error-even 0.28s
-    cubic-bezier(0.5, 1, 0.89, 1);
+  --animate-toast-success-odd: toast-success-odd var(--transition-duration-base)
+    var(--ease-out);
+  --animate-toast-success-even: toast-success-even
+    var(--transition-duration-base) var(--ease-out);
+  --animate-toast-error-odd: toast-error-odd var(--transition-duration-base)
+    var(--ease-out);
+  --animate-toast-error-even: toast-error-even var(--transition-duration-base)
+    var(--ease-out);
   --color-warning-foreground: var(--warning-foreground);
   --color-warning: var(--warning);
   --color-success-foreground: var(--success-foreground);
@@ -545,8 +564,8 @@
   }
 
   .control-surface-interactive {
-    transition-timing-function: ease-out;
-    transition-duration: 150ms;
+    transition-timing-function: var(--ease-out);
+    transition-duration: var(--transition-duration-fast);
     transition-property: color, background-color, box-shadow;
   }
 
@@ -689,7 +708,7 @@
     transform: scale(1);
   }
   to {
-    transform: scale(0.86);
+    transform: scale(0.94);
   }
 }
 
@@ -697,29 +716,31 @@
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
   animation:
-    splash-draw 700ms cubic-bezier(0.22, 1, 0.36, 1) both,
-    splash-stroke-out 250ms 525ms ease-out both;
+    splash-draw 700ms var(--ease-out) both,
+    splash-stroke-out var(--transition-duration-base) 525ms var(--ease-out) both;
 }
 
 .splash-glyph-fill {
   opacity: 0;
-  animation: splash-fill 250ms 525ms ease-out both;
+  animation: splash-fill var(--transition-duration-base) 525ms var(--ease-out)
+    both;
 }
 
 .splash-wordmark {
   opacity: 0;
-  animation: splash-wordmark 350ms 420ms ease-out both;
+  animation: splash-wordmark 350ms 420ms var(--ease-out) both;
 }
 
 [data-splash="leaving"].splash-surface {
   pointer-events: none;
-  animation: splash-out 650ms cubic-bezier(0.25, 0.1, 0.25, 1) both;
+  animation: splash-out var(--transition-duration-base) var(--ease-out) both;
   will-change: opacity;
 }
 
 [data-splash="leaving"] .splash-lockup {
   transform-origin: center;
-  animation: splash-lockup-out 600ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  animation: splash-lockup-out var(--transition-duration-base) var(--ease-out)
+    both;
   will-change: transform;
 }
 
@@ -750,8 +771,18 @@
   .animate-pulse,
   .animate-screen-back,
   .animate-screen-in,
-  .animate-titlebar {
+  .animate-titlebar,
+  .animate-toast-success-odd,
+  .animate-toast-success-even,
+  .animate-toast-error-odd,
+  .animate-toast-error-even {
     animation: none;
+  }
+  [style*="easing-preview"] {
+    animation: none !important;
+  }
+  [data-slot="titlebar-mood"] {
+    transition: none;
   }
   .code-reveal :not(pre) > code,
   [data-sd-animate] {
@@ -764,8 +795,9 @@
   [data-pane-slide].animate-screen-back,
   [data-pane-slide].animate-screen-in,
   .animate-card-in,
-  .animate-drawer-in {
-    animation: titlebar-in 150ms ease-out both;
+  .animate-drawer-in,
+  .animate-fade-in {
+    animation: titlebar-in var(--transition-duration-fast) var(--ease-out) both;
   }
   .splash-glyph-stroke {
     opacity: 0;
@@ -774,10 +806,10 @@
   .splash-glyph-fill,
   .splash-wordmark {
     opacity: 1;
-    animation: titlebar-in 150ms ease-out both;
+    animation: titlebar-in var(--transition-duration-fast) var(--ease-out) both;
   }
   [data-splash="leaving"].splash-surface {
-    animation: splash-out 150ms ease-out both;
+    animation: splash-out var(--transition-duration-fast) var(--ease-out) both;
   }
   [data-splash="leaving"] .splash-lockup {
     transform: none;
@@ -847,6 +879,21 @@
   [data-selectable] :is(a, button, [role="button"], [role="menuitem"]) {
     cursor: default;
   }
+}
+
+[data-slot="button"] {
+  cursor: default;
+  transition-timing-function: var(--ease-out);
+  transition-duration: var(--transition-duration-fast);
+  transition-property:
+    color, background-color, border-color, box-shadow, opacity, scale, transform;
+}
+
+@utility surface-floating {
+  color: var(--popover-foreground);
+  background-color: var(--popover);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-floating);
 }
 
 .managed-inspector .dialkit-root {

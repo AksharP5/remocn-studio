@@ -142,7 +142,8 @@ export function TuningRow({
           <span className="shrink-0 rounded-sm bg-muted px-1 py-px font-medium text-2xs uppercase tracking-wide">
             animated
           </span>
-          a change here moves the value at this frame; the animation keeps running
+          a change here moves the value at this frame; the animation keeps
+          running
         </p>
       ) : null}
 
