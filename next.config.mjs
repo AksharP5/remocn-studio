@@ -14,6 +14,9 @@ const nextConfig = {
     unoptimized: true,
   },
   output: "export",
+  pageExtensions: isProd
+    ? ["tsx", "ts", "jsx", "js"]
+    : ["dev.tsx", "tsx", "ts", "jsx", "js"],
   // Tied to the DSN rather than to a flag of its own: no DSN means no crash
   // reporting, and a map nothing will ever be uploaded against is only build
   // time spent. `scripts/sourcemaps.ts` deletes what this emits after it has
