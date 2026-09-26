@@ -2,19 +2,19 @@
 
 - [ ] 1.1 `--font-mono` resolves to Geist Mono instead of referring to itself (`app/globals.css:206`)
 - [ ] 1.2 No "session" or "composition" in user-facing text: chat header, delete toast, model menu, permission card, settings, update status, export stages, environment rows, the recorder's fallback title; the updates copy stops promising a daily check; the animated badge tells the truth for keyframed keys
-- [ ] 1.3 The splash's 50 ms tick re-renders only the splash, not the shell
-- [ ] 1.4 fast-check is aliased out of the client bundle
-- [ ] 1.5 `lib/studio/design-review.ts` moves from zod to Effect Schema and zod leaves the webview bundle
+- [x] 1.3 The splash's 50 ms tick re-renders only the splash, not the shell
+- [x] 1.4 fast-check is aliased out of the client bundle
+- [x] 1.5 `lib/studio/design-review.ts` moves from zod to Effect Schema and zod leaves the webview bundle
 - [ ] 1.6 The title bar shader stops drawing while the window is unfocused
 
 ## 2. Webview responsiveness
 
-- [ ] 2.1 The studio context is split so a streamed token or a keystroke does not re-render the sidebar, the preview or the title bar
-- [ ] 2.2 Sidebar groups keep their identity unless a row's status changes
-- [ ] 2.3 Streamed deltas commit at most once per animation frame
-- [ ] 2.4 Only the seek bar and timecode subscribe to the playing frame; `seekTo` is stable
-- [ ] 2.5 Camera pan, zoom and tweens write the transform through a ref during a gesture and commit state at its end
-- [ ] 2.6 The transcript reuses settled runs instead of regrouping every entry per token
+- [x] 2.1 The studio context is split so a streamed token or a keystroke does not re-render the sidebar, the preview or the title bar
+- [x] 2.2 Sidebar groups keep their identity unless a row's status changes
+- [x] 2.3 Streamed deltas commit at most once per animation frame
+- [x] 2.4 Only the seek bar and timecode subscribe to the playing frame; `seekTo` is stable
+- [x] 2.5 Camera pan, zoom and tweens write the transform through a ref during a gesture and commit state at its end
+- [x] 2.6 The transcript reuses settled runs instead of regrouping every entry per token
 
 ## 3. Sidecar, preview host and core
 
@@ -57,10 +57,10 @@
 
 ## 5. Bundle and memory
 
-- [ ] 5.1 dialkit, Streamdown with the Shiki core, and Sentry load when first needed
-- [ ] 5.2 Golos is not preloaded, Inter leaves the main route, `app/lab/*` stays out of the production export
-- [ ] 5.3 Idle transcripts are released from memory and reloaded on open
-- [ ] 5.4 The transcript shows posters instead of live video; images load lazily
+- [x] 5.1 dialkit, Streamdown with the Shiki core, and Sentry load when first needed
+- [x] 5.2 Golos is not preloaded, Inter leaves the main route, `app/lab/*` stays out of the production export
+- [x] 5.3 Idle transcripts are released from memory and reloaded on open
+- [x] 5.4 The transcript shows posters instead of live video; images load lazily
 
 ## 6. Splash
 
