@@ -308,10 +308,7 @@ function giveBack(
     if (sessionId !== null) {
       held.peer.notify("session/cancel", { sessionId });
     }
-    return Effect.andThen(
-      acpPool.dispose(chat),
-      Effect.sync(() => held.peer.kill())
-    );
+    return acpPool.discard(chat, held);
   });
 }
 

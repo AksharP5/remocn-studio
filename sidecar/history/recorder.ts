@@ -67,9 +67,11 @@ export function recording(
 
     const flush = lock.withPermits(1)(
       Effect.gen(function* () {
-        const current = yield* Ref.get(entries);
-        const indices = [...pending].sort((left, right) => left - right);
-        pending.clear();
+        const [current, indices] = yield* Ref.modify(entries, (held) => {
+          const taken = [...pending].sort((left, right) => left - right);
+          pending.clear();
+          return [[held, taken] as const, held];
+        });
 
         yield* tolerate(
           Effect.forEach(
@@ -108,14 +110,12 @@ export function recording(
     const apply = (
       step: (current: readonly TranscriptEntry[]) => readonly TranscriptEntry[]
     ) =>
-      Effect.gen(function* () {
-        const previous = yield* Ref.get(entries);
+      Ref.update(entries, (previous) => {
         const next = step(previous);
-        yield* Ref.set(entries, next);
-
         for (const index of changed(previous, next)) {
           pending.add(index);
         }
+        return next;
       });
 
     yield* apply((current) =>

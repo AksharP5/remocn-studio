@@ -292,6 +292,48 @@ describe("streamed text", () => {
     );
   });
 
+  it("loses no change that lands while a flush is taking the pending set", async () => {
+    const history = store();
+    const yielding: HistoryStore = {
+      ...history,
+      write: (block) => Effect.andThen(Effect.yieldNow, history.write(block)),
+    };
+    const input = params({});
+    const mixed: AgentEvent[] = deltas.flatMap((delta, index) =>
+      index % 20 === 0
+        ? [
+            delta,
+            {
+              id: `toolu_${index}`,
+              input: {},
+              name: "Read",
+              type: "tool_use" as const,
+              verb: "read" as const,
+            },
+          ]
+        : [delta]
+    );
+
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const recorder = yield* recording(yielding, input, log);
+        yield* Effect.forEach(
+          mixed,
+          (event) =>
+            Effect.andThen(
+              Effect.forkChild(recorder.flush),
+              recorder.event(event)
+            ),
+          { discard: true }
+        );
+        yield* recorder.flush;
+      })
+    );
+
+    const stored = await Effect.runPromise(history.blocks(input.historyId));
+    expect(stored.map(bare)).toEqual(live(input, mixed));
+  });
+
   it("is written before anything that is not text", async () => {
     const history = store();
     const input = params({});

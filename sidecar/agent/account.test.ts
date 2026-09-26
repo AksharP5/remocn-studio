@@ -198,4 +198,26 @@ describe("fileStore", () => {
     expect(fileStore(file).load()).toEqual([]);
     expect(fileStore(null).load()).toEqual([]);
   });
+
+  it("writes saves one at a time and leaves the newest on disk", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "remocn-accounts-"));
+    made.push(dir);
+    const file = path.join(dir, "accounts.json");
+    const store = fileStore(file);
+    const snapshots = ["claude", "codex", "copilot", "grok"].map(
+      (provider, at) => [
+        { at, provider: provider as "claude", row: row(provider) },
+      ]
+    );
+
+    await run(
+      Effect.all(
+        snapshots.map((rows) => store.save(rows)),
+        { concurrency: "unbounded" }
+      )
+    );
+
+    expect(JSON.parse(readFileSync(file, "utf8"))).toEqual(snapshots.at(-1));
+    expect(fileStore(file).load()).toEqual(snapshots.at(-1) ?? []);
+  });
 });

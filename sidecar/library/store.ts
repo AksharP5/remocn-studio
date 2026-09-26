@@ -437,7 +437,14 @@ async function stampOf(files: readonly string[]): Promise<string> {
 async function knownHashes(): Promise<ReadonlySet<string>> {
   const root = libraryRoot();
   const dir = join(root, ASSETS);
-  const stamp = await stampOf([dir, join(root, DISMISSED)]);
+  const entries = await readdir(dir, { withFileTypes: true });
+  const stamp = await stampOf([
+    dir,
+    join(root, DISMISSED),
+    ...entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => join(dir, entry.name, MANIFEST)),
+  ]);
 
   if (knownMemo !== null && knownMemo.stamp === stamp) {
     return knownMemo.hashes;

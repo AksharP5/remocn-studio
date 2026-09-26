@@ -24,6 +24,7 @@ export interface Checkout {
 
 interface Pooled {
   alive: boolean;
+  busy: boolean;
   handlers: Handlers;
   readonly held: Held;
   readonly shape: string;
@@ -69,6 +70,7 @@ export function makeAcpPool(spawner: Spawner = spawnAcp) {
   ): Pooled => {
     const pooled: Pooled = {
       alive: true,
+      busy: true,
       handlers: IDLE_HANDLERS,
       held: {
         bind: (handlers) => {
@@ -105,6 +107,7 @@ export function makeAcpPool(spawner: Spawner = spawnAcp) {
           return Effect.sync(() => held.peer.kill());
         }
         pooled.handlers = IDLE_HANDLERS;
+        pooled.busy = false;
         return Effect.andThen(
           Effect.forkDetach(
             Effect.sleep(ACP_IDLE).pipe(
@@ -138,20 +141,30 @@ export function makeAcpPool(spawner: Spawner = spawnAcp) {
 
         if (
           pooled?.alive &&
+          !pooled.busy &&
           pooled.shape === shape &&
           sessionId !== null &&
           pooled.held.sessionId === sessionId
         ) {
           yield* stopTimer(pooled);
+          pooled.busy = true;
           return { fresh: false, held: pooled.held } satisfies Checkout;
         }
 
-        yield* dispose(chat);
+        if (pooled !== undefined && !pooled.busy) {
+          yield* dispose(chat);
+        }
         return {
           fresh: true,
           held: spawnFor(chat, options, shape).held,
         } satisfies Checkout;
       }),
+
+    discard: (chat: string, held: Held) =>
+      Effect.andThen(
+        pool.get(chat)?.held === held ? dispose(chat) : Effect.void,
+        Effect.sync(() => held.peer.kill())
+      ),
 
     dispose,
 

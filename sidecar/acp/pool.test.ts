@@ -128,6 +128,59 @@ describe("makeAcpPool", () => {
     expect(made.spawned[2]?.killed).toBe(0);
   });
 
+  it("never hands out an agent a stopping turn still holds, and lets that turn discard only its own", async () => {
+    const made = spawner();
+    const pool = makeAcpPool(made.spawn);
+
+    const [stopping, next] = await run(
+      Effect.gen(function* () {
+        const warm = yield* pool.checkout("chat-1", shape(), null);
+        warm.held.sessionId = "acp-session";
+        yield* pool.checkin("chat-1", warm.held);
+
+        const first = yield* pool.checkout("chat-1", shape(), "acp-session");
+        const second = yield* pool.checkout("chat-1", shape(), "acp-session");
+        yield* pool.discard("chat-1", first.held);
+        return [first, second] as const;
+      })
+    );
+
+    expect(stopping.fresh).toBe(false);
+    expect(next.fresh).toBe(true);
+    expect(next.held).not.toBe(stopping.held);
+    expect(made.spawned).toHaveLength(2);
+    expect(made.spawned[0]?.killed).toBe(1);
+    expect(made.spawned[1]?.killed).toBe(0);
+    expect(pool.size()).toBe(1);
+  });
+
+  it("does not kill the running turn's agent when a turn with other settings starts beside it", async () => {
+    const made = spawner();
+    const pool = makeAcpPool(made.spawn);
+
+    await run(
+      Effect.gen(function* () {
+        const first = yield* pool.checkout("chat-1", shape(), null);
+        const second = yield* pool.checkout(
+          "chat-1",
+          shape(["--acp", "--model", "gpt-5"]),
+          null
+        );
+        expect(made.spawned[0]?.killed).toBe(0);
+
+        yield* pool.discard("chat-1", first.held);
+        expect(made.spawned[1]?.killed).toBe(0);
+
+        second.held.sessionId = "acp-session";
+        yield* pool.checkin("chat-1", second.held);
+      })
+    );
+
+    expect(made.spawned[0]?.killed).toBe(1);
+    expect(made.spawned[1]?.killed).toBe(0);
+    expect(pool.size()).toBe(1);
+  });
+
   it("lets an agent go after five idle minutes, and never under a turn", async () => {
     const made = spawner();
     const pool = makeAcpPool(made.spawn);

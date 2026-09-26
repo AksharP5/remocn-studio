@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { Clock, Deferred, Effect, Exit, Schema } from "effect";
+import { Clock, Deferred, Effect, Exit, Schema, Semaphore } from "effect";
 import { DATA_DIR_ENV, EnvironmentCheck } from "@/shared/ipc";
 import { AgentProvider } from "@/shared/providers";
 import { adapterFor } from "./registry";
@@ -50,6 +50,8 @@ export function fileStore(file: string | null = accountFile()): AccountStore {
   if (file === null) {
     return NOWHERE;
   }
+  const lock = Semaphore.makeUnsafe(1);
+  let latest: readonly Kept[] = [];
   return {
     load: () => {
       try {
@@ -60,11 +62,16 @@ export function fileStore(file: string | null = accountFile()): AccountStore {
       }
     },
     save: (rows) =>
-      Effect.tryPromise(async () => {
-        const partial = `${file}.${process.pid}.tmp`;
-        await mkdir(path.dirname(file), { recursive: true });
-        await writeFile(partial, JSON.stringify(rows));
-        await rename(partial, file);
+      Effect.suspend(() => {
+        latest = rows;
+        return lock.withPermits(1)(
+          Effect.tryPromise(async () => {
+            const partial = `${file}.${process.pid}.tmp`;
+            await mkdir(path.dirname(file), { recursive: true });
+            await writeFile(partial, JSON.stringify(latest));
+            await rename(partial, file);
+          })
+        );
       }).pipe(Effect.ignore),
   };
 }

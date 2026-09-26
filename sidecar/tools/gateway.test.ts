@@ -111,6 +111,29 @@ describe("makeGateway", () => {
     link.end();
   });
 
+  it("keeps serving the next turn of a chat when the stopped one lets go after it started", async () => {
+    const path = socketPath();
+    const gateway = makeGateway(() => undefined, path);
+    const stopped = Effect.runSync(Scope.make());
+    const next = Effect.runSync(Scope.make());
+
+    await Effect.runPromise(
+      Scope.provide(gateway.serving(TURN, tools()), stopped)
+    );
+    await Effect.runPromise(
+      Scope.provide(gateway.serving(TURN, tools()), next)
+    );
+    await Effect.runPromise(Scope.close(stopped, Exit.void));
+
+    const answer = await gateway.ask("remocn-library", TURN)("list_assets", {});
+    expect(answer).toEqual({ isError: false, text: "The library is empty." });
+
+    await Effect.runPromise(Scope.close(next, Exit.void));
+
+    const after = await gateway.ask("remocn-library", TURN)("list_assets", {});
+    expect(after.isError).toBe(true);
+  });
+
   it("refuses a server it does not carry", async () => {
     const path = socketPath();
     const { release } = await serving(tools(), path);

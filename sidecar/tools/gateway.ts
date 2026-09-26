@@ -170,8 +170,9 @@ export function makeGateway(
     // A gateway that cannot listen is logged, not fatal: the children then
     // fail to connect and the CLI reports the servers down, while the turn —
     // whose words matter more than its tools — still runs.
-    serving: (turnId, tools) =>
-      Effect.acquireRelease(
+    serving: (turnId, tools) => {
+      const running = new Set<AbortController>();
+      return Effect.acquireRelease(
         Effect.promise(async () => {
           try {
             await listen();
@@ -179,17 +180,22 @@ export function makeGateway(
             log(`tools: the gateway could not listen: ${errorMessage(cause)}`);
           }
           turns.set(turnId, tools);
-          active.set(turnId, new Set());
+          active.set(turnId, running);
         }),
         () =>
           Effect.sync(() => {
-            turns.delete(turnId);
-            for (const controller of active.get(turnId) ?? []) {
+            if (turns.get(turnId) === tools) {
+              turns.delete(turnId);
+            }
+            if (active.get(turnId) === running) {
+              active.delete(turnId);
+            }
+            for (const controller of running) {
               controller.abort();
             }
-            active.delete(turnId);
           })
-      ).pipe(Effect.asVoid),
+      ).pipe(Effect.asVoid);
+    },
 
     transport: (server, turnId) => ({
       args: [process.argv[1] ?? "", TOOLS_HOST_FLAG, server],

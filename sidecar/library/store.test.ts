@@ -327,6 +327,22 @@ describe("unofferedFrom", () => {
     expect(await run(unofferedFrom([shot]))).toEqual([]);
   });
 
+  it("sees an asset whose manifest landed after its folder was already read", async () => {
+    const kept = file("logo.png", "same bytes");
+    const saved = await run(
+      saveAsset(draft({ files: [kept], name: "Logo", type: "img" }))
+    );
+    const manifest = join(library, "assets", saved.slug, "manifest.json");
+    const written = readFileSync(manifest, "utf8");
+    rmSync(manifest);
+
+    expect(await run(unofferedFrom([kept]))).toEqual([kept]);
+
+    writeFileSync(manifest, written, "utf8");
+
+    expect(await run(unofferedFrom([kept]))).toEqual([]);
+  });
+
   it("offers again once the asset holding those bytes is removed", async () => {
     const kept = file("logo.png", "same bytes");
     const saved = await run(
