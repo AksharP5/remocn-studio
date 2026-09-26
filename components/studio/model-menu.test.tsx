@@ -111,7 +111,7 @@ describe("ModelMenu", () => {
     fireEvent.mouseEnter(codex as Element);
     fireEvent.pointerMove(codex as Element);
     await screen.findByText(
-      "This session already speaks another provider — start a new session to switch."
+      "This chat already speaks another provider — start a new chat to switch."
     );
   });
 });

@@ -62,11 +62,16 @@ export default function RootLayout({
     // `suppressHydrationWarning` is required by next-themes: it writes the
     // theme class onto <html> before React hydrates.
     <html
-      className={cn(golos.variable, "font-sans", dmSans.variable)}
+      className={cn(
+        golos.variable,
+        "font-sans",
+        dmSans.variable,
+        geistMono.variable
+      )}
       lang="en"
       suppressHydrationWarning
     >
-      <body className={cn(geistMono.variable, "antialiased")}>
+      <body className="antialiased">
         <ThemeProvider>{children}</ThemeProvider>
         <Script id="reveal-studio" strategy="beforeInteractive">
           {REVEAL_STUDIO}

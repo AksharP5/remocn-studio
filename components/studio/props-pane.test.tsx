@@ -822,7 +822,7 @@ describe("the time strip", () => {
 
     expect(screen.getByText("animated")).toBeDefined();
     expect(
-      screen.getByText("a fixed value here replaces the animation")
+      screen.getByText("a change here moves the value at this frame; the animation keeps running")
     ).toBeDefined();
   });
 

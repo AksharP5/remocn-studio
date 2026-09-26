@@ -9,7 +9,7 @@ const ONCE = /Approve once/;
 const BUILD = /Approve and build/;
 const RUN = /Approve and let it run/;
 const KEEP = /Keep planning/;
-const ALWAYS = /Always allow this session/;
+const ALWAYS = /Always allow until quit/;
 const DECLINE = /Decline/;
 const CANCEL = /Cancel turn/;
 
@@ -108,7 +108,7 @@ describe("PermissionCard", () => {
     });
 
     expect(
-      screen.getByText("Don’t ask again for this path this session")
+      screen.getByText("Don’t ask again for this path until the studio quits")
     ).toBeVisible();
   });
 });

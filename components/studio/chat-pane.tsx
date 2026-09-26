@@ -174,7 +174,7 @@ function titleOf(
   if (project === null) {
     return "Chat";
   }
-  return session?.title ?? "New session";
+  return session?.title ?? "New chat";
 }
 
 function LoadingTranscript() {

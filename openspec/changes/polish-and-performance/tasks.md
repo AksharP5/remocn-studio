@@ -1,7 +1,7 @@
 ## 1. Quick wins
 
-- [ ] 1.1 `--font-mono` resolves to Geist Mono instead of referring to itself (`app/globals.css:206`)
-- [ ] 1.2 No "session" or "composition" in user-facing text: chat header, delete toast, model menu, permission card, settings, update status, export stages, environment rows, the recorder's fallback title; the updates copy stops promising a daily check; the animated badge tells the truth for keyframed keys
+- [x] 1.1 `--font-mono` resolves to Geist Mono instead of referring to itself (`app/globals.css:206`)
+- [x] 1.2 No "session" or "composition" in user-facing text: chat header, delete toast, model menu, permission card, settings, update status, export stages, environment rows, the recorder's fallback title; the updates copy stops promising a daily check; the animated badge tells the truth for keyframed keys
 - [ ] 1.3 The splash's 50 ms tick re-renders only the splash, not the shell
 - [ ] 1.4 fast-check is aliased out of the client bundle
 - [ ] 1.5 `lib/studio/design-review.ts` moves from zod to Effect Schema and zod leaves the webview bundle

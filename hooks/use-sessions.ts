@@ -186,7 +186,7 @@ export function useSessions(
         },
         description: session.title,
         timeout: Duration.toMillis(undoWindow),
-        title: "Session deleted",
+        title: "Chat deleted",
       });
 
       const fiber = Effect.runFork(

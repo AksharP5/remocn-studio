@@ -378,6 +378,7 @@
 
 :root {
   --font-sans: var(--font-dm-sans), var(--font-cyrillic), sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --font-heading: var(--font-sans);
   --card: var(--color-white);
   --card-foreground: var(--foreground);

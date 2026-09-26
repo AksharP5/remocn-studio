@@ -97,7 +97,7 @@ export function ModelMenu({
 }
 
 export const LOCKED_REASON =
-  "This session already speaks another provider — start a new session to switch.";
+  "This chat already speaks another provider — start a new chat to switch.";
 
 function ProviderGroup({
   accounts,

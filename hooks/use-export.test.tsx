@@ -342,7 +342,7 @@ describe("useExport", () => {
 
     expect(result.current.canExport).toBe(false);
     expect(result.current.unavailable).toBe(
-      "The preview is showing a different project than this session."
+      "The preview is showing another project, not the one this chat belongs to."
     );
   });
 

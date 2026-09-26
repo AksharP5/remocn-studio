@@ -84,14 +84,14 @@ describe("ExportButton", () => {
           brief: { label: "Measuring…", percent: null },
           cancel,
           isRunning: true,
-          status: "Measuring the composition…",
+          status: "Measuring the video…",
         })}
       />
     );
 
     const button = screen.getByRole("button", { name: "Cancel the export" });
     expect(button).toHaveTextContent("Measuring…");
-    expect(button).toHaveAttribute("title", "Measuring the composition…");
+    expect(button).toHaveAttribute("title", "Measuring the video…");
     fireEvent.click(button);
     expect(cancel).toHaveBeenCalledTimes(1);
   });

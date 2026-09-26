@@ -147,5 +147,5 @@ export function updateSummary(updates: Updates): string {
 
   return updates.hasChecked
     ? "This is the newest release"
-    : "Not checked yet in this session";
+    : "Not checked yet since the studio opened";
 }

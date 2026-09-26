@@ -57,7 +57,7 @@ describe("exportStatus", () => {
 
   it("waits for a frame count rather than dividing by zero", () => {
     expect(exportStatus(progress({ total: 0 }))).toBe(
-      "Measuring the composition…"
+      "Measuring the video…"
     );
   });
 });

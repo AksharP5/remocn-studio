@@ -201,7 +201,7 @@ function unavailableOf(state: {
     return "The preview is not running yet.";
   }
   if (state.openedProjectId !== state.previewProjectId) {
-    return "The preview is showing a different project than this session.";
+    return "The preview is showing another project, not the one this chat belongs to.";
   }
   return null;
 }

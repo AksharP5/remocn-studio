@@ -814,7 +814,7 @@ function UpdatesSection() {
   return (
     <>
       <Group
-        description="Releases are checked on launch and once a day; installing replaces the app and restarts it"
+        description="Releases are checked once each time the studio opens; installing replaces the app and restarts it"
         title="This build"
       >
         <div className="grid min-w-0 gap-4">
@@ -932,7 +932,7 @@ function AccountsSection() {
           Recheck
         </Button>
       }
-      description="Each provider is asked with its own probe; a session can only start on one that is signed in"
+      description="Each provider is asked with its own probe; a chat can only start on one that is signed in"
       title="Providers"
     >
       <div className="flex flex-col divide-y divide-border/60">

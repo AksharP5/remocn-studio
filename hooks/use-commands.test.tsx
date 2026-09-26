@@ -111,7 +111,7 @@ function byId(commands: ReturnType<typeof sources>["result"], id: string) {
 describe("useCommands", () => {
   it("words Export's refusal with the export hook's own reason", () => {
     const reason =
-      "The preview is showing a different project than this session.";
+      "The preview is showing another project, not the one this chat belongs to.";
     const { result } = sources({ exportUnavailable: reason });
 
     expect(byId(result, "export").enabled).toEqual({ reason });

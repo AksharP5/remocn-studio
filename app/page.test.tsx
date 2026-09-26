@@ -553,7 +553,7 @@ describe("app shell", () => {
     ).not.toBeInTheDocument();
     expect(await screen.findByText("No chats yet")).toBeVisible();
     expect(
-      await screen.findByRole("heading", { name: "New session" })
+      await screen.findByRole("heading", { name: "New chat" })
     ).toBeVisible();
   });
 
@@ -567,7 +567,7 @@ describe("app shell", () => {
       screen.getByRole("button", { name: "Delete A promo for the launch" })
     );
 
-    expect(await screen.findByText("Session deleted")).toBeVisible();
+    expect(await screen.findByText("Chat deleted")).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
 

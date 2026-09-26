@@ -139,10 +139,10 @@ export function TuningRow({
 
       {animated === true ? (
         <p className="flex items-center gap-1.5 px-3 pt-1 text-2xs text-muted-foreground">
-          <span className="shrink-0 rounded-sm bg-muted px-1 py-px font-medium text-[9px] uppercase tracking-wide">
+          <span className="shrink-0 rounded-sm bg-muted px-1 py-px font-medium text-2xs uppercase tracking-wide">
             animated
           </span>
-          a fixed value here replaces the animation
+          a change here moves the value at this frame; the animation keeps running
         </p>
       ) : null}
 

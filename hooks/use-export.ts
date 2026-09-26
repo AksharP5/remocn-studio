@@ -530,7 +530,7 @@ function unavailableOf(state: {
     state.openedProjectId !== null &&
     state.openedProjectId !== state.projectId
   ) {
-    return "The preview is showing a different project than this session.";
+    return "The preview is showing another project, not the one this chat belongs to.";
   }
   if (state.busyElsewhere) {
     return "Another project is exporting, and only one export runs at a time.";
@@ -539,7 +539,7 @@ function unavailableOf(state: {
     return "The preview has to be running before it can be exported.";
   }
   if (state.composition === null) {
-    return "There is no composition to export.";
+    return "There is no video to export.";
   }
   if (state.pending > 0) {
     return pendingEditsReason(state.pending);
