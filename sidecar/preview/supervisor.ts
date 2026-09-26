@@ -1,7 +1,6 @@
 import { type ChildProcess, spawn } from "node:child_process";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
-import { tmpdir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { Effect, Exit, Schema, type Scope, Stream } from "effect";
@@ -15,7 +14,6 @@ import {
   type CodeEdit,
   type CodeTarget,
   type CodeTargetStatus,
-  DATA_DIR_ENV,
   type ExportEvent,
   type Exported,
   PREVIEW_ENTRY_ENV,
@@ -27,6 +25,7 @@ import {
 import type { VideoCheck } from "./choreography";
 import type { DesignResult, MotionAssertion } from "./design";
 import { PREVIEW_OUT_ENV, PREVIEW_PARENT_ENV } from "./host";
+import { previewKeyOf, previewRoot } from "./outputs";
 import { PreviewError } from "./project";
 import {
   decodeHostReply,
@@ -601,9 +600,7 @@ function scriptPath(): string {
 }
 
 function outDirFor(folder: string): string {
-  const base = process.env[DATA_DIR_ENV] ?? tmpdir();
-  const key = createHash("sha256").update(folder).digest("hex").slice(0, 16);
-  const dir = path.join(base, "preview", key);
+  const dir = path.join(previewRoot(), previewKeyOf(folder));
 
   mkdirSync(dir, { recursive: true });
 

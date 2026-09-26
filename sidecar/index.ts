@@ -12,6 +12,7 @@ import { untilOrphaned, untilSignalled } from "./lifecycle";
 import { CONFIG_HOST_FLAG } from "./preview/config";
 import { runConfigHost } from "./preview/config-host";
 import { runPreviewHost } from "./preview/host";
+import { previewRoot, prunePreviewOutputs } from "./preview/outputs";
 import { PREVIEW_HOST_FLAG } from "./preview/supervisor";
 import { runToolsHost } from "./tools/host";
 import { TOOLS_HOST_FLAG } from "./tools/protocol";
@@ -22,6 +23,26 @@ const sidecar = Effect.gen(function* () {
   yield* channel.log(`listening on stdio, protocol ${SIDECAR_PROTOCOL}`);
 
   const stores = yield* openStores(channel.log);
+
+  yield* Effect.forkScoped(
+    stores.projects.list.pipe(
+      Effect.flatMap((projects) =>
+        prunePreviewOutputs({
+          known: projects.map((project) => project.path),
+          now: Date.now(),
+          root: previewRoot(),
+        })
+      ),
+      Effect.flatMap((removed) =>
+        removed.length === 0
+          ? Effect.void
+          : channel.log(
+              `pruned ${removed.length} stale preview output(s): ${removed.join(", ")}`
+            )
+      ),
+      Effect.ignore
+    )
+  );
 
   const reason = yield* Effect.raceAll([
     runHost(handlers).pipe(Effect.as("the host closed stdin")),
