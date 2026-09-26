@@ -68,5 +68,5 @@
 
 ## 7. Verification
 
-- [ ] 7.1 `bun run check`, `bun run typecheck`, the full `bun run test`, `cargo check`, `cargo check --features crash-reports`, `bun run build`
-- [ ] 7.2 In the running app: right-click in the webview, dragging the window by the chat title, the window background while resizing in light mode
+- [x] 7.1 `bun run check`, `bun run typecheck`, the full `bun run test`, `cargo check`, `cargo check --features crash-reports`, `bun run build`
+- [ ] 7.2 In the running app: right-click in the webview (also over a transcript word with nothing selected — WKWebView may select the word first), dragging the window by the chat title, the window background while resizing in light mode
