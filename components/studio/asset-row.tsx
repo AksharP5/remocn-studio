@@ -69,7 +69,13 @@ function AssetCard({
           // biome-ignore lint/performance/noImgElement: a file on disk, which next/image cannot serve from a static export
           // biome-ignore lint/correctness/useImageSize: the card fixes the box and the picture is cropped into it
           // biome-ignore lint/a11y/noNoninteractiveElementInteractions: onError is the browser reporting a dead path, not an interaction
-          <img alt={label} onError={preview.onError} src={preview.src} />
+          <img
+            alt={label}
+            decoding="async"
+            loading="lazy"
+            onError={preview.onError}
+            src={preview.src}
+          />
         )}
       </AttachmentMedia>
       {onRemove ? (
