@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { createInterface } from "node:readline";
-import { Effect, Exit, FiberMap, Ref, Stream } from "effect";
+import { Effect, Exit, FiberMap, Ref, type Scope, Stream } from "effect";
 import { FORMAT_SPECS, fileNameOf, withExtension } from "@/shared/export";
 import {
   type ExportEvent,
@@ -13,6 +13,7 @@ import {
   type Still,
   type StillEvent,
 } from "@/shared/ipc";
+import { type Idle, makeIdle } from "../idle";
 import { libraryRoot } from "../library/store";
 import { untilGone, untilOrphaned, untilSignalled } from "../lifecycle";
 import {
@@ -23,14 +24,16 @@ import {
 } from "./browser";
 import {
   BUILDING,
+  type BuildOutcome,
   type BuildState,
   compiled as buildCompiled,
   started as buildStarted,
+  percentGate,
   pinnable,
   recovering,
   troubleIn,
 } from "./build-state";
-import { BUNDLE_FLAGS } from "./bundling";
+import { BUNDLE_FLAGS, isHotUpdate, renderOnly } from "./bundling";
 import {
   type VideoCheck,
   videoCheckError,
@@ -56,7 +59,7 @@ import {
   makeJobRegistry,
   pinBundle,
 } from "./job";
-import { type NativeBundle, nativeBundle } from "./native";
+import { messagesOf, type NativeBundle, nativeBundle } from "./native";
 import {
   agreedVersionIn,
   entryPointOf,
@@ -99,6 +102,8 @@ import {
   warmComposition,
 } from "./still";
 
+const WARM_IDLE = "90 seconds";
+
 export const PREVIEW_OUT_ENV = "REMOCN_PREVIEW_OUT";
 export const PREVIEW_PARENT_ENV = "REMOCN_PREVIEW_PARENT_PID";
 
@@ -117,18 +122,29 @@ interface Bundler {
   };
 }
 
+interface Hook {
+  tap: (name: string, handler: () => void) => void;
+}
+
+interface Watching {
+  close: (done: () => void) => void;
+  resume: () => void;
+  suspend: () => void;
+}
+
 interface Compiler {
+  hooks: { invalid: Hook; watchRun: Hook };
   watch: (
     options: Record<string, unknown>,
     handler: (error: Error | null, stats: Stats | undefined) => void
-  ) => { close: (done: () => void) => void };
+  ) => Watching;
 }
 
-interface Stats {
-  hasErrors: () => boolean;
-  toJson: (options: Record<string, boolean>) => {
-    errors?: { message?: string }[];
-  };
+type Stats = Parameters<typeof messagesOf>[0];
+
+interface RenderCompiler {
+  readonly wake: Effect.Effect<void>;
+  readonly watching: Watching;
 }
 
 const frames = process.stdout.write.bind(process.stdout);
@@ -171,8 +187,10 @@ interface Booted {
   browser: Ref.Ref<{ reading: BrowserReading; signature: string } | null>;
   build: Ref.Ref<BuildState>;
   cache: CompositionCache;
+  compiler: RenderCompiler;
   config: ConfigCache;
   dir: string;
+  idle: Idle;
   jobs: JobRegistry;
   jobsDir: string;
   outDir: string;
@@ -268,6 +286,18 @@ function boot(root: string, preferred: string | null) {
 
     yield* Effect.addFinalizer(() => drop(session));
 
+    const idle = yield* makeIdle(
+      WARM_IDLE,
+      Effect.flatMap(Ref.get(session), (held) =>
+        held === null
+          ? Effect.void
+          : Effect.andThen(
+              log(`closing the render page for ${held.composition}: idle`),
+              drop(session)
+            )
+      )
+    );
+
     const server = yield* serve({
       grab,
       jobs,
@@ -287,39 +317,28 @@ function boot(root: string, preferred: string | null) {
 
     const { BundlerInternals, webpack } = bundler;
 
+    yield* sweepHotUpdates(outDir);
+
     const [, config] = yield* Effect.tryPromise({
       catch: (cause) => new PreviewError({ message: String(cause) }),
       try: () =>
         BundlerInternals.webpackConfig({
           ...BUNDLE_FLAGS,
           entry,
-          extraPlugins: [
-            new webpack.ProgressPlugin((percent) => {
-              if (percent === 0) {
-                Effect.runSync(Ref.update(build, buildStarted));
-              }
-              // webpack keeps reporting after the watch callback has run: its
-              // cache going idle is the 100%. Sent, that tick lands after
-              // `failed` and buries the compile error under a full bar.
-              if (!Effect.runSync(Ref.get(build)).compiling) {
-                return;
-              }
-              Effect.runSync(
-                emit({ percent: Math.round(percent * 100), type: "building" })
-              );
-            }),
-          ],
+          extraPlugins: [],
           onProgress: () => undefined,
           outDir,
           poll: null,
           remotionRoot: root,
           userDefinedComponent,
           webpackOverride: async (input: WebpackConfig) =>
-            ours(await override(input), { playerPath, renderEntry }),
+            renderOnly(
+              ours(await override(input), { playerPath, renderEntry })
+            ),
         }),
     });
 
-    yield* watch(
+    const compiler = yield* watch(
       webpack,
       config,
       () => {
@@ -327,9 +346,11 @@ function boot(root: string, preferred: string | null) {
         Effect.runFork(drop(session));
         server.notifyRebuilt();
       },
-      server.port,
       build
     );
+
+    const shown = yield* Ref.make<BuildState>(BUILDING);
+    const tick = percentGate();
 
     const nativeConfig = Effect.tryPromise({
       catch: (cause) => new PreviewError({ message: String(cause) }),
@@ -352,19 +373,71 @@ function boot(root: string, preferred: string | null) {
     native = yield* nativeBundle(webpack, nativeConfig, {
       assets: `http://127.0.0.1:${server.port}${previewBase}`,
       base: `/native-${randomBytes(6).toString("hex")}`,
+      compiled: (outcome) => {
+        const previous = Effect.runSync(
+          Ref.getAndUpdate(shown, (state) => buildCompiled(state, outcome))
+        );
+
+        if (!outcome.ok) {
+          Effect.runSync(emit({ message: outcome.message, type: "failed" }));
+          return;
+        }
+
+        if (previous.settled !== null) {
+          cache.forget();
+          Effect.runFork(drop(session));
+          if (!recovering(previous)) {
+            return;
+          }
+        }
+
+        Effect.runSync(
+          emit({ type: "ready", url: `http://127.0.0.1:${server.port}` })
+        );
+      },
       directory: `${outDir}-native`,
       entry,
       origin: `http://127.0.0.1:${server.port}`,
+      plugins: [
+        new webpack.ProgressPlugin((percent) => {
+          if (percent === 0) {
+            Effect.runSync(Ref.update(shown, buildStarted));
+          }
+          // webpack keeps reporting after the watch callback has run: its
+          // cache going idle is the 100%. Sent, that tick lands after
+          // `failed` and buries the compile error under a full bar.
+          if (!Effect.runSync(Ref.get(shown)).compiling) {
+            return;
+          }
+          const whole = tick(percent);
+          if (whole !== null) {
+            Effect.runSync(emit({ percent: whole, type: "building" }));
+          }
+        }),
+      ],
       projectEntry: userDefinedComponent,
       rebuilt: server.notifyNativeRebuilt,
     });
+
+    yield* Effect.forkScoped(
+      native.start.pipe(
+        Effect.catch((error) =>
+          Effect.andThen(
+            log(`the canvas preview could not start: ${error.message}`),
+            emit({ message: error.message, type: "failed" })
+          )
+        )
+      )
+    );
 
     return {
       browser,
       build,
       cache,
+      compiler,
       config: makeConfigCache(),
       dir: path.join(outDir, "..", "stills"),
+      idle,
       jobs,
       jobsDir: path.join(outDir, "..", JOBS_DIR),
       outDir,
@@ -445,78 +518,92 @@ function ours(
   };
 }
 
+const RENDER_COMPILER = "remocn-render";
+
 function watch(
   webpack: Bundler["webpack"],
   config: WebpackConfig,
   notifyRebuilt: () => void,
-  port: number,
   build: Ref.Ref<BuildState>
-) {
+): Effect.Effect<RenderCompiler, never, Scope.Scope> {
   return Effect.acquireRelease(
     Effect.sync(() => {
-      let ready = false;
+      let compiled = false;
+      let stale = true;
 
       const compiler = webpack(config);
 
-      return compiler.watch({}, (error, stats) => {
-        if (error !== null) {
-          Effect.runSync(
-            Ref.update(build, (state) =>
-              buildCompiled(state, { message: error.message, ok: false })
-            )
-          );
-          Effect.runSync(
-            log(`the project failed to compile: ${error.message}`)
-          );
-          Effect.runSync(emit({ message: error.message, type: "failed" }));
-          return;
-        }
-
-        if (stats?.hasErrors()) {
-          const message = messagesOf(stats);
-          Effect.runSync(
-            Ref.update(build, (state) =>
-              buildCompiled(state, { message, ok: false })
-            )
-          );
-          // The event goes to the pane; the log is what a bug report carries.
-          Effect.runSync(log(`the project failed to compile: ${message}`));
-          Effect.runSync(emit({ message, type: "failed" }));
-          return;
-        }
-
-        const previous = Effect.runSync(
-          Ref.getAndUpdate(build, (state) => buildCompiled(state, { ok: true }))
-        );
-
-        if (ready) {
-          notifyRebuilt();
-          if (!recovering(previous)) {
-            return;
-          }
-        }
-
-        ready = true;
-        Effect.runSync(
-          emit({ type: "ready", url: `http://127.0.0.1:${port}` })
-        );
+      compiler.hooks.invalid.tap(RENDER_COMPILER, () => {
+        stale = true;
       });
+      compiler.hooks.watchRun.tap(RENDER_COMPILER, () => {
+        stale = false;
+        Effect.runSync(Ref.update(build, buildStarted));
+      });
+
+      const watching = compiler.watch({}, (error, stats) => {
+        watching.suspend();
+
+        let outcome: BuildOutcome = { ok: true };
+        if (error !== null) {
+          outcome = { message: error.message, ok: false };
+        } else if (stats?.hasErrors()) {
+          outcome = { message: messagesOf(stats), ok: false };
+        }
+
+        Effect.runSync(
+          Ref.update(build, (state) => buildCompiled(state, outcome))
+        );
+
+        if (!outcome.ok) {
+          Effect.runSync(
+            log(`the project failed to compile: ${outcome.message}`)
+          );
+        }
+
+        if (compiled) {
+          notifyRebuilt();
+        }
+        compiled = true;
+      });
+
+      watching.suspend();
+
+      return {
+        wake: Effect.sync(() => {
+          if (stale) {
+            Effect.runSync(Ref.update(build, buildStarted));
+            watching.resume();
+          }
+        }),
+        watching,
+      };
     }),
-    (watching) =>
+    ({ watching }) =>
       Effect.callback<void>((resume) => {
         watching.close(() => resume(Effect.void));
       })
   );
 }
 
-function messagesOf(stats: Stats): string {
-  const errors = stats.toJson({ errors: true }).errors ?? [];
-  const text = errors
-    .map((error) => error.message ?? "")
-    .filter((message) => message.length > 0)
-    .join("\n\n");
+function sweepHotUpdates(outDir: string): Effect.Effect<void> {
+  return Effect.tryPromise(async () => {
+    const names = await readdir(outDir).catch(() => [] as string[]);
+    const stale = names.filter(isHotUpdate);
 
-  return text.length > 0 ? text : "the project failed to compile";
+    await Promise.all(
+      stale.map((name) => rm(path.join(outDir, name), { force: true }))
+    );
+
+    return stale.length;
+  }).pipe(
+    Effect.flatMap((removed) =>
+      removed > 0
+        ? log(`removed ${removed} hot-update file(s) from ${outDir}`)
+        : Effect.void
+    ),
+    Effect.ignore
+  );
 }
 
 function commands(booted: Booted): Effect.Effect<void> {
@@ -693,6 +780,9 @@ function inspectFullDesign(
   command: DesignCommand
 ): Effect.Effect<void> {
   return Effect.gen(function* () {
+    if (command.mode !== "report") {
+      yield* settledBuild(booted);
+    }
     const tools = yield* toolsFor(booted);
     if (command.mode === "report") {
       const result = yield* Effect.tryPromise({
@@ -765,6 +855,7 @@ function inspectDesign(
     ].sort((left, right) => left - right);
     const selectors = command.motion.map(({ selector }) => selector);
 
+    yield* settledBuild(booted);
     const tools = yield* toolsFor(booted);
     const session = yield* warmed(
       booted,
@@ -829,7 +920,8 @@ function inspectDesign(
           type: "design-failed",
         })
       )
-    )
+    ),
+    booted.idle.hold
   );
 }
 
@@ -914,6 +1006,7 @@ function shipClip(booted: Booted, command: ClipCommand): Effect.Effect<void> {
   const { composition, frame, id } = command;
 
   return Effect.gen(function* () {
+    yield* settledBuild(booted);
     const tools = yield* toolsFor(booted);
     const renderer = yield* exporterOf(tools.renderer);
 
@@ -981,7 +1074,7 @@ function ship(booted: Booted, command: ExportCommand): Effect.Effect<void> {
     yield* Effect.sync(() => progress({ stage: "preparing", type: "stage" }));
 
     yield* agreedVersionIn(booted.root);
-    yield* settledBuild(booted);
+    yield* compiledBuild(booted);
 
     // A fresh read every time: a remotion.config.ts edited since the last
     // export has to reach this job, and a module cache in a long-lived host
@@ -1105,7 +1198,8 @@ function answer(booted: Booted, command: StillCommand): Effect.Effect<void> {
   const progress = (event: StillEvent) =>
     Effect.runSync(write({ event, id, type: "still-progress" }));
 
-  return toolsFor(booted, progress).pipe(
+  return settledBuild(booted).pipe(
+    Effect.andThen(toolsFor(booted, progress)),
     Effect.flatMap((tools) =>
       command.type === "warm"
         ? Effect.andThen(
@@ -1121,7 +1215,8 @@ function answer(booted: Booted, command: StillCommand): Effect.Effect<void> {
         log(`preview ${command.type} failed: ${error.message}`),
         write({ id, message: error.message, type: "still-failed" })
       )
-    )
+    ),
+    booted.idle.hold
   );
 }
 
@@ -1211,8 +1306,24 @@ function waitUntil(
 // actually finished. A rebuild already in flight is worth a shorter wait and
 // never a refusal: past it the bundle from the last settled compile is still a
 // coherent one to render.
-function settledBuild(booted: Booted): Effect.Effect<void, PreviewError> {
+function compiledBuild(booted: Booted): Effect.Effect<void, PreviewError> {
+  return Effect.flatMap(settledBuild(booted), (settled) => {
+    const trouble = troubleIn(settled);
+
+    return trouble === null
+      ? Effect.void
+      : Effect.fail(
+          new PreviewError({
+            message: `the project does not compile, so there is nothing to render:\n\n${trouble}`,
+          })
+        );
+  });
+}
+
+function settledBuild(booted: Booted): Effect.Effect<BuildState, PreviewError> {
   return Effect.gen(function* () {
+    yield* booted.compiler.wake;
+
     const first = yield* waitUntil(booted.build, pinnable).pipe(
       Effect.timeoutOrElse({
         duration: BUILD_PATIENCE_MS,
@@ -1235,15 +1346,7 @@ function settledBuild(booted: Booted): Effect.Effect<void, PreviewError> {
         )
       : first;
 
-    const trouble = troubleIn(settled);
-
-    if (trouble !== null) {
-      return yield* Effect.fail(
-        new PreviewError({
-          message: `the project does not compile, so there is nothing to render:\n\n${trouble}`,
-        })
-      );
-    }
+    return settled;
   });
 }
 

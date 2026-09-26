@@ -1,5 +1,6 @@
 import path from "node:path";
 import { Effect } from "effect";
+import type { BuildOutcome } from "./build-state";
 import { PreviewError, type WebpackConfig } from "./project";
 
 export const NATIVE_MANIFEST = "/__remocn/native";
@@ -32,6 +33,27 @@ export interface NativeBundle {
   base: string;
   directory: string;
   prepare: Effect.Effect<number, PreviewError>;
+  start: Effect.Effect<void, PreviewError>;
+}
+
+export function messagesOf(stats: Stats): string {
+  const errors = stats.toJson({ all: false, errors: true }).errors ?? [];
+  const text = errors
+    .map((error) => error.message ?? "")
+    .filter((message) => message.length > 0)
+    .join("\n\n");
+
+  return text.length > 0 ? text : "the project failed to compile";
+}
+
+function failureOf(error: Error | null, stats?: Stats): string | null {
+  if (error) {
+    return error.message;
+  }
+  if (!stats) {
+    return "the project failed to compile";
+  }
+  return stats.hasErrors() ? messagesOf(stats) : null;
 }
 
 export function nativeBundle(
@@ -44,6 +66,8 @@ export function nativeBundle(
     base: string;
     origin: string;
     assets: string;
+    compiled?: (outcome: BuildOutcome) => void;
+    plugins?: readonly unknown[];
     rebuilt: () => void;
   }
 ) {
@@ -69,30 +93,29 @@ export function nativeBundle(
                 __REMOCN_NATIVE_ASSETS__: JSON.stringify(options.assets),
               }),
               new compile.optimize.LimitChunkCountPlugin({ maxChunks: 1 }),
+              ...(options.plugins ?? []),
             ];
             watcher = compile(configured).watch({}, (error, stats) => {
-              if (error || !stats || stats.hasErrors()) {
-                const message =
-                  error?.message ??
-                  stats?.toJson({ all: false, errors: true }).errors?.[0]
-                    ?.message;
-                process.stderr.write(
-                  `Canvas preview: ${message ?? "compilation failed"}\n`
-                );
+              const message = failureOf(error, stats);
+              if (message === null) {
+                generation += 1;
+                result = Effect.succeed(generation);
+              } else {
+                process.stderr.write(`Canvas preview: ${message}\n`);
                 result = Effect.fail(
                   new PreviewError({
                     message:
                       "The canvas preview could not compile. Fix the project and retry.",
                   })
                 );
-              } else {
-                generation += 1;
-                result = Effect.succeed(generation);
               }
               for (const receive of waiting) {
                 receive(result);
               }
               waiting.clear();
+              options.compiled?.(
+                message === null ? { ok: true } : { message, ok: false }
+              );
               options.rebuilt();
             });
           },
@@ -124,7 +147,12 @@ export function nativeBundle(
       })
     );
 
-    return { base: options.base, directory, prepare } satisfies NativeBundle;
+    return {
+      base: options.base,
+      directory,
+      prepare,
+      start,
+    } satisfies NativeBundle;
   });
 }
 

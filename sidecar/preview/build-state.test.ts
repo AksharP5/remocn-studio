@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   BUILDING,
   compiled,
+  percentGate,
   pinnable,
   recovering,
   started,
@@ -74,5 +75,23 @@ describe("the build a render is pinned to", () => {
 
     expect(started(rebuilding)).toBe(rebuilding);
     expect(compiled(ready, ready.settled ?? OK)).toBe(ready);
+  });
+});
+
+describe("the percent the pane is told", () => {
+  it("passes a tick only when the whole percent changes", () => {
+    const gate = percentGate();
+    const told = [0, 0.001, 0.004, 0.006, 0.1, 0.101, 0.5, 0.504, 1, 1].map(
+      gate
+    );
+
+    expect(told).toEqual([0, null, null, 1, 10, null, 50, null, 100, null]);
+  });
+
+  it("starts again from nothing when a new compile begins", () => {
+    const gate = percentGate();
+
+    expect([0, 0.5, 1, 0, 0.5].map(gate)).toEqual([0, 50, 100, 0, 50]);
+    expect(gate(0)).toBe(0);
   });
 });
