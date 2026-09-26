@@ -57,6 +57,7 @@ export const claudeAdapter: AgentAdapter = {
           }),
           cwd: services.cwd,
           executable,
+          inProcess: services.inProcess ?? {},
           knowledge,
           log: (line) => Effect.runSync(services.log(line)),
           media: services.briefs.media,

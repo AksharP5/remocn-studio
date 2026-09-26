@@ -22,6 +22,7 @@ import {
   type StillEvent,
   type VideoConfigValues,
 } from "@/shared/ipc";
+import { PREVIEW_HOST_FLAG } from "../flags";
 import type { VideoCheck } from "./choreography";
 import type { DesignResult, MotionAssertion } from "./design";
 import { PREVIEW_OUT_ENV, PREVIEW_PARENT_ENV } from "./host";
@@ -34,8 +35,6 @@ import {
   type WriteDone,
 } from "./protocol";
 import type { ReadinessOptions } from "./readiness-contract";
-
-export const PREVIEW_HOST_FLAG = "--preview-host";
 
 const KILL_GRACE_MS = 2000;
 

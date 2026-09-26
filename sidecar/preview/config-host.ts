@@ -3,8 +3,8 @@ import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { Effect } from "effect";
 import { errorMessage } from "@/lib/error-message";
+import { CONFIG_HOST_FLAG } from "../flags";
 import {
-  CONFIG_HOST_FLAG,
   CONFIG_ROOT_ENV,
   type ResolvedConfig,
   readRenderConfig,

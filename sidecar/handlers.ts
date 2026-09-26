@@ -495,6 +495,12 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
                 cwd: project.path,
                 emit,
                 gate,
+                inProcess: Object.fromEntries(
+                  TOOL_SERVERS.map((server) => [
+                    server,
+                    gateway.ask(server, turnId),
+                  ])
+                ),
                 log,
                 onApprove: approved,
                 onMode: switcher.bind,

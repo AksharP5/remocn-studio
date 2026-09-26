@@ -245,3 +245,65 @@ it("cancels a running sound tool when its turn scope closes", async () => {
   expect(aborted).toBe(true);
   link.end();
 });
+
+describe("the in-process link", () => {
+  it("answers a call without a socket or a child", async () => {
+    const { gateway, release } = await serving(tools(), socketPath());
+
+    const answer = await gateway.ask("remocn-library", TURN)("list_assets", {});
+
+    expect(answer).toEqual({ isError: false, text: "The library is empty." });
+    await release();
+  });
+
+  it("refuses once the turn has ended", async () => {
+    const { gateway, release } = await serving(tools(), socketPath());
+    await release();
+
+    const answer = await gateway.ask("remocn-library", TURN)("list_assets", {});
+
+    expect(answer.isError).toBe(true);
+    expect(answer.text).toContain("no longer running");
+  });
+
+  it("aborts a running call when the turn ends and when the caller does", async () => {
+    let aborted = 0;
+    const waiting = (_request: unknown, execution?: { signal?: AbortSignal }) =>
+      new Promise<string>((_resolve, reject) => {
+        execution?.signal?.addEventListener(
+          "abort",
+          () => {
+            aborted += 1;
+            reject(new Error("The turn stopped."));
+          },
+          { once: true }
+        );
+      });
+    const soundful = {
+      ...tools(),
+      sounds: { generate: waiting, status: () => Promise.resolve("unused") },
+    };
+    const request = { connectionId: "cn_1", name: "Door", text: "Door closes" };
+
+    const ended = await serving(soundful, socketPath());
+    const first = ended.gateway.ask("remocn-library", TURN)(
+      "generate_sound_effect",
+      request
+    );
+    await ended.release();
+
+    const cancelled = await serving(soundful, socketPath());
+    const controller = new AbortController();
+    const second = cancelled.gateway.ask("remocn-library", TURN)(
+      "generate_sound_effect",
+      request,
+      { signal: controller.signal }
+    );
+    controller.abort();
+
+    expect((await first).isError).toBe(true);
+    expect((await second).isError).toBe(true);
+    expect(aborted).toBe(2);
+    await cancelled.release();
+  });
+});

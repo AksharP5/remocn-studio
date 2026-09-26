@@ -3,21 +3,17 @@ import { createInterface } from "node:readline";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { Effect, Exit } from "effect";
-import type { ToolAnswer, ToolExecution } from "./execute";
+import { TOOLS_HOST_FLAG } from "../flags";
+import type { Ask, ToolAnswer, ToolExecution } from "./execute";
 import {
   decodeToolReply,
-  TOOLS_HOST_FLAG,
   TOOLS_SOCKET_ENV,
   TOOLS_TURN_ENV,
   type ToolCall,
 } from "./protocol";
 import { isToolServer, TOOL_SPECS, type ToolServer } from "./specs";
 
-export type Ask = (
-  tool: string,
-  params: unknown,
-  execution?: ToolExecution
-) => Promise<ToolAnswer>;
+export type { Ask } from "./execute";
 
 export interface GatewayLink {
   readonly ask: Ask;

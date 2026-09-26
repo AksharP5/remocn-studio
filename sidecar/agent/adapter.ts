@@ -7,6 +7,7 @@ import type {
   SessionMode,
 } from "@/shared/ipc";
 import type { ProviderInfo } from "@/shared/providers";
+import type { Ask } from "../tools/execute";
 import type { StdioTransport } from "../tools/gateway";
 import type { ToolServer } from "../tools/specs";
 import type { PermissionGate } from "./gate";
@@ -30,6 +31,7 @@ export interface TurnServices {
   readonly cwd: string;
   readonly emit: (event: AgentEvent) => Effect.Effect<void>;
   readonly gate: PermissionGate;
+  readonly inProcess?: Readonly<Partial<Record<ToolServer, Ask>>>;
   readonly log: (line: string) => Effect.Effect<void>;
   readonly onApprove: (mode: SessionMode) => Effect.Effect<void>;
   readonly onMode: (apply: ApplyMode) => Effect.Effect<void>;

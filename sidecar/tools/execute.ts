@@ -123,6 +123,12 @@ export interface ToolAnswer {
   readonly text: string;
 }
 
+export type Ask = (
+  tool: string,
+  params: unknown,
+  execution?: ToolExecution
+) => Promise<ToolAnswer>;
+
 export function executeTool(
   server: ToolServer,
   tool: string,
