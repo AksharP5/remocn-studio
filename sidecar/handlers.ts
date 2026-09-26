@@ -236,6 +236,14 @@ const insideProject = (root: string, files: readonly string[]) =>
           )
   );
 
+const resumingStored = (
+  params: PromptParams,
+  resumeId: string | null
+): PromptParams =>
+  params.sessionId === null && resumeId !== null
+    ? { ...params, sessionId: resumeId }
+    : params;
+
 const located = (projectId: string) =>
   Effect.flatMap(ProjectStore, (projects) => projects.find(projectId)).pipe(
     Effect.mapError(unstored),
@@ -321,7 +329,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
 
       const recorder = yield* recording(store, params, log);
       const resumeId = recorder.session?.sdkSessionId ?? null;
-      let turnParams = params;
+      let turnParams = resumingStored(params, resumeId);
       if (
         params.sessionId !== null &&
         recorder.session !== null &&

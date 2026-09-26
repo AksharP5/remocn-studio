@@ -21,6 +21,11 @@ A chat row SHALL carry its title, the project and video it belongs to, the provi
 - **WHEN** the provider reports the id of the conversation it opened
 - **THEN** that id is stored on the chat row so the next turn can resume it
 - **AND** it is the only thing kept from the provider's own transcript format
+- **AND** the chat's row in the sidebar carries the new id as soon as it is reported, so a chat released and read back resumes that conversation
+
+#### Scenario: The webview does not know the resume id
+- **WHEN** a turn is started in a chat whose row stores a resume id and the webview sends none
+- **THEN** the turn resumes the stored conversation rather than starting a new one
 
 ### Requirement: One derivation serves both the live stream and the store
 The transcript on screen during a turn and the transcript written to the store SHALL be derived from the agent's events in exactly the same way, so the two cannot differ. Storing SHALL write only the entries whose identity changed. Streamed text and thinking SHALL be written at most every quarter second while they stream, and SHALL be written in full before any other event is stored and when the turn ends, however it ends. The frames that carry streamed text and thinking to the webview MAY join consecutive pieces of the same kind into one frame, at most a few tens of milliseconds late, and SHALL never let them overtake an event that came after them.

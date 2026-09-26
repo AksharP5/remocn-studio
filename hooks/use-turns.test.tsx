@@ -664,6 +664,42 @@ describe("useTurns", () => {
     );
   });
 
+  it("brings the chat's row up to the provider's session so a reopened chat resumes it", async () => {
+    const ipc = harness();
+    const onSession = mock();
+    const { result } = renderHook(() => useTurns(onSession));
+    act(() => {
+      result.current.markOpen("a");
+      result.current.sendTurn(turn("a"));
+    });
+    await waitFor(() =>
+      expect(result.current.turns.get("a")?.isRunning).toBe(true)
+    );
+
+    ipc.stream("a", { session: STORED, type: "history" });
+    ipc.stream("a", {
+      mode: "plan",
+      model: "claude-opus-5",
+      sessionId: "sdk-10",
+      type: "session",
+    });
+
+    expect(onSession).toHaveBeenLastCalledWith({
+      ...STORED,
+      sdkSessionId: "sdk-10",
+    });
+
+    ipc.stream("a", {
+      mode: "plan",
+      model: "claude-opus-5",
+      sessionId: "sdk-10",
+      type: "session",
+    });
+
+    expect(onSession).toHaveBeenCalledTimes(2);
+    await ipc.finish("a");
+  });
+
   it("keeps a running chat however many others are opened after it", async () => {
     harness();
     const { result } = renderHook(() => useTurns(mock()));

@@ -425,6 +425,8 @@ export function useTurns(onSession: (session: HistorySession) => void): Turns {
         workedMs: null,
       }));
 
+      let row: HistorySession | null = null;
+
       const request = promptAgent(
         {
           ...(input.brandRevision === undefined
@@ -452,9 +454,14 @@ export function useTurns(onSession: (session: HistorySession) => void): Turns {
               mode: event.mode ?? current.mode,
               sdkSessionId: event.sessionId,
             }));
+            if (row !== null && row.sdkSessionId !== event.sessionId) {
+              row = { ...row, sdkSessionId: event.sessionId };
+              onSession(row);
+            }
             return;
           }
           if (event.type === "history") {
+            row = event.session;
             update(historyId, (current) => ({
               ...current,
               mode: event.session.mode,
