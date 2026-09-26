@@ -5,12 +5,13 @@ import { memo, useCallback, useMemo, useState } from "react";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Message, MessageContent } from "@/components/ui/message";
 import { MessageScrollerItem } from "@/components/ui/message-scroller";
+import { useTranscriptItems } from "@/hooks/use-transcript-items";
 import {
   type LiveLine,
   reasoningLines,
   workedLabel,
 } from "@/lib/studio/reasoning";
-import { groupActivity, type TranscriptItem } from "@/lib/studio/runs";
+import type { TranscriptItem } from "@/lib/studio/runs";
 import { activeForm, currentTasks } from "@/lib/studio/tasks";
 import { cn } from "@/lib/utils";
 import type { TranscriptEntry } from "@/shared/ipc";
@@ -47,7 +48,7 @@ export function Transcript({
   startedAt: number | null;
   workedMs?: number | null;
 }) {
-  const items = useMemo(() => groupActivity(entries), [entries]);
+  const items = useTranscriptItems(entries);
   const [expanded, setExpanded] = useState(false);
   const toggleExpanded = useCallback(() => setExpanded((value) => !value), []);
   const latestUser = entries.findLastIndex((entry) => entry.kind === "user");
