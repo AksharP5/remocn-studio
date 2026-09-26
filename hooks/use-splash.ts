@@ -19,7 +19,22 @@ export interface SplashControl {
   phase: SplashPhase | "gone";
 }
 
-export function useSplash(isSettled: boolean): SplashControl {
+export interface Boot {
+  isBooting: boolean;
+  onGone: () => void;
+}
+
+export function useBoot(): Boot {
+  const [isBooting, setIsBooting] = useState(true);
+  const onGone = useCallback(() => setIsBooting(false), []);
+
+  return { isBooting, onGone };
+}
+
+export function useSplash(
+  isSettled: boolean,
+  onGone?: () => void
+): SplashControl {
   const [isGone, setIsGone] = useState(false);
   const now = useNow(isGone ? null : TICK);
   const shownAt = useRef(now);
@@ -51,9 +66,10 @@ export function useSplash(isSettled: boolean): SplashControl {
         event.animationName === EXIT_ANIMATION
       ) {
         setIsGone(true);
+        onGone?.();
       }
     },
-    [livePhase]
+    [livePhase, onGone]
   );
 
   return {

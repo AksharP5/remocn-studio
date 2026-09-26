@@ -1,7 +1,6 @@
 import { Data, Effect } from "effect";
 import type { BundledLanguage } from "shiki";
-import { createHighlighterCore, type HighlighterCore } from "shiki/core";
-import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
+import type { HighlighterCore } from "shiki/core";
 import type { CodeHighlighterPlugin, ThemeInput } from "streamdown";
 import { errorMessage } from "@/lib/error-message";
 
@@ -16,8 +15,13 @@ export const loadCodeHighlighter: Effect.Effect<
   HighlighterError
 > = Effect.tryPromise({
   catch: (cause) => new HighlighterError({ message: errorMessage(cause) }),
-  try: () =>
-    createHighlighterCore({
+  try: async () => {
+    const [{ createHighlighterCore }, { createJavaScriptRegexEngine }] =
+      await Promise.all([
+        import("shiki/core"),
+        import("shiki/engine/javascript"),
+      ]);
+    return createHighlighterCore({
       engine: createJavaScriptRegexEngine({ forgiving: true }),
       langs: [
         import("@shikijs/langs/bash"),
@@ -32,8 +36,31 @@ export const loadCodeHighlighter: Effect.Effect<
         import("@shikijs/themes/github-light"),
         import("@shikijs/themes/github-dark"),
       ],
-    }),
+    });
+  },
 }).pipe(Effect.map(pluginOf));
+
+export type MarkdownRenderer = typeof import("streamdown");
+
+let renderer: MarkdownRenderer | null = null;
+
+export function loadedMarkdownRenderer(): MarkdownRenderer | null {
+  return renderer;
+}
+
+export const loadMarkdownRenderer: Effect.Effect<
+  MarkdownRenderer,
+  HighlighterError
+> = Effect.tryPromise({
+  catch: (cause) => new HighlighterError({ message: errorMessage(cause) }),
+  try: () => import("streamdown"),
+}).pipe(
+  Effect.tap((loaded) =>
+    Effect.sync(() => {
+      renderer = loaded;
+    })
+  )
+);
 
 function pluginOf(core: HighlighterCore): CodeHighlighterPlugin {
   const loaded = new Set(core.getLoadedLanguages());

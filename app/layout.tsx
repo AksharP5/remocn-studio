@@ -17,6 +17,7 @@ const dmSans = DM_Sans({
 // UI grotesque whose regular matches DM Sans's stroke weight — Manrope was
 // tried first and its 400 reads a full step thinner.
 const golos = Golos_Text({
+  preload: false,
   subsets: ["cyrillic", "cyrillic-ext"],
   variable: "--font-cyrillic",
 });

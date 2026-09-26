@@ -31,12 +31,16 @@ import {
   type TextDraft,
   type TuningRefusal,
 } from "@/hooks/use-inspect";
-import { usePreviewFrame } from "@/hooks/use-preview";
+import { type PreviewFrames, usePreviewFrame } from "@/hooks/use-preview";
 import { type PropGroups, usePropGroups } from "@/hooks/use-prop-groups";
-import { type TimeStrip, useTimeStrip } from "@/hooks/use-time-strip";
+import { useTimeStrip } from "@/hooks/use-time-strip";
 import { useWheelScroll } from "@/hooks/use-wheel-scroll";
 import { windowSeconds } from "@/lib/studio/easing";
-import type { TuningField, TuningTarget } from "@/lib/studio/preview";
+import type {
+  PreviewWindow,
+  TuningField,
+  TuningTarget,
+} from "@/lib/studio/preview";
 import { paneRows, type SpringReadout } from "@/lib/studio/spring";
 import { VERBATIM_INPUT } from "@/lib/studio/text-input";
 import { changedFields, subtitleOf, titleOf } from "@/lib/studio/tuning";
@@ -66,10 +70,9 @@ const GROUP_ORDER = [
 ];
 
 export function PropsPane() {
-  const { composer, openedProject, settings, tools } = useStudio();
+  const { composerActions, openedProject, settings, tools } = useStudio();
   const { inspect } = tools;
   const { card } = inspect;
-  const frame = usePreviewFrame(tools.preview);
   // Outside the keyed panel below, so a fold survives picking another element.
   const groups = usePropGroups(settings);
 
@@ -80,12 +83,12 @@ export function PropsPane() {
       if (!(object && video)) {
         return;
       }
-      composer.write(
+      composerActions.write(
         `For element ${JSON.stringify(object.label)} (studio object ${JSON.stringify(object.id)}, definition ${JSON.stringify(object.definition)}) in video ${JSON.stringify(video)}:\n${instruction}`
       );
-      composer.caret.ref.current?.focus();
+      composerActions.caret.ref.current?.focus();
     },
-    [composer, tools.managed?.selected, tools.preview.composition]
+    [composerActions, tools.managed?.selected, tools.preview.composition]
   );
 
   if (tools.managed?.isOpen) {
@@ -108,7 +111,7 @@ export function PropsPane() {
     <PropsPanel
       card={card}
       cwd={openedProject?.path ?? null}
-      frame={frame}
+      frames={tools.preview}
       groups={groups}
       key={card.targets.at(0)?.instanceId || "element"}
       onCancel={inspect.cancelComment}
@@ -128,7 +131,7 @@ export function PropsPane() {
 export function PropsPanel({
   card,
   cwd,
-  frame,
+  frames,
   groups: folds,
   onCancel,
   onChange,
@@ -143,7 +146,7 @@ export function PropsPanel({
 }: {
   card: PendingComment;
   cwd: string | null;
-  frame: number;
+  frames: PreviewFrames;
   /** Which sections are folded shut, and how to fold one. */
   groups?: PropGroups;
   onCancel: () => void;
@@ -162,12 +165,6 @@ export function PropsPanel({
   const groups = groupsOf(target.fields);
   const resetAll = useCallback(() => onReset(), [onReset]);
   const subtitle = subtitleOf(target, card.targets[card.open + 1] ?? null, cwd);
-  const strip = useTimeStrip({
-    frame,
-    onReplay,
-    onSeek,
-    span: card.window ?? null,
-  });
   const duration = windowSeconds(card.window, card.element.fps);
   const assets = {
     base: card.assetBase ?? null,
@@ -211,7 +208,12 @@ export function PropsPanel({
       </PaneHeader>
 
       <PaneBody className="gap-0 p-0">
-        <TimeStripRow strip={strip} />
+        <TimeStripRow
+          frames={frames}
+          onReplay={onReplay}
+          onSeek={onSeek}
+          span={card.window ?? null}
+        />
 
         {target.instances < 2 ? null : (
           <p className="px-4 pb-2 text-muted-foreground text-xs">
@@ -410,7 +412,20 @@ function TextSection({
   );
 }
 
-function TimeStripRow({ strip }: { strip: TimeStrip }) {
+function TimeStripRow({
+  frames,
+  onReplay,
+  onSeek,
+  span,
+}: {
+  frames: PreviewFrames;
+  onReplay: () => void;
+  onSeek: (frame: number) => void;
+  span: PreviewWindow | null;
+}) {
+  const frame = usePreviewFrame(frames);
+  const strip = useTimeStrip({ frame, onReplay, onSeek, span });
+
   return (
     <div className="flex min-h-8 shrink-0 items-center gap-2 px-4 pb-2">
       <span className="shrink-0 font-mono text-[10px] text-muted-foreground tabular-nums">

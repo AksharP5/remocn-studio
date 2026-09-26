@@ -1,6 +1,7 @@
 "use client";
 
 import { PanelLeftOpenIcon } from "lucide-react";
+import type { ComponentProps } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -56,7 +57,7 @@ import { QueueDock } from "./queue-dock";
 import { SoundPrompt } from "./sound-prompt";
 import { Startup } from "./startup";
 import { StartupBackdrop } from "./startup-backdrop";
-import { useStudio } from "./studio-provider";
+import { useStudio, useStudioQueue, useStudioTurn } from "./studio-provider";
 import { TaskDock } from "./task-dock";
 import { TemplateList } from "./template-list";
 import { Transcript } from "./transcript";
@@ -80,12 +81,10 @@ export function ChatPane() {
     openedProject,
     openFolder,
     preferences,
-    queue,
     relocateProject,
     reloadProjects,
     settings,
     toggleProjects,
-    turn,
   } = useStudio();
   const { locate } = useLocateProject(
     openedProject?.id ?? null,
@@ -139,32 +138,39 @@ export function ChatPane() {
         </div>
       </PaneHeader>
 
-      {turn.isLoadingTranscript ? (
-        <LoadingTranscript />
-      ) : (
-        <Conversation
-          cwd={openedProject?.path ?? null}
-          docs={docs}
-          environment={environment}
-          hasProject={openedProject !== null}
-          isLoadingProjects={isLoadingProjects}
-          library={library}
-          listError={listError}
-          missing={openedProject?.missing ?? false}
-          newProject={newProject}
-          newVideo={newVideo}
-          offersEnabled={preferences.assetOffers}
-          onLocate={locate}
-          onOpenFolder={openFolder}
-          onRetryProjects={reloadProjects}
-          projectName={openedProject?.name ?? null}
-          queue={queue}
-          settings={settings}
-          turn={turn}
-        />
-      )}
+      <ChatBody
+        cwd={openedProject?.path ?? null}
+        docs={docs}
+        environment={environment}
+        hasProject={openedProject !== null}
+        isLoadingProjects={isLoadingProjects}
+        library={library}
+        listError={listError}
+        missing={openedProject?.missing ?? false}
+        newProject={newProject}
+        newVideo={newVideo}
+        offersEnabled={preferences.assetOffers}
+        onLocate={locate}
+        onOpenFolder={openFolder}
+        onRetryProjects={reloadProjects}
+        projectName={openedProject?.name ?? null}
+        settings={settings}
+      />
     </Pane>
   );
+}
+
+function ChatBody(
+  props: Omit<ComponentProps<typeof Conversation>, "queue" | "turn">
+) {
+  const turn = useStudioTurn();
+  const queue = useStudioQueue();
+
+  if (turn.isLoadingTranscript) {
+    return <LoadingTranscript />;
+  }
+
+  return <Conversation {...props} queue={queue} turn={turn} />;
 }
 
 function titleOf(
@@ -501,7 +507,7 @@ function ChatEmptyState({
   onNewProject: () => void;
   onOpenFolder: () => void;
 }) {
-  const { composer } = useStudio();
+  const { composerActions } = useStudio();
 
   if (!hasProject) {
     return (
@@ -530,7 +536,7 @@ function ChatEmptyState({
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent className="max-w-full items-start">
-        <TemplateList className="-mx-3 w-auto" onPick={composer.fill} />
+        <TemplateList className="-mx-3 w-auto" onPick={composerActions.fill} />
       </EmptyContent>
     </Empty>
   );

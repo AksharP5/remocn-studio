@@ -11,16 +11,12 @@ import {
 import { AnchoredToastProvider, ToastProvider } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useFrozenWidth } from "@/hooks/use-frozen-width";
-import { useHydratedSettings } from "@/hooks/use-hydrated-settings";
 import { usePlatformAttribute } from "@/hooks/use-platform";
 import { usePreviewCollapse } from "@/hooks/use-preview-collapse";
 import { useSidebarCollapse } from "@/hooks/use-sidebar-collapse";
-import { useSplash } from "@/hooks/use-splash";
-import { useWorkspace } from "@/hooks/use-workspace";
-import { shellMood } from "@/lib/studio/mood";
+import { useBoot } from "@/hooks/use-splash";
 import { panelIdsOf } from "@/lib/studio/panes";
 import { layoutStorage } from "@/lib/studio/settings";
-import { isStudioBootReady } from "@/lib/studio/splash";
 import { cn } from "@/lib/utils";
 import { ChatPane } from "./chat-pane";
 import { CrashBoundary } from "./crash-boundary";
@@ -30,7 +26,7 @@ import { ProjectsPane } from "./projects-pane";
 import { QuitGuard } from "./quit-guard";
 import { SettingsPage } from "./settings-page";
 import { Splash } from "./splash";
-import { StudioProvider, useStudio } from "./studio-provider";
+import { StudioProvider, useStudio, useStudioBoot } from "./studio-provider";
 import { Titlebar } from "./titlebar";
 
 const SHELL_LAYOUT_ID = "shell";
@@ -46,28 +42,26 @@ export function AppShell() {
 }
 
 function StudioBoot() {
-  const settings = useHydratedSettings();
-  const workspace = useWorkspace(settings);
-  const splash = useSplash(isStudioBootReady(workspace));
-  const isBooting = splash.phase !== "gone";
+  const { isBooting, onGone } = useBoot();
 
   return (
-    <>
-      <StudioProvider settings={settings} workspace={workspace}>
-        <TooltipProvider delay={500}>
-          <ToastProvider>
-            <AnchoredToastProvider>
-              <ShellLayout isBooting={isBooting} />
-              <SettingsPage />
-              <OnboardingDialog suspended={isBooting} />
-              <QuitGuard />
-            </AnchoredToastProvider>
-          </ToastProvider>
-        </TooltipProvider>
-      </StudioProvider>
-      <Splash {...splash} />
-    </>
+    <StudioProvider splash={<BootSplash onGone={onGone} />}>
+      <TooltipProvider delay={500}>
+        <ToastProvider>
+          <AnchoredToastProvider>
+            <ShellLayout isBooting={isBooting} />
+            <SettingsPage />
+            <OnboardingDialog suspended={isBooting} />
+            <QuitGuard />
+          </AnchoredToastProvider>
+        </ToastProvider>
+      </TooltipProvider>
+    </StudioProvider>
   );
+}
+
+function BootSplash({ onGone }: { onGone: () => void }) {
+  return <Splash isSettled={useStudioBoot()} onGone={onGone} />;
 }
 
 const StillChatPane = memo(ChatPane);
@@ -170,7 +164,7 @@ function ShellPanes({
 }
 
 function ShellLayout({ isBooting }: { isBooting: boolean }) {
-  const { isProjectsShown, preferences, projects, settingsView, turns } =
+  const { isProjectsShown, mood, preferences, projects, settingsView } =
     useStudio();
   const collapse = useSidebarCollapse(isProjectsShown);
 
@@ -191,9 +185,7 @@ function ShellLayout({ isBooting }: { isBooting: boolean }) {
           isBooting={isBooting}
           isStill={!preferences.titlebarMotion}
           mood={
-            projects.length === 0 || !preferences.titlebarShader
-              ? null
-              : shellMood(turns)
+            projects.length === 0 || !preferences.titlebarShader ? null : mood
           }
         />
       </div>

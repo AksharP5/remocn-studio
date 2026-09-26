@@ -53,7 +53,7 @@ import { MentionPopup } from "./mention-popup";
 import { MessageText } from "./message-text";
 import { ModelMenu } from "./model-menu";
 import { SelectionRow } from "./selection-row";
-import { useStudio } from "./studio-provider";
+import { useStudio, useStudioComposer } from "./studio-provider";
 
 const DEFAULT = "";
 
@@ -136,7 +136,6 @@ function ComposerBlock({
   const {
     accounts,
     claudeEffort,
-    composer,
     drops,
     library,
     models,
@@ -145,6 +144,7 @@ function ComposerBlock({
     settingsView,
     tools,
   } = useStudio();
+  const composer = useStudioComposer();
   const sidecar = useSidecar();
   const onKeepAttachment = useKeepAttachment(
     composer.attachments.items,

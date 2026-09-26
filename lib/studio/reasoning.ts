@@ -83,20 +83,35 @@ export function reasoningLines(
   cwd: string | null,
   max = 3
 ): ReasoningLine[] {
-  const byId = new Map(entries.map((entry) => [entry.id, entry]));
-  const lines = live.flatMap((line): ReasoningLine[] => {
-    if (line.kind === "thought") {
-      return sentences(line.text).map((sentence, index) => ({
-        id: `${line.id}-${index}`,
-        kind: "thought",
-        text: sentence,
-      }));
+  const lines: ReasoningLine[] = [];
+  for (
+    let index = live.length - 1;
+    index >= 0 && lines.length < max;
+    index -= 1
+  ) {
+    const line = live[index];
+    if (line !== undefined) {
+      lines.unshift(...linesOf(line, entries, cwd));
     }
-    const entry = byId.get(line.entryId);
-    const text = entry ? stepText(entry, cwd) : null;
-    return text === null ? [] : [{ id: line.id, kind: "step", text }];
-  });
+  }
   return lines.slice(-max);
+}
+
+function linesOf(
+  line: LiveLine,
+  entries: readonly TranscriptEntry[],
+  cwd: string | null
+): ReasoningLine[] {
+  if (line.kind === "thought") {
+    return sentences(line.text).map((sentence, index) => ({
+      id: `${line.id}-${index}`,
+      kind: "thought",
+      text: sentence,
+    }));
+  }
+  const entry = entries.findLast((candidate) => candidate.id === line.entryId);
+  const text = entry ? stepText(entry, cwd) : null;
+  return text === null ? [] : [{ id: line.id, kind: "step", text }];
 }
 
 export function workedLabel(durationMs: number | null, steps: number): string {

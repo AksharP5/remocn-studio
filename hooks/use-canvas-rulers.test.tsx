@@ -108,7 +108,7 @@ async function mount(settings: StudioSettings | null = settingsWith(null)) {
   function Harness() {
     const camera = usePreviewCamera(VIDEO, "p:intro", () => undefined);
     const rulers = useCanvasRulers({
-      camera: camera.camera,
+      camera: camera.view,
       selection: null,
       settings,
       video: VIDEO,

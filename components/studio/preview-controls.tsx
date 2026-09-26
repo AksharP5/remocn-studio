@@ -14,7 +14,11 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { SliderPrimitive } from "@/components/ui/slider";
 import { Spinner } from "@/components/ui/spinner";
-import type { PreviewTransport } from "@/hooks/use-preview-transport";
+import {
+  type PreviewTransport,
+  useTransportEdge,
+  useTransportFrame,
+} from "@/hooks/use-preview-transport";
 import { useSeekScenes } from "@/hooks/use-seek-scenes";
 import { cn } from "@/lib/utils";
 import { DOCK_ACTIONS } from "./dock-layout";
@@ -31,23 +35,17 @@ export function PreviewControls({
   const {
     buffering,
     canFullscreen,
-    duration,
     error,
-    frame,
     fullscreen,
-    lastFrame,
     muted,
     next,
     playing,
-    position,
     previous,
     rate,
     rateMarks,
     rateStep,
     rates,
     ready,
-    scenes,
-    seekTo,
     setRateStep,
     setVolume,
     toggle,
@@ -55,61 +53,19 @@ export function PreviewControls({
     toggleMute,
     volume,
   } = transport;
-  const sceneBar = useSeekScenes({
-    frame,
-    scenes,
-    seekTo,
-    totalFrames: lastFrame + 1,
-  });
+  const edge = useTransportEdge(transport);
 
   return (
     <fieldset
       aria-label="Playback controls"
       className="@container flex min-w-0 shrink-0 flex-col gap-2"
     >
-      {sceneBar.segments.length === 0 ? null : (
-        <nav
-          aria-label="Scenes"
-          className="relative h-4"
-          ref={sceneBar.measure}
-        >
-          {sceneBar.segments.map((segment) => (
-            <button
-              aria-label={`Go to ${segment.name}`}
-              className={cn(
-                "absolute inset-y-0 truncate px-2 text-left text-muted-foreground text-xs outline-none transition-colors hover:text-foreground focus-visible:text-foreground disabled:pointer-events-none",
-                segment.id === sceneBar.current && "text-foreground"
-              )}
-              disabled={!ready}
-              key={segment.id}
-              onClick={sceneBar.onPick}
-              style={{ left: `${segment.left}%`, width: `${segment.width}%` }}
-              title={segment.name}
-              type="button"
-              value={segment.from}
-            >
-              {segment.labeled ? segment.name : null}
-            </button>
-          ))}
-        </nav>
-      )}
-      <PlaybackSlider
-        disabled={!ready || lastFrame === 0}
-        end={ready ? duration : "--:--"}
-        label="Video position"
-        marks={sceneBar.segments.slice(1).map((segment) => segment.left)}
-        max={Math.max(1, lastFrame)}
-        onChange={seekTo}
-        start={ready ? position : "--:--"}
-        title={`Frame ${frame + 1} of ${lastFrame + 1}`}
-        value={frame}
-        valueText={`${position}, frame ${frame + 1} of ${lastFrame + 1}`}
-      />
+      <SeekBar transport={transport} />
       <div className={cn(DOCK_ACTIONS, "shrink-0 gap-1")}>
         <Button
           aria-label="Previous frame"
           className="size-8 text-muted-foreground sm:size-8"
-          disabled={!ready || frame === 0}
+          disabled={!ready || edge === "start"}
           onClick={previous}
           size="icon"
           title="Previous frame (←)"
@@ -131,7 +87,7 @@ export function PreviewControls({
         <Button
           aria-label="Next frame"
           className="size-8 text-muted-foreground sm:size-8"
-          disabled={!ready || frame === lastFrame}
+          disabled={!ready || edge === "end"}
           onClick={next}
           size="icon"
           title="Next frame (→)"
@@ -205,6 +161,60 @@ export function PreviewControls({
         ) : null}
       </div>
     </fieldset>
+  );
+}
+
+function SeekBar({ transport }: { transport: PreviewTransport }) {
+  const { duration, lastFrame, ready, scenes, seekTo } = transport;
+  const { frame, position } = useTransportFrame(transport);
+  const sceneBar = useSeekScenes({
+    frame,
+    scenes,
+    seekTo,
+    totalFrames: lastFrame + 1,
+  });
+
+  return (
+    <>
+      {sceneBar.segments.length === 0 ? null : (
+        <nav
+          aria-label="Scenes"
+          className="relative h-4"
+          ref={sceneBar.measure}
+        >
+          {sceneBar.segments.map((segment) => (
+            <button
+              aria-label={`Go to ${segment.name}`}
+              className={cn(
+                "absolute inset-y-0 truncate px-2 text-left text-muted-foreground text-xs outline-none transition-colors hover:text-foreground focus-visible:text-foreground disabled:pointer-events-none",
+                segment.id === sceneBar.current && "text-foreground"
+              )}
+              disabled={!ready}
+              key={segment.id}
+              onClick={sceneBar.onPick}
+              style={{ left: `${segment.left}%`, width: `${segment.width}%` }}
+              title={segment.name}
+              type="button"
+              value={segment.from}
+            >
+              {segment.labeled ? segment.name : null}
+            </button>
+          ))}
+        </nav>
+      )}
+      <PlaybackSlider
+        disabled={!ready || lastFrame === 0}
+        end={ready ? duration : "--:--"}
+        label="Video position"
+        marks={sceneBar.segments.slice(1).map((segment) => segment.left)}
+        max={Math.max(1, lastFrame)}
+        onChange={seekTo}
+        start={ready ? position : "--:--"}
+        title={`Frame ${frame + 1} of ${lastFrame + 1}`}
+        value={frame}
+        valueText={`${position}, frame ${frame + 1} of ${lastFrame + 1}`}
+      />
+    </>
   );
 }
 

@@ -109,7 +109,7 @@ function draw(
     <PropsPanel
       card={shown}
       cwd="/Users/me/projects/my-video"
-      frame={handlers.frame ?? 42}
+      frames={stillFrames(handlers.frame ?? 42)}
       groups={handlers.groups}
       onCancel={handlers.onCancel ?? mock()}
       onChange={(handlers.onChange ?? mock()) as never}
@@ -123,6 +123,10 @@ function draw(
       target={shown.tuning ?? target}
     />
   );
+}
+
+function stillFrames(frame: number) {
+  return { frameOf: () => frame, onFrame: () => () => undefined };
 }
 
 describe("PropsPanel", () => {

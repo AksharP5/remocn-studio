@@ -60,6 +60,11 @@ export interface ComposerSettings {
   projectId: string | null;
 }
 
+export type ComposerActions = Pick<
+  Composer,
+  "caret" | "fill" | "pick" | "write"
+>;
+
 export interface Composer {
   add: () => Promise<void>;
   addMedia: () => Promise<void>;

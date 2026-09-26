@@ -122,39 +122,47 @@ describe("useWorkspace", () => {
   it("opens the project's most recent chat when the project is switched", async () => {
     const { result } = harness([B_NEW, A_NEW, B_OLD]);
 
-    await waitFor(() => expect(result.current.projects).toHaveLength(2));
-    await waitFor(() => expect(result.current.sessions).toHaveLength(3));
+    await waitFor(() =>
+      expect(result.current.workspace.projects).toHaveLength(2)
+    );
+    await waitFor(() =>
+      expect(result.current.workspace.sessions).toHaveLength(3)
+    );
 
     act(() => {
-      result.current.selectSession(A_NEW);
+      result.current.workspace.selectSession(A_NEW);
     });
-    expect(result.current.openedSession?.id).toBe("a-new");
+    expect(result.current.workspace.openedSession?.id).toBe("a-new");
 
     act(() => {
-      result.current.selectProject(B.id);
+      result.current.workspace.selectProject(B.id);
     });
 
-    expect(result.current.activeProject?.id).toBe(B.id);
-    expect(result.current.openedProject?.id).toBe(B.id);
-    expect(result.current.openedSession?.id).toBe("b-new");
+    expect(result.current.workspace.activeProject?.id).toBe(B.id);
+    expect(result.current.workspace.openedProject?.id).toBe(B.id);
+    expect(result.current.workspace.openedSession?.id).toBe("b-new");
   });
 
   it("switches to a project with no chats on an empty composer", async () => {
     const { result } = harness([A_NEW]);
 
-    await waitFor(() => expect(result.current.projects).toHaveLength(2));
-    await waitFor(() => expect(result.current.sessions).toHaveLength(1));
+    await waitFor(() =>
+      expect(result.current.workspace.projects).toHaveLength(2)
+    );
+    await waitFor(() =>
+      expect(result.current.workspace.sessions).toHaveLength(1)
+    );
 
     act(() => {
-      result.current.selectSession(A_NEW);
+      result.current.workspace.selectSession(A_NEW);
     });
 
     act(() => {
-      result.current.selectProject(B.id);
+      result.current.workspace.selectProject(B.id);
     });
 
-    expect(result.current.activeProject?.id).toBe(B.id);
-    expect(result.current.openedProject?.id).toBe(B.id);
-    expect(result.current.openedSession).toBeNull();
+    expect(result.current.workspace.activeProject?.id).toBe(B.id);
+    expect(result.current.workspace.openedProject?.id).toBe(B.id);
+    expect(result.current.workspace.openedSession).toBeNull();
   });
 });

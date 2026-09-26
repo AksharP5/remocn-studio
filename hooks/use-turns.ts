@@ -1,7 +1,7 @@
 "use client";
 
 import { Effect, Fiber } from "effect";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { causeMessage } from "@/lib/error-message";
 import {
   answerPermission,
@@ -17,12 +17,14 @@ import {
   dropQueued,
   enqueue,
   IDLE_TURN,
+  idleBeyond,
   nextQueued,
   type QueuedMessage,
   type TurnState,
   waitingSibling,
 } from "@/lib/studio/turns";
 import type {
+  AgentEvent,
   EffortLevel,
   HistorySession,
   PromptAttachment,
@@ -53,7 +55,7 @@ export interface StartTurn {
   videoId: string;
 }
 
-export interface Turns {
+export interface TurnActions {
   answerSourceTurn: (
     historyId: string,
     sourceId: string,
@@ -79,7 +81,64 @@ export interface Turns {
   setTurnMode: (historyId: string, mode: SessionMode) => void;
   setTurnProvider: (historyId: string, provider: AgentProvider) => void;
   stopTurn: (historyId: string) => void;
+}
+
+export interface Turns extends TurnActions {
+  actions: TurnActions;
   turns: ReadonlyMap<string, TurnState>;
+}
+
+type Step = (turn: TurnState) => TurnState;
+
+const KEPT_CHATS = 5;
+
+const DEFERRED: ReadonlySet<AgentEvent["type"]> = new Set(["text", "thinking"]);
+
+function stepOf(event: AgentEvent): Step {
+  if (event.type === "pipeline") {
+    return (current) => ({ ...current, stages: event.stages });
+  }
+  if (event.type === "permission") {
+    return (current) => ({
+      ...current,
+      permissions: [
+        ...current.permissions,
+        {
+          askedAt: Date.now(),
+          id: event.id,
+          input: event.input,
+          name: event.name,
+          reason: event.reason,
+        },
+      ],
+    });
+  }
+  if (event.type === "asset_source") {
+    return (current) => ({
+      ...current,
+      sources: [
+        ...current.sources,
+        {
+          askedAt: Date.now(),
+          attempt: event.attempt,
+          id: event.id,
+          name: event.name,
+          source: event.source,
+        },
+      ],
+    });
+  }
+  if (event.type === "thinking") {
+    return (current) => ({
+      ...current,
+      live: appendLive(current.live, event),
+    });
+  }
+  return (current) => ({
+    ...current,
+    entries: fold(current.entries, event),
+    live: appendLive(current.live, event),
+  });
 }
 
 type Running = Fiber.Fiber<PromptResult, SidecarError>;
@@ -160,26 +219,103 @@ export function useTurns(onSession: (session: HistorySession) => void): Turns {
     return false;
   }, []);
 
+  const deferred = useRef<[string, Step][]>([]);
+  const frame = useRef<number | null>(null);
+  const recent = useRef<readonly string[]>([]);
+  const loaded = useRef(new Set<string>());
+
+  const commit = useCallback((steps: readonly [string, Step][]) => {
+    setTurns((current) => {
+      const next = new Map(current);
+      for (const [historyId, step] of steps) {
+        next.set(historyId, step(next.get(historyId) ?? IDLE_TURN));
+      }
+      snapshot.current = next;
+      return next;
+    });
+  }, []);
+
+  const flush = useCallback(() => {
+    if (frame.current !== null) {
+      cancelAnimationFrame(frame.current);
+      frame.current = null;
+    }
+    const steps = deferred.current;
+    if (steps.length === 0) {
+      return;
+    }
+    deferred.current = [];
+    commit(steps);
+  }, [commit]);
+
   const update = useCallback(
-    (historyId: string, step: (turn: TurnState) => TurnState) => {
-      setTurns((current) => {
-        const next = new Map(current);
-        next.set(historyId, step(current.get(historyId) ?? IDLE_TURN));
-        snapshot.current = next;
-        return next;
-      });
+    (historyId: string, step: Step) => {
+      flush();
+      commit([[historyId, step]]);
+    },
+    [commit, flush]
+  );
+
+  const defer = useCallback(
+    (historyId: string, step: Step) => {
+      deferred.current.push([historyId, step]);
+      frame.current ??= requestAnimationFrame(flush);
+    },
+    [flush]
+  );
+
+  useEffect(
+    () => () => {
+      if (frame.current !== null) {
+        cancelAnimationFrame(frame.current);
+        frame.current = null;
+      }
     },
     []
   );
 
+  const release = useCallback((keep: string | null) => {
+    const stale = idleBeyond(
+      snapshot.current,
+      recent.current,
+      loaded.current,
+      keep,
+      KEPT_CHATS
+    );
+    if (stale.length === 0) {
+      return;
+    }
+
+    for (const historyId of stale) {
+      loaded.current.delete(historyId);
+    }
+    recent.current = recent.current.filter((id) => !stale.includes(id));
+
+    setTurns((current) => {
+      const next = new Map(current);
+      for (const historyId of stale) {
+        next.delete(historyId);
+      }
+      snapshot.current = next;
+      return next;
+    });
+  }, []);
+
   const markOpen = useCallback(
     (historyId: string | null) => {
       open.current = historyId;
+      if (historyId !== null) {
+        recent.current = [
+          historyId,
+          ...recent.current.filter((id) => id !== historyId),
+        ];
+      }
+      release(historyId);
       if (historyId !== null && snapshot.current.get(historyId)?.unread) {
         update(historyId, (turn) => ({ ...turn, unread: false }));
       }
     },
-    [update]
+    [release, update]
   );
 
   const loadTurn = useCallback(
@@ -187,6 +323,8 @@ export function useTurns(onSession: (session: HistorySession) => void): Turns {
       if (snapshot.current.has(session.id)) {
         return;
       }
+
+      loaded.current.add(session.id);
 
       update(session.id, (turn) => ({
         ...turn,
@@ -324,57 +462,12 @@ export function useTurns(onSession: (session: HistorySession) => void): Turns {
             onSession(event.session);
             return;
           }
-          if (event.type === "pipeline") {
-            update(historyId, (current) => ({
-              ...current,
-              stages: event.stages,
-            }));
-            return;
+          const step = stepOf(event);
+          if (DEFERRED.has(event.type)) {
+            defer(historyId, step);
+          } else {
+            update(historyId, step);
           }
-          if (event.type === "permission") {
-            update(historyId, (current) => ({
-              ...current,
-              permissions: [
-                ...current.permissions,
-                {
-                  askedAt: Date.now(),
-                  id: event.id,
-                  input: event.input,
-                  name: event.name,
-                  reason: event.reason,
-                },
-              ],
-            }));
-            return;
-          }
-          if (event.type === "asset_source") {
-            update(historyId, (current) => ({
-              ...current,
-              sources: [
-                ...current.sources,
-                {
-                  askedAt: Date.now(),
-                  attempt: event.attempt,
-                  id: event.id,
-                  name: event.name,
-                  source: event.source,
-                },
-              ],
-            }));
-            return;
-          }
-          if (event.type === "thinking") {
-            update(historyId, (current) => ({
-              ...current,
-              live: appendLive(current.live, event),
-            }));
-            return;
-          }
-          update(historyId, (current) => ({
-            ...current,
-            entries: fold(current.entries, event),
-            live: appendLive(current.live, event),
-          }));
         }
       ).pipe(
         Effect.onExit((exit) =>
@@ -445,7 +538,7 @@ export function useTurns(onSession: (session: HistorySession) => void): Turns {
       videos.current.set(historyId, input.videoId);
       fibers.current.set(historyId, Effect.runFork(request));
     },
-    [onSession, update, videoFor]
+    [defer, onSession, update, videoFor]
   );
 
   launcher.current = launch;
@@ -614,7 +707,7 @@ export function useTurns(onSession: (session: HistorySession) => void): Turns {
     [turns]
   );
 
-  return useMemo(
+  const actions = useMemo(
     () => ({
       answerSourceTurn,
       answerTurn,
@@ -628,7 +721,6 @@ export function useTurns(onSession: (session: HistorySession) => void): Turns {
       setTurnMode,
       setTurnProvider,
       stopTurn,
-      turns,
     }),
     [
       answerSourceTurn,
@@ -643,7 +735,8 @@ export function useTurns(onSession: (session: HistorySession) => void): Turns {
       setTurnMode,
       setTurnProvider,
       stopTurn,
-      turns,
     ]
   );
+
+  return useMemo(() => ({ ...actions, actions, turns }), [actions, turns]);
 }

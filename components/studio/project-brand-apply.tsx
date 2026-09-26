@@ -88,7 +88,7 @@ export function ProjectBrandApply({
       videoId,
     }));
     for (const job of next) {
-      studio.setTurnProvider(job.historyId, studio.turn.provider);
+      studio.setTurnProvider(job.historyId, studio.provider);
       studio.sendTurn({
         ...job,
         assets: [],
@@ -98,7 +98,7 @@ export function ProjectBrandApply({
         elements: [],
         media: [],
         mode: "acceptEdits",
-        model: studio.models[studio.turn.provider],
+        model: studio.models[studio.provider],
         playing: null,
         projectId,
         prompt:
@@ -199,13 +199,13 @@ export function ProjectBrandApply({
         </div>
       </details>
       {jobs.map((job) => {
-        const turn = studio.turns.get(job.historyId);
+        const turn = studio.statuses.get(job.historyId);
         let { status } = job;
-        if (turn?.isRunning) {
+        if (turn === "running" || turn === "waiting") {
           status = "running";
-        } else if (turn?.error) {
+        } else if (turn === "failed") {
           status = "failed";
-        } else if (turn && status === "running") {
+        } else if (turn !== undefined && status === "running") {
           status = "awaiting-review";
         }
         const message = {

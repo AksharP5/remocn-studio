@@ -132,6 +132,34 @@ export function waitingSibling(
   return null;
 }
 
+export function isReleasable(turn: TurnState | undefined): boolean {
+  return (
+    turn !== undefined &&
+    !(turn.isRunning || turn.isLoading || turn.unread) &&
+    turn.error === null &&
+    turn.queue.length === 0 &&
+    turn.permissions.length === 0 &&
+    turn.sources.length === 0
+  );
+}
+
+export function idleBeyond(
+  turns: ReadonlyMap<string, TurnState>,
+  recent: readonly string[],
+  loaded: ReadonlySet<string>,
+  open: string | null,
+  keep: number
+): readonly string[] {
+  return recent
+    .slice(keep)
+    .filter(
+      (historyId) =>
+        historyId !== open &&
+        loaded.has(historyId) &&
+        isReleasable(turns.get(historyId))
+    );
+}
+
 export function queuedCounts(message: QueuedMessage): ReferenceCounts {
   return {
     asset: message.assets.length,

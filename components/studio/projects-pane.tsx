@@ -78,7 +78,7 @@ export function ProjectsPane() {
     actionError,
     activeProject,
     activeSession,
-    composer,
+    composerActions,
     drops,
     expandedVideos,
     feedback,
@@ -119,7 +119,7 @@ export function ProjectsPane() {
     () => [...library.assets, ...library.bundled],
     [library.assets, library.bundled]
   );
-  const onPickAsset = usePickAsset(pickable, composer.pick);
+  const onPickAsset = usePickAsset(pickable, composerActions.pick);
   const assetsScope = useAssetsScope();
   const stockKind = stockKindOf(assetsScope.scope);
 

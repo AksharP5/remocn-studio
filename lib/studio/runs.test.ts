@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { groupActivity } from "@/lib/studio/runs";
+import { extendItems, groupActivity, reuseItems } from "@/lib/studio/runs";
 import type { ActivityEntry, TranscriptEntry } from "@/shared/ipc";
 
 const CWD = "/Users/me/projects/my-video";
@@ -149,5 +149,58 @@ describe("groupActivity", () => {
     ];
 
     expect(flatten(entries)).toEqual(entries.map((entry) => entry.id));
+  });
+});
+
+describe("reuseItems", () => {
+  it("hands back a settled run unchanged when a later entry arrives", () => {
+    const before: TranscriptEntry[] = [
+      read("r1", "src/A.tsx"),
+      read("r2", "src/B.tsx"),
+    ];
+    const after: TranscriptEntry[] = [
+      ...before,
+      { id: "reply", kind: "assistant", text: "Done" },
+    ];
+    const first = groupActivity(before);
+
+    const next = reuseItems(first, groupActivity(after));
+
+    expect(next[0]).toBe(first[0]);
+    expect(next).toHaveLength(2);
+  });
+});
+
+describe("extendItems", () => {
+  it("swaps only the streaming reply when its text grows", () => {
+    const run = [read("r1", "src/A.tsx"), read("r2", "src/B.tsx")];
+    const before: TranscriptEntry[] = [
+      ...run,
+      { id: "reply", kind: "assistant", text: "Buil" },
+    ];
+    const after: TranscriptEntry[] = [
+      ...run,
+      { id: "reply", kind: "assistant", text: "Building" },
+    ];
+    const first = groupActivity(before);
+
+    const next = extendItems(before, first, after);
+
+    expect(next?.[0]).toBe(first[0]);
+    expect(next?.at(-1)).toEqual({
+      entry: after[2],
+      id: "reply",
+      kind: "entry",
+    });
+    expect(next).toEqual(groupActivity(after));
+  });
+
+  it("declines when anything but the reply changed", () => {
+    const before: TranscriptEntry[] = [
+      { id: "reply", kind: "assistant", text: "Hi" },
+    ];
+    const after: TranscriptEntry[] = [...before, read("r1", "src/A.tsx")];
+
+    expect(extendItems(before, groupActivity(before), after)).toBeNull();
   });
 });

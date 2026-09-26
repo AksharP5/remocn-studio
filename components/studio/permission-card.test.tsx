@@ -1,6 +1,8 @@
-import { describe, expect, it, mock } from "bun:test";
+import { beforeAll, describe, expect, it, mock } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { Effect } from "effect";
 import { PermissionCard } from "@/components/studio/permission-card";
+import { loadMarkdownRenderer } from "@/lib/studio/highlighter";
 import type { PendingPermission } from "@/lib/studio/turns";
 
 const CWD = "/Users/me/projects/my-video";
@@ -35,6 +37,8 @@ function renderCard(shape: Partial<PendingPermission> = {}, onAnswer = mock()) {
 
   return onAnswer;
 }
+
+beforeAll(() => Effect.runPromise(loadMarkdownRenderer));
 
 describe("PermissionCard", () => {
   it("names the tool and shows the command it is asking about", () => {
