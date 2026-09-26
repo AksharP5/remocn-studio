@@ -2,6 +2,7 @@
 
 import { Effect, type Exit, Fiber } from "effect";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useFileExists } from "@/hooks/use-file-exists";
 import { useRevealInFinder } from "@/hooks/use-reveal-in-finder";
 import type { Selection } from "@/hooks/use-selections";
 import { causeMessage } from "@/lib/error-message";
@@ -106,6 +107,7 @@ export interface Exporting {
   target: string;
   trouble: string | null;
   unavailable: string | null;
+  willReplace: boolean;
 }
 
 export interface ExportOptions {
@@ -276,6 +278,10 @@ export function useExport({
   const target = useMemo(
     () => targetPath({ fileName, folder, root: projectPath ?? null }),
     [fileName, folder, projectPath]
+  );
+
+  const willReplace = useFileExists(
+    isOpen && target.startsWith("/") ? target : null
   );
 
   const shown = useMemo(
@@ -516,6 +522,7 @@ export function useExport({
       target,
       trouble: (mine?.phase === "failed" ? mine.message : null) ?? error,
       unavailable,
+      willReplace,
     }),
     [
       cancel,
@@ -552,6 +559,7 @@ export function useExport({
       state,
       target,
       unavailable,
+      willReplace,
     ]
   );
 }

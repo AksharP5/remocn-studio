@@ -21,7 +21,7 @@ The resolution SHALL be read as the target length of the video's shorter side, s
 
 ### Requirement: Only a finished export replaces a finished export
 
-The render SHALL write to a hidden partial file beside the target and SHALL rename it onto the target only once the render has finished. A failed or cancelled render SHALL leave no partial behind and SHALL leave an earlier export at the same path untouched. The studio SHALL NOT raise an overwrite prompt; the dialog SHALL say instead that a file already at that location is replaced once the render finishes.
+The render SHALL write to a hidden partial file beside the target and SHALL rename it onto the target only once the render has finished. A failed or cancelled render SHALL leave no partial behind and SHALL leave an earlier export at the same path untouched. The studio SHALL NOT raise an overwrite prompt; when a file already sits at the target, the dialog SHALL say instead that it is replaced once the render finishes, and SHALL say nothing about replacing when there is none.
 
 #### Scenario: A render that finishes
 
@@ -37,6 +37,12 @@ The render SHALL write to a hidden partial file beside the target and SHALL rena
 
 - **WHEN** the target already holds a finished export
 - **THEN** no prompt is raised and the file is replaced only when the new render finishes
+
+#### Scenario: The dialog names a file that is already there
+
+- **WHEN** the dialog is open and a file with the chosen name is already in the chosen folder
+- **THEN** the dialog says that file is replaced once the render finishes
+- **AND** with no such file, the dialog says nothing about replacing
 
 ### Requirement: One export at a time, and cancelling waits for the renderer to stop
 

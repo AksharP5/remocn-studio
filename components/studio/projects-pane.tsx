@@ -349,7 +349,7 @@ function SidebarBrand({ onHide }: { onHide: () => void }) {
   return (
     <div
       className="flex h-10 shrink-0 items-center justify-between gap-2 pr-2 pl-4"
-      data-tauri-drag-region
+      data-tauri-drag-region="deep"
     >
       <LogoWordmark className="pointer-events-none shrink-0" />
       <div className="flex shrink-0 items-center gap-1">

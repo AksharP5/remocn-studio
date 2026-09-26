@@ -39,7 +39,7 @@ export function PreviewPane() {
   const isDocs = docs.mode === "docs";
 
   const header = (
-    <PaneHeader data-tauri-drag-region>
+    <PaneHeader data-tauri-drag-region="deep">
       {isDocs ? (
         <Button
           className="text-muted-foreground"

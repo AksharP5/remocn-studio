@@ -106,7 +106,7 @@ export function ChatPane() {
           "transition-[padding] duration-base ease-out motion-reduce:transition-none",
           isProjectsShown ? undefined : "pl-(--titlebar-inline-inset)"
         )}
-        data-tauri-drag-region
+        data-tauri-drag-region="deep"
       >
         <div
           className={cn(

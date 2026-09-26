@@ -57,6 +57,13 @@ pub fn reveal_studio(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub async fn path_exists(path: String) -> bool {
+    tauri::async_runtime::spawn_blocking(move || std::path::Path::new(&path).is_file())
+        .await
+        .unwrap_or(false)
+}
+
+#[tauri::command]
 pub async fn studio_build(app: AppHandle) -> StudioBuild {
     let os = tauri::async_runtime::spawn_blocking(macos_version)
         .await

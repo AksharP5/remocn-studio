@@ -93,7 +93,7 @@ export function remotionRow(
 
   if (manifest.remotion === null) {
     return {
-      detail: `${path.join(root, "package.json")} does not depend on remotion. Ask Claude to set the project up, or open a folder that already is one.`,
+      detail: `${path.join(root, "package.json")} does not depend on remotion. Ask the agent to set the project up, or open a folder that already is one.`,
       fix: null,
       id: "remotion",
       state: "failed",
@@ -273,7 +273,7 @@ export const PENDING_COMPOSITIONS: EnvironmentCheck = {
   fix: null,
   id: "compositions",
   state: "pending",
-  title: "Compositions",
+  title: "Videos",
 };
 
 export function manifestOf(

@@ -49,6 +49,7 @@ function exporting(overrides: Partial<Exporting> = {}): Exporting {
     target: "/Users/me/scenes/out/Main.mp4",
     trouble: null,
     unavailable: null,
+    willReplace: false,
     ...overrides,
   };
 }
