@@ -140,6 +140,12 @@ const write = (frame: HostReply | PreviewEvent) =>
 
 const emit = (event: PreviewEvent) => write(event);
 
+export const designProgress =
+  (id: string) => (stage: string, completed: number, total: number) =>
+    Effect.runSync(
+      write({ completed, id, stage, total, type: "design-progress" })
+    );
+
 const log = (line: string) =>
   Effect.sync(() => {
     process.stderr.write(`${line}\n`);
@@ -712,11 +718,7 @@ function inspectFullDesign(
       internals: tools.internals,
       motion: command.motion,
       options: command.options ?? {},
-      progress: (stage, completed, total) => {
-        process.stdout.write(
-          `${JSON.stringify({ completed, id: command.id, stage, total, type: "design-progress" })}\n`
-        );
-      },
+      progress: designProgress(command.id),
       renderer: tools.renderer,
       renderOptions: tools.options,
       root: booted.root,
