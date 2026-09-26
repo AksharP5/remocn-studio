@@ -27,6 +27,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { useCopyCommand } from "@/hooks/use-copy-command";
 import type { NotificationConsent } from "@/hooks/use-notification-consent";
+import { usePresence } from "@/hooks/use-presence";
 import { useScrolledIntoView } from "@/hooks/use-scrolled-into-view";
 import {
   isSettingsSection,
@@ -131,12 +132,13 @@ const SECTIONS: readonly {
 // Settings takes the window: a rail on the left, one readable column on the
 // right, and nothing floating. The shell stays mounted underneath — inert, so
 // keys and clicks cannot reach it — which is what keeps the preview's iframe
-// and a running turn exactly where they were when the page closes. There is
-// no entrance animation on purpose: this should feel like switching a tab,
-// not opening a window.
+// and a running turn exactly where they were when the page closes. It only
+// crossfades, briefly and without moving: this should feel like switching a
+// tab, not opening a window.
 export function SettingsPage() {
   const { settingsView } = useStudio();
   const { section, setSection } = settingsView;
+  const presence = usePresence(settingsView.isOpen ? true : null);
 
   const onPickSection = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
@@ -148,7 +150,7 @@ export function SettingsPage() {
     [setSection]
   );
 
-  if (!settingsView.isOpen) {
+  if (presence.shown === null) {
     return null;
   }
 
@@ -157,7 +159,9 @@ export function SettingsPage() {
   return (
     <section
       aria-label="Settings"
-      className="fixed inset-0 z-40 flex bg-background text-foreground"
+      className="fixed inset-0 z-40 flex animate-fade-in bg-background text-foreground transition-opacity duration-fast ease-out [animation-duration:var(--transition-duration-fast)] data-leaving:pointer-events-none data-leaving:opacity-0"
+      data-leaving={presence.isLeaving ? "" : undefined}
+      inert={presence.isLeaving || undefined}
     >
       <SectionRail
         active={section}

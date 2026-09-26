@@ -90,6 +90,7 @@ function sources(overrides: Partial<CommandSources> = {}) {
     restartSidecar: mock(),
     revealProject: mock(),
     snapshotUnavailable: null,
+    startSessionIn: mock(),
     stopTurn: mock(),
     toggleInspect: mock(),
     togglePreview: mock(),
@@ -205,6 +206,24 @@ describe("useCommands", () => {
     expect(byId(result, "project-locate").enabled).toBe(true);
     expect(byId(result, "project-reveal").enabled).toEqual({
       reason: "The project folder is not on disk anymore.",
+    });
+  });
+
+  it("starts a new chat on the open video from the keyboard", () => {
+    const startSessionIn = mock();
+    const { result } = sources({ startSessionIn });
+    const command = byId(result, "new-chat");
+
+    expect(command.shortcut).toEqual({ key: "t", owner: "menu" });
+    command.run();
+    expect(startSessionIn).toHaveBeenCalledWith("v1");
+  });
+
+  it("offers New Chat only while a video is open", () => {
+    const { result } = sources({ openedVideoId: null });
+
+    expect(byId(result, "new-chat").enabled).toEqual({
+      reason: "Open a chat to reach its video.",
     });
   });
 

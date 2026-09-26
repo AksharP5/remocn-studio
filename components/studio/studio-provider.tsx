@@ -307,6 +307,7 @@ function StudioStateProvider({
     selectSession: workspace.selectSession,
     showPane,
     snapshotUnavailable: tools.snapshot.unavailable,
+    startSessionIn: workspace.startSessionIn,
     stopTurn: turn.stop,
     toggleInspect: tools.inspect.toggle,
     togglePreview: panes.togglePreview,

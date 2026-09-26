@@ -14,6 +14,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useCopyCommand } from "@/hooks/use-copy-command";
 import type { Environment } from "@/hooks/use-environment";
 import { useOnline } from "@/hooks/use-online";
+import { usePresence } from "@/hooks/use-presence";
 import { downloadPercent, troubleHeading } from "@/lib/studio/environment";
 import { cn } from "@/lib/utils";
 import type { EnvironmentCheck, EnvironmentState } from "@/shared/ipc";
@@ -38,18 +39,22 @@ export const CHECK_TONES = {
 } satisfies Record<EnvironmentState, string>;
 
 export function EnvironmentChecklist({
-  environment,
+  environment: current,
 }: {
   environment: Environment;
 }) {
   const { copied, onCopy } = useCopyCommand();
+  const presence = usePresence(
+    current.troubles.length === 0 && current.error === null ? null : current
+  );
+  const environment = presence.shown;
 
-  if (environment.troubles.length === 0 && environment.error === null) {
+  if (environment === null) {
     return null;
   }
 
   return (
-    <AboveComposer>
+    <AboveComposer isLeaving={presence.isLeaving}>
       <NoticeCard aria-label="Environment checklist">
         <header className="flex items-center justify-between gap-3">
           <h3 className="font-medium text-xs">
