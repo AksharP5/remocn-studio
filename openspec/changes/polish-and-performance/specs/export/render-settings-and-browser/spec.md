@@ -49,6 +49,11 @@ Reading the project's render settings SHALL happen in a separate process, so the
 - **WHEN** a second export is started and nothing the settings are read from has changed
 - **THEN** the settings held from the previous read are used and no reading process is started
 
+#### Scenario: A still after a still
+
+- **WHEN** a still is taken and the configuration file has not changed
+- **THEN** the settings held from the previous read are used rather than read again
+
 #### Scenario: The read takes too long
 
 - **WHEN** reading the project's configuration does not answer in time
