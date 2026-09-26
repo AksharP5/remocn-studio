@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
 use super::{
     lifecycle,
@@ -94,13 +94,14 @@ pub fn integrations_cancel(integrations: State<'_, Integrations>) {
 }
 
 #[tauri::command]
-pub fn integrations_confirm(
-    app: AppHandle,
-    integrations: State<'_, Integrations>,
-    name: String,
-) -> Result<Connection, String> {
+pub async fn integrations_confirm(app: AppHandle, name: String) -> Result<Connection, String> {
+    crate::paste::off_the_main_thread(move || confirm(&app, &name)).await
+}
+
+fn confirm(app: &AppHandle, name: &str) -> Result<Connection, String> {
+    let integrations = app.state::<Integrations>();
     let held = integrations.held().ok_or_else(|| NO_ATTEMPT.to_string())?;
-    let records = store::read(&app)?;
+    let records = store::read(app)?;
     let id = integrations.next_id();
 
     let made = lifecycle::created(
@@ -108,12 +109,12 @@ pub fn integrations_confirm(
         &Keychain,
         &id,
         &held.provider,
-        &name,
+        name,
         &held.checked,
         held.secret.as_deref(),
     )?;
 
-    store::write(&app, &made.records)?;
+    store::write(app, &made.records)?;
     integrations.drop_attempt();
     integrations.mark(&id, ConnectionState::Connected, None);
 

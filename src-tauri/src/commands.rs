@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 use serde_json::Value;
 use tauri::{ipc::Channel, AppHandle, Manager, State};
 
@@ -55,25 +57,35 @@ pub fn reveal_studio(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn studio_build(app: AppHandle) -> StudioBuild {
+pub async fn studio_build(app: AppHandle) -> StudioBuild {
+    let os = tauri::async_runtime::spawn_blocking(macos_version)
+        .await
+        .unwrap_or_else(|_| "unknown".to_string());
+
     StudioBuild {
         environment: if cfg!(debug_assertions) {
             AppEnvironment::Development
         } else {
             AppEnvironment::Production
         },
-        os: macos_version(),
+        os,
         version: app.package_info().version.to_string(),
     }
 }
 
+static MACOS_VERSION: OnceLock<String> = OnceLock::new();
+
 pub(crate) fn macos_version() -> String {
-    std::process::Command::new("sw_vers")
-        .arg("-productVersion")
-        .output()
-        .ok()
-        .and_then(|output| String::from_utf8(output.stdout).ok())
-        .map(|version| version.trim().to_string())
-        .filter(|version| !version.is_empty())
-        .unwrap_or_else(|| "unknown".to_string())
+    MACOS_VERSION
+        .get_or_init(|| {
+            std::process::Command::new("sw_vers")
+                .arg("-productVersion")
+                .output()
+                .ok()
+                .and_then(|output| String::from_utf8(output.stdout).ok())
+                .map(|version| version.trim().to_string())
+                .filter(|version| !version.is_empty())
+                .unwrap_or_else(|| "unknown".to_string())
+        })
+        .clone()
 }

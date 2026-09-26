@@ -16,7 +16,7 @@ const FALLBACK_SLUG: &str = "proxy";
 const ATTEMPTS: u32 = 10_000;
 
 #[tauri::command]
-pub fn save_pasted_image(app: AppHandle, request: Request<'_>) -> Result<String, String> {
+pub async fn save_pasted_image(app: AppHandle, request: Request<'_>) -> Result<String, String> {
     let InvokeBody::Raw(bytes) = request.body() else {
         return Err("the pasted image did not arrive as bytes".into());
     };
@@ -32,16 +32,21 @@ pub fn save_pasted_image(app: AppHandle, request: Request<'_>) -> Result<String,
         .map_err(|err| format!("there is no app data directory: {err}"))?
         .join(FOLDER);
 
-    std::fs::create_dir_all(&folder)
-        .map_err(|err| format!("could not create {}: {err}", folder.display()))?;
-
     let name = file_name(header(&request, NAME_HEADER).as_deref(), extension);
-    let path = free_path(&folder, &name)?;
+    let bytes = bytes.clone();
 
-    std::fs::write(&path, bytes)
-        .map_err(|err| format!("could not write {}: {err}", path.display()))?;
+    off_the_main_thread(move || {
+        std::fs::create_dir_all(&folder)
+            .map_err(|err| format!("could not create {}: {err}", folder.display()))?;
 
-    Ok(path.to_string_lossy().into_owned())
+        let path = free_path(&folder, &name)?;
+
+        std::fs::write(&path, bytes)
+            .map_err(|err| format!("could not write {}: {err}", path.display()))?;
+
+        Ok(path.to_string_lossy().into_owned())
+    })
+    .await
 }
 
 /// A preview proxy, on its way to the library. It lands in an inbox rather than
@@ -50,7 +55,7 @@ pub fn save_pasted_image(app: AppHandle, request: Request<'_>) -> Result<String,
 /// the folder cannot grow. Megabytes of video reach disk as a raw body here for
 /// the same reason a pasted image does: they must never cross the JSON IPC.
 #[tauri::command]
-pub fn save_proxy(app: AppHandle, request: Request<'_>) -> Result<String, String> {
+pub async fn save_proxy(app: AppHandle, request: Request<'_>) -> Result<String, String> {
     let InvokeBody::Raw(bytes) = request.body() else {
         return Err("the proxy did not arrive as bytes".into());
     };
@@ -61,20 +66,32 @@ pub fn save_proxy(app: AppHandle, request: Request<'_>) -> Result<String, String
         .map_err(|err| format!("there is no app data directory: {err}"))?
         .join(PROXY_FOLDER);
 
-    std::fs::create_dir_all(&folder)
-        .map_err(|err| format!("could not create {}: {err}", folder.display()))?;
-
     let slug = header(&request, SLUG_HEADER)
         .map(|given| sanitise(&given))
         .filter(|given| !given.is_empty())
         .unwrap_or_else(|| FALLBACK_SLUG.to_string());
 
     let path = folder.join(format!("{slug}.mp4"));
+    let bytes = bytes.clone();
 
-    std::fs::write(&path, bytes)
-        .map_err(|err| format!("could not write {}: {err}", path.display()))?;
+    off_the_main_thread(move || {
+        std::fs::create_dir_all(&folder)
+            .map_err(|err| format!("could not create {}: {err}", folder.display()))?;
 
-    Ok(path.to_string_lossy().into_owned())
+        std::fs::write(&path, bytes)
+            .map_err(|err| format!("could not write {}: {err}", path.display()))?;
+
+        Ok(path.to_string_lossy().into_owned())
+    })
+    .await
+}
+
+pub(crate) async fn off_the_main_thread<T: Send + 'static>(
+    work: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(work)
+        .await
+        .map_err(|err| format!("the work was lost before it finished: {err}"))?
 }
 
 fn header(request: &Request<'_>, name: &str) -> Option<String> {
