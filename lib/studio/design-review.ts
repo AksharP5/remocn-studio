@@ -1,35 +1,45 @@
-import { z } from "zod";
+import { Effect, Option, Schema } from "effect";
 import type { ToolCall } from "./activity";
 
-const finding = z.object({
-  code: z.string(),
-  fix: z.string().nullable().optional(),
-  frames: z.array(z.number()).default([]),
-  message: z.string(),
-  selector: z.string().nullable().optional(),
-  severity: z.enum(["error", "warning", "info"]),
+const Finding = Schema.Struct({
+  code: Schema.String,
+  fix: Schema.optional(Schema.NullOr(Schema.String)),
+  frames: Schema.Array(Schema.Number).pipe(
+    Schema.withDecodingDefault(Effect.succeed([]))
+  ),
+  message: Schema.String,
+  selector: Schema.optional(Schema.NullOr(Schema.String)),
+  severity: Schema.Literals(["error", "warning", "info"]),
 });
 
-const report = z.object({
-  composition: z.string(),
-  findings: z.array(finding),
-  readiness: z
-    .object({
-      coverage: z
-        .object({
-          cancelled: z.boolean().optional(),
-          complete: z.boolean(),
-          limitations: z.array(z.string()).default([]),
+const Report = Schema.Struct({
+  composition: Schema.String,
+  findings: Schema.Array(Finding),
+  readiness: Schema.optional(
+    Schema.Struct({
+      coverage: Schema.optional(
+        Schema.Struct({
+          cancelled: Schema.optional(Schema.Boolean),
+          complete: Schema.Boolean,
+          limitations: Schema.Array(Schema.String).pipe(
+            Schema.withDecodingDefault(Effect.succeed([]))
+          ),
         })
-        .optional(),
-      stale: z.boolean().optional(),
+      ),
+      stale: Schema.optional(Schema.Boolean),
     })
-    .optional(),
+  ),
 });
 
-export type VideoReview = z.infer<typeof report>;
-export type VideoFinding = z.infer<typeof finding>;
-export type FindingGroup = VideoFinding & { id: string; occurrences: number };
+const decodeReport = Schema.decodeUnknownOption(Schema.fromJsonString(Report));
+
+export type VideoReview = (typeof Report)["Type"];
+export type VideoFinding = (typeof Finding)["Type"];
+export type FindingGroup = Omit<VideoFinding, "frames"> & {
+  frames: readonly number[];
+  id: string;
+  occurrences: number;
+};
 
 export function groupFindings(
   findings: readonly VideoFinding[]
@@ -66,12 +76,7 @@ export function designReview(call: ToolCall): VideoReview | null {
   if (!isDesignCheck(call.name) || call.result === null) {
     return null;
   }
-  try {
-    const parsed = report.safeParse(JSON.parse(call.result));
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
+  return Option.getOrNull(decodeReport(call.result));
 }
 
 export function reviewStatus(review: VideoReview): string {
