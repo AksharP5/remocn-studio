@@ -64,7 +64,7 @@
 
 ## 6. Splash
 
-- [ ] 6.1 The splash minimum is shortened to the length of its draw, with the delta spec for `shell/startup`
+- [x] 6.1 The splash minimum is shortened to the length of its draw, with the delta spec for `shell/startup`
 
 ## 7. Verification
 

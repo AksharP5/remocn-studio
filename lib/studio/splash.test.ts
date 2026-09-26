@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   isStudioBootReady,
   SPLASH_CAP,
+  SPLASH_MIN_SHOWN,
   splashPhase,
 } from "@/lib/studio/splash";
 
@@ -22,15 +23,15 @@ function phaseAt(
 
 describe("splashPhase", () => {
   it("keeps drawing when the shell settles before the animation lands", () => {
-    expect(phaseAt(1499, { isSettled: true })).toBe("drawing");
+    expect(phaseAt(SPLASH_MIN_SHOWN - 1, { isSettled: true })).toBe("drawing");
   });
 
   it("leaves as soon as a settled shell has shown the full draw", () => {
-    expect(phaseAt(1500, { isSettled: true })).toBe("leaving");
+    expect(phaseAt(SPLASH_MIN_SHOWN, { isSettled: true })).toBe("leaving");
   });
 
   it("holds after the draw while the shell is unsettled", () => {
-    expect(phaseAt(1500)).toBe("holding");
+    expect(phaseAt(SPLASH_MIN_SHOWN)).toBe("holding");
   });
 
   it("leaves an unsettled shell at the safety cap", () => {
@@ -39,6 +40,12 @@ describe("splashPhase", () => {
 
   it("skips drawing when reduced motion is requested", () => {
     expect(phaseAt(0, { isReduced: true })).toBe("holding");
+  });
+});
+
+describe("SPLASH_MIN_SHOWN", () => {
+  it("is no shorter than the draw, which lands at 775 ms", () => {
+    expect(SPLASH_MIN_SHOWN).toBeGreaterThanOrEqual(775);
   });
 });
 
