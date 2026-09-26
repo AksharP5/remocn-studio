@@ -2,9 +2,9 @@
 REM-378 replaces terse tips with demonstrations of Studio tools. The user supplied six silent recordings and explicitly excluded REM-398 on 2026-09-20.
 
 ## What Changes
-- Six freely navigable video chapters: Inspect, Snapshot, Assets, Components, Brand, Export.
+- Six freely navigable chapters, one still each: Inspect, Snapshot, Assets, Components, Brand, Export.
 - One automatic introduction after setup and an idle project; dismissal persists and Settings can reopen the last chapter.
-- Bundle recordings and posters offline; support reduced motion, playback controls and recoverable media failures.
+- Bundle the stills offline; a still that fails to load offers Retry and never blocks navigation.
 - Remove anchored tips.
 
 ## Non-goals

@@ -32,3 +32,15 @@ Following user review, cap the dialog at 896px, reduce padding and use a single 
 
 ## Motion
 Use CSS transitions for a 240ms modal entrance with a shorter 150ms exit, an interruptible 240ms chapter highlight, and a 200ms incoming-video fade with an 8px directional hint. Only one video is mounted; there is no delayed media teardown or overlapping playback. Keyboard chapter changes are instant. Reduced motion removes translation and scale while retaining a short fade. Do not stagger the initial content or delay interaction.
+
+## Stills instead of recordings
+
+The recordings went stale as soon as the interface moved on (the canvas, layers rail and export dialog all changed after they were cut), and re-recording six videos for every UI change does not scale. Each chapter is now one WebP still, exported from Paper at 4× and resized to 2400×1303 with `cwebp -q 90` (25–50 KB each; a decoded 7960×4320 frame is ~137 MB of webview memory, and the cover shows three), taken from the running app and composed in the Paper file "Remocn Studio UI" (artboards `Onboarding 01…06`): the parts the chapter is about stay sharp, everything else is blurred and darkened. No callouts, numbers or captions sit inside the picture. A still is re-exported from Paper when the UI changes.
+
+The dialog widens past its old 896px cap, because a still has to be read, not watched (see below for the final width). `use-onboarding-video` is gone; `use-onboarding-still` holds only the failed flag and a retry counter that remounts the image. The six MP4s and JPEG posters are removed from `public/onboarding/`.
+
+## A cover and words
+
+A still alone did not say what to do with it, and a plain list plus a picture did not make anyone want to look. The overview now opens (automatically, first run only) on a cover: the mark, "Welcome to Remocn Studio", and the first three stills dealt as a slightly fanned deck. Settings skips the cover, because a person asking for the overview again wants the content.
+
+Each chapter is a two-column spread: the chapter number and name, a benefit-first title held close to them, and one or two sentences on how, set top-aligned with the still in a 22rem column (about 40 characters a line); the still on the right, inset by the same 32px as the text. The side list is replaced by six progress segments in the footer, which navigate as well (44px-tall hit areas, labelled `01 Inspect & edit` …). The dialog has an explicit width, `min(68rem, 100vw - 2rem)`: with only a max-width, the viewport grid's track grew to the stills' intrinsic 1990px and centred the dialog inside that, off the window's centre. A shader behind the cover was tried and dropped in review, as was a still bleeding to the edge. The copy lives in `lib/studio/onboarding.ts` beside the catalog.

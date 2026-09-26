@@ -136,34 +136,34 @@ handoffs.
 <table>
   <tr>
     <td width="33%" valign="top">
-      <img alt="Inspect and edit" src="public/onboarding/inspect.jpg" /><br />
+      <img alt="Inspect and edit" src="public/onboarding/inspect.webp" /><br />
       <b>Inspect &amp; edit</b><br />
       <sub>Click an element and tune its type, tracking, easing and copy. The value goes back into the code.</sub>
     </td>
     <td width="33%" valign="top">
-      <img alt="Snapshot" src="public/onboarding/snapshot.jpg" /><br />
+      <img alt="Snapshot" src="public/onboarding/snapshot.webp" /><br />
       <b>Snapshot</b><br />
       <sub>Drag a box over the frame. It lands in the chat as a picture.</sub>
     </td>
     <td width="33%" valign="top">
-      <img alt="Assets and stock" src="public/onboarding/assets.jpg" /><br />
+      <img alt="Assets and stock" src="public/onboarding/assets.webp" /><br />
       <b>Assets &amp; stock</b><br />
       <sub>Save clips, images and audio once, then say "use the intro clip".</sub>
     </td>
   </tr>
   <tr>
     <td width="33%" valign="top">
-      <img alt="Components" src="public/onboarding/components.jpg" /><br />
+      <img alt="Components" src="public/onboarding/components.webp" /><br />
       <b>Components</b><br />
       <sub>Save an animation that works as a component and reuse it in any project. The remocn motion set comes built in.</sub>
     </td>
     <td width="33%" valign="top">
-      <img alt="Project brand" src="public/onboarding/brand.jpg" /><br />
+      <img alt="Project brand" src="public/onboarding/brand.webp" /><br />
       <b>Project brand</b><br />
       <sub>Drop in a <code>DESIGN.md</code> or set the name and colors once. Every new video starts on brand.</sub>
     </td>
     <td width="33%" valign="top">
-      <img alt="Export" src="public/onboarding/export.jpg" /><br />
+      <img alt="Export" src="public/onboarding/export.webp" /><br />
       <b>Export</b><br />
       <sub>MP4, WebM, GIF or ProRes, up to 4K, rendered by the project's own Remotion.</sub>
     </td>

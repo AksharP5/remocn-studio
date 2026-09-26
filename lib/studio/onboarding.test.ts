@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { ONBOARDING_CHAPTERS, onboardingProgress } from "./onboarding";
 
 describe("feature overview catalog", () => {
-  it("ships the six recordings and posters without the background-work chapter", () => {
+  it("ships one still per chapter without the background-work chapter", () => {
     expect(ONBOARDING_CHAPTERS.map((chapter) => chapter.id)).toEqual([
       "inspect",
       "snapshot",
@@ -13,8 +13,8 @@ describe("feature overview catalog", () => {
       "export",
     ]);
     for (const chapter of ONBOARDING_CHAPTERS) {
-      expect(existsSync(`public/onboarding/${chapter.id}.mp4`)).toBe(true);
-      expect(existsSync(`public/onboarding/${chapter.id}.jpg`)).toBe(true);
+      expect(existsSync(`public/onboarding/${chapter.id}.webp`)).toBe(true);
+      expect(existsSync(`public/onboarding/${chapter.id}.mp4`)).toBe(false);
     }
   });
   it("recovers missing, malformed and removed chapters without forgetting dismissal", () => {
