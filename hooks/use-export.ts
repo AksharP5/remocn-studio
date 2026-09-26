@@ -49,6 +49,7 @@ export type ExportState =
       notices: readonly string[];
       phase: "running";
       projectId: string;
+      startedAt: number;
     }
   | {
       composition: string;
@@ -68,6 +69,7 @@ export interface Exporting {
   brief: ExportBrief | null;
   cancel: () => void;
   canExport: boolean;
+  canRetry: boolean;
   choose: (patch: Partial<Omit<ExportSettings, "preset">>) => void;
   chooseFolder: () => void;
   chooseFormat: (value: unknown) => void;
@@ -75,18 +77,25 @@ export interface Exporting {
   chooseQuality: (value: unknown) => void;
   chooseResolution: (value: unknown) => void;
   close: () => void;
+  confirmCancel: () => void;
+  dismiss: () => void;
   duration: string | null;
   fileName: string;
   folder: string;
+  isConfirmingCancel: boolean;
   isOpen: boolean;
   isRunning: boolean;
+  keepExporting: () => void;
   notices: readonly string[];
+  onConfirmChange: (open: boolean) => void;
   open: () => void;
   pending: number;
   percent: number | null;
   rename: (event: React.ChangeEvent<HTMLInputElement>) => void;
   render: () => void;
+  requestCancel: () => void;
   result: Exported | null;
+  retry: () => void;
   reveal: () => Promise<void>;
   review: ExportReview;
   settings: ExportSettings;
@@ -112,6 +121,15 @@ export interface ExportOptions {
 }
 
 const IDLE: ExportState = { phase: "idle" };
+
+export const CONFIRM_CANCEL_AFTER_MS = 5000;
+
+export const RESULT_SHOWN_MS = 15_000;
+
+interface Run {
+  outputPath: string | null;
+  settings: ExportSettings;
+}
 
 const NO_SIZE: CompositionSize = { height: 0, width: 0 };
 
@@ -162,18 +180,66 @@ export function useExport({
     });
   }, [projectId, projectPath]);
   const inflight = useRef<Fiber.Fiber<Exported, SidecarError> | null>(null);
+  const lastRun = useRef<Run | null>(null);
+  const [isConfirmingCancel, setIsConfirmingCancel] = useState(false);
 
   const cancel = useCallback(() => {
     const fiber = inflight.current;
 
+    setIsConfirmingCancel(false);
     if (fiber !== null) {
       Effect.runFork(Fiber.interrupt(fiber));
     }
   }, []);
 
   const mine = ownedBy(state, projectId, composition);
+  const runningSince = mine?.phase === "running" ? mine.startedAt : null;
+
+  const requestCancel = useCallback(() => {
+    if (runningSince === null) {
+      return;
+    }
+    if (Date.now() - runningSince < CONFIRM_CANCEL_AFTER_MS) {
+      cancel();
+      return;
+    }
+    setIsConfirmingCancel(true);
+  }, [cancel, runningSince]);
+
+  const onConfirmChange = useCallback(
+    (next: boolean) => {
+      if (next) {
+        requestCancel();
+        return;
+      }
+      setIsConfirmingCancel(false);
+    },
+    [requestCancel]
+  );
+
+  const keepExporting = useCallback(() => setIsConfirmingCancel(false), []);
+
+  useEffect(() => {
+    if (runningSince === null) {
+      setIsConfirmingCancel(false);
+    }
+  }, [runningSince]);
+
+  const dismiss = useCallback(() => {
+    setState((current) =>
+      current.phase === "done" || current.phase === "failed" ? IDLE : current
+    );
+  }, []);
   const result = mine?.phase === "done" ? mine.exported : null;
   const { error, reveal } = useRevealInFinder(result?.path ?? null);
+
+  useEffect(() => {
+    if (result === null) {
+      return;
+    }
+    const timer = setTimeout(dismiss, RESULT_SHOWN_MS);
+    return () => clearTimeout(timer);
+  }, [dismiss, result]);
 
   const size = useMemo(
     () =>
@@ -315,12 +381,14 @@ export function useExport({
         return;
       }
 
+      lastRun.current = { outputPath, settings: chosen };
       setState({
         composition,
         event: null,
         notices: [],
         phase: "running",
         projectId,
+        startedAt: Date.now(),
       });
 
       const shipping = renderExport(
@@ -382,6 +450,19 @@ export function useExport({
     unavailable,
   ]);
 
+  const canRetry =
+    mine?.phase === "failed" &&
+    lastRun.current !== null &&
+    unavailable === null;
+
+  const retry = useCallback(() => {
+    const run = lastRun.current;
+    if (!canRetry || run === null || inflight.current !== null) {
+      return;
+    }
+    launch(run.outputPath, run.settings);
+  }, [canRetry, launch]);
+
   const start = useCallback(() => {
     if (isOpen) {
       render();
@@ -398,6 +479,7 @@ export function useExport({
       brief: mine?.phase === "running" ? exportBrief(mine.event) : null,
       cancel,
       canExport: unavailable === null,
+      canRetry,
       choose,
       chooseFolder,
       chooseFormat,
@@ -405,18 +487,25 @@ export function useExport({
       chooseQuality,
       chooseResolution,
       close,
+      confirmCancel: cancel,
+      dismiss,
       duration,
       fileName,
       folder: shown,
+      isConfirmingCancel,
       isOpen,
       isRunning: mine?.phase === "running",
+      keepExporting,
       notices: mine?.phase === "running" ? mine.notices : [],
+      onConfirmChange,
       open,
       pending,
       percent: mine?.phase === "running" ? exportPercent(mine.event) : null,
       rename,
       render,
+      requestCancel,
       result,
+      retry,
       reveal,
       review,
       settings,
@@ -430,6 +519,7 @@ export function useExport({
     }),
     [
       cancel,
+      canRetry,
       choose,
       chooseFolder,
       chooseFormat,
@@ -437,16 +527,22 @@ export function useExport({
       chooseQuality,
       chooseResolution,
       close,
+      dismiss,
       duration,
       error,
       fileName,
+      isConfirmingCancel,
       isOpen,
+      keepExporting,
       mine,
+      onConfirmChange,
       open,
       pending,
       rename,
       render,
+      requestCancel,
       result,
+      retry,
       reveal,
       review,
       settings,
