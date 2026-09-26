@@ -54,6 +54,7 @@ export interface CommandSources {
 const NO_PROJECT = "No project is open.";
 const PROJECT_GONE = "The project folder is not on disk anymore.";
 const NO_VIDEO = "Open a chat to reach its video.";
+const VIDEO_GONE = "Nothing in this project renders this video anymore.";
 const NO_TURN = "No turn is running.";
 const FIRST_VIDEO = "There is no video before this one.";
 const LAST_VIDEO = "There is no video after this one.";
@@ -98,17 +99,26 @@ function fileAndProjectCommands(sources: CommandSources): readonly Command[] {
     });
 
   const { openedVideoId, startSessionIn } = sources;
+  const opened = sources.groups.find(
+    (group) => group.video.id === openedVideoId
+  );
+  let newChatReason: string | null = null;
+  if (openedVideoId === null) {
+    newChatReason = NO_VIDEO;
+  } else if (opened?.video.missing === true) {
+    newChatReason = VIDEO_GONE;
+  }
   return [
     action(
       "new-chat",
       "New Chat",
       () => {
-        if (openedVideoId !== null) {
+        if (openedVideoId !== null && newChatReason === null) {
           startSessionIn(openedVideoId);
         }
       },
       {
-        enabled: enabledWhen(openedVideoId === null ? NO_VIDEO : null),
+        enabled: enabledWhen(newChatReason),
         menu: "file",
       }
     ),

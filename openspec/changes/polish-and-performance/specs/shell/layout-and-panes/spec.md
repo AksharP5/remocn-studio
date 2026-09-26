@@ -36,7 +36,7 @@ The band under the traffic lights SHALL carry an animated field whose speed and 
 
 ### Requirement: The webview's own menu appears only over text
 
-A secondary click SHALL NOT open the webview's own context menu anywhere except over a text field, an editable region or text marked as selectable, where the system's text menu stays. Rows that have actions of their own SHALL answer a secondary click with a native menu of those actions instead.
+A secondary click SHALL NOT open the webview's own context menu anywhere except over a text field or an editable region, and over text marked as selectable only while some of that text is selected, where the system's text menu stays. Rows that have actions of their own SHALL answer a secondary click with a native menu of those actions instead.
 
 #### Scenario: Right-clicking the chrome
 
@@ -45,12 +45,17 @@ A secondary click SHALL NOT open the webview's own context menu anywhere except 
 
 #### Scenario: Right-clicking text
 
-- **WHEN** the person right-clicks inside the composer or inside an assistant message
+- **WHEN** the person right-clicks inside the composer, or inside an assistant message with some of its text selected
 - **THEN** the system's text menu appears with Copy, Paste and Look Up as usual
+
+#### Scenario: Right-clicking the transcript with nothing selected
+
+- **WHEN** the person right-clicks an assistant message while none of its text is selected
+- **THEN** no menu appears, and in particular no Reload or Inspect Element
 
 ### Requirement: A failure reads as a sentence and keeps its raw text behind Details
 
-Wherever the studio shows a failure — the history, the library, the project list, a turn, the preview, an export and a scaffold — it SHALL show a sentence. Text that is not a sentence — JSON, a stack, a bare token or an `Error:` prefix — SHALL NOT be the sentence: the studio SHALL show a sentence for that surface instead, and SHALL keep the raw text behind a Details disclosure with Copy details. A failure that already arrives as a sentence SHALL be shown as it is, with Details only when more lines follow it.
+Wherever the studio shows a failure — the history, the library, the project list, a turn, the preview, an export and a scaffold — it SHALL show a sentence. Text that is not a sentence — JSON, a stack, a bare token, an `Error:` prefix, or a JavaScript engine's own error such as a `TypeError` — SHALL NOT be the sentence: the studio SHALL show a sentence for that surface instead, and SHALL keep the raw text behind a Details disclosure with Copy details. A failure that already arrives as a sentence SHALL be shown as it is, with Details only when more lines follow it.
 
 #### Scenario: A structured rejection
 
@@ -61,6 +66,11 @@ Wherever the studio shows a failure — the history, the library, the project li
 
 - **WHEN** a failure's first line is a sentence and a stack follows it
 - **THEN** the first line is shown and the whole text is under Details, where Copy details copies it
+
+#### Scenario: A JavaScript error
+
+- **WHEN** a failure reads *TypeError: Cannot read properties of undefined (reading 'x')*
+- **THEN** the surface reads its own sentence, and that text is only under Details
 
 #### Scenario: A worded failure
 

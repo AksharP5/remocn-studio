@@ -135,7 +135,7 @@ export interface CameraView {
   subscribe: (listen: () => void) => () => void;
 }
 
-function transformOf(camera: PreviewCamera): string {
+export function transformOf(camera: PreviewCamera): string {
   return `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`;
 }
 

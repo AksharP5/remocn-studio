@@ -227,6 +227,22 @@ describe("useCommands", () => {
     });
   });
 
+  it("refuses New Chat on a video nothing in the project renders anymore", () => {
+    const startSessionIn = mock();
+    const gone = { ...INTRO, missing: true };
+    const { result } = sources({
+      groups: [group(gone, [CHAT_A]), group(OUTRO, [CHAT_B])],
+      startSessionIn,
+    });
+    const command = byId(result, "new-chat");
+
+    expect(command.enabled).toEqual({
+      reason: "Nothing in this project renders this video anymore.",
+    });
+    command.run();
+    expect(startSessionIn).not.toHaveBeenCalled();
+  });
+
   it("offers Stop only while a turn runs", () => {
     expect(byId(sources().result, "stop-turn").enabled).toEqual({
       reason: "No turn is running.",

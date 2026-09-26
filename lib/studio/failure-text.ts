@@ -4,6 +4,9 @@ export interface WordedFailure {
 }
 
 const ERROR_PREFIX = /^(?:[A-Z][A-Za-z]*)?Error:\s*/;
+const NAMED_ERROR = /^[A-Z][A-Za-z]*Error:/;
+const ENGINE =
+  /cannot read propert(?:y|ies) of|is not a function|is not defined\b|is not iterable|is not an object|is not a constructor|maximum call stack size|unexpected token|cannot access '[^']*' before initialization/i;
 const STRUCTURED = /^[[{<]|^at\s/;
 const LONGEST_SENTENCE = 280;
 const SPACE = /\s/;
@@ -62,7 +65,7 @@ export function wordFailure(
     return { details: text, sentence: mapped };
   }
 
-  if (!isSentence(first)) {
+  if (!isSentence(first) || NAMED_ERROR.test(head) || ENGINE.test(first)) {
     return { details: text, sentence: fallback };
   }
 

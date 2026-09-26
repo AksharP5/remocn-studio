@@ -26,6 +26,7 @@ import type { CanvasLayers } from "@/hooks/use-canvas-layers";
 import { useCanvasOverlay, useCanvasPreview } from "@/hooks/use-canvas-preview";
 import {
   type PreviewCameraControl,
+  transformOf,
   useCameraView,
 } from "@/hooks/use-preview-camera";
 import type { Tools } from "@/hooks/use-tools";
@@ -170,8 +171,6 @@ function CanvasStage({
   nativeStage: Canvas["native"]["stage"];
   shown: boolean;
 }) {
-  const { grid, surround, transform } = useCameraView(camera);
-
   return (
     <>
       <div
@@ -182,32 +181,40 @@ function CanvasStage({
         ref={camera.stage}
         style={{
           height: metadata?.height ?? 1080,
-          transform,
+          transform: transformOf(camera.view.current()),
           width: metadata?.width ?? 1920,
         }}
       >
         <div className="relative size-full" ref={nativeStage} />
       </div>
 
-      {shown
-        ? surround.map((rect) => (
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute z-[5]"
-              key={rect.id}
-              style={{
-                background:
-                  camera.outside === "hide" ? "var(--background)" : DIMMED,
-                height: rect.height,
-                left: rect.x,
-                top: rect.y,
-                width: rect.width,
-              }}
-            />
-          ))
-        : null}
+      {shown ? <CanvasSurround camera={camera} /> : null}
+    </>
+  );
+}
 
-      {shown && grid !== null ? (
+function CanvasSurround({ camera }: { camera: PreviewCameraControl }) {
+  const { grid, surround } = useCameraView(camera);
+
+  return (
+    <>
+      {surround.map((rect) => (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute z-[5]"
+          key={rect.id}
+          style={{
+            background:
+              camera.outside === "hide" ? "var(--background)" : DIMMED,
+            height: rect.height,
+            left: rect.x,
+            top: rect.y,
+            width: rect.width,
+          }}
+        />
+      ))}
+
+      {grid === null ? null : (
         <div
           aria-hidden="true"
           className="pointer-events-none absolute z-[6]"
@@ -222,7 +229,7 @@ function CanvasStage({
             width: grid.width,
           }}
         />
-      ) : null}
+      )}
     </>
   );
 }

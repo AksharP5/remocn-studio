@@ -17,13 +17,36 @@ describe("keepsNativeMenu", () => {
       true
     );
     expect(
-      keepsNativeMenu(
-        inside('<div data-selectable><p id="t">text</p></div>', "#t")
-      )
-    ).toBe(true);
-    expect(
       keepsNativeMenu(inside('<div contenteditable="true"></div>', "div"))
     ).toBe(true);
+  });
+
+  it("keeps it over the transcript only while text in it is selected", () => {
+    const target = inside(
+      '<div data-selectable><p id="t">some words</p></div><p id="o">elsewhere</p>',
+      "#t"
+    );
+    const selection = document.getSelection();
+    selection?.removeAllRanges();
+
+    expect(keepsNativeMenu(target, selection)).toBe(false);
+
+    const words = target.firstChild;
+    if (words === null) {
+      throw new Error("the paragraph has no text");
+    }
+    selection?.setBaseAndExtent(words, 0, words, 4);
+
+    expect(keepsNativeMenu(target, selection)).toBe(true);
+
+    const other = document.querySelector("#o")?.firstChild ?? null;
+    if (other === null) {
+      throw new Error("the other paragraph has no text");
+    }
+    selection?.setBaseAndExtent(other, 0, other, 4);
+
+    expect(keepsNativeMenu(target, selection)).toBe(false);
+    selection?.removeAllRanges();
   });
 
   it("suppresses it everywhere else", () => {

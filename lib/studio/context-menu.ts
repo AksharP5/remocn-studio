@@ -11,13 +11,38 @@ export interface ContextAction {
   readonly text: string;
 }
 
-const NATIVE_MENU_TARGETS =
-  'input, textarea, [contenteditable=""], [contenteditable="true"], [data-selectable]';
+const EDITABLE =
+  'input, textarea, [contenteditable=""], [contenteditable="true"]';
 
-export function keepsNativeMenu(target: EventTarget | null): boolean {
+const SELECTABLE = "[data-selectable]";
+
+function selectsIn(region: Element, selection: Selection | null): boolean {
+  if (
+    selection === null ||
+    selection.isCollapsed ||
+    selection.toString().trim().length === 0
+  ) {
+    return false;
+  }
+  const { anchorNode, focusNode } = selection;
   return (
-    target instanceof Element && target.closest(NATIVE_MENU_TARGETS) !== null
+    (anchorNode !== null && region.contains(anchorNode)) ||
+    (focusNode !== null && region.contains(focusNode))
   );
+}
+
+export function keepsNativeMenu(
+  target: EventTarget | null,
+  selection: Selection | null = document.getSelection()
+): boolean {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+  if (target.closest(EDITABLE) !== null) {
+    return true;
+  }
+  const region = target.closest(SELECTABLE);
+  return region !== null && selectsIn(region, selection);
 }
 
 let shown: Menu | null = null;

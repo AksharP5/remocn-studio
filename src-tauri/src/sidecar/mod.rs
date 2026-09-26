@@ -183,7 +183,7 @@ impl Inner {
         match self.outbound().as_ref() {
             Some(outbound) => outbound
                 .send(frame)
-                .map_err(|_| "the sidecar closed its input".to_string()),
+                .map_err(|_| "the studio's helper is not running".to_string()),
             None => Err("the studio's helper is not running".to_string()),
         }
     }
@@ -440,7 +440,7 @@ async fn run_session(inner: &Arc<Inner>) -> Session {
 
     let reason = match exit {
         Ok(status) => format!("the studio's helper stopped with {}", signal::describe_exit(status)),
-        Err(err) => format!("lost track of the sidecar: {err}"),
+        Err(err) => format!("the studio lost track of its helper: {err}"),
     };
 
     Session {

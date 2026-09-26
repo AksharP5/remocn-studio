@@ -40,6 +40,32 @@ describe("wordFailure", () => {
     });
   });
 
+  it("keeps a JavaScript error behind Details rather than as the sentence", () => {
+    const raw = "TypeError: Cannot read properties of undefined (reading 'x')";
+    expect(wordFailure(raw, FALLBACK)).toEqual({
+      details: raw,
+      sentence: FALLBACK,
+    });
+  });
+
+  it("keeps an engine message behind Details even without its error name", () => {
+    const raw = "Error: undefined is not an object (evaluating 'scene.width')";
+    expect(wordFailure(raw, FALLBACK)).toEqual({
+      details: raw,
+      sentence: FALLBACK,
+    });
+    expect(wordFailure("render is not a function", FALLBACK).sentence).toBe(
+      FALLBACK
+    );
+  });
+
+  it("still words a named error it recognises", () => {
+    const raw = "SystemError: ENOENT: no such file or directory";
+    expect(wordFailure(raw, FALLBACK).sentence).toBe(
+      "A file it needed could not be found."
+    );
+  });
+
   it("words a missing file", () => {
     const raw = "ENOENT: no such file or directory, open '/tmp/x.mp4'";
     expect(wordFailure(raw, FALLBACK)).toEqual({

@@ -50,3 +50,4 @@ A shortcut SHALL fire while the composer or any text field has focus, since none
 - **WHEN** ⌘T is pressed, or New Chat is chosen from the File menu or the palette, while a chat is open
 - **THEN** a new chat starts on the open chat's video, exactly as the row's New chat button starts one
 - **AND** with no video open the command is unavailable and says to open a chat first
+- **AND** on a video the code no longer renders the command is unavailable and says nothing in the project renders that video anymore, as the row's New chat button is
