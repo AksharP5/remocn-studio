@@ -23,7 +23,7 @@
 - [x] 3.3 The native compile starts with the host instead of after the main compile's ready
 - [x] 3.4 Account probes run concurrently, share an in-flight probe and paint from the last result
 - [x] 3.5 A provider switch re-probes only the account row; lockfile drift is cached by file fingerprint
-- [x] 3.6 An export opens one browser for measuring and rendering, and trusts the render-config fingerprint
+- [x] 3.6 An export opens one browser for measuring and rendering (a scaled export renders in one opened at its scale) and still reads the render settings fresh; stills and clips trust the render-config fingerprint
 - [x] 3.7 A turn's tool servers cost one process, and re-exec'd children load only their own module graph
 - [x] 3.8 The render compiler is suspended between renders (REM-535, `canvas-follow-ups` 2.2)
 - [x] 3.9 The warm render browser closes after it has been idle

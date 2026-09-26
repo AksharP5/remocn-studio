@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { createInterface } from "node:readline";
-import { Effect, Exit, FiberMap, Ref, type Scope, Stream } from "effect";
+import { Effect, Exit, FiberMap, Ref, Scope, Semaphore, Stream } from "effect";
 import { FORMAT_SPECS, fileNameOf, withExtension } from "@/shared/export";
 import {
   type ExportEvent,
@@ -184,7 +184,7 @@ const keepStdoutForFrames: Effect.Effect<void> = Effect.sync(() => {
   }
 });
 
-interface Booted {
+export interface Booted {
   browser: Ref.Ref<{ reading: BrowserReading; signature: string } | null>;
   build: Ref.Ref<BuildState>;
   cache: CompositionCache;
@@ -194,8 +194,10 @@ interface Booted {
   idle: Idle;
   jobs: JobRegistry;
   jobsDir: string;
+  lane: Semaphore.Semaphore;
   outDir: string;
   publicDir: string;
+  requests: FiberMap.FiberMap<string>;
   root: string;
   running: FiberMap.FiberMap<string>;
   serveUrl: string;
@@ -277,6 +279,8 @@ function boot(root: string, preferred: string | null) {
     const cache = makeCompositionCache();
     const session = yield* Ref.make<Session | null>(null);
     const running = yield* FiberMap.make<string>();
+    const requests = yield* FiberMap.make<string>();
+    const lane = yield* Semaphore.make(1);
     const build = yield* Ref.make<BuildState>(BUILDING);
     const browser = yield* Ref.make<{
       reading: BrowserReading;
@@ -441,8 +445,10 @@ function boot(root: string, preferred: string | null) {
       idle,
       jobs,
       jobsDir: path.join(outDir, "..", JOBS_DIR),
+      lane,
       outDir,
       publicDir,
+      requests,
       root,
       running,
       serveUrl: `http://127.0.0.1:${server.port}${RENDER_BASE}/index.html`,
@@ -613,7 +619,7 @@ function commands(booted: Booted): Effect.Effect<void> {
   );
 }
 
-function obey(booted: Booted, line: string): Effect.Effect<void> {
+export function obey(booted: Booted, line: string): Effect.Effect<void> {
   if (line.trim().length === 0) {
     return Effect.void;
   }
@@ -627,7 +633,10 @@ function obey(booted: Booted, line: string): Effect.Effect<void> {
   const command = decoded.value;
 
   if (command.type === "cancel") {
-    return FiberMap.remove(booted.running, command.id);
+    return Effect.andThen(
+      FiberMap.remove(booted.running, command.id),
+      FiberMap.remove(booted.requests, command.id)
+    );
   }
 
   if (command.type === "export" || command.type === "clip") {
@@ -653,11 +662,11 @@ function obey(booted: Booted, line: string): Effect.Effect<void> {
             )
       );
     }
-    return inspectDesign(booted, command);
+    return queue(booted, command.id, inspectDesign(booted, command));
   }
 
   if (command.type === "source") {
-    return captureSource(booted, command);
+    return queue(booted, command.id, captureSource(booted, command));
   }
 
   if (command.type === "status") {
@@ -668,7 +677,17 @@ function obey(booted: Booted, line: string): Effect.Effect<void> {
     return assembleWrite(booted, command);
   }
 
-  return answer(booted, command);
+  return queue(booted, command.id, answer(booted, command));
+}
+
+function queue(
+  booted: Booted,
+  id: string,
+  work: Effect.Effect<void>
+): Effect.Effect<void> {
+  return Effect.asVoid(
+    FiberMap.run(booted.requests, id, booted.lane.withPermits(1)(work))
+  );
 }
 
 function readStatuses(
@@ -1079,9 +1098,9 @@ function ship(booted: Booted, command: ExportCommand): Effect.Effect<void> {
     yield* Effect.sync(() => progress({ stage: "preparing", type: "stage" }));
 
     yield* agreedVersionIn(booted.root);
-    yield* compiledBuild(booted);
+    const settled = yield* compiledBuild(booted);
 
-    const tools = yield* toolsFor(booted);
+    const tools = yield* toolsFor(booted, () => undefined, true);
     const renderer = yield* exporterOf(tools.renderer);
 
     const job = yield* pinBundle({
@@ -1091,16 +1110,22 @@ function ship(booted: Booted, command: ExportCommand): Effect.Effect<void> {
       registry: booted.jobs,
     });
 
+    yield* unchangedSince(booted.build, settled);
+
     const serveUrl = jobServeUrl(portOf(booted.serveUrl), job);
 
     yield* log(
       `export of ${composition} starting from pinned bundle ${job.id} into ${command.format}`
     );
 
-    const browser = yield* sharedBrowser(tools.renderer, tools.options);
+    const measuring = yield* Scope.fork(yield* Scope.Scope);
+    const opened = yield* Scope.provide(
+      sharedBrowser(tools.renderer, tools.options),
+      measuring
+    );
 
     const measured = yield* measureComposition({
-      browser,
+      browser: opened,
       composition,
       context: tools.context,
       options: tools.options,
@@ -1132,6 +1157,14 @@ function ship(booted: Booted, command: ExportCommand): Effect.Effect<void> {
       settings,
       size: { height: measured.height, width: measured.width },
     });
+
+    const browser =
+      plan.scale === 1
+        ? opened
+        : yield* Effect.andThen(
+            Scope.close(measuring, Exit.void),
+            sharedBrowser(tools.renderer, tools.options, plan.scale)
+          );
 
     for (const one of dropped) {
       yield* log(`export dropped ${one.name}: ${one.reason}`);
@@ -1231,10 +1264,11 @@ function answer(booted: Booted, command: StillCommand): Effect.Effect<void> {
 // all come through here, so a GL backend is decided once and measured once.
 function toolsFor(
   booted: Booted,
-  onEvent: (event: StillEvent) => void = () => undefined
+  onEvent: (event: StillEvent) => void = () => undefined,
+  fresh = false
 ): Effect.Effect<Tools, PreviewError> {
   return Effect.gen(function* () {
-    const config = yield* booted.config.read(booted.root);
+    const config = yield* booted.config.read(booted.root, fresh);
 
     const internals = yield* warmInternalsOf(booted.root).pipe(
       Effect.catch(() => Effect.succeed(null))
@@ -1289,7 +1323,8 @@ function toolsFor(
 
 const BUILD_PATIENCE_MS = 180_000;
 
-const REBUILD_PATIENCE_MS = 30_000;
+export const STILL_COMPILING =
+  "The project is still compiling; try again in a moment.";
 
 function waitUntil(
   build: Ref.Ref<BuildState>,
@@ -1307,16 +1342,14 @@ function waitUntil(
   });
 }
 
-// A render is pinned to whatever is on disk, so it waits for a compile that has
-// actually finished. A rebuild already in flight is worth a shorter wait and
-// never a refusal: past it the bundle from the last settled compile is still a
-// coherent one to render.
-function compiledBuild(booted: Booted): Effect.Effect<void, PreviewError> {
+function compiledBuild(
+  booted: Booted
+): Effect.Effect<BuildState, PreviewError> {
   return Effect.flatMap(settledBuild(booted), (settled) => {
     const trouble = troubleIn(settled);
 
     return trouble === null
-      ? Effect.void
+      ? Effect.succeed(settled)
       : Effect.fail(
           new PreviewError({
             message: `the project does not compile, so there is nothing to render:\n\n${trouble}`,
@@ -1325,34 +1358,42 @@ function compiledBuild(booted: Booted): Effect.Effect<void, PreviewError> {
   });
 }
 
-function settledBuild(booted: Booted): Effect.Effect<BuildState, PreviewError> {
+export function settledBuild(
+  booted: Pick<Booted, "build" | "compiler">
+): Effect.Effect<BuildState, PreviewError> {
   return Effect.gen(function* () {
     yield* booted.compiler.wake;
 
-    const first = yield* waitUntil(booted.build, pinnable).pipe(
+    return yield* waitUntil(
+      booted.build,
+      (state) => pinnable(state) && !state.compiling
+    ).pipe(
       Effect.timeoutOrElse({
         duration: BUILD_PATIENCE_MS,
         orElse: () =>
-          Effect.fail(
-            new PreviewError({
-              message:
-                "the project has not finished compiling, so there is nothing to render from yet",
-            })
+          Effect.flatMap(Ref.get(booted.build), (state) =>
+            Effect.fail(
+              new PreviewError({
+                message: pinnable(state)
+                  ? STILL_COMPILING
+                  : "the project has not finished compiling, so there is nothing to render from yet",
+              })
+            )
           ),
       })
     );
-
-    const settled = first.compiling
-      ? yield* waitUntil(booted.build, (state) => !state.compiling).pipe(
-          Effect.timeoutOrElse({
-            duration: REBUILD_PATIENCE_MS,
-            orElse: () => Ref.get(booted.build),
-          })
-        )
-      : first;
-
-    return settled;
   });
+}
+
+export function unchangedSince(
+  build: Ref.Ref<BuildState>,
+  settled: BuildState
+): Effect.Effect<void, PreviewError> {
+  return Effect.flatMap(Ref.get(build), (now) =>
+    now === settled
+      ? Effect.void
+      : Effect.fail(new PreviewError({ message: STILL_COMPILING }))
+  );
 }
 
 function warmed(

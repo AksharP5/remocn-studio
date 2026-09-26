@@ -174,3 +174,37 @@ The running, finished or failed state of an export SHALL be held against the pro
 
 - **WHEN** the person presses Try again on a failed export
 - **THEN** the render starts again with the settings and the file it failed with, and the failure row is replaced by the running pill
+
+### Requirement: A render is pinned to a copy nothing can change
+
+An export SHALL render from the bundle the preview already compiled and SHALL NOT compile a second one. It SHALL wait for a compile that has actually settled, SHALL fail with the compiler's own errors when the project does not compile, and SHALL NOT copy the compiled bundle while a compile is writing it: when a compile is still running after the studio's patience runs out, or one starts while the copy is being taken, the export SHALL fail saying the project is still compiling and to try again in a moment. It SHALL then take its own copy of the compiled bundle and of the project's `public` folder, measure and render against that copy, and remove the copy when the job ends however it ends. A copy an earlier crash left behind SHALL be swept before a new job starts.
+
+#### Scenario: A project that does not compile
+
+- **WHEN** an export is started while the project has compile errors
+- **THEN** it fails saying the project does not compile, with the compiler's own errors below that sentence
+
+#### Scenario: A compile that does not finish
+
+- **WHEN** an export is started while a compile is running and the compile has not finished when the studio's patience runs out
+- **THEN** the export fails saying the project is still compiling and to try again in a moment, and nothing is copied
+
+#### Scenario: A compile that starts while the copy is taken
+
+- **WHEN** a compile starts while the export is copying the compiled bundle
+- **THEN** the copy is discarded and the export fails saying the project is still compiling and to try again in a moment
+
+#### Scenario: The project changes under a running render
+
+- **WHEN** a file the bundle was built from is overwritten while the render runs
+- **THEN** the render keeps reading the copy it pinned and the finished file is not affected
+
+#### Scenario: A video that computes its own metadata
+
+- **WHEN** a video computes its size or duration rather than declaring them
+- **THEN** the dialog forecasts the values the preview resolved and the export measures and renders at the same ones
+
+#### Scenario: The job ends
+
+- **WHEN** the export finishes, fails or is cancelled
+- **THEN** the copy is removed and the job is no longer served

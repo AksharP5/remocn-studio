@@ -270,6 +270,17 @@ describe("sharedBrowser", () => {
       options.chromiumOptions
     );
     expect(made.state.opened[0]?.browserExecutable).toBeNull();
+    expect(made.state.opened[0]).not.toHaveProperty("forceDeviceScaleFactor");
+  });
+
+  it("opens at the export's scale, as the renderer's own browser would", async () => {
+    const made = opener();
+
+    await Effect.runPromise(
+      Effect.scoped(sharedBrowser(made, options, 1.5).pipe(Effect.asVoid))
+    );
+
+    expect(made.state.opened[0]?.forceDeviceScaleFactor).toBe(1.5);
   });
 
   it("closes it when the render ends, whether or not it failed", async () => {

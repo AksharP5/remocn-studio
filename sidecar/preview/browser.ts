@@ -255,7 +255,8 @@ export function prepareBrowser(input: PrepareInput) {
 
 export function sharedBrowser(
   renderer: Pick<Renderer, "openBrowser">,
-  options: RenderOptions
+  options: RenderOptions,
+  scale = 1
 ): Effect.Effect<RenderBrowser | null, never, Scope.Scope> {
   const open = renderer.openBrowser;
 
@@ -271,6 +272,7 @@ export function sharedBrowser(
           : { chromeMode: options.chromeMode }),
         browserExecutable: options.browserExecutable ?? null,
         chromiumOptions: options.chromiumOptions,
+        ...(scale === 1 ? {} : { forceDeviceScaleFactor: scale }),
         logLevel: "error",
       }).catch(() => null)
     ),
