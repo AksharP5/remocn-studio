@@ -21,6 +21,9 @@ const nextConfig = {
   // in `out/` would ship the studio's sources inside every release.
   productionBrowserSourceMaps: Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN),
   turbopack: {
+    resolveAlias: {
+      "fast-check": { browser: "./lib/stubs/empty.ts" },
+    },
     // Pinned explicitly: an unrelated lockfile sits above this repo in the
     // filesystem, and Turbopack's root inference would otherwise walk up to it.
     root: import.meta.dirname,
