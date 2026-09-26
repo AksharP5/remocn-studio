@@ -52,6 +52,7 @@ export interface TurnServices {
 export interface AgentAdapter {
   readonly account: (cwd: string) => Effect.Effect<EnvironmentCheck>;
   readonly info: ProviderInfo;
+  readonly persistent?: boolean;
   readonly turn: (
     params: PromptParams,
     services: TurnServices

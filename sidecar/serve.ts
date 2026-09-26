@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import { SIDECAR_PROTOCOL } from "@/shared/ipc";
+import { acpPool } from "./acp/pool";
 import { layerProcess, SidecarChannel } from "./channel";
 import { handlers } from "./handlers";
 import { ProjectStore } from "./history/projects";
@@ -16,6 +17,8 @@ export const runSidecar = Effect.gen(function* () {
   yield* channel.log(`listening on stdio, protocol ${SIDECAR_PROTOCOL}`);
 
   const stores = yield* openStores(channel.log);
+
+  yield* Effect.addFinalizer(() => acpPool.disposeAll);
 
   yield* Effect.forkScoped(
     stores.projects.list.pipe(

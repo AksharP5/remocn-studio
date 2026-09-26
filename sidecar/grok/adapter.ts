@@ -44,6 +44,8 @@ export const grokAdapter: AgentAdapter = {
 
   info: PROVIDER_INFO.grok,
 
+  persistent: true,
+
   turn: (params: PromptParams, services: TurnServices) =>
     Effect.suspend(() => {
       const executable = findGrok();

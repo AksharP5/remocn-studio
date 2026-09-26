@@ -17,6 +17,7 @@ import type { PipelineStage } from "@/shared/pipeline";
 import { AGENT_PROVIDERS } from "@/shared/providers";
 import { freeSlug, slugFor } from "@/shared/slug";
 import { templateProjectName } from "@/shared/templates";
+import { acpPool } from "./acp/pool";
 import { makeAccountCache } from "./agent/account";
 import { coalescing } from "./agent/coalesce";
 import { makeGate } from "./agent/gate";
@@ -269,6 +270,8 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
       const turnId = yield* Effect.sync(() => crypto.randomUUID());
       const project = yield* located(params.projectId);
       const adapter = adapterFor(params.provider);
+      const toolKey =
+        adapter.persistent === true ? `chat-${params.historyId}` : turnId;
 
       const store = yield* HistoryStore;
       const videos = yield* VideoStore;
@@ -400,7 +403,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
 
       const result = yield* Effect.scoped(
         gateway
-          .serving(turnId, {
+          .serving(toolKey, {
             connections: {
               usable: () => Effect.runPromise(ask("integrations.usable", null)),
             },
@@ -505,7 +508,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
                 inProcess: Object.fromEntries(
                   TOOL_SERVERS.map((server) => [
                     server,
-                    gateway.ask(server, turnId),
+                    gateway.ask(server, toolKey),
                   ])
                 ),
                 log,
@@ -515,7 +518,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
                 tools: Object.fromEntries(
                   TOOL_SERVERS.map((server) => [
                     server,
-                    gateway.transport(server, turnId),
+                    gateway.transport(server, toolKey),
                   ])
                 ),
                 turnId,
@@ -589,6 +592,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
     Effect.flatMap(HistoryStore, (store) =>
       store.remove(params.sessionId)
     ).pipe(
+      Effect.tap(() => acpPool.dispose(params.sessionId)),
       Effect.map((removed) => ({ removed })),
       Effect.mapError(unstored)
     ),

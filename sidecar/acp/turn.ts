@@ -1,4 +1,4 @@
-import { Effect, Ref } from "effect";
+import { Effect, Exit, Ref } from "effect";
 import { errorMessage } from "@/lib/error-message";
 import type {
   AgentEvent,
@@ -11,10 +11,11 @@ import type { TurnServices } from "../agent/adapter";
 import { announce, type KnowledgeBundle } from "../agent/knowledge";
 import { elementsOf } from "../agent/prompt";
 import { conventionsFor } from "../claude/conventions";
-import { type AcpPeer, spawnAcp } from "./connection";
-import { blocksOf } from "./content";
+import type { AcpPeer } from "./connection";
+import { type AcpBlock, blocksOf } from "./content";
 import { makeAcpTranslator } from "./events";
 import { answerPermission } from "./permission";
+import { acpPool, type Held, type SessionModes } from "./pool";
 
 // One turn over the Agent Client Protocol, shared by every adapter that
 // speaks it: what varies per provider is only how the process is started,
@@ -39,10 +40,7 @@ const MODE_FRAGMENTS: Record<SessionMode, string> = {
 };
 
 interface OpenedSession {
-  modes?: {
-    availableModes?: readonly { id?: string; name?: string }[];
-    currentModeId?: string;
-  };
+  modes?: SessionModes;
   sessionId?: string;
 }
 
@@ -58,7 +56,7 @@ export function acpTurn(
 
     yield* announce(config.knowledge, services);
 
-    let replaying = params.sessionId !== null;
+    let replaying = false;
     let firstChunk = true;
     let delivering: Promise<void> = Promise.resolve();
 
@@ -112,30 +110,37 @@ export function acpTurn(
       return Promise.reject(new Error(`the studio does not answer ${method}`));
     };
 
-    const peer = yield* Effect.acquireRelease(
-      Effect.sync(() =>
-        spawnAcp({
+    const { fresh, held } = yield* Effect.acquireRelease(
+      acpPool.checkout(
+        params.historyId,
+        {
           args: config.args,
           command: config.command,
           cwd: services.cwd,
           log: (line) => Effect.runSync(services.log(line)),
-          onNotification,
-          onRequest,
-        })
+        },
+        params.sessionId
       ),
-      (running) =>
-        Effect.sync(() => {
-          if (typeof opened.sessionId === "string") {
-            running.notify("session/cancel", { sessionId: opened.sessionId });
-          }
-          services.gate.abandon(services.turnId).pipe(Effect.runSync);
-          running.kill();
-        })
+      (checkout, exit) =>
+        Effect.andThen(
+          services.gate.abandon(services.turnId),
+          Effect.flatMap(Ref.get(failure), (failed) =>
+            giveBack(
+              params.historyId,
+              checkout.held,
+              Exit.isSuccess(exit) && failed === null,
+              opened.sessionId
+            )
+          )
+        )
     );
+
+    replaying = fresh && params.sessionId !== null;
+    held.bind({ onNotification, onRequest });
 
     yield* Effect.tryPromise({
       catch: (cause) => new Error(errorMessage(cause)),
-      try: () => run(peer),
+      try: () => run(held.peer),
     }).pipe(
       Effect.tap(() => Effect.promise(() => delivering)),
       Effect.catch((error) =>
@@ -153,40 +158,13 @@ export function acpTurn(
     } satisfies PromptResult;
 
     async function run(agent: AcpPeer): Promise<void> {
-      await agent.request("initialize", {
-        clientCapabilities: {
-          fs: { readTextFile: false, writeTextFile: false },
-        },
-        protocolVersion: 1,
-      });
-
-      const mcpServers = Object.entries(services.tools).map(
-        ([name, transport]) => ({
-          args: [...transport.args],
-          command: transport.command,
-          env: Object.entries(transport.env).map(([key, value]) => ({
-            name: key,
-            value,
-          })),
-          name,
-        })
-      );
-
-      let session: OpenedSession;
-      if (params.sessionId === null) {
-        session = await agent.request<OpenedSession>("session/new", {
-          cwd: services.cwd,
-          mcpServers,
-        });
-        opened.sessionId = session.sessionId ?? null;
-      } else {
-        session = await agent.request<OpenedSession>("session/load", {
-          cwd: services.cwd,
-          mcpServers,
-          sessionId: params.sessionId,
-        });
-        opened.sessionId = params.sessionId;
+      const session: OpenedSession = fresh
+        ? await open(agent)
+        : { modes: held.modes };
+      if (!fresh) {
+        opened.sessionId = held.sessionId;
       }
+      held.modes = session.modes;
       replaying = false;
 
       if (opened.sessionId === null) {
@@ -214,6 +192,17 @@ export function acpTurn(
         ]);
       }
 
+      const answered = await agent.request<{ stopReason?: string }>(
+        "session/prompt",
+        { prompt: await promptOf(), sessionId: opened.sessionId }
+      );
+
+      if (answered.stopReason === "refusal") {
+        throw new Error("The agent refused to answer this prompt.");
+      }
+    }
+
+    async function promptOf(): Promise<AcpBlock[]> {
       const conventions = conventionsFor(
         config.knowledge.loaded,
         services.video
@@ -222,34 +211,54 @@ export function acpTurn(
         services.briefs.pipeline === null
           ? conventions
           : `${conventions}\n\n${services.briefs.pipeline}`;
+      const trailer =
+        [services.briefs.assets, services.briefs.brand]
+          .filter(Boolean)
+          .join("\n\n") || null;
 
       const blocks = config.images
-        ? await blocksOf(
-            params,
-            [services.briefs.assets, services.briefs.brand]
-              .filter(Boolean)
-              .join("\n\n") || null,
-            services.briefs.media
-          )
-        : textOnly(
-            params,
-            [services.briefs.assets, services.briefs.brand]
-              .filter(Boolean)
-              .join("\n\n") || null,
-            services.briefs.media
-          );
+        ? await blocksOf(params, trailer, services.briefs.media)
+        : textOnly(params, trailer, services.briefs.media);
 
-      const answered = await agent.request<{ stopReason?: string }>(
-        "session/prompt",
-        {
-          prompt: [{ text: briefed, type: "text" }, ...blocks],
-          sessionId: opened.sessionId,
-        }
+      return [{ text: briefed, type: "text" }, ...blocks];
+    }
+
+    async function open(agent: AcpPeer): Promise<OpenedSession> {
+      await agent.request("initialize", {
+        clientCapabilities: {
+          fs: { readTextFile: false, writeTextFile: false },
+        },
+        protocolVersion: 1,
+      });
+
+      const mcpServers = Object.entries(services.tools).map(
+        ([name, transport]) => ({
+          args: [...transport.args],
+          command: transport.command,
+          env: Object.entries(transport.env).map(([key, value]) => ({
+            name: key,
+            value,
+          })),
+          name,
+        })
       );
 
-      if (answered.stopReason === "refusal") {
-        throw new Error("The agent refused to answer this prompt.");
+      if (params.sessionId === null) {
+        const session = await agent.request<OpenedSession>("session/new", {
+          cwd: services.cwd,
+          mcpServers,
+        });
+        opened.sessionId = session.sessionId ?? null;
+        return session;
       }
+
+      const session = await agent.request<OpenedSession>("session/load", {
+        cwd: services.cwd,
+        mcpServers,
+        sessionId: params.sessionId,
+      });
+      opened.sessionId = params.sessionId;
+      return session;
     }
 
     async function enterMode(
@@ -275,6 +284,7 @@ export function acpTurn(
           modeId: found.id,
           sessionId,
         });
+        held.modes = { ...session.modes, currentModeId: found.id };
       } catch (cause) {
         Effect.runSync(
           services.log(`acp: could not enter ${params.mode}: ${String(cause)}`)
@@ -282,6 +292,27 @@ export function acpTurn(
       }
     }
   }).pipe(Effect.scoped);
+}
+
+function giveBack(
+  chat: string,
+  held: Held,
+  clean: boolean,
+  sessionId: string | null
+): Effect.Effect<void> {
+  if (clean && sessionId !== null) {
+    held.sessionId = sessionId;
+    return acpPool.checkin(chat, held);
+  }
+  return Effect.suspend(() => {
+    if (sessionId !== null) {
+      held.peer.notify("session/cancel", { sessionId });
+    }
+    return Effect.andThen(
+      acpPool.dispose(chat),
+      Effect.sync(() => held.peer.kill())
+    );
+  });
 }
 
 function textOnly(
