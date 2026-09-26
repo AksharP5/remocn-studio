@@ -37,7 +37,7 @@
 
 ## 4. Look and feel
 
-- [ ] 4.1 Failures read as sentences with a Details disclosure and Copy details, never `JSON.stringify` or `Error: …`
+- [x] 4.1 Failures read as sentences with a Details disclosure and Copy details, never `JSON.stringify` or `Error: …`
 - [ ] 4.2 Projects, videos and chats have native context menus; the webview's own menu is suppressed outside text
 - [x] 4.3 Preview build progress shows a bar and the frame fades in
 - [x] 4.4 Export results can be dismissed, failures retried and copied, and a long render asks before cancelling
@@ -52,7 +52,7 @@
 - [x] 4.13 One floating-surface recipe
 - [ ] 4.14 A New Chat command with a shortcut; rows can be renamed and deleted from the keyboard
 - [x] 4.15 Layers and docs show skeletons; the transcript skeleton looks like messages
-- [ ] 4.16 Scaffold install shows elapsed time, can be cancelled and words its failure
+- [x] 4.16 Scaffold install shows elapsed time, can be cancelled and words its failure
 - [ ] 4.17 Small things: the inspector shows the video's name, `--text-2xs` instead of arbitrary sizes, the onboarding save error uses the toast system, the window background matches the theme, consistent labels, the export dialog warns only when the file exists, the transport sliders match the seek bar
 
 ## 5. Bundle and memory
