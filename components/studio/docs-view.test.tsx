@@ -1,8 +1,10 @@
-import { describe, expect, it, mock } from "bun:test";
+import { beforeAll, describe, expect, it, mock } from "bun:test";
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { Effect } from "effect";
 import { DocsView } from "@/components/studio/docs-view";
 import type { Docs } from "@/hooks/use-docs";
 import { documentTabs } from "@/lib/studio/documents";
+import { loadMarkdownRenderer } from "@/lib/studio/highlighter";
 import type { ProjectFile } from "@/shared/ipc";
 
 const FOLDER = "/Users/me/project/src/videos/intro/docs";
@@ -34,6 +36,8 @@ function docs(shape: Partial<Docs> = {}): Docs {
 function open(name: string, text: string): Partial<Docs> {
   return { open: { file: file(name), text } };
 }
+
+beforeAll(() => Effect.runPromise(loadMarkdownRenderer));
 
 describe("DocsView", () => {
   it("says where the pipeline writes, rather than showing an empty pane", () => {
