@@ -157,7 +157,7 @@ function ComponentsBody({
         <EmptyHeader>
           <EmptyTitle className="text-base">No components yet</EmptyTitle>
           <EmptyDescription className="text-pretty">
-            Ask Claude to save an animation or a scene you like, and it will
+            Ask the agent to save an animation or a scene you like, and it will
             land here, ready to drop into any other video.
           </EmptyDescription>
         </EmptyHeader>

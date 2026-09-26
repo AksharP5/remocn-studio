@@ -39,6 +39,7 @@ import type { StudioSettings } from "@/lib/studio/settings";
 import { currentTasks } from "@/lib/studio/tasks";
 import { cn } from "@/lib/utils";
 import type { HistorySession, Project } from "@/shared/ipc";
+import { PROVIDER_INFO } from "@/shared/providers";
 import { AssetOfferCard } from "./asset-offer-card";
 import { AssetSourceCard } from "./asset-source-card";
 import { ChatResult } from "./chat-result";
@@ -341,6 +342,7 @@ function Conversation({
             {turn.writes.card === null ? null : (
               <AboveComposer>
                 <WriteFailureCard
+                  agent={PROVIDER_INFO[turn.provider].name}
                   failure={turn.writes.card}
                   onAnswer={turn.writes.answer}
                 />

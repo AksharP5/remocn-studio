@@ -49,8 +49,8 @@ const REVEAL_STUDIO = `
 
 export const metadata: Metadata = {
   description:
-    "Build Remotion videos with Claude, without touching a terminal.",
-  title: "remocn studio",
+    "Build Remotion videos with your coding agent, without touching a terminal.",
+  title: "Remocn Studio",
 };
 
 export default function RootLayout({

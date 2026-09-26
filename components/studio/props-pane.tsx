@@ -181,7 +181,7 @@ export function PropsPanel({
           <PaneTitle className="truncate">{titleOf(target)}</PaneTitle>
           {target.instances < 2 ? null : (
             <span
-              className="shrink-0 font-mono text-[10px] text-muted-foreground tabular-nums"
+              className="shrink-0 font-mono text-2xs text-muted-foreground tabular-nums"
               title={`One of ${target.instances} rendered from this call site`}
             >
               {target.ordinal} of {target.instances}
@@ -329,7 +329,7 @@ export function PropsPanel({
                   className="text-muted-foreground"
                   onClick={comment.keep}
                   size="xs"
-                  title="Ask Claude to put this in the asset library"
+                  title="Ask the agent to put this in the asset library"
                   variant="ghost"
                 >
                   <LibraryBigIcon />
@@ -404,7 +404,7 @@ function TextSection({
         value={text.draft}
       />
       <p className="pt-1.5 text-2xs text-muted-foreground">
-        sent to Claude, not previewed
+        sent to the agent, not previewed
       </p>
     </section>
   );
@@ -413,7 +413,7 @@ function TextSection({
 function TimeStripRow({ strip }: { strip: TimeStrip }) {
   return (
     <div className="flex min-h-8 shrink-0 items-center gap-2 px-4 pb-2">
-      <span className="shrink-0 font-mono text-[10px] text-muted-foreground tabular-nums">
+      <span className="shrink-0 font-mono text-2xs text-muted-foreground tabular-nums">
         {strip.label}
       </span>
 

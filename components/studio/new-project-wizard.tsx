@@ -35,7 +35,7 @@ export function NewProjectWizard({
 
           <div className="flex flex-col gap-1">
             <h3 className="text-balance font-semibold text-2xl leading-tight tracking-tight">
-              New project
+              New Project
             </h3>
             <p className="text-pretty text-muted-foreground text-sm/relaxed">
               A folder is created for it, with your first video inside. More

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { Onboarding } from "@/hooks/use-onboarding";
 import { useOnboardingStill } from "@/hooks/use-onboarding-still";
+import { useSaveErrorToast } from "@/hooks/use-save-error-toast";
 import {
   ONBOARDING_CHAPTERS,
   type OnboardingChapter,
@@ -45,6 +46,7 @@ export function OnboardingOverview({
   suspended?: boolean;
 }) {
   const { chapter, index, onCover } = onboarding;
+  useSaveErrorToast(onboarding.saveError, onboarding.retrySave);
   const shown = onboarding.isOpen && !suspended;
   const last = index === ONBOARDING_CHAPTERS.length - 1;
   return (
@@ -132,28 +134,9 @@ export function OnboardingOverview({
               </Button>
             </div>
           </footer>
-          {onboarding.saveError ? <SaveNotice onboarding={onboarding} /> : null}
         </DialogContent>
       </Dialog>
-      {onboarding.saveError && !onboarding.isOpen ? (
-        <div className="fixed right-4 bottom-4 z-50 max-w-sm rounded-xl border bg-popover shadow-lg">
-          <SaveNotice onboarding={onboarding} />
-        </div>
-      ) : null}
     </>
-  );
-}
-
-function SaveNotice({ onboarding }: { onboarding: Onboarding }) {
-  return (
-    <div className="flex items-center gap-3 border-t px-4 py-2" role="alert">
-      <p className="text-sm">
-        Your place couldn't be saved. The overview may return next time.
-      </p>
-      <Button onClick={onboarding.retrySave} size="sm" variant="outline">
-        Retry
-      </Button>
-    </div>
   );
 }
 
@@ -272,7 +255,7 @@ export function ChapterStill({ chapter }: { chapter: OnboardingChapter }) {
         >
           <p className="text-sm">This picture couldn’t load.</p>
           <Button onClick={still.retry} size="sm" variant="secondary">
-            <RotateCcwIcon /> Retry
+            <RotateCcwIcon /> Try again
           </Button>
         </div>
       ) : null}

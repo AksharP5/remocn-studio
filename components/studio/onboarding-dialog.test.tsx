@@ -97,7 +97,7 @@ describe("feature overview", () => {
     }
     fireEvent.error(image);
     expect(screen.getByRole("alert")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(still()).not.toBe(image);
     expect(still()?.src).toContain("/onboarding/inspect.webp");
     fireEvent.click(screen.getByRole("button", { name: "Next" }));

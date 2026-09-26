@@ -41,7 +41,7 @@
 - [ ] 4.2 Projects, videos and chats have native context menus; the webview's own menu is suppressed outside text
 - [ ] 4.3 Preview build progress shows a bar and the frame fades in
 - [ ] 4.4 Export results can be dismissed, failures retried and copied, and a long render asks before cancelling
-- [ ] 4.5 Copy names the active provider instead of always saying Claude
+- [x] 4.5 Copy names the active provider instead of always saying Claude
 - [x] 4.6 One user-facing word for the sidecar
 - [x] 4.7 Motion tokens for easing and duration in `@theme`, used across the studio
 - [x] 4.8 Reduced motion covers the toast shake and bounce, the easing preview, the title bar filter and the drop zone spinner

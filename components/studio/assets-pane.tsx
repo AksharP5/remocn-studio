@@ -189,8 +189,8 @@ function AssetsBody({
         <EmptyHeader>
           <EmptyTitle className="text-base">Nothing saved yet</EmptyTitle>
           <EmptyDescription className="text-pretty">
-            Drag pictures, video or sound here from {fileManagerName()}, or ask{" "}
-            Claude to put an animation you like into the library. Everything
+            Drag pictures, video or sound here from {fileManagerName()}, or ask
+            the agent to put an animation you like into the library. Everything
             here can be dropped into any other video.
           </EmptyDescription>
         </EmptyHeader>

@@ -13,7 +13,7 @@ const STEPS = [
     title: "Start a project",
   },
   {
-    body: "Say what the video should be. Claude writes actual Remotion components into that folder — TSX you can read, edit and keep.",
+    body: "Say what the video should be. Your coding agent writes actual Remotion components into that folder — TSX you can read, edit and keep.",
     id: "describe",
     title: "Describe the video",
   },
@@ -69,7 +69,7 @@ export function Startup({
           <div className="flex flex-wrap items-center gap-2">
             <Button onClick={onNewProject} size="lg">
               <FolderPlusIcon data-icon="inline-start" />
-              New Project
+              New Project…
             </Button>
             <Button onClick={onOpenFolder} size="lg" variant="ghost">
               <FolderOpenIcon data-icon="inline-start" />
@@ -77,7 +77,8 @@ export function Startup({
             </Button>
           </div>
           <p className="text-muted-foreground text-xs">
-            Needs a Claude Code you are already signed in to.
+            Needs Claude Code, Codex, GitHub Copilot or Grok Build, already
+            signed in.
           </p>
         </div>
       </Scrim>

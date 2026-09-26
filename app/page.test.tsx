@@ -370,11 +370,11 @@ describe("app shell", () => {
       screen.getByRole("button", { name: "Hide the project list" })
     );
 
-    const [cta] = screen.getAllByRole("button", { name: "New Project" });
+    const [cta] = screen.getAllByRole("button", { name: "New Project…" });
     fireEvent.click(cta);
 
     expect(
-      await screen.findByRole("heading", { name: "New project" })
+      await screen.findByRole("heading", { name: "New Project" })
     ).toBeVisible();
   });
 
@@ -428,7 +428,7 @@ describe("app shell", () => {
 
     // The pane's own copies moved into the project switcher's menu, so the
     // startup screen is the only one on screen without opening it.
-    const create = screen.getAllByRole("button", { name: "New Project" });
+    const create = screen.getAllByRole("button", { name: "New Project…" });
 
     expect(screen.getByRole("heading", { name: STARTUP })).toBeVisible();
     expect(create).toHaveLength(1);
@@ -583,7 +583,7 @@ describe("app shell", () => {
     await renderShell();
 
     const [header] = await screen.findAllByRole("button", {
-      name: "New Project",
+      name: "New Project…",
     });
 
     expect(header).toBeVisible();

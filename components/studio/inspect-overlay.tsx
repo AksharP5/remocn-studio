@@ -125,7 +125,7 @@ function CommentCard({
           className="text-muted-foreground"
           onClick={comment.keep}
           size="xs"
-          title="Ask Claude to put this in the asset library"
+          title="Ask the agent to put this in the asset library"
           variant="ghost"
         >
           <LibraryBigIcon />

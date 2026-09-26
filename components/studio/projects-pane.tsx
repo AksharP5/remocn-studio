@@ -389,7 +389,7 @@ function NewVideoAction({
         variant="default"
       >
         <PlusIcon data-icon="inline-start" />
-        New video
+        New Video…
       </Button>
     </div>
   );
