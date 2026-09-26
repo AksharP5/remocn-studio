@@ -30,7 +30,7 @@ import { pipelineBrief } from "./claude/conventions";
 import { escapee } from "./contained";
 import { applyCrashConsent, isReporting } from "./crash";
 import { readProjectDocument, videoDocuments } from "./documents";
-import { checksFor } from "./environment";
+import { projectChecks } from "./environment";
 import { type FilesError, listFolder, projectFiles } from "./files";
 import { openStudioProject, ProjectStore } from "./history/projects";
 import { recording } from "./history/recorder";
@@ -245,8 +245,10 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
   "agent.accounts": ({ params }) =>
     (params?.force === true ? account.clear : Effect.void).pipe(
       Effect.andThen(
-        Effect.forEach(AGENT_PROVIDERS, (provider) =>
-          account.row(provider, process.cwd())
+        Effect.forEach(
+          AGENT_PROVIDERS,
+          (provider) => account.row(provider, process.cwd()),
+          { concurrency: "unbounded" }
         )
       )
     ),
@@ -824,12 +826,15 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
         yield* account.clear;
       }
 
-      return {
-        checks: yield* checksFor(
-          project.path,
-          yield* account.row(params.provider, project.path)
-        ),
-      };
+      const [row, rows] = yield* Effect.all(
+        [
+          account.row(params.provider, project.path),
+          projectChecks(project.path),
+        ],
+        { concurrency: "unbounded" }
+      );
+
+      return { checks: [row, ...rows] };
     }),
   "project.create": ({ params }) =>
     Effect.gen(function* () {

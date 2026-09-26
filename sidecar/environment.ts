@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Data, Effect } from "effect";
@@ -329,6 +329,24 @@ export function missingFrom(
   return dependencies.filter((name) => !isInstalled(root, name));
 }
 
+const drifts = new Map<string, { drift: string | null; stamp: string }>();
+
+function stampOf(files: readonly (string | null)[]): string | null {
+  const parts: string[] = [];
+  for (const file of files) {
+    if (file === null) {
+      continue;
+    }
+    try {
+      const stats = statSync(file);
+      parts.push(`${file}:${stats.mtimeMs}:${stats.size}`);
+    } catch {
+      return null;
+    }
+  }
+  return parts.join("|");
+}
+
 export function lockfileDrift(
   project: ProjectManager
 ): Effect.Effect<string | null> {
@@ -338,6 +356,31 @@ export function lockfileDrift(
     return Effect.succeed(null);
   }
 
+  const stamp = stampOf([
+    path.join(project.root, "package.json"),
+    project.lockfile,
+  ]);
+  const held = drifts.get(project.root);
+
+  if (stamp !== null && held?.stamp === stamp) {
+    return Effect.succeed(held.drift);
+  }
+
+  return runDrift(binary, project).pipe(
+    Effect.tap((drift) =>
+      Effect.sync(() => {
+        if (stamp !== null) {
+          drifts.set(project.root, { drift, stamp });
+        }
+      })
+    )
+  );
+}
+
+function runDrift(
+  binary: string,
+  project: ProjectManager
+): Effect.Effect<string | null> {
   return Effect.callback<string | null>((resume) => {
     const child = spawn(binary, ["install", "--dry-run", "--frozen-lockfile"], {
       cwd: project.root,
@@ -386,6 +429,12 @@ export function checksFor(
   folder: string,
   account: EnvironmentCheck
 ): Effect.Effect<readonly EnvironmentCheck[]> {
+  return Effect.map(projectChecks(folder), (rows) => [account, ...rows]);
+}
+
+export function projectChecks(
+  folder: string
+): Effect.Effect<readonly EnvironmentCheck[]> {
   return Effect.gen(function* () {
     const root = remotionRootOf(folder);
     const manifest = yield* manifestOf(root);
@@ -393,11 +442,7 @@ export function checksFor(
     const project = pmOf(root);
     const binary = binaryOf(project.manager);
 
-    const head = [
-      account,
-      managerRow(project, binary),
-      remotionRow(root, manifest),
-    ];
+    const head = [managerRow(project, binary), remotionRow(root, manifest)];
 
     if (manifest === null) {
       return [...head, PENDING_COMPOSITIONS];
