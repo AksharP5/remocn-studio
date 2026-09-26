@@ -18,6 +18,7 @@ import { AGENT_PROVIDERS } from "@/shared/providers";
 import { freeSlug, slugFor } from "@/shared/slug";
 import { templateProjectName } from "@/shared/templates";
 import { makeAccountCache } from "./agent/account";
+import { coalescing } from "./agent/coalesce";
 import { makeGate } from "./agent/gate";
 import { makeModeSwitch } from "./agent/mode";
 import { adapterFor } from "./agent/registry";
@@ -154,6 +155,8 @@ const gateway = makeGateway((line) => process.stderr.write(`${line}\n`));
 
 const account = Effect.runSync(makeAccountCache());
 
+const STREAMED_FRAME = "24 millis";
+
 const unstored = (error: { message: string }) =>
   new HandlerError({ message: error.message });
 
@@ -259,8 +262,10 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
       (matched) => ({ matched })
     ),
 
-  "agent.prompt": ({ ask, emit, log, params }) =>
+  "agent.prompt": ({ ask, emit: send, log, params }) =>
     Effect.gen(function* () {
+      const { emit, flush } = yield* coalescing(send, STREAMED_FRAME);
+      yield* Effect.addFinalizer(() => flush);
       const turnId = yield* Effect.sync(() => crypto.randomUUID());
       const project = yield* located(params.projectId);
       const adapter = adapterFor(params.provider);
@@ -519,6 +524,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
             )
           )
       ).pipe(
+        Effect.ensuring(recorder.flush),
         Effect.ensuring(abandonSourceAssets(turnId)),
         Effect.onInterrupt(() =>
           application === null
@@ -539,7 +545,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
         ).pipe(Effect.mapError(unstored));
       }
       return result;
-    }),
+    }).pipe(Effect.scoped),
 
   "agent.source": ({ params }) =>
     answerSourceAsset(params).pipe(
