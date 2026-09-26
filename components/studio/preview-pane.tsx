@@ -18,6 +18,7 @@ import { exportLabel } from "@/lib/studio/export";
 import { fileManagerName } from "@/lib/studio/platform";
 import { DocsView } from "./docs-view";
 import { ExportButton } from "./export-button";
+import { FailureText } from "./failure-text";
 import { Pane, PaneActions, PaneHeader } from "./pane";
 import { useStudio } from "./studio-provider";
 
@@ -125,12 +126,15 @@ function StatusSlot({
            window, clipped mid-token with no wrap and no scroll.
            `renderFailure` words those away, and this is the insurance for
            whatever a renderer says next. */
-        <p
-          className="max-h-24 shrink-0 overflow-auto text-center text-destructive text-xs [overflow-wrap:anywhere]"
-          role="alert"
-        >
-          {trouble}
-        </p>
+        <div className="max-h-32 shrink-0 overflow-auto">
+          <FailureText
+            align="center"
+            className="text-center text-destructive text-xs [overflow-wrap:anywhere]"
+            fallback="The preview could not do that."
+            role="alert"
+            text={trouble}
+          />
+        </div>
       )}
 
       {snapshot.status === null ? null : (

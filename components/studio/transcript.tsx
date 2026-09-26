@@ -17,6 +17,7 @@ import type { TranscriptEntry } from "@/shared/ipc";
 import { ActivityLine } from "./activity-line";
 import { ActivityRun } from "./activity-run";
 import { AssetRow } from "./asset-row";
+import { FailureText } from "./failure-text";
 import { Markdown } from "./markdown";
 import { MediaRow } from "./media-row";
 import { MessageText } from "./message-text";
@@ -166,12 +167,13 @@ export function Transcript({
 
       {error === null ? null : (
         <MessageScrollerItem>
-          <p
-            className="rounded-xl bg-destructive/10 px-3 py-2 text-destructive text-sm"
-            role="alert"
-          >
-            {error}
-          </p>
+          <div className="rounded-xl bg-destructive/10 px-3 py-2 text-destructive text-sm">
+            <FailureText
+              fallback="The turn stopped because something went wrong."
+              role="alert"
+              text={error}
+            />
+          </div>
         </MessageScrollerItem>
       )}
     </>

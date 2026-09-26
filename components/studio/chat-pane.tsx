@@ -45,6 +45,7 @@ import { ChatResult } from "./chat-result";
 import { Composer } from "./composer";
 import { DockStack } from "./dock";
 import { EnvironmentChecklist } from "./environment-checklist";
+import { FailureText } from "./failure-text";
 import { LogoMark } from "./logo-mark";
 import { MarkdownProvider } from "./markdown";
 import { NewProjectWizard } from "./new-project-wizard";
@@ -96,7 +97,7 @@ export function ChatPane() {
     <Pane>
       <PaneHeader
         className={cn(
-          "transition-[padding] duration-250 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none",
+          "transition-[padding] duration-base ease-out motion-reduce:transition-none",
           isProjectsShown ? undefined : "pl-(--titlebar-inline-inset)"
         )}
         data-tauri-drag-region
@@ -109,7 +110,7 @@ export function ChatPane() {
         >
           <div
             className={cn(
-              "flex shrink-0 items-center overflow-hidden transition-[width,margin,opacity,scale] duration-250 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none",
+              "flex shrink-0 items-center overflow-hidden transition-[width,margin,opacity,scale] duration-base ease-out motion-reduce:transition-none",
               isProjectsShown
                 ? "-mr-1 w-0 scale-75 opacity-0"
                 : "mr-0 w-8 scale-100 opacity-100 sm:w-7"
@@ -477,8 +478,12 @@ function ProjectsFailed({
         <EmptyTitle className="text-balance text-2xl">
           The project list could not be read
         </EmptyTitle>
-        <EmptyDescription className="break-words" role="alert">
-          {message}
+        <EmptyDescription>
+          <FailureText
+            fallback="Something went wrong while reading it."
+            role="alert"
+            text={message}
+          />
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent className="items-start">

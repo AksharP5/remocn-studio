@@ -24,6 +24,7 @@ import { fileManagerName } from "@/lib/studio/platform";
 import { cn } from "@/lib/utils";
 import type { Asset } from "@/shared/library";
 import { AssetGrid } from "./asset-grid";
+import { FailureText } from "./failure-text";
 import { PaneScreen } from "./pane-screen";
 
 const PLACEHOLDERS = ["one", "two", "three"];
@@ -155,7 +156,13 @@ function AssetsBody({
           <EmptyTitle className="text-balance">
             The library is unavailable
           </EmptyTitle>
-          <EmptyDescription className="break-words">{error}</EmptyDescription>
+          <EmptyDescription>
+            <FailureText
+              align="center"
+              fallback="Something went wrong while reading the library."
+              text={error}
+            />
+          </EmptyDescription>
         </EmptyHeader>
         <Button onClick={onRetry} size="sm" variant="outline">
           Try again

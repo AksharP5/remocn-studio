@@ -47,6 +47,7 @@ import { isMediaAsset } from "@/shared/library";
 import { AssetsPane } from "./assets-pane";
 import { AssetsScopeSwitch } from "./assets-scope";
 import { ComponentsPane } from "./components-pane";
+import { FailureText } from "./failure-text";
 import { LogoWordmark } from "./logo-mark";
 import { PaneScreen } from "./pane-screen";
 import { StockPane } from "./stock-pane";
@@ -432,7 +433,13 @@ function VideosBody({
           <EmptyTitle className="text-balance">
             History is unavailable
           </EmptyTitle>
-          <EmptyDescription className="break-words">{error}</EmptyDescription>
+          <EmptyDescription>
+            <FailureText
+              align="center"
+              fallback="Something went wrong while reading the history."
+              text={error}
+            />
+          </EmptyDescription>
         </EmptyHeader>
         <Button onClick={onRetry} size="sm" variant="outline">
           Try again

@@ -7,6 +7,15 @@ export function errorMessage(cause: unknown): string {
   if (typeof cause === "string") {
     return cause;
   }
+  if (
+    typeof cause === "object" &&
+    cause !== null &&
+    "message" in cause &&
+    typeof cause.message === "string" &&
+    cause.message.length > 0
+  ) {
+    return cause.message;
+  }
   return JSON.stringify(cause) ?? String(cause);
 }
 
