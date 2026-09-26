@@ -5,7 +5,7 @@
 - [ ] 1.3 The splash's 50 ms tick re-renders only the splash, not the shell
 - [ ] 1.4 fast-check is aliased out of the client bundle
 - [ ] 1.5 `lib/studio/design-review.ts` moves from zod to Effect Schema and zod leaves the webview bundle
-- [ ] 1.6 The title bar shader stops drawing while the window is unfocused
+- [x] 1.6 The title bar shader stops drawing while the window is unfocused
 
 ## 2. Webview responsiveness
 
