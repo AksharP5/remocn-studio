@@ -1,11 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  type PreviewControl,
-  useOnPreview,
-  usePreviewFrame,
-} from "@/hooks/use-preview";
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { type PreviewControl, useOnPreview } from "@/hooks/use-preview";
 import {
   PLAYBACK_RATES,
   type PlaybackRate,
@@ -22,8 +25,7 @@ const INTERACTIVE =
 
 export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
   const surface = useRef<HTMLElement>(null);
-  const frame = usePreviewFrame(preview);
-  const { composition, isServing, pick, send } = preview;
+  const { composition, frameOf, isServing, onFrame, pick, send } = preview;
   const url = preview.preview.phase === "ready" ? preview.preview.url : null;
   const [reported, setReported] = useState<{
     url: string;
@@ -140,10 +142,10 @@ export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
         return;
       }
       const at = Math.max(0, Math.min(lastFrame, Math.round(value)));
-      setSeek(at === frame ? null : { frame: at, url });
+      setSeek(at === frameOf() ? null : { frame: at, url });
       send(seekCommand(at));
     },
-    [frame, lastFrame, ready, send, url]
+    [frameOf, lastFrame, ready, send, url]
   );
 
   const toggleMute = useCallback(() => {
@@ -233,39 +235,110 @@ export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [ready, step, toggle]);
 
-  const at = Math.max(
-    0,
-    Math.min(lastFrame, seek?.url === url ? seek.frame : frame)
+  const pendingFrame = seek?.url === url ? seek.frame : null;
+  const buffering = state?.buffering ?? false;
+  const error = state?.error ?? fullscreenError;
+  const muted = (state?.muted ?? false) || state?.volume === 0;
+  const volume = Math.round((state?.muted ? 0 : (state?.volume ?? 1)) * 100);
+  const { playing } = preview;
+
+  return useMemo(
+    () => ({
+      buffering,
+      canFullscreen,
+      duration: previewTime(duration / fps),
+      error,
+      fps,
+      frameOf,
+      fullscreen,
+      lastFrame,
+      muted,
+      next,
+      onFrame,
+      pendingFrame,
+      playing,
+      previous,
+      rate,
+      rateMarks: RATE_MARKS,
+      rateStep: PLAYBACK_RATES.indexOf(rate),
+      rates: PLAYBACK_RATES,
+      ready,
+      scenes,
+      seekTo,
+      setRate,
+      setRateStep,
+      setVolume,
+      surface,
+      toggle,
+      toggleFullscreen,
+      toggleMute,
+      volume,
+    }),
+    [
+      buffering,
+      canFullscreen,
+      duration,
+      error,
+      fps,
+      frameOf,
+      fullscreen,
+      lastFrame,
+      muted,
+      next,
+      onFrame,
+      pendingFrame,
+      playing,
+      previous,
+      rate,
+      ready,
+      scenes,
+      seekTo,
+      setRate,
+      setRateStep,
+      setVolume,
+      toggle,
+      toggleFullscreen,
+      toggleMute,
+      volume,
+    ]
   );
-  return {
-    buffering: state?.buffering ?? false,
-    canFullscreen,
-    duration: previewTime(duration / fps),
-    error: state?.error ?? fullscreenError,
-    frame: at,
-    fullscreen,
-    lastFrame,
-    muted: (state?.muted ?? false) || state?.volume === 0,
-    next,
-    playing: preview.playing,
-    position: previewTime(at / fps),
-    previous,
-    rate,
-    rateMarks: RATE_MARKS,
-    rateStep: PLAYBACK_RATES.indexOf(rate),
-    rates: PLAYBACK_RATES,
-    ready,
-    scenes,
-    seekTo,
-    setRate,
-    setRateStep,
-    setVolume,
-    surface,
-    toggle,
-    toggleFullscreen,
-    toggleMute,
-    volume: Math.round((state?.muted ? 0 : (state?.volume ?? 1)) * 100),
-  };
+}
+
+type TransportFrames = Pick<
+  PreviewTransport,
+  "fps" | "frameOf" | "lastFrame" | "onFrame" | "pendingFrame"
+>;
+
+export function useTransportFrame({
+  fps,
+  frameOf,
+  lastFrame,
+  onFrame,
+  pendingFrame,
+}: TransportFrames): { frame: number; position: string } {
+  const live = useSyncExternalStore(onFrame, frameOf, frameOf);
+  const frame = Math.max(0, Math.min(lastFrame, pendingFrame ?? live));
+
+  return { frame, position: previewTime(frame / fps) };
+}
+
+export type TransportEdge = "end" | "middle" | "start";
+
+export function useTransportEdge({
+  frameOf,
+  lastFrame,
+  onFrame,
+  pendingFrame,
+}: TransportFrames): TransportEdge {
+  const edge = useCallback((): TransportEdge => {
+    const frame = Math.max(0, Math.min(lastFrame, pendingFrame ?? frameOf()));
+    if (frame === 0) {
+      return "start";
+    }
+    return frame === lastFrame ? "end" : "middle";
+  }, [frameOf, lastFrame, pendingFrame]);
+
+  return useSyncExternalStore(onFrame, edge, edge);
 }
 
 export type PreviewTransport = ReturnType<typeof usePreviewTransport>;

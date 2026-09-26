@@ -2,7 +2,11 @@ import { describe, expect, it, mock } from "bun:test";
 import { act, renderHook } from "@testing-library/react";
 import type { PreviewControl, PreviewListener } from "@/hooks/use-preview";
 import type { PreviewMessage } from "@/lib/studio/preview";
-import { usePreviewTransport } from "./use-preview-transport";
+import {
+  usePreviewTransport,
+  useTransportEdge,
+  useTransportFrame,
+} from "./use-preview-transport";
 
 const SCENES = [
   { duration: 90, from: 0, id: "a", name: "Intro" },
@@ -150,5 +154,55 @@ describe("usePreviewTransport speed", () => {
 
     expect(result.current.rate).toBe(1);
     expect(rates().at(-1)).toBe(1);
+  });
+});
+
+describe("usePreviewTransport playhead", () => {
+  it("keeps the transport still while frames play, and the seek bar follows them", () => {
+    const clock = { frame: 0 };
+    const watchers = new Set<() => void>();
+    const preview = {
+      composition: "intro",
+      frameOf: () => clock.frame,
+      isServing: true,
+      onFrame: (listen: () => void) => {
+        watchers.add(listen);
+        return () => {
+          watchers.delete(listen);
+        };
+      },
+      pick: { metadata: { durationInFrames: 300, fps: 30 } },
+      playing: true,
+      preview: { phase: "ready", url: "http://localhost:3001" },
+      send: mock(),
+      subscribe: () => () => undefined,
+    } as unknown as PreviewControl;
+    let renders = 0;
+    const transport = renderHook(() => {
+      renders += 1;
+      return usePreviewTransport(preview, true);
+    });
+    const seekBar = renderHook(() => ({
+      edge: useTransportEdge(transport.result.current),
+      shown: useTransportFrame(transport.result.current),
+    }));
+    const before = { renders, seekTo: transport.result.current.seekTo };
+
+    for (const frame of [30, 60, 299]) {
+      act(() => {
+        clock.frame = frame;
+        for (const listen of watchers) {
+          listen();
+        }
+      });
+    }
+
+    expect(renders).toBe(before.renders);
+    expect(transport.result.current.seekTo).toBe(before.seekTo);
+    expect(seekBar.result.current.shown).toEqual({
+      frame: 299,
+      position: "00:09",
+    });
+    expect(seekBar.result.current.edge).toBe("end");
   });
 });
