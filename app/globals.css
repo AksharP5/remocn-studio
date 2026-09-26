@@ -280,7 +280,7 @@
   --animate-screen-back: screen-back var(--transition-duration-base)
     var(--ease-out) both;
   --animate-fade-in: titlebar-in var(--transition-duration-base) var(--ease-out)
-    both;
+    backwards;
   --animate-skeleton: skeleton 2s -1s infinite linear;
   --animate-caret-blink: 1s ease-out infinite caret-blink;
   --animate-toast-success-odd: toast-success-odd var(--transition-duration-base)
@@ -754,6 +754,20 @@
   transition-duration: 0ms !important;
 }
 
+@keyframes progress-indeterminate {
+  from {
+    translate: -100% 0;
+  }
+  to {
+    translate: 300% 0;
+  }
+}
+
+[data-slot="progress-indicator"][data-indeterminate] {
+  width: 35%;
+  animation: progress-indeterminate 1.4s var(--ease-in-out) infinite;
+}
+
 /* The easing card's preview dot: the timing function is the value being
    edited, set inline per curve; the run pauses at the end so loops read as
    runs rather than a metronome. */
@@ -795,9 +809,12 @@
   [data-pane-slide].animate-screen-back,
   [data-pane-slide].animate-screen-in,
   .animate-card-in,
-  .animate-drawer-in,
-  .animate-fade-in {
+  .animate-drawer-in {
     animation: titlebar-in var(--transition-duration-fast) var(--ease-out) both;
+  }
+  .animate-fade-in {
+    animation: titlebar-in var(--transition-duration-fast) var(--ease-out)
+      backwards;
   }
   .splash-glyph-stroke {
     opacity: 0;

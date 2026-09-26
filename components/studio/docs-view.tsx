@@ -8,8 +8,10 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { Skeleton } from "@/components/ui/skeleton";
 import { TabsPrimitive } from "@/components/ui/tabs";
 import type { Docs } from "@/hooks/use-docs";
+import { cn } from "@/lib/utils";
 import { DocTabs } from "./doc-tabs";
 import { Markdown } from "./markdown";
 import { PaneBody } from "./pane";
@@ -61,15 +63,44 @@ function Body({ docs }: { docs: Docs }) {
   }
 
   if (docs.open === null) {
-    // The read is one file off local disk, so a skeleton would flash rather
-    // than inform; the strip above already says which document is coming.
-    return docs.isLoading ? null : <NoDocuments folder={docs.folder} />;
+    return docs.isLoading ? (
+      <DocumentSkeleton />
+    ) : (
+      <NoDocuments folder={docs.folder} />
+    );
   }
 
   return (
     <article className="mx-auto max-w-[65ch] px-6 py-6">
       <Markdown isAnimated={false}>{docs.open.text}</Markdown>
     </article>
+  );
+}
+
+const SKELETON_LINES = [
+  { id: "a", width: "w-full" },
+  { id: "b", width: "w-11/12" },
+  { id: "c", width: "w-4/5" },
+  { id: "d", width: "w-full" },
+  { id: "e", width: "w-2/3" },
+];
+
+function DocumentSkeleton() {
+  return (
+    <div
+      aria-busy="true"
+      aria-label="Loading the document"
+      className="mx-auto flex max-w-[65ch] animate-fade-in flex-col gap-3 px-6 py-6"
+      role="status"
+    >
+      <Skeleton className="mb-2 h-5 w-2/5 rounded-sm" />
+      {SKELETON_LINES.map((line) => (
+        <Skeleton
+          className={cn("h-3.5 rounded-sm", line.width)}
+          key={line.id}
+        />
+      ))}
+    </div>
   );
 }
 

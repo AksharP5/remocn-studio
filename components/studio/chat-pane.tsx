@@ -18,6 +18,7 @@ import {
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Tooltip,
   TooltipContent,
@@ -64,7 +65,12 @@ import { TemplateList } from "./template-list";
 import { Transcript } from "./transcript";
 import { WriteFailureCard } from "./write-failure-card";
 
-const PLACEHOLDERS = ["one", "two", "three"];
+const PLACEHOLDERS = [
+  { id: "ask", lines: ["w-3/5"], role: "user" },
+  { id: "answer", lines: ["w-full", "w-11/12", "w-2/3"], role: "assistant" },
+  { id: "follow-up", lines: ["w-2/5"], role: "user" },
+  { id: "reply", lines: ["w-10/12", "w-1/2"], role: "assistant" },
+] as const;
 const TICK = "1 second";
 
 export function ChatPane() {
@@ -182,10 +188,29 @@ function titleOf(
 function LoadingTranscript() {
   return (
     <PaneBody>
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 py-6">
-        {PLACEHOLDERS.map((placeholder) => (
-          <Skeleton className="h-16 w-full rounded-xl" key={placeholder} />
-        ))}
+      <div
+        aria-busy="true"
+        aria-label="Loading the chat"
+        className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-6"
+        role="status"
+      >
+        {PLACEHOLDERS.map((placeholder) =>
+          placeholder.role === "user" ? (
+            <Skeleton
+              className={cn("ml-auto h-9 rounded-xl", placeholder.lines[0])}
+              key={placeholder.id}
+            />
+          ) : (
+            <div className="flex flex-col gap-2" key={placeholder.id}>
+              {placeholder.lines.map((width) => (
+                <Skeleton
+                  className={cn("h-3.5 rounded-sm", width)}
+                  key={width}
+                />
+              ))}
+            </div>
+          )
+        )}
       </div>
     </PaneBody>
   );
@@ -447,7 +472,15 @@ function ConversationBody({
   }
 
   if (isLoadingProjects) {
-    return null;
+    return (
+      <div
+        className="m-auto flex animate-fade-in items-center gap-2 text-muted-foreground text-sm"
+        role="status"
+      >
+        <Spinner className="size-3.5" />
+        Reading your projects…
+      </div>
+    );
   }
 
   // A list that failed is not a list that is empty. Onboarding here told a

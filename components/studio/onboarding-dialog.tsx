@@ -50,93 +50,91 @@ export function OnboardingOverview({
   const shown = onboarding.isOpen && !suspended;
   const last = index === ONBOARDING_CHAPTERS.length - 1;
   return (
-    <>
-      <Dialog
-        disablePointerDismissal
-        onOpenChange={onboarding.onOpenChange}
-        open={shown}
+    <Dialog
+      disablePointerDismissal
+      onOpenChange={onboarding.onOpenChange}
+      open={shown}
+    >
+      <DialogContent
+        aria-describedby={undefined}
+        bottomStickOnMobile={false}
+        className="group/onboarding row-span-3 row-start-1 max-h-[calc(100dvh-2rem)] w-[min(68rem,calc(100vw-2rem))] max-w-none self-center overflow-hidden duration-base ease-out data-[motion=instant]:transition-none data-ending-style:duration-fast motion-reduce:transition-opacity motion-reduce:duration-fast motion-reduce:sm:data-ending-style:scale-100 motion-reduce:sm:data-starting-style:scale-100"
+        closeProps={{
+          className: "absolute top-3 end-3 z-20 size-11 sm:size-10",
+        }}
+        data-motion={onboarding.motion}
+        onKeyDownCapture={onboarding.onKeyDownCapture}
       >
-        <DialogContent
-          aria-describedby={undefined}
-          bottomStickOnMobile={false}
-          className="group/onboarding row-span-3 row-start-1 max-h-[calc(100dvh-2rem)] w-[min(68rem,calc(100vw-2rem))] max-w-none self-center overflow-hidden duration-base ease-out data-[motion=instant]:transition-none data-ending-style:duration-fast motion-reduce:transition-opacity motion-reduce:duration-fast motion-reduce:sm:data-ending-style:scale-100 motion-reduce:sm:data-starting-style:scale-100"
-          closeProps={{
-            className: "absolute top-3 end-3 z-20 size-11 sm:size-10",
-          }}
-          data-motion={onboarding.motion}
-          onKeyDownCapture={onboarding.onKeyDownCapture}
-        >
-          <DialogTitle className="sr-only">Explore Studio</DialogTitle>
-          <div className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:none]">
-            {shown && onCover ? <Cover /> : null}
-            {shown && !onCover ? (
-              <Chapter chapter={chapter} index={index} key={chapter.id} />
-            ) : null}
+        <DialogTitle className="sr-only">Explore Studio</DialogTitle>
+        <div className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:none]">
+          {shown && onCover ? <Cover /> : null}
+          {shown && !onCover ? (
+            <Chapter chapter={chapter} index={index} key={chapter.id} />
+          ) : null}
+        </div>
+        <footer className="relative flex shrink-0 items-center justify-between gap-4 border-t bg-popover px-3 py-2 sm:px-4">
+          <nav aria-label="Studio features" className="flex items-center">
+            {ONBOARDING_CHAPTERS.map((item, position) => (
+              <button
+                aria-current={
+                  !onCover && item.id === chapter.id ? "step" : undefined
+                }
+                aria-label={`${step(position)} ${item.label}`}
+                className="group/segment flex h-11 w-8 items-center px-1 outline-none focus-visible:ring-2 focus-visible:ring-foreground/50 focus-visible:ring-inset sm:w-10"
+                key={item.id}
+                onClick={onboarding.onChapterClick}
+                title={item.label}
+                type="button"
+                value={item.id}
+              >
+                <span
+                  className={cn(
+                    "h-1 w-full rounded-full transition-colors duration-fast",
+                    !onCover && position === index && "bg-foreground",
+                    !onCover &&
+                      position < index &&
+                      "bg-foreground/45 group-hover/segment:bg-foreground/70",
+                    (onCover || position > index) &&
+                      "bg-foreground/15 group-hover/segment:bg-foreground/40"
+                  )}
+                />
+              </button>
+            ))}
+          </nav>
+          <div className="flex items-center gap-2">
+            <Button
+              className="h-11 sm:h-10"
+              onClick={onboarding.close}
+              size="sm"
+              variant="ghost"
+            >
+              Skip
+            </Button>
+            {onCover ? null : (
+              <Button
+                aria-label="Previous chapter"
+                className="size-11 sm:size-10"
+                onClick={onboarding.previous}
+                size="icon-sm"
+                variant="outline"
+              >
+                <ArrowLeftIcon />
+              </Button>
+            )}
+            <Button
+              className="h-11 sm:h-10"
+              onClick={onCover ? onboarding.start : onboarding.next}
+              size="sm"
+            >
+              {onCover ? "Take the tour" : null}
+              {!onCover && last ? "Done" : null}
+              {onCover || last ? null : "Next"}
+              {!onCover && last ? <CheckIcon /> : <ArrowRightIcon />}
+            </Button>
           </div>
-          <footer className="relative flex shrink-0 items-center justify-between gap-4 border-t bg-popover px-3 py-2 sm:px-4">
-            <nav aria-label="Studio features" className="flex items-center">
-              {ONBOARDING_CHAPTERS.map((item, position) => (
-                <button
-                  aria-current={
-                    !onCover && item.id === chapter.id ? "step" : undefined
-                  }
-                  aria-label={`${step(position)} ${item.label}`}
-                  className="group/segment flex h-11 w-8 items-center px-1 outline-none focus-visible:ring-2 focus-visible:ring-foreground/50 focus-visible:ring-inset sm:w-10"
-                  key={item.id}
-                  onClick={onboarding.onChapterClick}
-                  title={item.label}
-                  type="button"
-                  value={item.id}
-                >
-                  <span
-                    className={cn(
-                      "h-1 w-full rounded-full transition-colors duration-fast",
-                      !onCover && position === index && "bg-foreground",
-                      !onCover &&
-                        position < index &&
-                        "bg-foreground/45 group-hover/segment:bg-foreground/70",
-                      (onCover || position > index) &&
-                        "bg-foreground/15 group-hover/segment:bg-foreground/40"
-                    )}
-                  />
-                </button>
-              ))}
-            </nav>
-            <div className="flex items-center gap-2">
-              <Button
-                className="h-11 sm:h-10"
-                onClick={onboarding.close}
-                size="sm"
-                variant="ghost"
-              >
-                Skip
-              </Button>
-              {onCover ? null : (
-                <Button
-                  aria-label="Previous chapter"
-                  className="size-11 sm:size-10"
-                  onClick={onboarding.previous}
-                  size="icon-sm"
-                  variant="outline"
-                >
-                  <ArrowLeftIcon />
-                </Button>
-              )}
-              <Button
-                className="h-11 sm:h-10"
-                onClick={onCover ? onboarding.start : onboarding.next}
-                size="sm"
-              >
-                {onCover ? "Take the tour" : null}
-                {!onCover && last ? "Done" : null}
-                {onCover || last ? null : "Next"}
-                {!onCover && last ? <CheckIcon /> : <ArrowRightIcon />}
-              </Button>
-            </div>
-          </footer>
-        </DialogContent>
-      </Dialog>
-    </>
+        </footer>
+      </DialogContent>
+    </Dialog>
   );
 }
 
