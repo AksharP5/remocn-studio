@@ -66,7 +66,7 @@ export function DesignDropZone({
         <button
           aria-busy={loading}
           aria-label="Import DESIGN.md"
-          className="group flex min-h-32 w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-border/80 border-dashed px-5 py-6 text-center transition-[background-color,border-color] duration-150 ease-out hover:border-foreground/30 hover:bg-background/50 focus-visible:outline-2 focus-visible:outline-foreground/60 focus-visible:outline-offset-4 disabled:cursor-wait disabled:opacity-60 data-[over=true]:border-foreground/50 data-[over=true]:bg-background/70"
+          className="group flex min-h-32 w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-border/80 border-dashed px-5 py-6 text-center transition-[background-color,border-color] duration-fast ease-out hover:border-foreground/30 hover:bg-background/50 focus-visible:outline-2 focus-visible:outline-foreground/60 focus-visible:outline-offset-4 disabled:cursor-wait disabled:opacity-60 data-[over=true]:border-foreground/50 data-[over=true]:bg-background/70"
           data-over={over}
           disabled={loading}
           onClick={onChoose}
@@ -80,11 +80,7 @@ export function DesignDropZone({
             {over ? (
               <UploadIcon className="size-5" />
             ) : (
-              <Icon
-                className={
-                  loading ? "size-5 motion-safe:animate-spin" : "size-5"
-                }
-              />
+              <Icon className={loading ? "size-5 animate-spin" : "size-5"} />
             )}
           </span>
           <span

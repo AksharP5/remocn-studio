@@ -1,5 +1,6 @@
-import { describe, expect, it } from "bun:test";
+import { beforeAll, describe, expect, it } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { Effect } from "effect";
 import { Transcript } from "@/components/studio/transcript";
 import {
   MessageScroller,
@@ -7,6 +8,7 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
+import { loadMarkdownRenderer } from "@/lib/studio/highlighter";
 import type { LiveLine } from "@/lib/studio/reasoning";
 import type { TranscriptEntry } from "@/shared/ipc";
 
@@ -125,6 +127,8 @@ function renderTranscript(
     </MessageScrollerProvider>
   );
 }
+
+beforeAll(() => Effect.runPromise(loadMarkdownRenderer));
 
 describe("Transcript", () => {
   it("keeps completed work behind one disclosure", () => {

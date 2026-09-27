@@ -11,8 +11,6 @@ import {
   resolveFrom,
 } from "./project";
 
-export const CONFIG_HOST_FLAG = "--render-config";
-
 export const CONFIG_ROOT_ENV = "REMOCN_CONFIG_ROOT";
 
 export interface ConfiguredValue {

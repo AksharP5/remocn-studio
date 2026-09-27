@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
@@ -307,5 +313,45 @@ describe("unofferedFrom", () => {
     const two = file("two.png", "bytes");
 
     expect(await run(unofferedFrom([one, two]))).toEqual([one]);
+  });
+
+  it("sees a file rewritten in place, and a save made since the last offer", async () => {
+    const shot = file("shot.png", "first take");
+    expect(await run(unofferedFrom([shot]))).toEqual([shot]);
+
+    const saved = file("saved.png", "second take");
+    await run(saveAsset(draft({ files: [saved], name: "Saved", type: "img" })));
+    writeFileSync(shot, "second take", "utf8");
+    utimesSync(shot, new Date(Date.now() + 5000), new Date(Date.now() + 5000));
+
+    expect(await run(unofferedFrom([shot]))).toEqual([]);
+  });
+
+  it("sees an asset whose manifest landed after its folder was already read", async () => {
+    const kept = file("logo.png", "same bytes");
+    const saved = await run(
+      saveAsset(draft({ files: [kept], name: "Logo", type: "img" }))
+    );
+    const manifest = join(library, "assets", saved.slug, "manifest.json");
+    const written = readFileSync(manifest, "utf8");
+    rmSync(manifest);
+
+    expect(await run(unofferedFrom([kept]))).toEqual([kept]);
+
+    writeFileSync(manifest, written, "utf8");
+
+    expect(await run(unofferedFrom([kept]))).toEqual([]);
+  });
+
+  it("offers again once the asset holding those bytes is removed", async () => {
+    const kept = file("logo.png", "same bytes");
+    const saved = await run(
+      saveAsset(draft({ files: [kept], name: "Logo", type: "img" }))
+    );
+    expect(await run(unofferedFrom([kept]))).toEqual([]);
+
+    await run(removeAsset(saved.slug));
+
+    expect(await run(unofferedFrom([kept]))).toEqual([kept]);
   });
 });

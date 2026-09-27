@@ -9,6 +9,7 @@ import type { MouseEvent, ReactNode } from "react";
 import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { DotmSquare1 } from "@/components/ui/dotm-square-1";
+import { useChatRowMenu } from "@/hooks/use-row-menus";
 import { type SessionRow, sessionMeta } from "@/lib/studio/groups";
 import { relativeTime } from "@/lib/studio/time";
 import { cn } from "@/lib/utils";
@@ -68,9 +69,10 @@ function RowShell({
   const { session, status } = row;
   const busy = status === "running" || status === "waiting";
   const titleId = `session-title-${session.id}`;
+  const menu = useChatRowMenu(!busy);
 
   return (
-    <div className="group/session relative">
+    <div className="group/session relative" data-chat-row>
       <div
         className={cn(
           "rounded-md py-1.5 pr-8 pl-7 text-sm",
@@ -112,9 +114,13 @@ function RowShell({
       <button
         aria-current={isActive ? "true" : undefined}
         aria-describedby={metaId ?? undefined}
+        aria-keyshortcuts={busy ? undefined : "Meta+Backspace"}
         aria-labelledby={titleId}
         className="absolute inset-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+        data-row-action="open"
         onClick={onSelect}
+        onContextMenu={menu.onContextMenu}
+        onKeyDown={menu.onKeyDown}
         type="button"
         value={session.id}
       />
@@ -123,6 +129,7 @@ function RowShell({
         <Button
           aria-label={`Delete ${session.title}`}
           className="absolute top-1 right-1 z-10 opacity-0 after:absolute after:-inset-1 focus-visible:opacity-100 group-hover/session:opacity-100"
+          data-row-action="delete"
           onClick={onRemove}
           size="icon-xs"
           value={session.id}

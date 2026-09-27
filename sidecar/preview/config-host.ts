@@ -1,9 +1,10 @@
 import { spawn } from "node:child_process";
-import { statSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
+import path from "node:path";
 import { Effect } from "effect";
 import { errorMessage } from "@/lib/error-message";
+import { CONFIG_HOST_FLAG } from "../flags";
 import {
-  CONFIG_HOST_FLAG,
   CONFIG_ROOT_ENV,
   type ResolvedConfig,
   readRenderConfig,
@@ -153,19 +154,52 @@ export interface ConfigCache {
   ) => Effect.Effect<ResolvedConfig, PreviewError>;
 }
 
-export function fingerprintOf(root: string): string {
-  const file = configFile(root);
+const LOCAL_IMPORT =
+  /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)["'](\.{1,2}\/[^"']+)["']/g;
 
-  if (file === null) {
-    return "none";
-  }
+const SOURCE_EXTENSIONS = ["", ".ts", ".tsx", ".mts", ".js", ".mjs", ".cjs"];
 
+function stamp(file: string): string | null {
   try {
     const stats = statSync(file);
-    return `${file}:${stats.mtimeMs}:${stats.size}`;
+    return stats.isFile() ? `${file}:${stats.mtimeMs}:${stats.size}` : null;
   } catch {
+    return null;
+  }
+}
+
+function importsOf(file: string): string[] {
+  let source: string;
+  try {
+    source = readFileSync(file, "utf8");
+  } catch {
+    return [];
+  }
+
+  return [...source.matchAll(LOCAL_IMPORT)].flatMap((match) => {
+    const base = path.resolve(path.dirname(file), match[1] ?? "");
+    const found = SOURCE_EXTENSIONS.map((extension) => `${base}${extension}`)
+      .map(stamp)
+      .find((value) => value !== null);
+    return found ? [found] : [];
+  });
+}
+
+export function fingerprintOf(root: string): string {
+  const file = configFile(root);
+  const manifest = stamp(path.join(root, "package.json"));
+
+  if (file === null) {
+    return manifest ?? "none";
+  }
+
+  const own = stamp(file);
+
+  if (own === null) {
     return "none";
   }
+
+  return [own, ...importsOf(file), manifest ?? ""].join("|");
 }
 
 export function makeConfigCache(

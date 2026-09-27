@@ -1,6 +1,5 @@
 import { type Exit, Schema, type SchemaError } from "effect";
 
-export const TOOLS_HOST_FLAG = "--tools-host";
 export const TOOLS_SOCKET_ENV = "REMOCN_STUDIO_TOOLS_SOCKET";
 export const TOOLS_TURN_ENV = "REMOCN_STUDIO_TOOLS_TURN";
 

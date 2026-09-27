@@ -91,7 +91,8 @@ export function downloadPercent(event: NodeDownload | null): number | null {
 }
 
 export function compositionRow(
-  pick: PreviewComposition | null
+  pick: PreviewComposition | null,
+  agent = "the agent"
 ): EnvironmentCheck {
   if (pick === null) {
     return {
@@ -99,14 +100,13 @@ export function compositionRow(
       fix: null,
       id: "compositions",
       state: "pending",
-      title: "Compositions",
+      title: "Videos",
     };
   }
 
   if (pick.total === 0 || pick.compositionId === null) {
     return {
-      detail:
-        "The Root compiled, but it registers no <Composition>. Ask Claude to add a video.",
+      detail: `The project compiled, but it registers no videos yet. Ask ${agent} to add one.`,
       fix: null,
       id: "compositions",
       state: "failed",
@@ -119,7 +119,7 @@ export function compositionRow(
   // "No composition called Main" is the normal case here, not a warning.
   if (pick.reason === "missing") {
     return {
-      detail: `Nothing in this project renders ${pick.compositionId}. Its Root.tsx has to register it — ask Claude to, or open a video the project does render.`,
+      detail: `Nothing in this project renders ${pick.compositionId}. Its Root.tsx has to register it — ask ${agent} to, or open a video the project does render.`,
       fix: null,
       id: "compositions",
       state: "failed",
@@ -138,9 +138,10 @@ export function compositionRow(
 
 export function merged(
   checks: readonly EnvironmentCheck[],
-  pick: PreviewComposition | null
+  pick: PreviewComposition | null,
+  agent?: string
 ): readonly EnvironmentCheck[] {
-  const composition = compositionRow(pick);
+  const composition = compositionRow(pick, agent);
 
   return checks.map((check) =>
     check.id === "compositions" ? composition : check

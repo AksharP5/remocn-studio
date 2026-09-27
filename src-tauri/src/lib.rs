@@ -64,6 +64,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             app_icon::set_app_icon,
+            commands::path_exists,
             commands::quit_studio,
             commands::reveal_studio,
             commands::restart_studio,

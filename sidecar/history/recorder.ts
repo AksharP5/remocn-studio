@@ -1,4 +1,4 @@
-import { Effect, Ref } from "effect";
+import { type Duration, Effect, Ref, Semaphore } from "effect";
 import type {
   AgentEvent,
   HistorySession,
@@ -9,14 +9,24 @@ import { appendUser, fold } from "@/shared/transcript";
 import type { HistoryError, HistoryStore } from "./store";
 
 const TITLE_LIMIT = 60;
+const STREAMED_WRITE: Duration.Input = "250 millis";
 const WHITESPACE = /\s+/g;
 
 export interface Recorder {
   readonly event: (event: AgentEvent) => Effect.Effect<void>;
+  readonly flush: Effect.Effect<void>;
   readonly session: HistorySession | null;
 }
 
-const INERT: Recorder = { event: () => Effect.void, session: null };
+const INERT: Recorder = {
+  event: () => Effect.void,
+  flush: Effect.void,
+  session: null,
+};
+
+function streamed(event: AgentEvent): boolean {
+  return event.type === "text" || event.type === "thinking";
+}
 
 export function recording(
   store: HistoryStore,
@@ -51,27 +61,61 @@ export function recording(
     }
 
     const entries = yield* Ref.make<readonly TranscriptEntry[]>([]);
+    const pending = new Set<number>();
+    const lock = yield* Semaphore.make(1);
+    let scheduled = false;
 
-    const apply = (
-      step: (current: readonly TranscriptEntry[]) => readonly TranscriptEntry[]
-    ) =>
+    const flush = lock.withPermits(1)(
       Effect.gen(function* () {
-        const previous = yield* Ref.get(entries);
-        const next = step(previous);
-        yield* Ref.set(entries, next);
+        const [current, indices] = yield* Ref.modify(entries, (held) => {
+          const taken = [...pending].sort((left, right) => left - right);
+          pending.clear();
+          return [[held, taken] as const, held];
+        });
 
         yield* tolerate(
           Effect.forEach(
-            changed(previous, next),
+            indices,
             (index) =>
               store.write({
-                entry: next[index],
+                entry: current[index],
                 ordinal: base + index,
                 sessionId: session.id,
               }),
             { discard: true }
           )
         );
+      })
+    );
+
+    const later = Effect.suspend(() => {
+      if (scheduled) {
+        return Effect.void;
+      }
+      scheduled = true;
+      return Effect.asVoid(
+        Effect.forkDetach(
+          Effect.sleep(STREAMED_WRITE).pipe(
+            Effect.andThen(
+              Effect.sync(() => {
+                scheduled = false;
+              })
+            ),
+            Effect.andThen(flush)
+          )
+        )
+      );
+    });
+
+    const apply = (
+      step: (current: readonly TranscriptEntry[]) => readonly TranscriptEntry[]
+    ) =>
+      Ref.update(entries, (previous) => {
+        const next = step(previous);
+        for (const index of changed(previous, next)) {
+          pending.add(index);
+        }
+        return next;
       });
 
     yield* apply((current) =>
@@ -83,12 +127,21 @@ export function recording(
         text: params.prompt,
       })
     );
+    yield* flush;
 
     return {
-      event: (event) =>
-        event.type === "session"
-          ? Effect.asVoid(tolerate(store.bind(session.id, event.sessionId)))
-          : apply((current) => fold(current, event)),
+      event: (event) => {
+        if (event.type === "session") {
+          return Effect.asVoid(
+            tolerate(store.bind(session.id, event.sessionId))
+          );
+        }
+        return Effect.andThen(
+          apply((current) => fold(current, event)),
+          streamed(event) ? later : flush
+        );
+      },
+      flush,
       session,
     };
   });
@@ -111,7 +164,7 @@ function titleOf(params: PromptParams): string {
   const flat = params.prompt.replace(WHITESPACE, " ").trim();
 
   if (flat.length === 0) {
-    return params.attachments.at(0)?.name ?? "Untitled session";
+    return params.attachments.at(0)?.name ?? "Untitled chat";
   }
 
   return flat.length <= TITLE_LIMIT

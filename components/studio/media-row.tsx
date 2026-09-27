@@ -9,6 +9,7 @@ import {
   AttachmentMedia,
 } from "@/components/ui/attachment";
 import { usePreviewImage } from "@/hooks/use-preview-image";
+import { useVideoPoster, type VideoPoster } from "@/hooks/use-video-poster";
 import type { PromptMedia } from "@/shared/ipc";
 import { VideoThumbnail } from "./video-thumbnail";
 
@@ -55,6 +56,7 @@ function MediaCard({
 }) {
   const preview = usePreviewImage(item.path);
   const kind = kindOf(item);
+  const poster = useVideoPoster(item.path, item.name, kind === "video");
   const shown = kind !== "audio" && preview.src !== null;
 
   return (
@@ -74,7 +76,13 @@ function MediaCard({
         }
         variant={shown ? "image" : "icon"}
       >
-        <Thumbnail item={item} kind={kind} preview={preview} shown={shown} />
+        <Thumbnail
+          item={item}
+          kind={kind}
+          poster={poster}
+          preview={preview}
+          shown={shown}
+        />
       </AttachmentMedia>
 
       {onKeep || onRemove ? (
@@ -110,11 +118,13 @@ function MediaCard({
 function Thumbnail({
   item,
   kind,
+  poster,
   preview,
   shown,
 }: {
   item: PromptMedia;
   kind: "audio" | "image" | "video";
+  poster: VideoPoster;
   preview: ReturnType<typeof usePreviewImage>;
   shown: boolean;
 }) {
@@ -122,15 +132,25 @@ function Thumbnail({
     return <AudioLinesIcon />;
   }
 
-  if (kind === "video") {
+  if (kind === "video" && poster.phase === "failed") {
     return <VideoThumbnail onError={preview.onError} src={preview.src ?? ""} />;
+  }
+
+  if (kind === "video" && poster.phase === "pending") {
+    return null;
   }
 
   return (
     // biome-ignore lint/performance/noImgElement: a file on disk, which next/image cannot serve from a static export
     // biome-ignore lint/correctness/useImageSize: the card fixes the box and the picture is cropped into it
     // biome-ignore lint/a11y/noNoninteractiveElementInteractions: onError is the browser reporting a dead path, not an interaction
-    <img alt={item.name} onError={preview.onError} src={preview.src ?? ""} />
+    <img
+      alt={item.name}
+      decoding="async"
+      loading="lazy"
+      onError={preview.onError}
+      src={poster.phase === "ready" ? poster.src : (preview.src ?? "")}
+    />
   );
 }
 

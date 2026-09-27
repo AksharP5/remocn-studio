@@ -370,7 +370,7 @@ describe("useComposer", () => {
   // them per keystroke would re-render every row while you type.
   it("keeps the callbacks that insert at the caret stable as the text changes", () => {
     const { result } = composer();
-    const { pick, select, write } = result.current;
+    const { capture, pick, select, selections, write } = result.current;
 
     act(() => {
       result.current.onChange(typing("a first line"));
@@ -383,6 +383,8 @@ describe("useComposer", () => {
     expect(result.current.pick).toBe(pick);
     expect(result.current.write).toBe(write);
     expect(result.current.select).toBe(select);
+    expect(result.current.capture).toBe(capture);
+    expect(result.current.selections).toBe(selections);
   });
 
   it("still inserts against the text as it stands now, not as it was", () => {

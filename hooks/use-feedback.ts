@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useAsyncAction } from "@/hooks/use-async-action";
 import { openFeedback } from "@/lib/studio/feedback";
 
@@ -26,5 +26,5 @@ export function useFeedback({
     await run(openFeedback({ environment, os, provider, version }));
   }, [environment, os, provider, run, version]);
 
-  return { error, send };
+  return useMemo(() => ({ error, send }), [error, send]);
 }

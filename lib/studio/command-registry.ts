@@ -27,6 +27,7 @@ export interface Command {
 
 export const SHORTCUT_IDS = [
   "palette",
+  "new-chat",
   "new-video",
   "new-project",
   "open-folder",
@@ -56,6 +57,7 @@ export const SHORTCUTS: Readonly<Record<ShortcutId, ShortcutEntry>> = {
   docs: { key: "d", owner: "menu" },
   export: { key: "e", owner: "menu" },
   inspect: { key: "i", owner: "menu" },
+  "new-chat": { key: "t", owner: "menu" },
   "new-project": { key: "n", owner: "menu", shift: true },
   "new-video": { key: "n", owner: "menu" },
   "next-video": { alt: true, key: "ArrowDown", owner: "menu" },
@@ -77,6 +79,7 @@ export const SHORTCUT_TITLES: Readonly<Record<ShortcutId, string>> = {
   docs: "Switch between Preview and Docs",
   export: "Export",
   inspect: "Inspect",
+  "new-chat": "New Chat",
   "new-project": "New Project",
   "new-video": "New Video",
   "next-video": "Next video",
@@ -101,7 +104,10 @@ export interface HotkeyGroup {
 
 export const HOTKEY_GROUPS: readonly HotkeyGroup[] = [
   { ids: ["palette", "settings"], title: "Studio" },
-  { ids: ["new-video", "new-project", "open-folder"], title: "Project" },
+  {
+    ids: ["new-chat", "new-video", "new-project", "open-folder"],
+    title: "Project",
+  },
   {
     ids: [
       "sidebar",

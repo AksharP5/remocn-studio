@@ -2,6 +2,8 @@
 
 import { useCallback } from "react";
 import type { Studio } from "@/components/studio/studio-provider";
+import type { ComposerActions } from "@/hooks/use-composer";
+import type { OpenTurn } from "@/hooks/use-open-turn";
 import {
   prepareSoundUse,
   regenerateSoundPrompt,
@@ -13,10 +15,10 @@ import { useTurnAction } from "./use-turn-action";
 
 export function useSoundResult(
   result: SoundResult,
-  studio: Pick<
-    Studio,
-    "turn" | "composer" | "environment" | "openedProject" | "openedVideo"
-  >
+  studio: Pick<Studio, "environment" | "openedProject" | "openedVideo"> & {
+    composer: Pick<ComposerActions, "write">;
+    turn: OpenTurn;
+  }
 ) {
   const { turn, composer, environment, openedProject, openedVideo } = studio;
   const player = useAudioPlayer(stillFileOf(result.asset));

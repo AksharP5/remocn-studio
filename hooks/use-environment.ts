@@ -15,7 +15,7 @@ import {
 import type { PreviewComposition } from "@/lib/studio/preview";
 import { failedProviders } from "@/lib/studio/setup";
 import type { EnvironmentCheck, NodeDownload } from "@/shared/ipc";
-import type { AgentProvider } from "@/shared/providers";
+import { type AgentProvider, PROVIDER_INFO } from "@/shared/providers";
 import { useRecheckOnFocus } from "./use-recheck-on-focus";
 
 export interface Environment {
@@ -187,7 +187,10 @@ export function useEnvironment(
     );
   }, [isInstallingNode]);
 
-  const shown = useMemo(() => merged(checks, pick), [checks, pick]);
+  const shown = useMemo(
+    () => merged(checks, pick, PROVIDER_INFO[provider].name),
+    [checks, pick, provider]
+  );
 
   const upgrade = useCallback(() => {
     const fix = upgradeFix(shown);

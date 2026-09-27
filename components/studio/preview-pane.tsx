@@ -4,6 +4,8 @@ import {
   ArrowLeftIcon,
   FolderOpenIcon,
   PanelRightCloseIcon,
+  RotateCwIcon,
+  XIcon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
@@ -12,14 +14,21 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { usePresence } from "@/hooks/use-presence";
 import type { Snapshot } from "@/hooks/use-snapshot";
 import type { Tools } from "@/hooks/use-tools";
 import { exportLabel } from "@/lib/studio/export";
 import { fileManagerName } from "@/lib/studio/platform";
+import { cn } from "@/lib/utils";
+import type { Exported } from "@/shared/ipc";
 import { DocsView } from "./docs-view";
 import { ExportButton } from "./export-button";
+import { FailureText } from "./failure-text";
 import { Pane, PaneActions, PaneHeader } from "./pane";
 import { useStudio } from "./studio-provider";
+
+const ROW =
+  "shrink-0 animate-fade-in transition-opacity duration-fast ease-out data-leaving:opacity-0";
 
 const CanvasPreview = dynamic(() =>
   import("./canvas-preview").then((module) => module.CanvasPreview)
@@ -30,7 +39,7 @@ export function PreviewPane() {
   const isDocs = docs.mode === "docs";
 
   const header = (
-    <PaneHeader data-tauri-drag-region>
+    <PaneHeader data-tauri-drag-region="deep">
       {isDocs ? (
         <Button
           className="text-muted-foreground"
@@ -108,54 +117,57 @@ function StatusSlot({
 }) {
   const { exporting, inspect } = tools;
   const { hint } = tools.preview;
-  const trouble = inspect.trouble ?? snapshot.trouble;
+  const trouble = usePresence(inspect.trouble ?? snapshot.trouble);
+  const status = usePresence(snapshot.status);
+  const result = usePresence(exporting.result);
+  const failed = usePresence(exporting.trouble);
   const quiet =
-    trouble === null &&
-    snapshot.status === null &&
-    exporting.result === null &&
-    exporting.trouble === null &&
+    trouble.shown === null &&
+    status.shown === null &&
+    result.shown === null &&
+    failed.shown === null &&
     exporting.notices.length === 0 &&
     hint === null;
 
   return (
     <div className="flex min-h-8 shrink-0 flex-col justify-center gap-2">
-      {trouble === null ? null : (
+      {trouble.shown === null ? null : (
         /* A percent-encoded URL is one unbreakable word, and this block used
            to carry them: the text ran past the pane's right edge and off the
            window, clipped mid-token with no wrap and no scroll.
            `renderFailure` words those away, and this is the insurance for
            whatever a renderer says next. */
-        <p
-          className="max-h-24 shrink-0 overflow-auto text-center text-destructive text-xs [overflow-wrap:anywhere]"
-          role="alert"
-        >
-          {trouble}
-        </p>
-      )}
-
-      {snapshot.status === null ? null : (
-        <p
-          className="shrink-0 text-center text-muted-foreground text-xs"
-          role="status"
-        >
-          {snapshot.status}
-        </p>
-      )}
-
-      {exporting.result === null ? null : (
         <div
-          className="flex shrink-0 items-center justify-center gap-2 text-xs"
+          className={cn(ROW, "max-h-32 overflow-auto")}
+          data-leaving={trouble.isLeaving ? "" : undefined}
+        >
+          <FailureText
+            align="center"
+            className="text-center text-destructive text-xs [overflow-wrap:anywhere]"
+            fallback="The preview could not do that."
+            role="alert"
+            text={trouble.shown}
+          />
+        </div>
+      )}
+
+      {status.shown === null ? null : (
+        <p
+          className={cn(ROW, "text-center text-muted-foreground text-xs")}
+          data-leaving={status.isLeaving ? "" : undefined}
           role="status"
         >
-          <span className="text-muted-foreground">Exported</span>
-          <span className="font-mono">
-            {exportLabel(exporting.result, projectPath)}
-          </span>
-          <Button onClick={exporting.reveal} size="xs" variant="ghost">
-            <FolderOpenIcon data-icon="inline-start" />
-            Show in {fileManagerName()}
-          </Button>
-        </div>
+          {status.shown}
+        </p>
+      )}
+
+      {result.shown === null ? null : (
+        <ExportedRow
+          exported={result.shown}
+          exporting={exporting}
+          isLeaving={result.isLeaving}
+          projectPath={projectPath}
+        />
       )}
 
       {exporting.notices.map((notice) => (
@@ -168,13 +180,12 @@ function StatusSlot({
         </p>
       ))}
 
-      {exporting.trouble === null ? null : (
-        <pre
-          className="max-h-32 shrink-0 overflow-auto whitespace-pre-wrap text-destructive text-xs"
-          role="alert"
-        >
-          {exporting.trouble}
-        </pre>
+      {failed.shown === null ? null : (
+        <ExportFailedRow
+          exporting={exporting}
+          isLeaving={failed.isLeaving}
+          message={failed.shown}
+        />
       )}
 
       {hint === null ? null : (
@@ -192,6 +203,82 @@ function StatusSlot({
             )}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+function ExportedRow({
+  exported,
+  exporting,
+  isLeaving,
+  projectPath,
+}: {
+  exported: Exported;
+  exporting: Tools["exporting"];
+  isLeaving: boolean;
+  projectPath: string | null;
+}) {
+  return (
+    <div
+      className={cn(ROW, "flex items-center justify-center gap-2 text-xs")}
+      data-leaving={isLeaving ? "" : undefined}
+      role="status"
+    >
+      <span className="text-muted-foreground">Exported</span>
+      <span className="min-w-0 truncate font-mono">
+        {exportLabel(exported, projectPath)}
+      </span>
+      <Button onClick={exporting.reveal} size="xs" variant="ghost">
+        <FolderOpenIcon data-icon="inline-start" />
+        Show in {fileManagerName()}
+      </Button>
+      <Button
+        aria-label="Dismiss"
+        className="text-muted-foreground"
+        onClick={exporting.dismiss}
+        size="icon-xs"
+        variant="ghost"
+      >
+        <XIcon />
+      </Button>
+    </div>
+  );
+}
+
+function ExportFailedRow({
+  exporting,
+  isLeaving,
+  message,
+}: {
+  exporting: Tools["exporting"];
+  isLeaving: boolean;
+  message: string;
+}) {
+  return (
+    <div
+      className={cn(ROW, "flex flex-col items-center gap-1.5")}
+      data-leaving={isLeaving ? "" : undefined}
+    >
+      <div className="max-h-32 w-full overflow-auto">
+        <FailureText
+          align="center"
+          className="text-center text-destructive text-xs [overflow-wrap:anywhere]"
+          fallback="The export stopped because something went wrong."
+          role="alert"
+          text={message}
+        />
+      </div>
+      <div className="flex items-center gap-1">
+        {exporting.canRetry ? (
+          <Button onClick={exporting.retry} size="xs" variant="outline">
+            <RotateCwIcon data-icon="inline-start" />
+            Try again
+          </Button>
+        ) : null}
+        <Button onClick={exporting.dismiss} size="xs" variant="ghost">
+          Dismiss
+        </Button>
+      </div>
     </div>
   );
 }

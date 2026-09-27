@@ -109,7 +109,7 @@ function draw(
     <PropsPanel
       card={shown}
       cwd="/Users/me/projects/my-video"
-      frame={handlers.frame ?? 42}
+      frames={stillFrames(handlers.frame ?? 42)}
       groups={handlers.groups}
       onCancel={handlers.onCancel ?? mock()}
       onChange={(handlers.onChange ?? mock()) as never}
@@ -123,6 +123,10 @@ function draw(
       target={shown.tuning ?? target}
     />
   );
+}
+
+function stillFrames(frame: number) {
+  return { frameOf: () => frame, onFrame: () => () => undefined };
 }
 
 describe("PropsPanel", () => {
@@ -822,7 +826,9 @@ describe("the time strip", () => {
 
     expect(screen.getByText("animated")).toBeDefined();
     expect(
-      screen.getByText("a fixed value here replaces the animation")
+      screen.getByText(
+        "a change here moves the value at this frame; the animation keeps running"
+      )
     ).toBeDefined();
   });
 
@@ -881,7 +887,7 @@ describe("the text a Remotion too old to declare it still shows", () => {
     expect((screen.getByLabelText("Text") as HTMLTextAreaElement).value).toBe(
       "Ship it"
     );
-    expect(screen.getByText("sent to Claude, not previewed")).toBeDefined();
+    expect(screen.getByText("sent to the agent, not previewed")).toBeDefined();
   });
 
   it("shows no Text section when the runtime carries the words itself", () => {
@@ -889,7 +895,7 @@ describe("the text a Remotion too old to declare it still shows", () => {
     draw(fields, { card });
 
     expect(screen.queryByLabelText("Text")).toBeNull();
-    expect(screen.queryByText("sent to Claude, not previewed")).toBeNull();
+    expect(screen.queryByText("sent to the agent, not previewed")).toBeNull();
   });
 
   it("reports what was typed", () => {

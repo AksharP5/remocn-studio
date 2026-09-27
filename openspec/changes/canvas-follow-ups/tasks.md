@@ -6,7 +6,7 @@
 ## 2. Cleanup
 
 - [ ] 2.1 Remove the grab script: `GRAB_SCRIPT_ENV` in Rust and the sidecar, the `grab/index.global.js` resource, `/__remocn/grab.js`, `withoutWebFonts` (moved from `shadow-preview-canvas` 6.5); `cargo check`, `bun run check`, `bun run typecheck`, the full suite.
-- [ ] 2.2 Suspend the render compiler between renders after the native compiler takes over ready/failed reporting and the still-cache reset (moved from `shadow-preview-canvas` 6.6).
+- [x] 2.2 Suspend the render compiler between renders after the native compiler takes over ready/failed reporting and the still-cache reset (moved from `shadow-preview-canvas` 6.6).
 
 ## 3. Coverage
 

@@ -13,7 +13,11 @@ import { useCallback } from "react";
 import { Composer } from "@/components/studio/composer";
 import { SoundPrompt } from "@/components/studio/sound-prompt";
 import { SoundResultCard } from "@/components/studio/sound-result-card";
-import { StudioProvider, useStudio } from "@/components/studio/studio-provider";
+import {
+  StudioProvider,
+  useStudio,
+  useStudioComposer,
+} from "@/components/studio/studio-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { Connection } from "@/shared/integrations";
 import type {
@@ -268,7 +272,7 @@ function mockShellReadyOnSecondLook() {
 }
 
 function CaptureProbe() {
-  const { composer } = useStudio();
+  const composer = useStudioComposer();
   const { capture } = composer;
 
   const take = useCallback(() => {
@@ -283,7 +287,7 @@ function CaptureProbe() {
 }
 
 function SelectProbe() {
-  const { composer } = useStudio();
+  const composer = useStudioComposer();
   const { select } = composer;
 
   const pick = useCallback(() => {
@@ -325,6 +329,7 @@ async function renderComposer(
         <CaptureProbe />
         <SoundSettingsProbe />
         <OpenProbe />
+        <ShellProbe />
         {soundCard ? <SoundResultCard result={SOUND_RESULT} /> : null}
         <SoundPrompt disabled={isWaiting || isRunning} />
         <Composer
@@ -383,6 +388,14 @@ function OpenProbe() {
   );
 }
 
+const shellRenders = { count: 0 };
+
+function ShellProbe() {
+  const { openedProject } = useStudio();
+  shellRenders.count += 1;
+  return <output aria-label="Shell">{openedProject?.name}</output>;
+}
+
 function SoundSettingsProbe() {
   const { settingsView } = useStudio();
   return (
@@ -396,6 +409,19 @@ describe("Composer", () => {
   beforeEach(() => {
     soundConnections = () => [];
     mockShell(READY);
+  });
+
+  it("types without re-rendering what reads the rest of the studio", async () => {
+    const { textarea } = await renderComposer();
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const before = shellRenders.count;
+
+    for (const typed of ["M", "Ma", "Mak", "Make", "Make a"]) {
+      typeInto(textarea, typed);
+    }
+
+    expect(textarea).toHaveValue("Make a");
+    expect(shellRenders.count).toBe(before);
   });
 
   it("uses a sound from its result card without sending or clearing the draft", async () => {
@@ -731,7 +757,7 @@ describe("Composer", () => {
     fireEvent.change(textarea, { target: { value: "build a scene" } });
 
     expect(
-      await screen.findByText("The sidecar is not running.")
+      await screen.findByText("The studio's helper is not running.")
     ).toBeVisible();
     expect(screen.getByRole("button", { name: "Restart it" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
@@ -741,12 +767,14 @@ describe("Composer", () => {
     mockShellReadyOnSecondLook();
     await renderComposer(mock(), { opens: false });
 
-    expect(await screen.findByText("Starting the sidecar…")).toBeVisible();
+    expect(
+      await screen.findByText("Starting the studio's helper…")
+    ).toBeVisible();
 
     await waitFor(
       () =>
         expect(
-          screen.queryByText("Starting the sidecar…")
+          screen.queryByText("Starting the studio's helper…")
         ).not.toBeInTheDocument(),
       { timeout: 3000 }
     );
@@ -758,7 +786,9 @@ describe("Composer", () => {
 
     fireEvent.change(textarea, { target: { value: "build a scene" } });
 
-    expect(await screen.findByText("Starting the sidecar…")).toBeVisible();
+    expect(
+      await screen.findByText("Starting the studio's helper…")
+    ).toBeVisible();
     expect(screen.getByRole("button", { name: "Send" })).toBeEnabled();
   });
 

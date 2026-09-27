@@ -129,7 +129,7 @@ impl Sidecar {
 
         answer
             .await
-            .unwrap_or_else(|_| Err("the sidecar stopped before it answered".to_string()))
+            .unwrap_or_else(|_| Err("the studio's helper stopped before it answered".to_string()))
     }
 
     pub fn cancel(&self, id: String) -> Result<(), String> {
@@ -183,8 +183,8 @@ impl Inner {
         match self.outbound().as_ref() {
             Some(outbound) => outbound
                 .send(frame)
-                .map_err(|_| "the sidecar closed its input".to_string()),
-            None => Err("the sidecar is not running".to_string()),
+                .map_err(|_| "the studio's helper is not running".to_string()),
+            None => Err("the studio's helper is not running".to_string()),
         }
     }
 
@@ -242,7 +242,7 @@ impl Inner {
             match phase {
                 SidecarPhase::Ready => return Ok(()),
                 SidecarPhase::Down => {
-                    return Err(detail.unwrap_or_else(|| "the sidecar is not running".to_string()))
+                    return Err(detail.unwrap_or_else(|| "the studio's helper is not running".to_string()))
                 }
                 SidecarPhase::Starting | SidecarPhase::Restarting => {}
             }
@@ -439,8 +439,8 @@ async fn run_session(inner: &Arc<Inner>) -> Session {
     let _ = logger.await;
 
     let reason = match exit {
-        Ok(status) => format!("the sidecar stopped with {}", signal::describe_exit(status)),
-        Err(err) => format!("lost track of the sidecar: {err}"),
+        Ok(status) => format!("the studio's helper stopped with {}", signal::describe_exit(status)),
+        Err(err) => format!("the studio lost track of its helper: {err}"),
     };
 
     Session {

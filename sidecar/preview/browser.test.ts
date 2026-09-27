@@ -1,11 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { Effect } from "effect";
+import { Effect, Exit } from "effect";
 import {
   browserOptionsOf,
   DESKTOP_GL,
   glPolicy,
   prepareBrowser,
   SOFTWARE_GL,
+  sharedBrowser,
   signatureOf,
 } from "./browser";
 import { EMPTY_CONFIG, type ResolvedConfig } from "./config";
@@ -234,5 +235,81 @@ describe("signatureOf", () => {
 
     expect(signatureOf(base)).toBe(signatureOf(same));
     expect(signatureOf(base)).not.toBe(signatureOf(other));
+  });
+});
+
+describe("sharedBrowser", () => {
+  const options = browserOptionsOf(EMPTY_CONFIG, "darwin");
+
+  function opener() {
+    const state = { closed: 0, opened: [] as Record<string, unknown>[] };
+
+    return {
+      openBrowser: (_browser: "chrome", given: Record<string, unknown>) => {
+        state.opened.push(given);
+        return Promise.resolve({
+          close: () => {
+            state.closed += 1;
+            return Promise.resolve();
+          },
+        });
+      },
+      state,
+    };
+  }
+
+  it("opens one browser with the policy's own options", async () => {
+    const made = opener();
+
+    await Effect.runPromise(
+      Effect.scoped(sharedBrowser(made, options).pipe(Effect.asVoid))
+    );
+
+    expect(made.state.opened).toHaveLength(1);
+    expect(made.state.opened[0]?.chromiumOptions).toEqual(
+      options.chromiumOptions
+    );
+    expect(made.state.opened[0]?.browserExecutable).toBeNull();
+    expect(made.state.opened[0]).not.toHaveProperty("forceDeviceScaleFactor");
+  });
+
+  it("opens at the export's scale, as the renderer's own browser would", async () => {
+    const made = opener();
+
+    await Effect.runPromise(
+      Effect.scoped(sharedBrowser(made, options, 1.5).pipe(Effect.asVoid))
+    );
+
+    expect(made.state.opened[0]?.forceDeviceScaleFactor).toBe(1.5);
+  });
+
+  it("closes it when the render ends, whether or not it failed", async () => {
+    const made = opener();
+
+    const exit = await Effect.runPromiseExit(
+      Effect.scoped(
+        Effect.andThen(sharedBrowser(made, options), Effect.fail("encoder"))
+      )
+    );
+
+    expect(Exit.isFailure(exit)).toBe(true);
+    expect(made.state.closed).toBe(1);
+  });
+
+  it("hands back nothing when this renderer cannot open a browser", async () => {
+    const browser = await Effect.runPromise(
+      Effect.scoped(sharedBrowser({}, options))
+    );
+    const failing = await Effect.runPromise(
+      Effect.scoped(
+        sharedBrowser(
+          { openBrowser: () => Promise.reject(new Error("no chrome")) },
+          options
+        )
+      )
+    );
+
+    expect(browser).toBeNull();
+    expect(failing).toBeNull();
   });
 });

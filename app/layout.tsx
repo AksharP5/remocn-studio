@@ -17,6 +17,7 @@ const dmSans = DM_Sans({
 // UI grotesque whose regular matches DM Sans's stroke weight — Manrope was
 // tried first and its 400 reads a full step thinner.
 const golos = Golos_Text({
+  preload: false,
   subsets: ["cyrillic", "cyrillic-ext"],
   variable: "--font-cyrillic",
 });
@@ -49,8 +50,8 @@ const REVEAL_STUDIO = `
 
 export const metadata: Metadata = {
   description:
-    "Build Remotion videos with Claude, without touching a terminal.",
-  title: "remocn studio",
+    "Build Remotion videos with your coding agent, without touching a terminal.",
+  title: "Remocn Studio",
 };
 
 export default function RootLayout({
@@ -62,11 +63,16 @@ export default function RootLayout({
     // `suppressHydrationWarning` is required by next-themes: it writes the
     // theme class onto <html> before React hydrates.
     <html
-      className={cn(golos.variable, "font-sans", dmSans.variable)}
+      className={cn(
+        golos.variable,
+        "font-sans",
+        dmSans.variable,
+        geistMono.variable
+      )}
       lang="en"
       suppressHydrationWarning
     >
-      <body className={cn(geistMono.variable, "antialiased")}>
+      <body className="antialiased">
         <ThemeProvider>{children}</ThemeProvider>
         <Script id="reveal-studio" strategy="beforeInteractive">
           {REVEAL_STUDIO}

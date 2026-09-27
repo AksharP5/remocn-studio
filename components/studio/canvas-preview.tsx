@@ -19,14 +19,24 @@ import {
 import dynamic from "next/dynamic";
 import { type CSSProperties, memo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import type { CanvasLayers } from "@/hooks/use-canvas-layers";
-import { useCanvasPreview } from "@/hooks/use-canvas-preview";
+import { useCanvasOverlay, useCanvasPreview } from "@/hooks/use-canvas-preview";
+import {
+  type PreviewCameraControl,
+  transformOf,
+  useCameraView,
+} from "@/hooks/use-preview-camera";
 import type { Tools } from "@/hooks/use-tools";
+import { formatShortcut, SHORTCUTS } from "@/lib/studio/command-registry";
 import type { LayerRow } from "@/lib/studio/layers";
 import { cn } from "@/lib/utils";
 import { CanvasRulers } from "./canvas-rulers";
 import { DOCK_SURFACE } from "./dock-layout";
+import { FailureText } from "./failure-text";
+import { HintTooltip } from "./hint-tooltip";
 import { InspectOverlay } from "./inspect-overlay";
 import { PreviewControls } from "./preview-controls";
 import { useStudio } from "./studio-provider";
@@ -51,14 +61,15 @@ export function CanvasPreview({
   hidden: boolean;
   status: ReactNode;
 }) {
-  const { tools, activeProject, openedProject, settings } = useStudio();
+  const { tools, activeProject, openedProject, openedVideo, settings } =
+    useStudio();
   const canvas = useCanvasPreview({
     hidden,
     projectId: activeProject?.id ?? null,
     settings,
     tools,
   });
-  const { camera, failure, metadata, native, overlay, rulers } = canvas;
+  const { camera, failure, metadata, native, rulers } = canvas;
   const shown = metadata !== null && failure === null;
 
   return (
@@ -87,52 +98,12 @@ export function CanvasPreview({
         // biome-ignore lint/a11y/noNoninteractiveTabindex: the canvas is a keyboard-driven editing surface and must take focus for its shortcuts
         tabIndex={0}
       >
-        <div
-          className="absolute top-0 left-0 origin-top-left bg-black shadow-lg"
-          style={{
-            height: metadata?.height ?? 1080,
-            transform: camera.transform,
-            visibility: shown ? "visible" : "hidden",
-            width: metadata?.width ?? 1920,
-          }}
-        >
-          <div className="relative size-full" ref={native.stage} />
-        </div>
-
-        {shown
-          ? camera.surround.map((rect) => (
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute z-[5]"
-                key={rect.id}
-                style={{
-                  background:
-                    camera.outside === "hide" ? "var(--background)" : DIMMED,
-                  height: rect.height,
-                  left: rect.x,
-                  top: rect.y,
-                  width: rect.width,
-                }}
-              />
-            ))
-          : null}
-
-        {shown && camera.grid !== null ? (
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute z-[6]"
-            data-pixel-grid
-            style={{
-              backgroundImage: GRID,
-              backgroundPosition: `${camera.grid.offsetX}px ${camera.grid.offsetY}px`,
-              backgroundSize: `${camera.grid.size}px ${camera.grid.size}px`,
-              height: camera.grid.height,
-              left: camera.grid.x,
-              top: camera.grid.y,
-              width: camera.grid.width,
-            }}
-          />
-        ) : null}
+        <CanvasStage
+          camera={camera}
+          metadata={metadata}
+          nativeStage={native.stage}
+          shown={shown}
+        />
 
         <div
           className="pointer-events-none absolute inset-0 z-10 [clip-path:inset(0)]"
@@ -140,12 +111,11 @@ export function CanvasPreview({
         />
 
         {tools.managed?.isOpen ? null : (
-          <InspectOverlay
-            card={overlay.card}
+          <CanvasInspectOverlay
+            camera={camera}
             cwd={openedProject?.path ?? null}
-            markers={overlay.markers}
-            onCancel={tools.inspect.cancelComment}
-            onSubmit={tools.inspect.submitComment}
+            inspect={tools.inspect}
+            metadata={metadata}
           />
         )}
 
@@ -166,6 +136,7 @@ export function CanvasPreview({
           layers={canvas.layers}
           metadata={metadata}
           tools={tools}
+          videoName={openedVideo?.name ?? null}
         />
 
         <CanvasNotices canvas={canvas} restart={tools.preview.restart} />
@@ -189,6 +160,110 @@ export function CanvasPreview({
   );
 }
 
+function CanvasStage({
+  camera,
+  metadata,
+  nativeStage,
+  shown,
+}: {
+  camera: PreviewCameraControl;
+  metadata: Metadata;
+  nativeStage: Canvas["native"]["stage"];
+  shown: boolean;
+}) {
+  return (
+    <>
+      <div
+        className={cn(
+          "absolute top-0 left-0 origin-top-left bg-black shadow-lg transition-[opacity,visibility] duration-base ease-out",
+          shown ? "visible opacity-100" : "invisible opacity-0"
+        )}
+        ref={camera.stage}
+        style={{
+          height: metadata?.height ?? 1080,
+          transform: transformOf(camera.view.current()),
+          width: metadata?.width ?? 1920,
+        }}
+      >
+        <div className="relative size-full" ref={nativeStage} />
+      </div>
+
+      {shown ? <CanvasSurround camera={camera} /> : null}
+    </>
+  );
+}
+
+function CanvasSurround({ camera }: { camera: PreviewCameraControl }) {
+  const { grid, surround } = useCameraView(camera);
+
+  return (
+    <>
+      {surround.map((rect) => (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute z-[5]"
+          key={rect.id}
+          style={{
+            background:
+              camera.outside === "hide" ? "var(--background)" : DIMMED,
+            height: rect.height,
+            left: rect.x,
+            top: rect.y,
+            width: rect.width,
+          }}
+        />
+      ))}
+
+      {grid === null ? null : (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute z-[6]"
+          data-pixel-grid
+          style={{
+            backgroundImage: GRID,
+            backgroundPosition: `${grid.offsetX}px ${grid.offsetY}px`,
+            backgroundSize: `${grid.size}px ${grid.size}px`,
+            height: grid.height,
+            left: grid.x,
+            top: grid.y,
+            width: grid.width,
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function CanvasInspectOverlay({
+  camera,
+  cwd,
+  inspect,
+  metadata,
+}: {
+  camera: PreviewCameraControl;
+  cwd: string | null;
+  inspect: Tools["inspect"];
+  metadata: Metadata;
+}) {
+  const overlay = useCanvasOverlay(camera, inspect, metadata);
+
+  return (
+    <InspectOverlay
+      card={overlay.card}
+      cwd={cwd}
+      markers={overlay.markers}
+      onCancel={inspect.cancelComment}
+      onSubmit={inspect.submitComment}
+    />
+  );
+}
+
+function ZoomReadout({ camera }: { camera: PreviewCameraControl }) {
+  const { zoom } = useCameraView(camera).camera;
+
+  return <>{Math.round(zoom * 100)}%</>;
+}
+
 function CanvasToolbar({ canvas }: { canvas: Canvas }) {
   const { camera, hasSelection, metadata, rulers } = canvas;
   const dimmed = camera.outside === "dim";
@@ -196,86 +271,126 @@ function CanvasToolbar({ canvas }: { canvas: Canvas }) {
   return (
     <div className="absolute top-2 left-4 flex h-10 items-center">
       <div className="flex items-center gap-0.5 rounded-lg border border-border bg-field p-0.5">
-        <Button
-          aria-label="Pan tool"
-          aria-pressed={camera.hand}
-          onClick={camera.toggleHand}
-          size="icon-sm"
-          variant={camera.hand ? "secondary" : "ghost"}
+        <HintTooltip
+          label="Pan tool — or hold"
+          render={
+            <Button
+              aria-label="Pan tool"
+              aria-pressed={camera.hand}
+              onClick={camera.toggleHand}
+              size="icon-sm"
+              variant={camera.hand ? "secondary" : "ghost"}
+            />
+          }
+          shortcut="Space"
         >
           <HandIcon />
-        </Button>
-        <Button
-          disabled={metadata === null}
-          onClick={camera.fit}
-          size="sm"
-          title="Fit (⇧1)"
-          variant="ghost"
+        </HintTooltip>
+        <HintTooltip
+          label="Fit"
+          render={
+            <Button
+              disabled={metadata === null}
+              onClick={camera.fit}
+              size="sm"
+              variant="ghost"
+            />
+          }
+          shortcut="⇧1"
         >
           Fit
-        </Button>
-        <Button
-          aria-label="Zoom to selection"
-          disabled={!hasSelection}
-          onClick={camera.zoomToSelection}
-          size="icon-sm"
-          title="Zoom to selection (⇧2)"
-          variant="ghost"
+        </HintTooltip>
+        <HintTooltip
+          label="Zoom to selection"
+          render={
+            <Button
+              aria-label="Zoom to selection"
+              disabled={!hasSelection}
+              onClick={camera.zoomToSelection}
+              size="icon-sm"
+              variant="ghost"
+            />
+          }
+          shortcut="⇧2"
         >
           <FocusIcon />
-        </Button>
-        <Button
-          aria-label="Zoom out"
-          onClick={camera.zoomOut}
-          size="icon-sm"
-          title="Zoom out (⌘−)"
-          variant="ghost"
+        </HintTooltip>
+        <HintTooltip
+          label="Zoom out"
+          render={
+            <Button
+              aria-label="Zoom out"
+              onClick={camera.zoomOut}
+              size="icon-sm"
+              variant="ghost"
+            />
+          }
+          shortcut="⌘−"
         >
           <MinusIcon />
-        </Button>
-        <Button
-          aria-label="Zoom to 100%"
-          className="w-14 tabular-nums"
-          onClick={camera.zoomReset}
-          size="sm"
-          title="Zoom to 100% (⌘0)"
-          variant="ghost"
+        </HintTooltip>
+        <HintTooltip
+          label="Zoom to 100%"
+          render={
+            <Button
+              aria-label="Zoom to 100%"
+              className="w-14 tabular-nums"
+              onClick={camera.zoomReset}
+              size="sm"
+              variant="ghost"
+            />
+          }
+          shortcut="⌘0"
         >
-          {Math.round(camera.camera.zoom * 100)}%
-        </Button>
-        <Button
-          aria-label="Zoom in"
-          onClick={camera.zoomIn}
-          size="icon-sm"
-          title="Zoom in (⌘+)"
-          variant="ghost"
+          <ZoomReadout camera={camera} />
+        </HintTooltip>
+        <HintTooltip
+          label="Zoom in"
+          render={
+            <Button
+              aria-label="Zoom in"
+              onClick={camera.zoomIn}
+              size="icon-sm"
+              variant="ghost"
+            />
+          }
+          shortcut="⌘+"
         >
           <PlusIcon />
-        </Button>
-        <Button
-          aria-label="Show content outside the frame"
-          aria-pressed={dimmed}
-          onClick={camera.toggleOutside}
-          size="icon-sm"
-          title={
+        </HintTooltip>
+        <HintTooltip
+          label={
             dimmed
               ? "Hide content outside the frame"
               : "Show content outside the frame"
           }
-          variant={dimmed ? "secondary" : "ghost"}
+          render={
+            <Button
+              aria-label="Show content outside the frame"
+              aria-pressed={dimmed}
+              onClick={camera.toggleOutside}
+              size="icon-sm"
+              variant={dimmed ? "secondary" : "ghost"}
+            />
+          }
         >
           <SquareDashedIcon />
-        </Button>
-        <Button
-          aria-label="Rulers"
-          aria-pressed={rulers.shown}
-          onClick={rulers.toggle}
-          size="icon-sm"
-          title={rulers.shown ? "Hide rulers (⇧R)" : "Show rulers (⇧R)"}
-          variant={rulers.shown ? "secondary" : "ghost"}
+        </HintTooltip>
+        <HintTooltip
+          label={rulers.shown ? "Hide rulers" : "Show rulers"}
+          render={
+            <Button
+              aria-label="Rulers"
+              aria-pressed={rulers.shown}
+              onClick={rulers.toggle}
+              size="icon-sm"
+              variant={rulers.shown ? "secondary" : "ghost"}
+            />
+          }
+          shortcut="⇧R"
         >
           <RulerIcon />
-        </Button>
+        </HintTooltip>
       </div>
     </div>
   );
@@ -287,12 +402,14 @@ function InspectorPanel({
   layers,
   metadata,
   tools,
+  videoName,
 }: {
   duration: string;
   hasSelection: boolean;
   layers: CanvasLayers;
   metadata: Metadata;
   tools: Tools;
+  videoName: string | null;
 }) {
   const { snapshot } = tools;
 
@@ -317,17 +434,17 @@ function InspectorPanel({
         {hasSelection && layers.view === "properties" ? <PropsPane /> : null}
         {layers.enabled && layers.view === "layers" ? (
           <VideoLayers
-            composition={tools.preview.composition}
             duration={duration}
             layers={layers}
             metadata={metadata}
+            name={videoName}
           />
         ) : null}
         {!layers.enabled && layers.view === "layers" ? (
           <VideoDetails
-            composition={tools.preview.composition}
             duration={duration}
             metadata={metadata}
+            name={videoName}
           />
         ) : null}
       </div>
@@ -351,68 +468,92 @@ function InspectorBar({
       aria-label="Inspector views"
       className="flex w-12 shrink-0 flex-col items-center gap-1.5 py-2"
     >
-      <Button
-        aria-label={firstView}
-        aria-pressed={layers.active === "layers"}
-        onClick={layers.onView}
-        size="icon-lg"
-        title={firstView}
-        value="layers"
-        variant={layers.active === "layers" ? "secondary" : "ghost"}
+      <HintTooltip
+        label={firstView}
+        render={
+          <Button
+            aria-label={firstView}
+            aria-pressed={layers.active === "layers"}
+            onClick={layers.onView}
+            size="icon-lg"
+            value="layers"
+            variant={layers.active === "layers" ? "secondary" : "ghost"}
+          />
+        }
+        side="left"
       >
         {layers.enabled ? (
           <LayersIcon className="size-5" />
         ) : (
           <InfoIcon className="size-5" />
         )}
-      </Button>
-      <Button
-        aria-label="Properties"
-        aria-pressed={layers.active === "properties"}
-        disabled={!hasSelection}
-        onClick={layers.onView}
-        size="icon-lg"
-        title={
+      </HintTooltip>
+      <HintTooltip
+        label={
           hasSelection
             ? "Properties"
             : "Properties — select something on the canvas"
         }
-        value="properties"
-        variant={layers.active === "properties" ? "secondary" : "ghost"}
+        render={
+          <Button
+            aria-disabled={!hasSelection}
+            aria-label="Properties"
+            aria-pressed={layers.active === "properties"}
+            className="aria-disabled:opacity-50"
+            onClick={hasSelection ? layers.onView : undefined}
+            size="icon-lg"
+            value="properties"
+            variant={layers.active === "properties" ? "secondary" : "ghost"}
+          />
+        }
+        side="left"
       >
         <SlidersHorizontalIcon className="size-5" />
-      </Button>
+      </HintTooltip>
       <div className="mt-auto flex flex-col items-center gap-1.5">
-        <Button
-          aria-disabled={!snapshot.canSnapshot}
-          aria-label="Snapshot"
-          aria-pressed={snapshot.isArmed}
-          className="aria-disabled:opacity-50"
-          onClick={snapshot.toggle}
-          size="icon-lg"
-          title={snapshot.unavailable ?? "Capture the frame, or part of it"}
-          variant={snapshot.isArmed ? "secondary" : "ghost"}
+        <HintTooltip
+          label={snapshot.unavailable ?? "Capture the frame, or part of it"}
+          render={
+            <Button
+              aria-disabled={!snapshot.canSnapshot}
+              aria-label="Snapshot"
+              aria-pressed={snapshot.isArmed}
+              className="aria-disabled:opacity-50"
+              onClick={snapshot.toggle}
+              size="icon-lg"
+              variant={snapshot.isArmed ? "secondary" : "ghost"}
+            />
+          }
+          shortcut={formatShortcut(SHORTCUTS.snapshot)}
+          side="left"
         >
           {snapshot.isBusy ? (
             <Spinner aria-hidden="true" className="size-5" />
           ) : (
             <CameraIcon className="size-5" />
           )}
-        </Button>
-        <Button
-          aria-expanded={layers.shown}
-          aria-label={layers.shown ? "Collapse inspector" : "Expand inspector"}
-          onClick={layers.toggle}
-          size="icon-lg"
-          title={layers.shown ? "Collapse inspector" : "Expand inspector"}
-          variant="ghost"
+        </HintTooltip>
+        <HintTooltip
+          label={layers.shown ? "Collapse inspector" : "Expand inspector"}
+          render={
+            <Button
+              aria-expanded={layers.shown}
+              aria-label={
+                layers.shown ? "Collapse inspector" : "Expand inspector"
+              }
+              onClick={layers.toggle}
+              size="icon-lg"
+              variant="ghost"
+            />
+          }
+          side="left"
         >
           {layers.shown ? (
             <PanelRightCloseIcon className="size-5" />
           ) : (
             <PanelRightOpenIcon className="size-5" />
           )}
-        </Button>
+        </HintTooltip>
       </div>
     </nav>
   );
@@ -421,23 +562,23 @@ function InspectorBar({
 const CanvasInspector = memo(InspectorPanel);
 
 function VideoLayers({
-  composition,
   duration,
   layers,
   metadata,
+  name,
 }: {
-  composition: string | null;
   duration: string;
   layers: CanvasLayers;
   metadata: Metadata;
+  name: string | null;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col text-xs">
       <h3
         className="truncate px-4 pt-3 pb-2 font-medium"
-        title={composition ?? undefined}
+        title={name ?? undefined}
       >
-        {composition ?? "Video"}
+        {name ?? "Video"}
       </h3>
       <div className="min-h-0 flex-1 overflow-auto px-2 pb-2">
         <LayerList layers={layers} />
@@ -460,7 +601,9 @@ function LayerList({ layers }: { layers: CanvasLayers }) {
     );
   }
   if (layers.rows.length === 0) {
-    return layers.loading ? null : (
+    return layers.loading ? (
+      <LayerSkeleton />
+    ) : (
       <p className="px-2 py-1 text-muted-foreground">
         This video has no editable objects. Select an element on the canvas to
         ask for changes to it.
@@ -471,6 +614,30 @@ function LayerList({ layers }: { layers: CanvasLayers }) {
     <ul aria-label="Objects in this video" className="flex flex-col">
       {layers.visible.map((row) => (
         <LayerItem key={row.id} layers={layers} row={row} />
+      ))}
+    </ul>
+  );
+}
+
+const SKELETON_ROWS = [
+  { depth: 0, id: "a", width: "w-3/5" },
+  { depth: 1, id: "b", width: "w-2/5" },
+  { depth: 1, id: "c", width: "w-1/2" },
+  { depth: 0, id: "d", width: "w-2/3" },
+  { depth: 1, id: "e", width: "w-1/3" },
+];
+
+function LayerSkeleton() {
+  return (
+    <ul aria-busy="true" aria-label="Loading objects" className="flex flex-col">
+      {SKELETON_ROWS.map((row) => (
+        <li
+          className="flex h-7 items-center px-1.5"
+          key={row.id}
+          style={{ paddingInlineStart: `${row.depth * 12 + 30}px` }}
+        >
+          <Skeleton className={cn("h-3 rounded-sm", row.width)} />
+        </li>
       ))}
     </ul>
   );
@@ -496,7 +663,7 @@ function LayerItem({ layers, row }: { layers: CanvasLayers; row: LayerRow }) {
         >
           <ChevronRightIcon
             className={cn(
-              "size-3.5 transition-transform duration-150 ease-out",
+              "size-3.5 transition-transform duration-fast ease-out",
               open && "rotate-90"
             )}
           />
@@ -533,19 +700,19 @@ function LayerItem({ layers, row }: { layers: CanvasLayers; row: LayerRow }) {
 }
 
 function VideoDetails({
-  composition,
   duration,
   metadata,
+  name,
 }: {
-  composition: string | null;
   duration: string;
   metadata: Metadata;
+  name: string | null;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-auto text-xs">
       <div className="p-4">
-        <h3 className="truncate font-medium" title={composition ?? undefined}>
-          {composition ?? "Video"}
+        <h3 className="truncate font-medium" title={name ?? undefined}>
+          {name ?? "Video"}
         </h3>
         {metadata === null ? null : (
           <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 tabular-nums">
@@ -576,14 +743,13 @@ function CanvasNotices({
   canvas: Canvas;
   restart: () => void;
 }) {
-  const { failure, notice, stale } = canvas;
-  const message = failure ?? notice;
+  const { card, failure, stale } = canvas;
 
-  if (message === null) {
+  if (card.shown === null) {
     return stale === null ? null : (
       <div className="pointer-events-none absolute top-24 right-(--canvas-inspector-width) left-0 z-20 flex justify-center px-4">
         <p
-          className="max-w-sm rounded-md border bg-popover px-3 py-1.5 text-muted-foreground text-xs"
+          className="surface-floating max-w-sm animate-fade-in px-3 py-1.5 text-muted-foreground text-xs"
           role="status"
         >
           {stale}
@@ -595,20 +761,37 @@ function CanvasNotices({
   return (
     <div className="pointer-events-none absolute inset-y-0 right-(--canvas-inspector-width) left-0 z-30 flex items-center justify-center p-10">
       <div
-        className="pointer-events-auto max-w-sm rounded-lg border bg-popover p-4 text-center text-sm"
+        className="surface-floating pointer-events-auto w-72 max-w-full animate-fade-in p-4 text-center text-sm transition-opacity duration-fast ease-out data-leaving:opacity-0"
         data-canvas-chrome
+        data-leaving={card.isLeaving ? "" : undefined}
         role={failure === null ? "status" : "alert"}
       >
-        <p>{message}</p>
-        {failure === null ? null : (
-          <div className="mt-3 flex justify-center gap-2">
-            <Button onClick={canvas.native.retry} size="sm" variant="outline">
-              Retry
-            </Button>
-            <Button onClick={restart} size="sm" variant="ghost">
-              Restart preview
-            </Button>
+        {failure === null ? (
+          <div className="flex flex-col gap-3">
+            <p className="flex items-center justify-center gap-2">
+              <Spinner aria-hidden="true" className="size-3.5 shrink-0" />
+              {card.shown}
+            </p>
+            {canvas.building ? (
+              <Progress aria-label="Build progress" value={canvas.percent} />
+            ) : null}
           </div>
+        ) : (
+          <>
+            <FailureText
+              align="center"
+              fallback="The preview could not start."
+              text={failure}
+            />
+            <div className="mt-3 flex justify-center gap-2">
+              <Button onClick={canvas.native.retry} size="sm" variant="outline">
+                Try again
+              </Button>
+              <Button onClick={restart} size="sm" variant="ghost">
+                Restart preview
+              </Button>
+            </div>
+          </>
         )}
       </div>
     </div>

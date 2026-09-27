@@ -11,8 +11,8 @@ import {
 } from "@/shared/ipc";
 
 const LOG_PATH = "/Users/me/Library/Logs/com.remocn.remocn-studio/sidecar.log";
-const ANY_PHASE = /Sidecar/;
-const DOWN = /Sidecar down/;
+const ANY_PHASE = /Helper/;
+const DOWN = /Helper stopped/;
 
 function status(phase: SidecarPhase, extra?: Partial<SidecarStatus>) {
   return {

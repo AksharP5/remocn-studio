@@ -28,6 +28,10 @@ export interface Renderer {
       version: string | null;
     };
   }) => Promise<unknown>;
+  openBrowser?: (
+    browser: "chrome",
+    options: Record<string, unknown>
+  ) => Promise<RenderBrowser>;
   renderStill: (options: {
     chromeMode?: string;
     chromiumOptions: Record<string, unknown>;
@@ -46,9 +50,14 @@ export interface Renderer {
     chromiumOptions: Record<string, unknown>;
     id: string;
     logLevel: string;
+    puppeteerInstance?: RenderBrowser;
     serveUrl: string;
     timeoutInMilliseconds: number;
   }) => Promise<Measured>;
+}
+
+export interface RenderBrowser {
+  close: (options: { silent: boolean }) => Promise<unknown>;
 }
 
 export interface StillRequest {
@@ -96,6 +105,7 @@ export interface StillInput {
 }
 
 export interface WarmInput {
+  browser?: RenderBrowser | null;
   cache: CompositionCache;
   composition: string;
   context?: RenderContext;
@@ -115,6 +125,7 @@ export function warmComposition(
     }
 
     return measureComposition({
+      browser: input.browser,
       composition: input.composition,
       context: input.context,
       options: input.options,
@@ -129,6 +140,7 @@ export function warmComposition(
 }
 
 export function measureComposition(input: {
+  browser?: RenderBrowser | null;
   composition: string;
   context?: RenderContext;
   options: RenderOptions;
@@ -148,6 +160,7 @@ export function measureComposition(input: {
         chromiumOptions,
         id: input.composition,
         logLevel: LOG_LEVEL,
+        ...(input.browser ? { puppeteerInstance: input.browser } : {}),
         serveUrl: input.serveUrl,
         timeoutInMilliseconds:
           input.options.timeoutInMilliseconds ?? DELAY_RENDER_TIMEOUT_MS,

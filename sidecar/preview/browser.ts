@@ -1,11 +1,16 @@
-import { Effect } from "effect";
+import { Effect, type Scope } from "effect";
 import { errorMessage } from "@/lib/error-message";
 import type { StillEvent } from "@/shared/ipc";
 import type { ConfiguredValue, ResolvedConfig } from "./config";
 import type { GlSupport, RenderContext } from "./failure";
 import type { RenderOptions } from "./project";
 import type { WarmInternals } from "./session";
-import { DELAY_RENDER_TIMEOUT_MS, type Renderer, readyBrowser } from "./still";
+import {
+  DELAY_RENDER_TIMEOUT_MS,
+  type RenderBrowser,
+  type Renderer,
+  readyBrowser,
+} from "./still";
 
 export const SOFTWARE_GL = "swangle";
 
@@ -246,6 +251,38 @@ export function prepareBrowser(input: PrepareInput) {
       options: software,
     } satisfies BrowserReading;
   });
+}
+
+export function sharedBrowser(
+  renderer: Pick<Renderer, "openBrowser">,
+  options: RenderOptions,
+  scale = 1
+): Effect.Effect<RenderBrowser | null, never, Scope.Scope> {
+  const open = renderer.openBrowser;
+
+  if (open === undefined) {
+    return Effect.succeed(null);
+  }
+
+  return Effect.acquireRelease(
+    Effect.promise(() =>
+      open("chrome", {
+        ...(options.chromeMode === null
+          ? {}
+          : { chromeMode: options.chromeMode }),
+        browserExecutable: options.browserExecutable ?? null,
+        chromiumOptions: options.chromiumOptions,
+        ...(scale === 1 ? {} : { forceDeviceScaleFactor: scale }),
+        logLevel: "error",
+      }).catch(() => null)
+    ),
+    (browser) =>
+      browser === null
+        ? Effect.void
+        : Effect.promise(() =>
+            browser.close({ silent: true }).catch(() => undefined)
+          )
+  );
 }
 
 export function signatureOf(options: RenderOptions): string {

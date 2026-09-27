@@ -6,10 +6,10 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { Effect, Exit, type Scope } from "effect";
 import { errorMessage } from "@/lib/error-message";
-import { executeTool, type TurnTools } from "./execute";
+import { TOOLS_HOST_FLAG } from "../flags";
+import { type Ask, executeTool, type TurnTools } from "./execute";
 import {
   decodeToolCall,
-  TOOLS_HOST_FLAG,
   TOOLS_SOCKET_ENV,
   TOOLS_TURN_ENV,
   type ToolReply,
@@ -23,6 +23,7 @@ export interface StdioTransport {
 }
 
 export interface ToolGateway {
+  readonly ask: (server: ToolServer, turnId: string) => Ask;
   readonly serving: (
     turnId: string,
     tools: TurnTools
@@ -132,11 +133,46 @@ export function makeGateway(
   };
 
   return {
+    ask: (server, turnId) => (tool, params, execution) => {
+      const tools = turns.get(turnId);
+      if (tools === undefined) {
+        return Promise.resolve({
+          isError: true,
+          text: "This turn is no longer running, so the studio cannot answer its tools.",
+        });
+      }
+
+      const controller = new AbortController();
+      const abort = () => controller.abort();
+      execution?.signal?.addEventListener("abort", abort, { once: true });
+      if (execution?.signal?.aborted) {
+        abort();
+      }
+      active.get(turnId)?.add(controller);
+
+      return executeTool(server, tool, params, tools, {
+        ...(execution?.progress === undefined
+          ? {}
+          : { progress: execution.progress }),
+        signal: controller.signal,
+      })
+        .catch((cause) => ({ isError: true, text: errorMessage(cause) }))
+        .then((answer) => {
+          log(`tools: ${server}.${tool} ${answer.isError ? "failed" : "ok"}`);
+          return answer;
+        })
+        .finally(() => {
+          active.get(turnId)?.delete(controller);
+          execution?.signal?.removeEventListener("abort", abort);
+        });
+    },
+
     // A gateway that cannot listen is logged, not fatal: the children then
     // fail to connect and the CLI reports the servers down, while the turn —
     // whose words matter more than its tools — still runs.
-    serving: (turnId, tools) =>
-      Effect.acquireRelease(
+    serving: (turnId, tools) => {
+      const running = new Set<AbortController>();
+      return Effect.acquireRelease(
         Effect.promise(async () => {
           try {
             await listen();
@@ -144,17 +180,22 @@ export function makeGateway(
             log(`tools: the gateway could not listen: ${errorMessage(cause)}`);
           }
           turns.set(turnId, tools);
-          active.set(turnId, new Set());
+          active.set(turnId, running);
         }),
         () =>
           Effect.sync(() => {
-            turns.delete(turnId);
-            for (const controller of active.get(turnId) ?? []) {
+            if (turns.get(turnId) === tools) {
+              turns.delete(turnId);
+            }
+            if (active.get(turnId) === running) {
+              active.delete(turnId);
+            }
+            for (const controller of running) {
               controller.abort();
             }
-            active.delete(turnId);
           })
-      ).pipe(Effect.asVoid),
+      ).pipe(Effect.asVoid);
+    },
 
     transport: (server, turnId) => ({
       args: [process.argv[1] ?? "", TOOLS_HOST_FLAG, server],

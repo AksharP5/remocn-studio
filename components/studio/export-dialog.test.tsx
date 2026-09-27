@@ -24,6 +24,7 @@ function exporting(
     brief: null,
     cancel: () => undefined,
     canExport: true,
+    canRetry: false,
     choose: () => undefined,
     chooseFolder: () => undefined,
     chooseFormat: () => undefined,
@@ -31,18 +32,25 @@ function exporting(
     chooseQuality: () => undefined,
     chooseResolution: () => undefined,
     close: () => undefined,
+    confirmCancel: () => undefined,
+    dismiss: () => undefined,
     duration: "00:10",
     fileName: "Main.mp4",
     folder: "out",
+    isConfirmingCancel: false,
     isOpen: true,
     isRunning: false,
+    keepExporting: () => undefined,
     notices: [],
+    onConfirmChange: () => undefined,
     open: () => undefined,
     pending: 0,
     percent: null,
     rename: () => undefined,
     render: () => undefined,
+    requestCancel: () => undefined,
     result: null,
+    retry: () => undefined,
     reveal: () => Promise.resolve(),
     review: reviewExport(settings, size),
     settings,
@@ -53,6 +61,7 @@ function exporting(
     target: "/Users/me/scenes/out/Main.mp4",
     trouble: null,
     unavailable: null,
+    willReplace: false,
     ...overrides,
   };
 }
@@ -68,6 +77,23 @@ describe("ExportDialog", () => {
     expect(screen.getByText("1920×1080")).toBeInTheDocument();
     expect(screen.getByText("MP4")).toBeInTheDocument();
     expect(screen.getByText("00:10")).toBeInTheDocument();
+  });
+
+  it("says a file is replaced only when one is already there", () => {
+    const REPLACED =
+      "A file with this name is already in this folder. It is replaced once the render finishes.";
+    const view = render(
+      <ExportDialog composition="Main" exporting={exporting()} />
+    );
+    expect(screen.queryByText(REPLACED)).toBeNull();
+
+    view.rerender(
+      <ExportDialog
+        composition="Main"
+        exporting={exporting({ willReplace: true })}
+      />
+    );
+    expect(screen.getByText(REPLACED)).toBeInTheDocument();
   });
 
   it("hides quality for a GIF and says it carries no audio", () => {

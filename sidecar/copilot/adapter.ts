@@ -46,6 +46,8 @@ export const copilotAdapter: AgentAdapter = {
 
   info: PROVIDER_INFO.copilot,
 
+  persistent: true,
+
   turn: (params: PromptParams, services: TurnServices) =>
     Effect.suspend(() => {
       const executable = findCopilot();

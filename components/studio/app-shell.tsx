@@ -11,16 +11,12 @@ import {
 import { AnchoredToastProvider, ToastProvider } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useFrozenWidth } from "@/hooks/use-frozen-width";
-import { useHydratedSettings } from "@/hooks/use-hydrated-settings";
 import { usePlatformAttribute } from "@/hooks/use-platform";
 import { usePreviewCollapse } from "@/hooks/use-preview-collapse";
 import { useSidebarCollapse } from "@/hooks/use-sidebar-collapse";
-import { useSplash } from "@/hooks/use-splash";
-import { useWorkspace } from "@/hooks/use-workspace";
-import { shellMood } from "@/lib/studio/mood";
+import { useBoot } from "@/hooks/use-splash";
 import { panelIdsOf } from "@/lib/studio/panes";
 import { layoutStorage } from "@/lib/studio/settings";
-import { isStudioBootReady } from "@/lib/studio/splash";
 import { cn } from "@/lib/utils";
 import { ChatPane } from "./chat-pane";
 import { CrashBoundary } from "./crash-boundary";
@@ -30,7 +26,7 @@ import { ProjectsPane } from "./projects-pane";
 import { QuitGuard } from "./quit-guard";
 import { SettingsPage } from "./settings-page";
 import { Splash } from "./splash";
-import { StudioProvider, useStudio } from "./studio-provider";
+import { StudioProvider, useStudio, useStudioBoot } from "./studio-provider";
 import { Titlebar } from "./titlebar";
 
 const SHELL_LAYOUT_ID = "shell";
@@ -46,28 +42,26 @@ export function AppShell() {
 }
 
 function StudioBoot() {
-  const settings = useHydratedSettings();
-  const workspace = useWorkspace(settings);
-  const splash = useSplash(isStudioBootReady(workspace));
-  const isBooting = splash.phase !== "gone";
+  const { isBooting, onGone } = useBoot();
 
   return (
-    <>
-      <StudioProvider settings={settings} workspace={workspace}>
-        <TooltipProvider delay={500}>
-          <ToastProvider>
-            <AnchoredToastProvider>
-              <ShellLayout isBooting={isBooting} />
-              <SettingsPage />
-              <OnboardingDialog suspended={isBooting} />
-              <QuitGuard />
-            </AnchoredToastProvider>
-          </ToastProvider>
-        </TooltipProvider>
-      </StudioProvider>
-      <Splash {...splash} />
-    </>
+    <StudioProvider splash={<BootSplash onGone={onGone} />}>
+      <TooltipProvider delay={500}>
+        <ToastProvider>
+          <AnchoredToastProvider>
+            <ShellLayout isBooting={isBooting} />
+            <SettingsPage />
+            <OnboardingDialog suspended={isBooting} />
+            <QuitGuard />
+          </AnchoredToastProvider>
+        </ToastProvider>
+      </TooltipProvider>
+    </StudioProvider>
   );
+}
+
+function BootSplash({ onGone }: { onGone: () => void }) {
+  return <Splash isSettled={useStudioBoot()} onGone={onGone} />;
 }
 
 const StillChatPane = memo(ChatPane);
@@ -75,7 +69,7 @@ const StillChatPane = memo(ChatPane);
 const StillPreviewPane = memo(PreviewPane);
 
 const PANE_SLIDE =
-  "transition-[flex-grow] duration-250 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none";
+  "transition-[flex-grow] duration-base ease-out motion-reduce:transition-none";
 
 /* The preview holds the compiled bundle in an iframe, and an iframe that
    changes size every frame of a pane slide is a cross-document layout plus
@@ -143,7 +137,7 @@ function ShellPanes({
 
       <ResizableHandle
         className={cn(
-          "studio-boot-transition bg-pane-border transition-opacity duration-250",
+          "studio-boot-transition bg-pane-border transition-opacity duration-base",
           isPreviewShown ? "opacity-100" : "opacity-0"
         )}
         disabled={!isPreviewShown}
@@ -170,7 +164,7 @@ function ShellPanes({
 }
 
 function ShellLayout({ isBooting }: { isBooting: boolean }) {
-  const { isProjectsShown, preferences, projects, settingsView, turns } =
+  const { isProjectsShown, mood, preferences, projects, settingsView } =
     useStudio();
   const collapse = useSidebarCollapse(isProjectsShown);
 
@@ -191,16 +185,14 @@ function ShellLayout({ isBooting }: { isBooting: boolean }) {
           isBooting={isBooting}
           isStill={!preferences.titlebarMotion}
           mood={
-            projects.length === 0 || !preferences.titlebarShader
-              ? null
-              : shellMood(turns)
+            projects.length === 0 || !preferences.titlebarShader ? null : mood
           }
         />
       </div>
 
       <div
         className={cn(
-          "studio-boot-transition relative z-10 grid min-h-0 flex-1 transition-[grid-template-columns] duration-250 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none",
+          "studio-boot-transition relative z-10 grid min-h-0 flex-1 transition-[grid-template-columns] duration-base ease-out motion-reduce:transition-none",
           collapse.isExpanded
             ? "grid-cols-[18rem_minmax(0,1fr)]"
             : "grid-cols-[0rem_minmax(0,1fr)]"
@@ -222,7 +214,7 @@ function ShellLayout({ isBooting }: { isBooting: boolean }) {
 
         <div
           className={cn(
-            "studio-boot-transition relative my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-xl border border-pane-border bg-background transition-[margin] duration-250 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none",
+            "studio-boot-transition relative my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-xl border border-pane-border bg-background transition-[margin] duration-base ease-out motion-reduce:transition-none",
             isProjectsShown ? "ml-0" : "ml-2"
           )}
         >
@@ -241,7 +233,7 @@ function ShowPreviewButton() {
     <div
       aria-hidden={isPreviewShown}
       className={cn(
-        "studio-boot-transition absolute top-0 right-2 flex h-10 items-center transition-opacity duration-150 ease-out",
+        "studio-boot-transition absolute top-0 right-2 flex h-10 items-center transition-opacity duration-fast ease-out",
         isPreviewShown ? "pointer-events-none opacity-0" : "opacity-100"
       )}
       inert={isPreviewShown}

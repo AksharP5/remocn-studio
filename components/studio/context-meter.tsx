@@ -38,7 +38,7 @@ export function ContextMeter({ usage }: { usage: ContextUsage }) {
           />
           <circle
             className={cn(
-              "stroke-current transition-[stroke-dashoffset] duration-200",
+              "stroke-current transition-[stroke-dashoffset] duration-fast",
               reading.percent >= CROWDED && "stroke-destructive"
             )}
             cx="8"

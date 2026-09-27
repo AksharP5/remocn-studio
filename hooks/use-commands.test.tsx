@@ -90,6 +90,7 @@ function sources(overrides: Partial<CommandSources> = {}) {
     restartSidecar: mock(),
     revealProject: mock(),
     snapshotUnavailable: null,
+    startSessionIn: mock(),
     stopTurn: mock(),
     toggleInspect: mock(),
     togglePreview: mock(),
@@ -111,7 +112,7 @@ function byId(commands: ReturnType<typeof sources>["result"], id: string) {
 describe("useCommands", () => {
   it("words Export's refusal with the export hook's own reason", () => {
     const reason =
-      "The preview is showing a different project than this session.";
+      "The preview is showing another project, not the one this chat belongs to.";
     const { result } = sources({ exportUnavailable: reason });
 
     expect(byId(result, "export").enabled).toEqual({ reason });
@@ -206,6 +207,40 @@ describe("useCommands", () => {
     expect(byId(result, "project-reveal").enabled).toEqual({
       reason: "The project folder is not on disk anymore.",
     });
+  });
+
+  it("starts a new chat on the open video from the keyboard", () => {
+    const startSessionIn = mock();
+    const { result } = sources({ startSessionIn });
+    const command = byId(result, "new-chat");
+
+    expect(command.shortcut).toEqual({ key: "t", owner: "menu" });
+    command.run();
+    expect(startSessionIn).toHaveBeenCalledWith("v1");
+  });
+
+  it("offers New Chat only while a video is open", () => {
+    const { result } = sources({ openedVideoId: null });
+
+    expect(byId(result, "new-chat").enabled).toEqual({
+      reason: "Open a chat to reach its video.",
+    });
+  });
+
+  it("refuses New Chat on a video nothing in the project renders anymore", () => {
+    const startSessionIn = mock();
+    const gone = { ...INTRO, missing: true };
+    const { result } = sources({
+      groups: [group(gone, [CHAT_A]), group(OUTRO, [CHAT_B])],
+      startSessionIn,
+    });
+    const command = byId(result, "new-chat");
+
+    expect(command.enabled).toEqual({
+      reason: "Nothing in this project renders this video anymore.",
+    });
+    command.run();
+    expect(startSessionIn).not.toHaveBeenCalled();
   });
 
   it("offers Stop only while a turn runs", () => {

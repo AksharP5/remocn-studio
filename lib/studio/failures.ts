@@ -59,7 +59,7 @@ function named(encoded: string): string | null {
 // re-armed automatically, so this is what the pane says in the gap.
 export function previewFailure(message: string): string {
   return message.trim() === CANCELLED
-    ? "The preview stopped when the sidecar restarted."
+    ? "The preview stopped when the studio's helper restarted."
     : message;
 }
 

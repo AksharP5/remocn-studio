@@ -4,6 +4,7 @@ import {
   newestChatIn,
   paneGroups,
   paneSections,
+  reuseGroups,
   sessionMeta,
 } from "@/lib/studio/groups";
 import { IDLE_TURN, type TurnState } from "@/lib/studio/turns";
@@ -452,5 +453,40 @@ describe("newestChatIn", () => {
 
   it("is null for a project with no chats yet", () => {
     expect(newestChatIn(rows, "project-c")).toBeNull();
+  });
+});
+
+describe("reuseGroups", () => {
+  const videos = [video("promo"), video("teaser")];
+  const sessions = [session("a", "promo"), session("b", "teaser")];
+
+  it("keeps every group while a running turn only streams text", () => {
+    const first = paneGroups(videos, sessions, new Map([["a", running(NOW)]]));
+    const streamed: TurnState = {
+      ...running(NOW),
+      entries: [{ id: "reply", kind: "assistant", text: "Building it" }],
+    };
+
+    const next = reuseGroups(
+      first,
+      paneGroups(videos, sessions, new Map([["a", streamed]]))
+    );
+
+    expect(next).toBe(first);
+  });
+
+  it("replaces only the group whose row changed status", () => {
+    const first = paneGroups(videos, sessions, new Map());
+
+    const next = reuseGroups(
+      first,
+      paneGroups(videos, sessions, new Map([["b", failed("it broke")]]))
+    );
+
+    expect(next).not.toBe(first);
+    const promo = next.find((group) => group.video.id === "promo");
+    const teaser = next.find((group) => group.video.id === "teaser");
+    expect(promo).toBe(first.find((group) => group.video.id === "promo"));
+    expect(teaser?.rows[0]?.status).toBe("failed");
   });
 });

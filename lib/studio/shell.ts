@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -112,10 +113,30 @@ export function watchFileDrops(
   ).pipe(Effect.asVoid);
 }
 
+export function fileExists(path: string): Effect.Effect<boolean, ShellError> {
+  return Effect.tryPromise({
+    catch: fail,
+    try: () => invoke<boolean>("path_exists", { path }),
+  });
+}
+
 export function revealInFinder(path: string): Effect.Effect<void, ShellError> {
   return Effect.tryPromise({
     catch: fail,
     try: () => revealItemInDir(path),
+  });
+}
+
+const WINDOW_BACKGROUNDS = { dark: "#181818", light: "#f8f8f8" } as const;
+
+export type WindowTheme = keyof typeof WINDOW_BACKGROUNDS;
+
+export function setWindowBackground(
+  theme: WindowTheme
+): Effect.Effect<void, ShellError> {
+  return Effect.tryPromise({
+    catch: fail,
+    try: () => getCurrentWindow().setBackgroundColor(WINDOW_BACKGROUNDS[theme]),
   });
 }
 

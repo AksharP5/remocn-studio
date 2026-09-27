@@ -2,10 +2,12 @@
 
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
 import { useAppIcon } from "@/hooks/use-app-icon";
+import { useWindowBackground } from "@/hooks/use-window-background";
 
 function AppIconTheme() {
   const { resolvedTheme } = useTheme();
   useAppIcon(resolvedTheme);
+  useWindowBackground(resolvedTheme);
   return null;
 }
 

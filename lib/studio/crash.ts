@@ -1,11 +1,3 @@
-import {
-  close,
-  dedupeIntegration,
-  eventFiltersIntegration,
-  functionToStringIntegration,
-  init,
-  linkedErrorsIntegration,
-} from "@sentry/react";
 import { Effect } from "effect";
 import {
   newRequestId,
@@ -45,6 +37,13 @@ export interface CrashBuild {
 // answers `null` drops the event before it is ever queued.
 let consented = false;
 let started = false;
+let initialised = false;
+let sdk: Promise<typeof import("@sentry/react")> | null = null;
+
+function loadSdk() {
+  sdk ??= import("@sentry/react");
+  return sdk;
+}
 
 export function isCrashReportingStarted(): boolean {
   return started;
@@ -82,8 +81,8 @@ export function applyCrashConsent(input: {
     version !== null
   ) {
     if (!started) {
-      start({ dsn: DSN, environment, version });
       started = true;
+      start({ dsn: DSN, environment, version });
     }
     return decision;
   }
@@ -93,10 +92,30 @@ export function applyCrashConsent(input: {
     // Zero, not the default two seconds: a person who has just withdrawn
     // consent must not have the app pause to finish sending what it had.
     // `consented` is already false, so nothing new can be captured either.
-    close(0).catch(() => undefined);
+    loadSdk()
+      .then((sentry) => {
+        initialised = false;
+        return sentry.close(0);
+      })
+      .catch(() => undefined);
   }
 
   return decision;
+}
+
+export function reportRenderCrash(error: unknown, componentStack: string) {
+  if (!(started && consented)) {
+    return;
+  }
+  loadSdk()
+    .then((sentry) => {
+      if (initialised) {
+        sentry.captureException(error, {
+          contexts: { react: { componentStack } },
+        });
+      }
+    })
+    .catch(() => undefined);
 }
 
 function start(input: {
@@ -104,7 +123,21 @@ function start(input: {
   environment: AppEnvironment;
   version: string;
 }) {
-  init({
+  loadSdk()
+    .then((sentry) => {
+      if (started && !initialised) {
+        initialised = true;
+        init(sentry, input);
+      }
+    })
+    .catch(() => undefined);
+}
+
+function init(
+  sentry: typeof import("@sentry/react"),
+  input: { dsn: string; environment: AppEnvironment; version: string }
+) {
+  sentry.init({
     // A breadcrumb trail is the one part of an event that records what the
     // person was doing rather than what broke, and the console is where a
     // prompt would end up. Crashes only, in v1.
@@ -116,10 +149,10 @@ function start(input: {
     // what is kept is what turns an exception into a readable stack, and
     // nothing that watches the person use the app.
     integrations: [
-      dedupeIntegration(),
-      eventFiltersIntegration(),
-      functionToStringIntegration(),
-      linkedErrorsIntegration(),
+      sentry.dedupeIntegration(),
+      sentry.eventFiltersIntegration(),
+      sentry.functionToStringIntegration(),
+      sentry.linkedErrorsIntegration(),
     ],
     maxBreadcrumbs: 0,
     release: crashRelease(input.version),

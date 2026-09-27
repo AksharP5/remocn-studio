@@ -148,7 +148,7 @@ export function wrapped(source: string, specifier: string): string | null {
   if (call === null || last?.index === undefined) {
     throw new ScaffoldError({
       message:
-        "this project's entry point does not call registerRoot(Root) in a shape the studio can extend — register the video in it by hand, or ask Claude to",
+        "this project's entry point does not call registerRoot(Root) in a shape the studio can extend — register the video in it by hand, or ask the agent to",
     });
   }
 

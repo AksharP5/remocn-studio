@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import { render } from "@testing-library/react";
-import { Splash } from "@/components/studio/splash";
+import { SplashScreen } from "@/components/studio/splash";
 
 const ignoreAnimation = () => undefined;
 
-describe("Splash", () => {
+describe("SplashScreen", () => {
   it("renders the shared glyph as a drawable path", () => {
     const { container } = render(
-      <Splash
+      <SplashScreen
         isReduced={false}
         onAnimationEnd={ignoreAnimation}
         phase="drawing"
@@ -22,7 +22,11 @@ describe("Splash", () => {
 
   it("records the reduced-motion rendering mode", () => {
     const { container } = render(
-      <Splash isReduced onAnimationEnd={ignoreAnimation} phase="holding" />
+      <SplashScreen
+        isReduced
+        onAnimationEnd={ignoreAnimation}
+        phase="holding"
+      />
     );
 
     expect(container.querySelector("[data-splash]")).toHaveAttribute(
@@ -33,7 +37,7 @@ describe("Splash", () => {
 
   it("targets the exit scale at the logo instead of the full-screen surface", () => {
     const { container } = render(
-      <Splash
+      <SplashScreen
         isReduced={false}
         onAnimationEnd={ignoreAnimation}
         phase="leaving"

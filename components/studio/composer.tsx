@@ -53,7 +53,7 @@ import { MentionPopup } from "./mention-popup";
 import { MessageText } from "./message-text";
 import { ModelMenu } from "./model-menu";
 import { SelectionRow } from "./selection-row";
-import { useStudio } from "./studio-provider";
+import { useStudio, useStudioComposer } from "./studio-provider";
 
 const DEFAULT = "";
 
@@ -136,7 +136,6 @@ function ComposerBlock({
   const {
     accounts,
     claudeEffort,
-    composer,
     drops,
     library,
     models,
@@ -145,6 +144,7 @@ function ComposerBlock({
     settingsView,
     tools,
   } = useStudio();
+  const composer = useStudioComposer();
   const sidecar = useSidecar();
   const onKeepAttachment = useKeepAttachment(
     composer.attachments.items,
@@ -480,7 +480,7 @@ function ComposerStatus({
   if (sidecar.phase === "down") {
     return (
       <span className="flex items-center gap-1 text-destructive">
-        The sidecar is not running.
+        The studio's helper is not running.
         <Button
           className="relative h-auto p-0 text-destructive text-xs after:absolute after:-inset-2"
           onClick={sidecar.restart}
@@ -497,7 +497,7 @@ function ComposerStatus({
     return (
       <span className="flex items-center gap-2">
         <Spinner className="size-3" />
-        Starting the sidecar…
+        Starting the studio's helper…
       </span>
     );
   }

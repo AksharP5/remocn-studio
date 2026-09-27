@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { type StartTurn, useTurns } from "@/hooks/use-turns";
@@ -542,5 +542,184 @@ describe("useTurns", () => {
     });
 
     await waitFor(() => expect(ipc.carriesPlan("a")).toBe(false));
+  });
+
+  it("commits a burst of streamed text once per frame, in order", async () => {
+    const frames: FrameRequestCallback[] = [];
+    const request = spyOn(
+      globalThis,
+      "requestAnimationFrame"
+    ).mockImplementation((callback) => frames.push(callback));
+    const cancel = spyOn(globalThis, "cancelAnimationFrame").mockImplementation(
+      () => undefined
+    );
+    const ipc = harness();
+    let renders = 0;
+    const { result } = renderHook(() => {
+      renders += 1;
+      return useTurns(mock());
+    });
+    act(() => {
+      result.current.markOpen("a");
+      result.current.sendTurn(turn("a"));
+    });
+    await waitFor(() =>
+      expect(result.current.turns.get("a")?.isRunning).toBe(true)
+    );
+
+    const before = renders;
+    ipc.stream("a", { text: "Build", type: "text" });
+    ipc.stream("a", { text: "ing the", type: "text" });
+    ipc.stream("a", { text: " scene.", type: "text" });
+    expect(renders).toBe(before);
+
+    act(() => {
+      for (const frame of frames.splice(0)) {
+        frame(0);
+      }
+    });
+
+    expect(renders).toBe(before + 1);
+    expect(result.current.turns.get("a")?.entries.at(-1)).toEqual({
+      id: expect.any(String),
+      kind: "assistant",
+      text: "Building the scene.",
+    });
+    request.mockRestore();
+    cancel.mockRestore();
+  });
+
+  it("lands held text before a tool call and when the turn ends", async () => {
+    const request = spyOn(
+      globalThis,
+      "requestAnimationFrame"
+    ).mockImplementation(() => 1);
+    const cancel = spyOn(globalThis, "cancelAnimationFrame").mockImplementation(
+      () => undefined
+    );
+    const ipc = harness();
+    const { result } = renderHook(() => useTurns(mock()));
+    act(() => {
+      result.current.markOpen("a");
+      result.current.sendTurn(turn("a"));
+    });
+    await waitFor(() =>
+      expect(result.current.turns.get("a")?.isRunning).toBe(true)
+    );
+
+    ipc.stream("a", { text: "Reading the scene.", type: "text" });
+    ipc.stream("a", {
+      id: "tool-1",
+      input: { file_path: "/p/src/Scene.tsx" },
+      name: "Read",
+      type: "tool_use",
+      verb: "read",
+    });
+    ipc.stream("a", { text: "Done.", type: "text" });
+    await ipc.finish("a");
+
+    const entries = result.current.turns.get("a")?.entries ?? [];
+    expect(entries.map((entry) => entry.kind)).toEqual([
+      "user",
+      "assistant",
+      "activity",
+      "assistant",
+    ]);
+    expect(entries.at(-1)).toMatchObject({ text: "Done." });
+    expect(result.current.turns.get("a")?.isRunning).toBe(false);
+    request.mockRestore();
+    cancel.mockRestore();
+  });
+
+  it("releases idle chats beyond the five most recent and reads them back", async () => {
+    harness();
+    const { result } = renderHook(() => useTurns(mock()));
+    const opened = ["s1", "s2", "s3", "s4", "s5", "s6", "s7"];
+
+    act(() => {
+      for (const id of opened) {
+        result.current.markOpen(id);
+        result.current.loadTurn({ ...STORED, id });
+      }
+    });
+    await waitFor(() =>
+      expect(
+        opened.every((id) => result.current.turns.get(id)?.isLoading === false)
+      ).toBe(true)
+    );
+    act(() => {
+      result.current.markOpen("s7");
+    });
+
+    expect(result.current.turns.has("s1")).toBe(false);
+    expect(result.current.turns.has("s2")).toBe(false);
+    expect(result.current.turns.has("s3")).toBe(true);
+
+    act(() => {
+      result.current.markOpen("s1");
+      result.current.loadTurn({ ...STORED, id: "s1" });
+    });
+    await waitFor(() =>
+      expect(result.current.turns.get("s1")?.entries).toEqual(BLOCKS)
+    );
+  });
+
+  it("brings the chat's row up to the provider's session so a reopened chat resumes it", async () => {
+    const ipc = harness();
+    const onSession = mock();
+    const { result } = renderHook(() => useTurns(onSession));
+    act(() => {
+      result.current.markOpen("a");
+      result.current.sendTurn(turn("a"));
+    });
+    await waitFor(() =>
+      expect(result.current.turns.get("a")?.isRunning).toBe(true)
+    );
+
+    ipc.stream("a", { session: STORED, type: "history" });
+    ipc.stream("a", {
+      mode: "plan",
+      model: "claude-opus-5",
+      sessionId: "sdk-10",
+      type: "session",
+    });
+
+    expect(onSession).toHaveBeenLastCalledWith({
+      ...STORED,
+      sdkSessionId: "sdk-10",
+    });
+
+    ipc.stream("a", {
+      mode: "plan",
+      model: "claude-opus-5",
+      sessionId: "sdk-10",
+      type: "session",
+    });
+
+    expect(onSession).toHaveBeenCalledTimes(2);
+    await ipc.finish("a");
+  });
+
+  it("keeps a running chat however many others are opened after it", async () => {
+    harness();
+    const { result } = renderHook(() => useTurns(mock()));
+    act(() => {
+      result.current.markOpen("a");
+      result.current.loadTurn(STORED);
+    });
+    await waitFor(() =>
+      expect(result.current.turns.get("a")?.isLoading).toBe(false)
+    );
+    act(() => {
+      result.current.sendTurn(turn("a"));
+    });
+
+    for (const id of ["s1", "s2", "s3", "s4", "s5", "s6"]) {
+      act(() => {
+        result.current.markOpen(id);
+      });
+    }
+
+    expect(result.current.turns.get("a")?.isRunning).toBe(true);
   });
 });

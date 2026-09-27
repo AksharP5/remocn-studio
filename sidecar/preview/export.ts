@@ -22,6 +22,7 @@ import { type Measured, PreviewError, type RenderOptions } from "./project";
 import {
   type CompositionCache,
   DELAY_RENDER_TIMEOUT_MS,
+  type RenderBrowser,
   type Renderer,
   renderErrorFor,
   warmComposition,
@@ -61,6 +62,7 @@ export interface RenderMediaOptions {
   onStart: (data: { frameCount: number }) => void;
   outputLocation: string;
   overwrite: boolean;
+  puppeteerInstance?: RenderBrowser;
   scale?: number;
   serveUrl: string;
   timeoutInMilliseconds: number;
@@ -81,6 +83,7 @@ export interface RenderPlan {
 }
 
 export interface ExportInput {
+  browser?: RenderBrowser | null;
   composition: string;
   context?: RenderContext;
   measured: Measured;
@@ -262,6 +265,7 @@ function render(
         },
         outputLocation: output,
         overwrite: true,
+        ...(input.browser ? { puppeteerInstance: input.browser } : {}),
         scale: input.plan.scale,
         serveUrl: input.serveUrl,
         timeoutInMilliseconds,
@@ -284,6 +288,7 @@ const CLIP_WIDTH = 640;
 const CLIPS_DIR = "clips";
 
 export interface ClipInput {
+  browser?: RenderBrowser | null;
   cache: CompositionCache;
   composition: string;
   context?: RenderContext;
@@ -305,6 +310,7 @@ export function clipMedia(
 
   return Effect.gen(function* () {
     const measured = yield* warmComposition({
+      browser: input.browser,
       cache: input.cache,
       composition: input.composition,
       context,
@@ -339,6 +345,7 @@ export function clipMedia(
 
     yield* render(
       {
+        browser: input.browser,
         composition: input.composition,
         context,
         measured,

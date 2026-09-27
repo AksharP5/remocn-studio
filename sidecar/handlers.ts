@@ -17,7 +17,9 @@ import type { PipelineStage } from "@/shared/pipeline";
 import { AGENT_PROVIDERS } from "@/shared/providers";
 import { freeSlug, slugFor } from "@/shared/slug";
 import { templateProjectName } from "@/shared/templates";
+import { acpPool } from "./acp/pool";
 import { makeAccountCache } from "./agent/account";
+import { coalescing } from "./agent/coalesce";
 import { makeGate } from "./agent/gate";
 import { makeModeSwitch } from "./agent/mode";
 import { adapterFor } from "./agent/registry";
@@ -30,7 +32,7 @@ import { pipelineBrief } from "./claude/conventions";
 import { escapee } from "./contained";
 import { applyCrashConsent, isReporting } from "./crash";
 import { readProjectDocument, videoDocuments } from "./documents";
-import { checksFor } from "./environment";
+import { projectChecks } from "./environment";
 import { type FilesError, listFolder, projectFiles } from "./files";
 import { openStudioProject, ProjectStore } from "./history/projects";
 import { recording } from "./history/recorder";
@@ -154,6 +156,8 @@ const gateway = makeGateway((line) => process.stderr.write(`${line}\n`));
 
 const account = Effect.runSync(makeAccountCache());
 
+const STREAMED_FRAME = "24 millis";
+
 const unstored = (error: { message: string }) =>
   new HandlerError({ message: error.message });
 
@@ -232,6 +236,14 @@ const insideProject = (root: string, files: readonly string[]) =>
           )
   );
 
+const resumingStored = (
+  params: PromptParams,
+  resumeId: string | null
+): PromptParams =>
+  params.sessionId === null && resumeId !== null
+    ? { ...params, sessionId: resumeId }
+    : params;
+
 const located = (projectId: string) =>
   Effect.flatMap(ProjectStore, (projects) => projects.find(projectId)).pipe(
     Effect.mapError(unstored),
@@ -245,8 +257,10 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
   "agent.accounts": ({ params }) =>
     (params?.force === true ? account.clear : Effect.void).pipe(
       Effect.andThen(
-        Effect.forEach(AGENT_PROVIDERS, (provider) =>
-          account.row(provider, process.cwd())
+        Effect.forEach(
+          AGENT_PROVIDERS,
+          (provider) => account.row(provider, process.cwd()),
+          { concurrency: "unbounded" }
         )
       )
     ),
@@ -257,11 +271,15 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
       (matched) => ({ matched })
     ),
 
-  "agent.prompt": ({ ask, emit, log, params }) =>
+  "agent.prompt": ({ ask, emit: send, log, params }) =>
     Effect.gen(function* () {
+      const { emit, flush } = yield* coalescing(send, STREAMED_FRAME);
+      yield* Effect.addFinalizer(() => flush);
       const turnId = yield* Effect.sync(() => crypto.randomUUID());
       const project = yield* located(params.projectId);
       const adapter = adapterFor(params.provider);
+      const toolKey =
+        adapter.persistent === true ? `chat-${params.historyId}` : turnId;
 
       const store = yield* HistoryStore;
       const videos = yield* VideoStore;
@@ -311,7 +329,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
 
       const recorder = yield* recording(store, params, log);
       const resumeId = recorder.session?.sdkSessionId ?? null;
-      let turnParams = params;
+      let turnParams = resumingStored(params, resumeId);
       if (
         params.sessionId !== null &&
         recorder.session !== null &&
@@ -393,7 +411,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
 
       const result = yield* Effect.scoped(
         gateway
-          .serving(turnId, {
+          .serving(toolKey, {
             connections: {
               usable: () => Effect.runPromise(ask("integrations.usable", null)),
             },
@@ -495,6 +513,12 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
                 cwd: project.path,
                 emit,
                 gate,
+                inProcess: Object.fromEntries(
+                  TOOL_SERVERS.map((server) => [
+                    server,
+                    gateway.ask(server, toolKey),
+                  ])
+                ),
                 log,
                 onApprove: approved,
                 onMode: switcher.bind,
@@ -502,7 +526,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
                 tools: Object.fromEntries(
                   TOOL_SERVERS.map((server) => [
                     server,
-                    gateway.transport(server, turnId),
+                    gateway.transport(server, toolKey),
                   ])
                 ),
                 turnId,
@@ -511,6 +535,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
             )
           )
       ).pipe(
+        Effect.ensuring(recorder.flush),
         Effect.ensuring(abandonSourceAssets(turnId)),
         Effect.onInterrupt(() =>
           application === null
@@ -531,7 +556,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
         ).pipe(Effect.mapError(unstored));
       }
       return result;
-    }),
+    }).pipe(Effect.scoped),
 
   "agent.source": ({ params }) =>
     answerSourceAsset(params).pipe(
@@ -575,6 +600,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
     Effect.flatMap(HistoryStore, (store) =>
       store.remove(params.sessionId)
     ).pipe(
+      Effect.tap(() => acpPool.dispose(params.sessionId)),
       Effect.map((removed) => ({ removed })),
       Effect.mapError(unstored)
     ),
@@ -818,12 +844,15 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
         yield* account.clear;
       }
 
-      return {
-        checks: yield* checksFor(
-          project.path,
-          yield* account.row(params.provider, project.path)
-        ),
-      };
+      const [row, rows] = yield* Effect.all(
+        [
+          account.row(params.provider, project.path),
+          projectChecks(project.path),
+        ],
+        { concurrency: "unbounded" }
+      );
+
+      return { checks: [row, ...rows] };
     }),
   "project.create": ({ params }) =>
     Effect.gen(function* () {

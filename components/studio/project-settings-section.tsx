@@ -1,4 +1,5 @@
 "use client";
+import dynamic from "next/dynamic";
 import type * as React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -10,12 +11,16 @@ import { cancelProjectMove, moveProject } from "@/lib/studio/projects";
 import { revealInFinder } from "@/lib/studio/shell";
 import type { Project } from "@/shared/ipc";
 import { ProjectBrandApply } from "./project-brand-apply";
-import { ProjectBrandEditor } from "./project-brand-editor";
 import {
   ProjectSettingsGroup,
   ProjectSettingsRow,
 } from "./project-settings-group";
 import { useStudio } from "./studio-provider";
+
+const ProjectBrandEditor = dynamic(() =>
+  import("./project-brand-editor").then((module) => module.ProjectBrandEditor)
+);
+
 export function ProjectSettingsSection() {
   const studio = useStudio();
   const project = studio.projects.find(

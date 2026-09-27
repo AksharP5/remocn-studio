@@ -1,6 +1,6 @@
 "use client";
 
-import { Effect } from "effect";
+import { Cause, Effect, Fiber } from "effect";
 import type { MouseEvent } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { causeMessage } from "@/lib/error-message";
@@ -8,22 +8,21 @@ import { scaffoldProject } from "@/lib/studio/projects";
 import type { Project, ScaffoldStep } from "@/shared/ipc";
 
 export interface ScaffoldState {
+  cancelled: boolean;
   error: string | null;
   isRunning: boolean;
+  startedAt: number;
   step: ScaffoldStep;
 }
 
 export interface Scaffolds {
+  onCancelScaffold: (event: MouseEvent<HTMLButtonElement>) => void;
   onRetryScaffold: (event: MouseEvent<HTMLButtonElement>) => void;
   scaffolds: ReadonlyMap<string, ScaffoldState>;
   startScaffold: (projectId: string) => void;
 }
 
-const STARTED: ScaffoldState = {
-  error: null,
-  isRunning: true,
-  step: "template",
-};
+type Running = Fiber.Fiber<Project, unknown>;
 
 export function useScaffold(
   onScaffolded: (project: Project) => void
@@ -31,7 +30,7 @@ export function useScaffold(
   const [scaffolds, setScaffolds] = useState<
     ReadonlyMap<string, ScaffoldState>
   >(() => new Map());
-  const running = useRef(new Set<string>());
+  const running = useRef(new Map<string, Running | null>());
 
   const write = useCallback(
     (projectId: string, state: ScaffoldState | null) => {
@@ -53,15 +52,23 @@ export function useScaffold(
       if (running.current.has(projectId)) {
         return;
       }
-      running.current.add(projectId);
-      write(projectId, STARTED);
+      running.current.set(projectId, null);
+      write(projectId, {
+        cancelled: false,
+        error: null,
+        isRunning: true,
+        startedAt: Date.now(),
+        step: "template",
+      });
 
-      Effect.runFork(
+      const fiber = Effect.runFork(
         scaffoldProject(projectId, (event) => {
           if (event.type === "started") {
             write(projectId, {
+              cancelled: false,
               error: null,
               isRunning: true,
+              startedAt: Date.now(),
               step: event.step,
             });
           }
@@ -73,11 +80,13 @@ export function useScaffold(
               if (exit._tag === "Failure") {
                 setScaffolds((current) => {
                   const next = new Map(current);
-                  const seen = current.get(projectId) ?? STARTED;
+                  const seen = current.get(projectId);
                   next.set(projectId, {
+                    cancelled: Cause.hasInterruptsOnly(exit.cause),
                     error: causeMessage(exit.cause),
                     isRunning: false,
-                    step: seen.step,
+                    startedAt: seen?.startedAt ?? Date.now(),
+                    step: seen?.step ?? "template",
                   });
                   return next;
                 });
@@ -90,6 +99,9 @@ export function useScaffold(
           )
         )
       );
+      if (running.current.has(projectId)) {
+        running.current.set(projectId, fiber);
+      }
     },
     [onScaffolded, write]
   );
@@ -101,8 +113,18 @@ export function useScaffold(
     [startScaffold]
   );
 
+  const onCancelScaffold = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      const fiber = running.current.get(event.currentTarget.value);
+      if (fiber !== undefined && fiber !== null) {
+        Effect.runFork(Fiber.interrupt(fiber));
+      }
+    },
+    []
+  );
+
   return useMemo(
-    () => ({ onRetryScaffold, scaffolds, startScaffold }),
-    [onRetryScaffold, scaffolds, startScaffold]
+    () => ({ onCancelScaffold, onRetryScaffold, scaffolds, startScaffold }),
+    [onCancelScaffold, onRetryScaffold, scaffolds, startScaffold]
   );
 }

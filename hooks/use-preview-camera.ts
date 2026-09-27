@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import {
   type CanvasPoint,
@@ -37,6 +38,8 @@ import {
 
 const JUMP_MS = 200;
 const SETTLE_MS = 500;
+const WHEEL_SETTLE_MS = 120;
+const VIEW_CHANGE = "preview-view-change";
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 
 const INTERACTIVE =
@@ -127,12 +130,22 @@ function viewShortcut(
 
 export type OutsideFrame = "dim" | "hide";
 
+export interface CameraView {
+  current: () => PreviewCamera;
+  subscribe: (listen: () => void) => () => void;
+}
+
+export function transformOf(camera: PreviewCamera): string {
+  return `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`;
+}
+
 export function usePreviewCamera(
   size: { width: number; height: number } | null,
   identity: string | null,
   togglePlayback: () => void
 ) {
   const viewport = useRef<HTMLDivElement>(null);
+  const stage = useRef<HTMLDivElement>(null);
   const [camera, setCamera] = useState(INITIAL_PREVIEW_CAMERA);
   const [hand, setHand] = useState(false);
   const [panning, setPanning] = useState(false);
@@ -143,7 +156,7 @@ export function usePreviewCamera(
   const fitted = useRef<string | null>(null);
   const drag = useRef<{ id: number; point: CanvasPoint } | null>(null);
   const latest = useRef(camera);
-  latest.current = camera;
+  const listeners = useRef(new Set<() => void>());
   const tween = useRef<{ frame: number; to: PreviewCamera } | null>(null);
   const moved = useRef(false);
   const pending = useRef<{ camera: RememberedCamera; key: string } | null>(
@@ -152,6 +165,41 @@ export function usePreviewCamera(
   const width = size ? size.width : 0;
   const height = size ? size.height : 0;
   const key = identity ? `${identity}:${width}:${height}` : null;
+  const frameSize = useMemo(() => ({ height, width }), [height, width]);
+
+  const cameraView = useMemo<CameraView>(
+    () => ({
+      current: () => latest.current,
+      subscribe: (listen) => {
+        listeners.current.add(listen);
+        return () => {
+          listeners.current.delete(listen);
+        };
+      },
+    }),
+    []
+  );
+
+  const show = useCallback((next: PreviewCamera) => {
+    latest.current = next;
+    if (stage.current) {
+      stage.current.style.transform = transformOf(next);
+    }
+    for (const listen of listeners.current) {
+      listen();
+    }
+    viewport.current?.dispatchEvent(new Event(VIEW_CHANGE));
+  }, []);
+
+  const settle = useCallback(() => setCamera(latest.current), []);
+
+  const place = useCallback(
+    (next: PreviewCamera) => {
+      show(next);
+      setCamera(next);
+    },
+    [show]
+  );
 
   useEffect(() => {
     const node = viewport.current;
@@ -179,8 +227,28 @@ export function usePreviewCamera(
     if (tween.current) {
       cancelAnimationFrame(tween.current.frame);
       tween.current = null;
+      settle();
     }
-  }, []);
+  }, [settle]);
+
+  const remember = useCallback(
+    (settled: PreviewCamera) => {
+      if (
+        key === null ||
+        fitted.current !== key ||
+        !moved.current ||
+        !bounds.width
+      ) {
+        return false;
+      }
+      pending.current = {
+        camera: { ...cameraCentre(settled, bounds), zoom: settled.zoom },
+        key,
+      };
+      return true;
+    },
+    [bounds, key]
+  );
 
   const jump = useCallback(
     (next: (base: PreviewCamera) => PreviewCamera) => {
@@ -195,7 +263,7 @@ export function usePreviewCamera(
       stopTween();
       moved.current = true;
       if (reducedMotion()) {
-        setCamera(target);
+        place(target);
         return;
       }
       const from = latest.current;
@@ -203,20 +271,22 @@ export function usePreviewCamera(
       const step = () => {
         if (editing()) {
           tween.current = null;
+          settle();
           return;
         }
         const progress = (performance.now() - start) / JUMP_MS;
-        setCamera(
-          interpolateCamera(from, target, easeOutCubic(progress), bounds)
-        );
-        tween.current =
-          progress >= 1
-            ? null
-            : { frame: requestAnimationFrame(step), to: target };
+        show(interpolateCamera(from, target, easeOutCubic(progress), bounds));
+        if (progress >= 1) {
+          tween.current = null;
+          settle();
+          return;
+        }
+        tween.current = { frame: requestAnimationFrame(step), to: target };
       };
       tween.current = { frame: requestAnimationFrame(step), to: target };
+      remember(target);
     },
-    [bounds, editing, stopTween]
+    [bounds, editing, place, remember, settle, show, stopTween]
   );
 
   useEffect(() => stopTween, [stopTween]);
@@ -325,22 +395,12 @@ export function usePreviewCamera(
   }, []);
 
   useEffect(() => {
-    if (
-      key === null ||
-      fitted.current !== key ||
-      !moved.current ||
-      !bounds.width
-    ) {
+    if (!remember(tween.current?.to ?? camera)) {
       return;
     }
-    const settled = tween.current?.to ?? camera;
-    pending.current = {
-      camera: { ...cameraCentre(settled, bounds), zoom: settled.zoom },
-      key,
-    };
     const timer = setTimeout(saveNow, SETTLE_MS);
     return () => clearTimeout(timer);
-  }, [bounds, camera, key, saveNow]);
+  }, [camera, remember, saveNow]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new video writes what the previous one left pending
   useEffect(() => saveNow, [key, saveNow]);
@@ -365,8 +425,8 @@ export function usePreviewCamera(
     const restored = saved
       ? cameraAt({ x: saved.x, y: saved.y }, saved.zoom, bounds)
       : null;
-    setCamera(restored ?? framed(latest.current));
-  }, [bounds, framed, height, key, stopTween, width]);
+    place(restored ?? framed(latest.current));
+  }, [bounds, framed, height, key, place, stopTween, width]);
 
   useLayoutEffect(() => {
     const node = viewport.current;
@@ -381,7 +441,7 @@ export function usePreviewCamera(
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the event announces every camera and bounds change, so they are its trigger
   useLayoutEffect(() => {
-    viewport.current?.dispatchEvent(new Event("preview-view-change"));
+    viewport.current?.dispatchEvent(new Event(VIEW_CHANGE));
   }, [camera, bounds]);
 
   useEffect(() => {
@@ -392,14 +452,22 @@ export function usePreviewCamera(
     const capture = node.parentElement ?? node;
     let queued: ((view: PreviewCamera) => PreviewCamera)[] = [];
     let scheduled = 0;
+    let settling: ReturnType<typeof setTimeout> | undefined;
+    const settleNow = () => {
+      clearTimeout(settling);
+      settling = undefined;
+      settle();
+    };
     const flush = () => {
       scheduled = 0;
       const steps = queued;
       queued = [];
       if (steps.length > 0) {
-        setCamera((current) =>
-          steps.reduce((view, step) => step(view), current)
-        );
+        show(steps.reduce((view, step) => step(view), latest.current));
+        if (drag.current === null) {
+          clearTimeout(settling);
+          settling = setTimeout(settleNow, WHEEL_SETTLE_MS);
+        }
       }
     };
     const schedule = (step: (view: PreviewCamera) => PreviewCamera) => {
@@ -517,6 +585,11 @@ export function usePreviewCamera(
       if (current && node.hasPointerCapture(current.id)) {
         node.releasePointerCapture(current.id);
       }
+      if (current) {
+        cancelAnimationFrame(scheduled);
+        flush();
+        settleNow();
+      }
     };
     const reset = () => {
       spaceHeld.current = false;
@@ -585,6 +658,7 @@ export function usePreviewCamera(
       reset();
       cancelAnimationFrame(scheduled);
       flush();
+      settleNow();
       node.removeEventListener("wheel", wheel);
       capture.removeEventListener("pointerdown", down, true);
       capture.removeEventListener("pointermove", move, true);
@@ -595,33 +669,48 @@ export function usePreviewCamera(
       window.removeEventListener("keyup", keyup);
       window.removeEventListener("blur", reset);
     };
-  }, [hand, stopTween]);
-
-  const surround = useMemo(
-    () => surroundOf(camera, { height, width }, bounds),
-    [bounds, camera, height, width]
-  );
-  const grid = useMemo(
-    () => pixelGrid(camera, { height, width }, bounds),
-    [bounds, camera, height, width]
-  );
+  }, [hand, settle, show, stopTween]);
 
   return {
     bounds,
     camera,
     cursor: navigationCursor(panning, hand, space) ?? "default",
     fit,
-    grid,
+    frameSize,
     hand,
     outside,
-    surround,
+    stage,
     toggleHand,
     toggleOutside,
-    transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`,
+    view: cameraView,
     viewport,
     zoomIn,
     zoomOut,
     zoomReset,
     zoomToSelection,
   };
+}
+
+export type PreviewCameraControl = ReturnType<typeof usePreviewCamera>;
+
+export function useCameraView({
+  bounds,
+  frameSize,
+  view,
+}: Pick<PreviewCameraControl, "bounds" | "frameSize" | "view">) {
+  const camera = useSyncExternalStore(
+    view.subscribe,
+    view.current,
+    view.current
+  );
+  const surround = useMemo(
+    () => surroundOf(camera, frameSize, bounds),
+    [bounds, camera, frameSize]
+  );
+  const grid = useMemo(
+    () => pixelGrid(camera, frameSize, bounds),
+    [bounds, camera, frameSize]
+  );
+
+  return { camera, grid, surround, transform: transformOf(camera) };
 }

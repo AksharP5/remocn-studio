@@ -2,7 +2,7 @@
 
 import { Effect, Exit } from "effect";
 import type { MouseEvent } from "react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import {
   type ExpandedVideos,
   useExpandedVideos,
@@ -15,7 +15,7 @@ import { type StudioProjects, useProjects } from "@/hooks/use-projects";
 import { type Scaffolds, useScaffold } from "@/hooks/use-scaffold";
 import { type StudioSessions, useSessions } from "@/hooks/use-sessions";
 import type { TemplateOutcome } from "@/hooks/use-template-links";
-import { type Turns, useTurns } from "@/hooks/use-turns";
+import { type TurnActions, useTurns } from "@/hooks/use-turns";
 import { type StudioVideos, useVideos } from "@/hooks/use-videos";
 import { causeMessage } from "@/lib/error-message";
 import type { VideoFormat } from "@/lib/studio/formats";
@@ -25,11 +25,17 @@ import {
   type PaneGroup,
   paneGroups,
   projectOf,
+  reuseGroups,
   videoOf,
 } from "@/lib/studio/groups";
 import { saveSessionMode } from "@/lib/studio/history";
 import { createFromTemplate } from "@/lib/studio/projects";
 import type { StudioSettings } from "@/lib/studio/settings";
+import {
+  type SessionStatus,
+  statusOf,
+  type TurnState,
+} from "@/lib/studio/turns";
 import type {
   HistorySession,
   Project,
@@ -46,7 +52,7 @@ export interface Workspace
     ExpandedVideos,
     Omit<ProjectActions, "createProject">,
     Scaffolds,
-    Turns {
+    TurnActions {
   addVideo: (name: string, format: VideoFormat) => Promise<Video | null>;
   changeSessionMode: (historyId: string, mode: SessionMode) => void;
   createProject: (
@@ -62,9 +68,15 @@ export interface Workspace
   openTemplate: (draft: TemplateDraft) => Promise<TemplateOutcome>;
   openVideo: (videoId: string) => void;
   startSessionIn: (videoId: string) => void;
+  statuses: ReadonlyMap<string, SessionStatus>;
 }
 
-export function useWorkspace(settings: StudioSettings | null): Workspace {
+export interface WorkspaceState {
+  turns: ReadonlyMap<string, TurnState>;
+  workspace: Workspace;
+}
+
+export function useWorkspace(settings: StudioSettings | null): WorkspaceState {
   const projects = useProjects(settings);
   const sessions = useSessions();
   const actions = useProjectActions();
@@ -315,10 +327,31 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
     [removeSession, stopTurn]
   );
 
-  const groups = useMemo(
-    () => paneGroups(videos.videos, rows, turns.turns),
-    [rows, turns.turns, videos.videos]
-  );
+  const shownGroups = useRef<readonly PaneGroup[]>([]);
+  const groups = useMemo(() => {
+    const next = reuseGroups(
+      shownGroups.current,
+      paneGroups(videos.videos, rows, turns.turns)
+    );
+    shownGroups.current = next;
+    return next;
+  }, [rows, turns.turns, videos.videos]);
+
+  const shownStatuses = useRef<ReadonlyMap<string, SessionStatus>>(new Map());
+  const statuses = useMemo(() => {
+    const next = new Map<string, SessionStatus>();
+    for (const [historyId, turn] of turns.turns) {
+      next.set(historyId, statusOf(turn));
+    }
+    const was = shownStatuses.current;
+    const same =
+      was.size === next.size &&
+      [...next].every(([historyId, status]) => was.get(historyId) === status);
+    if (!same) {
+      shownStatuses.current = next;
+    }
+    return shownStatuses.current;
+  }, [turns.turns]);
 
   const openedProject = projectOf(
     projects.projects,
@@ -332,7 +365,9 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
     videos.activeVideo
   );
 
-  return useMemo(
+  const turnActions = turns.actions;
+
+  const workspace = useMemo(
     () => ({
       ...projects,
       ...sessions,
@@ -340,7 +375,7 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
       ...actions,
       ...expansion,
       ...scaffolds,
-      ...turns,
+      ...turnActions,
       addVideo,
       changeSessionMode,
       createProject,
@@ -360,6 +395,7 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
       selectProject: switchProject,
       selectSession: openSession,
       startSessionIn,
+      statuses,
     }),
     [
       actions,
@@ -385,9 +421,15 @@ export function useWorkspace(settings: StudioSettings | null): Workspace {
       scaffolds,
       sessions,
       startSessionIn,
+      statuses,
       switchProject,
-      turns,
+      turnActions,
       videos,
     ]
+  );
+
+  return useMemo(
+    () => ({ turns: turns.turns, workspace }),
+    [turns.turns, workspace]
   );
 }

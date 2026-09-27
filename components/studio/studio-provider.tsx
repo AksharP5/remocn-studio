@@ -1,11 +1,15 @@
 "use client";
 
-import { createContext, use, useCallback, useMemo } from "react";
+import { createContext, memo, use, useCallback, useMemo } from "react";
 import { useAppMenu } from "@/hooks/use-app-menu";
 import { type ClaudeEffort, useClaudeEffort } from "@/hooks/use-claude-effort";
 import { useCommandPalette } from "@/hooks/use-command-palette";
 import { useCommands } from "@/hooks/use-commands";
-import { type Composer, useComposer } from "@/hooks/use-composer";
+import {
+  type Composer,
+  type ComposerActions,
+  useComposer,
+} from "@/hooks/use-composer";
 import { useCrashReporting } from "@/hooks/use-crash-reporting";
 import { type Docs, useDocs } from "@/hooks/use-docs";
 import { type Environment, useEnvironment } from "@/hooks/use-environment";
@@ -42,9 +46,12 @@ import { type Tools, useTools } from "@/hooks/use-tools";
 import { type Updates, useUpdates } from "@/hooks/use-updates";
 import { useWorkspace, type Workspace } from "@/hooks/use-workspace";
 import type { VideoFormat } from "@/lib/studio/formats";
+import { type ShellMood, shellMood } from "@/lib/studio/mood";
 import type { StudioSettings } from "@/lib/studio/settings";
+import { isStudioBootReady } from "@/lib/studio/splash";
+import type { TurnState } from "@/lib/studio/turns";
 import type { ProjectDraft } from "@/shared/ipc";
-import { PROVIDER_INFO } from "@/shared/providers";
+import { type AgentProvider, PROVIDER_INFO } from "@/shared/providers";
 import { CommandPalette } from "./command-palette";
 import { ProjectDialogs } from "./project-dialogs";
 
@@ -53,73 +60,95 @@ export type Studio = ClaudeEffort &
   Panes &
   Workspace & {
     accounts: Accounts;
-    composer: Composer;
+    composerActions: ComposerActions;
     docs: Docs;
     drops: FileDrops;
     environment: Environment;
     feedback: Feedback;
     library: Library;
+    mood: ShellMood;
     newProject: NewProject;
     newVideo: NewVideo;
     notifications: NotificationConsent;
     preferences: Preferences;
-    queue: Queue;
+    provider: AgentProvider;
     settings: StudioSettings | null;
     settingsView: SettingsView;
     tools: Tools;
     onboarding: Onboarding;
-    turn: OpenTurn;
     updates: Updates;
   };
 
 const StudioContext = createContext<Studio | null>(null);
+const TurnContext = createContext<OpenTurn | null>(null);
+const ComposerContext = createContext<Composer | null>(null);
+const QueueContext = createContext<Queue | null>(null);
+const BootContext = createContext(false);
 
-export function useStudio(): Studio {
-  const value = use(StudioContext);
+function provided<T>(value: T | null, hook: string): T {
   if (value === null) {
-    throw new Error("useStudio must be called inside <StudioProvider>.");
+    throw new Error(`${hook} must be called inside <StudioProvider>.`);
   }
   return value;
 }
 
+export function useStudio(): Studio {
+  return provided(use(StudioContext), "useStudio");
+}
+
+export function useStudioTurn(): OpenTurn {
+  return provided(use(TurnContext), "useStudioTurn");
+}
+
+export function useStudioComposer(): Composer {
+  return provided(use(ComposerContext), "useStudioComposer");
+}
+
+export function useStudioQueue(): Queue {
+  return provided(use(QueueContext), "useStudioQueue");
+}
+
+export function useStudioBoot(): boolean {
+  return use(BootContext);
+}
+
 export function StudioProvider({
   children,
-  settings,
-  workspace,
+  splash = null,
 }: {
   children: React.ReactNode;
-  settings?: StudioSettings | null;
-  workspace?: Workspace;
+  splash?: React.ReactNode;
 }) {
-  if (workspace === undefined) {
-    return <HydratedStudioProvider>{children}</HydratedStudioProvider>;
-  }
-
-  return (
-    <StudioStateProvider settings={settings ?? null} workspace={workspace}>
-      {children}
-    </StudioStateProvider>
-  );
-}
-
-function HydratedStudioProvider({ children }: { children: React.ReactNode }) {
   const settings = useHydratedSettings();
-  const workspace = useWorkspace(settings);
+  const { turns, workspace } = useWorkspace(settings);
 
   return (
-    <StudioStateProvider settings={settings} workspace={workspace}>
-      {children}
-    </StudioStateProvider>
+    <>
+      <StudioStateProvider
+        settings={settings}
+        turns={turns}
+        workspace={workspace}
+      >
+        {children}
+      </StudioStateProvider>
+      <BootContext value={isStudioBootReady(workspace)}>{splash}</BootContext>
+    </>
   );
 }
+
+const StillProjectDialogs = memo(ProjectDialogs);
+
+const StillCommandPalette = memo(CommandPalette);
 
 function StudioStateProvider({
   children,
   settings,
+  turns,
   workspace,
 }: {
   children: React.ReactNode;
   settings: StudioSettings | null;
+  turns: ReadonlyMap<string, TurnState>;
   workspace: Workspace;
 }) {
   const model = useModels(settings);
@@ -230,6 +259,7 @@ function StudioStateProvider({
     playing,
     projectId: workspace.activeProject?.id ?? null,
     session: workspace.openedSession,
+    states: turns,
     turns: workspace,
     videoId: workspace.openedVideo?.id ?? null,
   });
@@ -307,6 +337,7 @@ function StudioStateProvider({
     selectSession: workspace.selectSession,
     showPane,
     snapshotUnavailable: tools.snapshot.unavailable,
+    startSessionIn: workspace.startSessionIn,
     stopTurn: turn.stop,
     toggleInspect: tools.inspect.toggle,
     togglePreview: panes.togglePreview,
@@ -323,7 +354,7 @@ function StudioStateProvider({
     isEventEnabled: notifications.isEventEnabled,
     sessions: workspace.sessions,
     sidecarPhase,
-    turns: workspace.turns,
+    turns,
     videos: workspace.videos,
   });
 
@@ -376,6 +407,16 @@ function StudioStateProvider({
     settings,
   });
 
+  const { caret, fill, pick, write } = composer;
+  const composerActions = useMemo(
+    () => ({ caret, fill, pick, write }),
+    [caret, fill, pick, write]
+  );
+
+  const { isBusy, tone } = shellMood(turns);
+  const mood = useMemo(() => ({ isBusy, tone }), [isBusy, tone]);
+  const { provider } = turn;
+
   const studio = useMemo(
     () => ({
       ...workspace,
@@ -383,27 +424,27 @@ function StudioStateProvider({
       ...effort,
       ...panes,
       accounts,
-      composer,
+      composerActions,
       docs,
       drops,
       environment,
       feedback,
       library,
+      mood,
       newProject,
       newVideo,
       notifications,
       onboarding,
       preferences,
-      queue,
+      provider,
       settings,
       settingsView,
       tools,
-      turn,
       updates,
     }),
     [
       accounts,
-      composer,
+      composerActions,
       docs,
       drops,
       effort,
@@ -411,17 +452,17 @@ function StudioStateProvider({
       feedback,
       library,
       model,
+      mood,
       newProject,
       newVideo,
       notifications,
       panes,
       preferences,
-      queue,
+      provider,
       settings,
       settingsView,
       tools,
       onboarding,
-      turn,
       updates,
       workspace,
     ]
@@ -433,9 +474,15 @@ function StudioStateProvider({
 
   return (
     <StudioContext value={studio}>
-      {children}
-      <ProjectDialogs menu={projectMenu} project={activeProject} />
-      <CommandPalette palette={palette} />
+      <ComposerContext value={composer}>
+        <TurnContext value={turn}>
+          <QueueContext value={queue}>
+            {children}
+            <StillProjectDialogs menu={projectMenu} project={activeProject} />
+            <StillCommandPalette palette={palette} />
+          </QueueContext>
+        </TurnContext>
+      </ComposerContext>
     </StudioContext>
   );
 }

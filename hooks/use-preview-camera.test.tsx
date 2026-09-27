@@ -13,7 +13,7 @@ import { act, render } from "@testing-library/react";
 import { Effect } from "effect";
 import { cameraCentre, type PreviewCamera } from "@/lib/studio/preview-camera";
 import { hydrateSettings } from "@/lib/studio/settings";
-import { usePreviewCamera } from "./use-preview-camera";
+import { useCameraView, usePreviewCamera } from "./use-preview-camera";
 
 const VIDEO = { height: 1080, width: 1920 };
 const KEY = "p:intro:1920:1080";
@@ -54,7 +54,8 @@ function store(entries: readonly [string, unknown][]) {
   return written;
 }
 
-type Camera = ReturnType<typeof usePreviewCamera>;
+type Camera = ReturnType<typeof usePreviewCamera> &
+  ReturnType<typeof useCameraView>;
 
 async function mount(saved?: PreviewCamera & { key?: string }) {
   const written = store(
@@ -71,7 +72,8 @@ async function mount(saved?: PreviewCamera & { key?: string }) {
   const view: { current: Camera | null } = { current: null };
   function Harness() {
     const camera = usePreviewCamera(VIDEO, "p:intro", () => undefined);
-    view.current = camera;
+    const shown = useCameraView(camera);
+    view.current = { ...camera, ...shown };
     return (
       <div>
         <div data-testid="viewport" ref={camera.viewport} />
@@ -304,5 +306,58 @@ describe("usePreviewCamera", () => {
 
     const [entry] = JSON.parse(String(written.get("canvasCameras")));
     expect(entry.zoom).toBeCloseTo(1.2);
+  });
+
+  it("moves the view every frame of a pan and commits once it settles", async () => {
+    store([
+      ["canvasCameras", JSON.stringify([{ key: KEY, x: 0, y: 0, zoom: 1 }])],
+    ]);
+    await Effect.runPromise(hydrateSettings);
+    const counts = { leaf: 0, owner: 0 };
+    const shown: { camera: PreviewCamera } = {
+      camera: { x: 0, y: 0, zoom: 1 },
+    };
+    function Leaf({ camera }: { camera: Camera }) {
+      counts.leaf += 1;
+      shown.camera = useCameraView(camera).camera;
+      return null;
+    }
+    function Owner() {
+      counts.owner += 1;
+      const camera = usePreviewCamera(VIDEO, "p:intro", () => undefined);
+      return (
+        <div data-testid="viewport" ref={camera.viewport}>
+          <Leaf camera={camera as Camera} />
+        </div>
+      );
+    }
+    const rendered = render(<Owner />);
+    const viewport = rendered.getByTestId("viewport");
+    const start = shown.camera.x;
+    const { leaf, owner } = counts;
+
+    for (let step = 0; step < 3; step += 1) {
+      act(() => {
+        viewport.dispatchEvent(
+          new WheelEvent("wheel", {
+            bubbles: true,
+            cancelable: true,
+            deltaX: 10,
+          })
+        );
+        jest.advanceTimersByTime(16);
+      });
+    }
+
+    expect(counts.owner).toBe(owner);
+    expect(counts.leaf).toBe(leaf + 3);
+    expect(shown.camera.x).toBeCloseTo(start - 30);
+
+    act(() => {
+      jest.advanceTimersByTime(200);
+    });
+
+    expect(counts.owner).toBe(owner + 1);
+    expect(shown.camera.x).toBeCloseTo(start - 30);
   });
 });

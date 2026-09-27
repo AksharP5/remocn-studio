@@ -1,4 +1,4 @@
-export const SPLASH_MIN_SHOWN = 1500;
+export const SPLASH_MIN_SHOWN = 800;
 export const SPLASH_CAP = 6000;
 export const SPLASH_SETTLE_QUIET = 150;
 

@@ -27,6 +27,25 @@ export function troubleIn(state: BuildState): string | null {
   return outcome === null || outcome.ok ? null : outcome.message;
 }
 
+export function percentGate(): (fraction: number) => number | null {
+  let last: number | null = null;
+
+  return (fraction) => {
+    const whole = Math.round(fraction * 100);
+
+    if (fraction === 0) {
+      last = null;
+    }
+
+    if (whole === last) {
+      return null;
+    }
+
+    last = whole;
+    return whole;
+  };
+}
+
 export function recovering(state: BuildState): boolean {
   return state.settled !== null && !state.settled.ok;
 }

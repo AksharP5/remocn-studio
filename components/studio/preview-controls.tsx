@@ -14,10 +14,15 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { SliderPrimitive } from "@/components/ui/slider";
 import { Spinner } from "@/components/ui/spinner";
-import type { PreviewTransport } from "@/hooks/use-preview-transport";
+import {
+  type PreviewTransport,
+  useTransportEdge,
+  useTransportFrame,
+} from "@/hooks/use-preview-transport";
 import { useSeekScenes } from "@/hooks/use-seek-scenes";
 import { cn } from "@/lib/utils";
 import { DOCK_ACTIONS } from "./dock-layout";
+import { HintTooltip } from "./hint-tooltip";
 
 export function PreviewControls({
   transport,
@@ -31,23 +36,17 @@ export function PreviewControls({
   const {
     buffering,
     canFullscreen,
-    duration,
     error,
-    frame,
     fullscreen,
-    lastFrame,
     muted,
     next,
     playing,
-    position,
     previous,
     rate,
     rateMarks,
     rateStep,
     rates,
     ready,
-    scenes,
-    seekTo,
     setRateStep,
     setVolume,
     toggle,
@@ -55,6 +54,148 @@ export function PreviewControls({
     toggleMute,
     volume,
   } = transport;
+  const edge = useTransportEdge(transport);
+
+  return (
+    <fieldset
+      aria-label="Playback controls"
+      className="@container flex min-w-0 shrink-0 flex-col gap-2"
+    >
+      <SeekBar transport={transport} />
+      <div className={cn(DOCK_ACTIONS, "shrink-0 gap-1")}>
+        <HintTooltip
+          label="Previous frame"
+          render={
+            <Button
+              aria-label="Previous frame"
+              className="size-8 text-muted-foreground sm:size-8"
+              disabled={!ready || edge === "start"}
+              onClick={previous}
+              size="icon"
+              variant="ghost"
+            />
+          }
+          shortcut="←"
+          side="top"
+        >
+          <StepBackIcon />
+        </HintTooltip>
+        <HintTooltip
+          label={playing ? "Pause" : "Play"}
+          render={
+            <Button
+              aria-label={playing ? "Pause" : "Play"}
+              className="size-8 sm:size-8"
+              disabled={!ready}
+              onClick={toggle}
+              size="icon"
+              variant="ghost"
+            />
+          }
+          shortcut={playShortcut}
+          side="top"
+        >
+          <PlaybackGlyph buffering={buffering} playing={playing} />
+        </HintTooltip>
+        <HintTooltip
+          label="Next frame"
+          render={
+            <Button
+              aria-label="Next frame"
+              className="size-8 text-muted-foreground sm:size-8"
+              disabled={!ready || edge === "end"}
+              onClick={next}
+              size="icon"
+              variant="ghost"
+            />
+          }
+          shortcut="→"
+          side="top"
+        >
+          <StepForwardIcon />
+        </HintTooltip>
+        <div className="flex min-w-0 flex-1 flex-col justify-center px-2">
+          {error ? (
+            <span
+              className="truncate text-center text-destructive text-xs"
+              role="alert"
+              title={error}
+            >
+              {error}
+            </span>
+          ) : (
+            status
+          )}
+        </div>
+        <div className="@min-[28rem]:flex hidden shrink-0 items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="w-9 text-end font-medium text-muted-foreground text-xs tabular-nums"
+          >
+            {rate}×
+          </span>
+          <PillSlider
+            className="w-20"
+            disabled={!ready}
+            label="Playback speed"
+            marks={rateMarks}
+            max={rates.length - 1}
+            onChange={setRateStep}
+            value={rateStep}
+            valueText={`${rate}×`}
+          />
+        </div>
+        <HintTooltip
+          label={muted ? "Unmute" : "Mute"}
+          render={
+            <Button
+              aria-label={muted ? "Unmute" : "Mute"}
+              className="size-8 text-muted-foreground sm:size-8"
+              disabled={!ready}
+              onClick={toggleMute}
+              size="icon"
+              variant="ghost"
+            />
+          }
+          side="top"
+        >
+          {muted ? <VolumeXIcon /> : <Volume2Icon />}
+        </HintTooltip>
+        <PillSlider
+          className="@min-[28rem]:flex hidden w-20"
+          disabled={!ready}
+          label="Volume"
+          max={100}
+          onChange={setVolume}
+          value={volume}
+          valueText={`${volume}%`}
+        />
+        {canFullscreen ? (
+          <HintTooltip
+            label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+            render={
+              <Button
+                aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                className="size-8 text-muted-foreground sm:size-8"
+                disabled={!ready}
+                onClick={toggleFullscreen}
+                size="icon"
+                variant="ghost"
+              />
+            }
+            side="top"
+          >
+            {fullscreen ? <MinimizeIcon /> : <MaximizeIcon />}
+          </HintTooltip>
+        ) : null}
+      </div>
+    </fieldset>
+  );
+}
+
+function SeekBar({ transport }: { transport: PreviewTransport }) {
+  const { duration, lastFrame, ready, scenes, seekTo } = transport;
+  const { frame, position } = useTransportFrame(transport);
   const sceneBar = useSeekScenes({
     frame,
     scenes,
@@ -63,10 +204,7 @@ export function PreviewControls({
   });
 
   return (
-    <fieldset
-      aria-label="Playback controls"
-      className="@container flex min-w-0 shrink-0 flex-col gap-2"
-    >
+    <>
       {sceneBar.segments.length === 0 ? null : (
         <nav
           aria-label="Scenes"
@@ -105,106 +243,7 @@ export function PreviewControls({
         value={frame}
         valueText={`${position}, frame ${frame + 1} of ${lastFrame + 1}`}
       />
-      <div className={cn(DOCK_ACTIONS, "shrink-0 gap-1")}>
-        <Button
-          aria-label="Previous frame"
-          className="size-8 text-muted-foreground sm:size-8"
-          disabled={!ready || frame === 0}
-          onClick={previous}
-          size="icon"
-          title="Previous frame (←)"
-          variant="ghost"
-        >
-          <StepBackIcon />
-        </Button>
-        <Button
-          aria-label={playing ? "Pause" : "Play"}
-          className="size-8 sm:size-8"
-          disabled={!ready}
-          onClick={toggle}
-          size="icon"
-          title={`${playing ? "Pause" : "Play"} (${playShortcut})`}
-          variant="ghost"
-        >
-          <PlaybackGlyph buffering={buffering} playing={playing} />
-        </Button>
-        <Button
-          aria-label="Next frame"
-          className="size-8 text-muted-foreground sm:size-8"
-          disabled={!ready || frame === lastFrame}
-          onClick={next}
-          size="icon"
-          title="Next frame (→)"
-          variant="ghost"
-        >
-          <StepForwardIcon />
-        </Button>
-        <div className="flex min-w-0 flex-1 flex-col justify-center px-2">
-          {error ? (
-            <span
-              className="truncate text-center text-destructive text-xs"
-              role="alert"
-              title={error}
-            >
-              {error}
-            </span>
-          ) : (
-            status
-          )}
-        </div>
-        <div className="@min-[28rem]:flex hidden shrink-0 items-center gap-2">
-          <span
-            aria-hidden="true"
-            className="w-9 text-end font-medium text-muted-foreground text-xs tabular-nums"
-          >
-            {rate}×
-          </span>
-          <PillSlider
-            className="w-20"
-            disabled={!ready}
-            label="Playback speed"
-            marks={rateMarks}
-            max={rates.length - 1}
-            onChange={setRateStep}
-            value={rateStep}
-            valueText={`${rate}×`}
-          />
-        </div>
-        <Button
-          aria-label={muted ? "Unmute" : "Mute"}
-          className="size-8 text-muted-foreground sm:size-8"
-          disabled={!ready}
-          onClick={toggleMute}
-          size="icon"
-          title={muted ? "Unmute" : "Mute"}
-          variant="ghost"
-        >
-          {muted ? <VolumeXIcon /> : <Volume2Icon />}
-        </Button>
-        <PillSlider
-          className="@min-[28rem]:flex hidden w-20"
-          disabled={!ready}
-          label="Volume"
-          max={100}
-          onChange={setVolume}
-          value={volume}
-          valueText={`${volume}%`}
-        />
-        {canFullscreen ? (
-          <Button
-            aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-            className="size-8 text-muted-foreground sm:size-8"
-            disabled={!ready}
-            onClick={toggleFullscreen}
-            size="icon"
-            title={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-            variant="ghost"
-          >
-            {fullscreen ? <MinimizeIcon /> : <MaximizeIcon />}
-          </Button>
-        ) : null}
-      </div>
-    </fieldset>
+    </>
   );
 }
 
@@ -320,11 +359,11 @@ function PillSlider({
       value={value}
     >
       <SliderPrimitive.Control
-        className="flex h-5 w-full touch-none select-none items-center data-disabled:pointer-events-none data-disabled:opacity-40"
+        className="group flex h-5 w-full touch-none select-none items-center overflow-hidden rounded-md bg-foreground/5 has-focus-visible:ring-2 has-focus-visible:ring-ring data-disabled:pointer-events-none data-disabled:opacity-40"
         title={`${label}: ${valueText}`}
       >
-        <SliderPrimitive.Track className="relative h-5 w-full rounded-full bg-foreground/10">
-          <SliderPrimitive.Indicator className="rounded-full bg-info" />
+        <SliderPrimitive.Track className="relative h-full w-full">
+          <SliderPrimitive.Indicator className="bg-foreground/10 transition-colors group-hover:bg-foreground/15 group-data-dragging:bg-foreground/15" />
           {marks.map((mark) => (
             <span
               aria-hidden="true"
@@ -336,7 +375,7 @@ function PillSlider({
           <SliderPrimitive.Thumb
             aria-label={label}
             aria-valuetext={valueText}
-            className="block size-5 rounded-full bg-white shadow-sm outline-none ring-1 ring-black/10 has-focus-visible:ring-2 has-focus-visible:ring-ring"
+            className="h-3.5 w-[3px] rounded-full bg-foreground outline-none"
           />
         </SliderPrimitive.Track>
       </SliderPrimitive.Control>

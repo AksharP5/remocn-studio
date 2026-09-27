@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { Effect } from "effect";
+import { TestClock } from "effect/testing";
 import type { AgentEvent, PromptParams, TranscriptEntry } from "@/shared/ipc";
 import { appendUser, fold } from "@/shared/transcript";
 import { migrate, prepare } from "@/sidecar/history/migrations";
@@ -97,6 +98,7 @@ describe("recording", () => {
       Effect.gen(function* () {
         const recorder = yield* recording(history, input, log);
         yield* Effect.forEach(TURN, recorder.event, { discard: true });
+        yield* recorder.flush;
         return recorder.session;
       })
     );
@@ -133,6 +135,7 @@ describe("recording", () => {
       Effect.gen(function* () {
         const recorder = yield* recording(history, first, log);
         yield* Effect.forEach(TURN, recorder.event, { discard: true });
+        yield* recorder.flush;
         return recorder.session;
       })
     );
@@ -142,6 +145,7 @@ describe("recording", () => {
       Effect.gen(function* () {
         const recorder = yield* recording(history, second, log);
         yield* recorder.event({ text: "Recolouring.", type: "text" });
+        yield* recorder.flush;
       })
     );
 
@@ -198,6 +202,14 @@ describe("recording", () => {
     expect(opened.session?.title).toBe("board.png");
   });
 
+  it("calls a turn with no words and no attachment an untitled chat", async () => {
+    const opened = await Effect.runPromise(
+      recording(store(), params({ prompt: "   " }), log)
+    );
+
+    expect(opened.session?.title).toBe("Untitled chat");
+  });
+
   it("binds the SDK session id so the next turn resumes it", async () => {
     const history = store();
 
@@ -224,6 +236,118 @@ describe("recording", () => {
       recorder.event({ text: "still fine", type: "text" })
     );
     expect(logged).toContain("history: no disk");
+  });
+});
+
+describe("streamed text", () => {
+  function counting(history: HistoryStore) {
+    const state = { writes: 0 };
+    const wrapped: HistoryStore = {
+      ...history,
+      write: (block) => {
+        state.writes += 1;
+        return history.write(block);
+      },
+    };
+    return { state, store: wrapped };
+  }
+
+  const deltas: AgentEvent[] = Array.from({ length: 200 }, (_, index) => ({
+    text: `word${index} `,
+    type: "text" as const,
+  }));
+
+  it("is written at a bounded rate rather than once per token", async () => {
+    const { state, store: counted } = counting(store());
+    const input = params({});
+
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const recorder = yield* recording(counted, input, log);
+        yield* Effect.forEach(deltas, recorder.event, { discard: true });
+        yield* recorder.flush;
+      })
+    );
+
+    const stored = await Effect.runPromise(counted.blocks(input.historyId));
+    expect(stored.map(bare)).toEqual(live(input, deltas));
+    expect(state.writes).toBeLessThanOrEqual(3);
+  });
+
+  it("reaches the database within a quarter second with no flush", async () => {
+    const history = store();
+    const input = params({});
+
+    const stored = await Effect.runPromise(
+      Effect.gen(function* () {
+        const recorder = yield* recording(history, input, log);
+        yield* recorder.event({ text: "Streaming", type: "text" });
+        yield* TestClock.adjust("300 millis");
+        return yield* history.blocks(input.historyId);
+      }).pipe(Effect.provide(TestClock.layer()))
+    );
+
+    expect(stored.map(bare)).toEqual(
+      live(input, [{ text: "Streaming", type: "text" }])
+    );
+  });
+
+  it("loses no change that lands while a flush is taking the pending set", async () => {
+    const history = store();
+    const yielding: HistoryStore = {
+      ...history,
+      write: (block) => Effect.andThen(Effect.yieldNow, history.write(block)),
+    };
+    const input = params({});
+    const mixed: AgentEvent[] = deltas.flatMap((delta, index) =>
+      index % 20 === 0
+        ? [
+            delta,
+            {
+              id: `toolu_${index}`,
+              input: {},
+              name: "Read",
+              type: "tool_use" as const,
+              verb: "read" as const,
+            },
+          ]
+        : [delta]
+    );
+
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const recorder = yield* recording(yielding, input, log);
+        yield* Effect.forEach(
+          mixed,
+          (event) =>
+            Effect.andThen(
+              Effect.forkChild(recorder.flush),
+              recorder.event(event)
+            ),
+          { discard: true }
+        );
+        yield* recorder.flush;
+      })
+    );
+
+    const stored = await Effect.runPromise(history.blocks(input.historyId));
+    expect(stored.map(bare)).toEqual(live(input, mixed));
+  });
+
+  it("is written before anything that is not text", async () => {
+    const history = store();
+    const input = params({});
+    const events = TURN.slice(1, 4);
+
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const recorder = yield* recording(history, input, log);
+        yield* Effect.forEach(events, recorder.event, { discard: true });
+      })
+    );
+
+    const stored = await Effect.runPromise(history.blocks(input.historyId));
+    expect(stored.map(bare)).toEqual(live(input, events));
   });
 });
 

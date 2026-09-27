@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import type { OpenTurn } from "@/hooks/use-open-turn";
 import type { PreviewControl } from "@/hooks/use-preview";
 import { seekCommand } from "@/lib/studio/preview";
-import { useStudio } from "./studio-provider";
+import { useStudio, useStudioTurn } from "./studio-provider";
 
 /** A server URL alone does not mean the rebuilt composition has mounted. */
 export function ChatResult() {
-  const { turn, tools, docs, isPreviewShown, togglePreview } = useStudio();
+  const { tools, docs, isPreviewShown, togglePreview } = useStudio();
+  const turn = useStudioTurn();
   const { preview } = tools;
   const show = useCallback(() => {
     docs.pickMode("preview");

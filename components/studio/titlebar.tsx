@@ -77,7 +77,7 @@ export function MoodField({
       aria-hidden="true"
       className={cn(
         // Fade into the sidebar without drawing a seam at the band's edge.
-        "pointer-events-none absolute inset-0 transition-[filter] duration-700 ease-out [mask-image:linear-gradient(to_bottom,#000_0%,#000d_35%,#0009_60%,#0004_80%,#0001_92%,transparent_100%)]",
+        "pointer-events-none absolute inset-0 transition-[filter] duration-slow ease-out [mask-image:linear-gradient(to_bottom,#000_0%,#000d_35%,#0009_60%,#0004_80%,#0001_92%,transparent_100%)]",
         shouldAnimateEntrance && "animate-titlebar",
         TONES[mood.tone]
       )}

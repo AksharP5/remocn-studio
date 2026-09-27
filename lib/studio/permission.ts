@@ -23,9 +23,9 @@ const TITLES: Record<PermissionReason, string> = {
 };
 
 const AGAIN: Record<Exclude<PermissionReason, "outward" | "plan">, string> = {
-  bash: "Don’t ask again for this command this session",
-  outside: "Don’t ask again for this path this session",
-  tool: "Don’t ask again for this call this session",
+  bash: "Don’t ask again for this command until the studio quits",
+  outside: "Don’t ask again for this path until the studio quits",
+  tool: "Don’t ask again for this call until the studio quits",
 };
 
 const OUTWARD_CHOICES: PermissionChoice[] = [
@@ -62,7 +62,7 @@ const PLAN_CHOICES: PermissionChoice[] = [
   },
   {
     action: "allow",
-    description: "Claude decides what is worth asking about",
+    description: "The agent decides what is worth asking about",
     id: "run",
     label: "Approve and let it run",
     mode: "auto",
@@ -120,7 +120,7 @@ export function permissionChoices(
       description:
         AGAIN[reason as Exclude<PermissionReason, "outward" | "plan">],
       id: "always",
-      label: "Always allow this session",
+      label: "Always allow until quit",
       mode: null,
     },
     {

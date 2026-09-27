@@ -1,4 +1,5 @@
 import type { AnimationEventHandler } from "react";
+import { useSplash } from "@/hooks/use-splash";
 import type { SplashPhase } from "@/lib/studio/splash";
 import { GLYPH } from "./logo-mark";
 import { ShaderField } from "./shader-field";
@@ -9,6 +10,18 @@ const BRIGHTNESS = 0.16;
 const CONTRAST = 0.26;
 
 export function Splash({
+  isSettled,
+  onGone,
+}: {
+  isSettled: boolean;
+  onGone?: () => void;
+}) {
+  const splash = useSplash(isSettled, onGone);
+
+  return <SplashScreen {...splash} />;
+}
+
+export function SplashScreen({
   isReduced,
   onAnimationEnd,
   phase,

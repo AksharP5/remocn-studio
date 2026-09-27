@@ -327,7 +327,7 @@ code, because v4 rewrote Schema and v3 knowledge is wrong rather than stale.
   `HandlerError`), built in the `catch` of `Effect.tryPromise`. Never let a bare
   `UnknownException` reach a hook: `Effect.runPromise` then rejects with a
   `FiberFailure` whose message hides the real text, and for the sidecar that text
-  *is* the feature — "the sidecar is not running" has to reach the UI.
+  *is* the feature — "the studio's helper is not running" has to reach the UI.
 - **Hooks surface failures as values.** `useAsyncAction` runs
   `Effect.runPromiseExit` and renders `causeMessage(exit.cause)`;
   `Cause.hasInterruptsOnly` returns `null` there, so a deliberate cancel is not

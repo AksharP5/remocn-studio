@@ -24,6 +24,7 @@ import { fileManagerName } from "@/lib/studio/platform";
 import { cn } from "@/lib/utils";
 import type { Asset } from "@/shared/library";
 import { AssetGrid } from "./asset-grid";
+import { FailureText } from "./failure-text";
 import { PaneScreen } from "./pane-screen";
 
 const PLACEHOLDERS = ["one", "two", "three"];
@@ -155,7 +156,13 @@ function AssetsBody({
           <EmptyTitle className="text-balance">
             The library is unavailable
           </EmptyTitle>
-          <EmptyDescription className="break-words">{error}</EmptyDescription>
+          <EmptyDescription>
+            <FailureText
+              align="center"
+              fallback="Something went wrong while reading the library."
+              text={error}
+            />
+          </EmptyDescription>
         </EmptyHeader>
         <Button onClick={onRetry} size="sm" variant="outline">
           Try again
@@ -182,8 +189,8 @@ function AssetsBody({
         <EmptyHeader>
           <EmptyTitle className="text-base">Nothing saved yet</EmptyTitle>
           <EmptyDescription className="text-pretty">
-            Drag pictures, video or sound here from {fileManagerName()}, or ask{" "}
-            Claude to put an animation you like into the library. Everything
+            Drag pictures, video or sound here from {fileManagerName()}, or ask
+            the agent to put an animation you like into the library. Everything
             here can be dropped into any other video.
           </EmptyDescription>
         </EmptyHeader>

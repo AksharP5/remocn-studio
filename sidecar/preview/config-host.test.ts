@@ -54,6 +54,40 @@ describe("fingerprintOf", () => {
   it("says the same thing about a project with no config at all", () => {
     expect(fingerprintOf(project(null))).toBe("none");
   });
+
+  it("moves when a local file the config imports does", () => {
+    const root = project(
+      'import { override } from "./webpack-override";\nexport {}'
+    );
+    writeFileSync(path.join(root, "webpack-override.ts"), "export {}");
+    const first = fingerprintOf(root);
+
+    writeFileSync(
+      path.join(root, "webpack-override.ts"),
+      "export const override = (config) => config;"
+    );
+
+    expect(fingerprintOf(root)).not.toBe(first);
+  });
+
+  it("moves when the project's package.json does, as an upgrade would", () => {
+    const root = project("export {}");
+    writeFileSync(path.join(root, "package.json"), "{}");
+    const first = fingerprintOf(root);
+
+    writeFileSync(
+      path.join(root, "package.json"),
+      '{"dependencies":{"remotion":"4.0.521"}}'
+    );
+
+    expect(fingerprintOf(root)).not.toBe(first);
+  });
+
+  it("ignores a package import, which the file walk cannot follow", () => {
+    const root = project('import { Config } from "@remotion/cli/config";');
+
+    expect(fingerprintOf(root).split("|")).toHaveLength(2);
+  });
 });
 
 describe("makeConfigCache", () => {
@@ -83,7 +117,7 @@ describe("makeConfigCache", () => {
     expect(state.reads).toBe(2);
   });
 
-  it("always reads fresh when the caller insists, which is what an export does", async () => {
+  it("always reads fresh when the caller insists", async () => {
     const root = project("export {}");
     const { resolve, state } = counting(() => EMPTY_CONFIG);
     const cache = makeConfigCache(resolve);

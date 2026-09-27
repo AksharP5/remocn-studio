@@ -340,7 +340,9 @@ export function usePlayingFrame(
   );
 }
 
-export function usePreviewFrame(preview: PreviewControl): number {
+export type PreviewFrames = Pick<PreviewControl, "frameOf" | "onFrame">;
+
+export function usePreviewFrame(preview: PreviewFrames): number {
   const { frameOf, onFrame } = preview;
 
   return useSyncExternalStore(onFrame, frameOf, frameOf);
@@ -377,7 +379,7 @@ function hintOf(message: PreviewComposition | null): string | null {
   // Naming the video the pane asked for is the whole point of this branch:
   // playing a neighbour instead would read as the wrong video rendering.
   if (message.reason === "missing") {
-    return `Nothing in this project renders ${message.compositionId}. Ask Claude to register it, or open a video that is in the code.`;
+    return `Nothing in this project renders ${message.compositionId}. Ask the agent to register it, or open a video that is in the code.`;
   }
 
   if (message.unmeasured) {

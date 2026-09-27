@@ -22,7 +22,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { VideoCommands } from "@/hooks/use-video-menu";
+import { useVideoRowMenu } from "@/hooks/use-row-menus";
+import { useVideoMenu, type VideoCommands } from "@/hooks/use-video-menu";
 import { useVisibleSessions } from "@/hooks/use-visible-sessions";
 import type { Rollup as GroupRollup, PaneGroup } from "@/lib/studio/groups";
 import { cn } from "@/lib/utils";
@@ -55,17 +56,23 @@ function VideoGroupBlock({
   const { hidden, isFull, toggle, visible } = useVisibleSessions(group);
   const { video } = group;
   const panelId = `video-${video.id}`;
+  const menu = useVideoMenu(video, commands);
+  const rowMenu = useVideoRowMenu(video, menu);
 
   return (
-    <SidebarMenuItem>
+    <SidebarMenuItem data-video-row>
       {/* The row opens the video's most recent chat; the chevron beside it
           expands the list. They were the same click, so a video could look
           selected — expanded and highlighted — while an unrelated chat drove
           the preview, the conventions and Export, which is the divergence
           "the open chat determines everything" exists to prevent. */}
       <SidebarMenuButton
+        aria-keyshortcuts="F2 Meta+Backspace"
         className="pr-20 font-medium hover:bg-sidebar-accent/40 active:bg-sidebar-accent/40"
+        data-row-action="open"
         onClick={onOpen}
+        onContextMenu={rowMenu.onContextMenu}
+        onKeyDown={rowMenu.onKeyDown}
         value={video.id}
       >
         {/* Only the name dims for a video the bundle no longer names: its
@@ -108,6 +115,7 @@ function VideoGroupBlock({
                 <Button
                   aria-label={`New chat about ${video.name}`}
                   className="relative after:absolute after:-inset-y-1 after:right-0 after:-left-1"
+                  data-row-action="new-chat"
                   disabled={video.missing}
                   onClick={onNewSession}
                   size="icon-xs"
@@ -121,7 +129,7 @@ function VideoGroupBlock({
             <TooltipContent side="bottom">New chat here</TooltipContent>
           </Tooltip>
 
-          <VideoMenu commands={commands} video={video} />
+          <VideoMenu menu={menu} video={video} />
         </div>
 
         <Button
@@ -136,7 +144,7 @@ function VideoGroupBlock({
         >
           <ChevronRight
             className={cn(
-              "size-3 transition-transform duration-150 ease-out",
+              "size-3 transition-transform duration-fast ease-out",
               isExpanded && "rotate-90"
             )}
           />

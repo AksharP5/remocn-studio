@@ -1,7 +1,8 @@
 "use client";
 
-import { ErrorBoundary } from "@sentry/react";
+import { Component, type ErrorInfo } from "react";
 import { Button } from "@/components/ui/button";
+import { reportRenderCrash } from "@/lib/studio/crash";
 
 // Outside `StudioProvider`, deliberately: a render error thrown while the
 // workspace is being built is exactly the kind of crash nobody would ever
@@ -9,11 +10,26 @@ import { Button } from "@/components/ui/button";
 //
 // It earns its place with or without a Sentry client. React 19 unmounts the
 // whole tree when a render throws and nothing catches it, so what this
-// replaces is not an error screen but a black window — and `captureException`
-// with no client initialised is a no-op, so the fallback is the same with
-// consent withheld.
-export function CrashBoundary({ children }: { children: React.ReactNode }) {
-  return <ErrorBoundary fallback={CrashScreen}>{children}</ErrorBoundary>;
+// replaces is not an error screen but a black window — and a report with no
+// reporter started is dropped, so the fallback is the same with consent
+// withheld.
+export class CrashBoundary extends Component<
+  { children: React.ReactNode },
+  { hasCrashed: boolean }
+> {
+  state = { hasCrashed: false };
+
+  static getDerivedStateFromError() {
+    return { hasCrashed: true };
+  }
+
+  componentDidCatch(error: unknown, info: ErrorInfo) {
+    reportRenderCrash(error, info.componentStack ?? "");
+  }
+
+  render() {
+    return this.state.hasCrashed ? <CrashScreen /> : this.props.children;
+  }
 }
 
 function reload() {

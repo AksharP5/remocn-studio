@@ -181,9 +181,12 @@ export function ExportDialog({
                 </Button>
               </div>
             </div>
-            <p className="text-pretty text-muted-foreground text-xs">
-              An existing file with this name will be replaced.
-            </p>
+            {exporting.willReplace ? (
+              <p className="text-pretty text-muted-foreground text-xs">
+                A file with this name is already in this folder. It is replaced
+                once the render finishes.
+              </p>
+            ) : null}
           </section>
 
           {review.problems.length > 0 || review.warnings.length > 0 ? (

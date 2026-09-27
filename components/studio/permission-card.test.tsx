@@ -1,6 +1,8 @@
-import { describe, expect, it, mock } from "bun:test";
+import { beforeAll, describe, expect, it, mock } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { Effect } from "effect";
 import { PermissionCard } from "@/components/studio/permission-card";
+import { loadMarkdownRenderer } from "@/lib/studio/highlighter";
 import type { PendingPermission } from "@/lib/studio/turns";
 
 const CWD = "/Users/me/projects/my-video";
@@ -9,7 +11,7 @@ const ONCE = /Approve once/;
 const BUILD = /Approve and build/;
 const RUN = /Approve and let it run/;
 const KEEP = /Keep planning/;
-const ALWAYS = /Always allow this session/;
+const ALWAYS = /Always allow until quit/;
 const DECLINE = /Decline/;
 const CANCEL = /Cancel turn/;
 
@@ -35,6 +37,8 @@ function renderCard(shape: Partial<PendingPermission> = {}, onAnswer = mock()) {
 
   return onAnswer;
 }
+
+beforeAll(() => Effect.runPromise(loadMarkdownRenderer));
 
 describe("PermissionCard", () => {
   it("names the tool and shows the command it is asking about", () => {
@@ -108,7 +112,7 @@ describe("PermissionCard", () => {
     });
 
     expect(
-      screen.getByText("Don’t ask again for this path this session")
+      screen.getByText("Don’t ask again for this path until the studio quits")
     ).toBeVisible();
   });
 });

@@ -1,5 +1,6 @@
 import {
   type CanUseTool,
+  type McpServerConfig,
   type Options,
   type Query,
   query,
@@ -11,8 +12,10 @@ import { errorMessage } from "@/lib/error-message";
 import type { ContextUsage, PromptParams } from "@/shared/ipc";
 import type { KnowledgeBundle } from "../agent/knowledge";
 import type { ApplyMode } from "../agent/mode";
+import type { Ask } from "../tools/execute";
 import type { StdioTransport } from "../tools/gateway";
-import type { ToolServer } from "../tools/specs";
+import { toolServer } from "../tools/host";
+import { isToolServer, type ToolServer } from "../tools/specs";
 import { contentOf } from "./content";
 import { conventionsFor } from "./conventions";
 import { gateHooks } from "./guard";
@@ -33,6 +36,7 @@ export interface TurnCallbacks {
   readonly canUseTool: CanUseTool;
   readonly cwd: string;
   readonly executable: string;
+  readonly inProcess: Readonly<Partial<Record<ToolServer, Ask>>>;
   readonly knowledge: KnowledgeBundle;
   readonly log: (line: string) => void;
   readonly media: string | null;
@@ -125,17 +129,7 @@ function optionsOf(params: PromptParams, callbacks: TurnCallbacks): Options {
     cwd: callbacks.cwd,
     ...(hooks === undefined ? {} : { hooks }),
     includePartialMessages: true,
-    mcpServers: Object.fromEntries(
-      Object.entries(callbacks.tools).map(([name, transport]) => [
-        name,
-        {
-          args: [...transport.args],
-          command: transport.command,
-          env: { ...transport.env },
-          type: "stdio" as const,
-        },
-      ])
-    ),
+    mcpServers: serversOf(callbacks),
     pathToClaudeCodeExecutable: callbacks.executable,
     permissionMode: params.mode,
     plugins,
@@ -153,6 +147,31 @@ function optionsOf(params: PromptParams, callbacks: TurnCallbacks): Options {
     ...(params.model === null ? {} : { model: params.model }),
     ...(params.sessionId === null ? {} : { resume: params.sessionId }),
   };
+}
+
+export function serversOf(
+  callbacks: Pick<TurnCallbacks, "inProcess" | "tools">
+): Record<string, McpServerConfig> {
+  return Object.fromEntries(
+    Object.entries(callbacks.tools).map(([name, transport]) => {
+      const ask = isToolServer(name) ? callbacks.inProcess[name] : undefined;
+      if (ask !== undefined && isToolServer(name)) {
+        return [
+          name,
+          { instance: toolServer(name, ask), name, type: "sdk" as const },
+        ];
+      }
+      return [
+        name,
+        {
+          args: [...transport.args],
+          command: transport.command,
+          env: { ...transport.env },
+          type: "stdio" as const,
+        },
+      ];
+    })
+  );
 }
 
 function stoppable(

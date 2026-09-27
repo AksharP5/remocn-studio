@@ -6,7 +6,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useSoundResult } from "@/hooks/use-sound-result";
 import type { SoundResult } from "@/shared/ipc";
 import { AudioTransport } from "./audio-transport";
-import { useStudio } from "./studio-provider";
+import { useStudio, useStudioTurn } from "./studio-provider";
 
 const ACTION_LABELS = {
   idle: "Use in video",
@@ -16,8 +16,16 @@ const ACTION_LABELS = {
 } as const;
 
 export function SoundResultCard({ result }: { result: SoundResult }) {
-  const studio = useStudio();
-  const model = useSoundResult(result, studio);
+  const { composerActions, environment, openedProject, openedVideo } =
+    useStudio();
+  const turn = useStudioTurn();
+  const model = useSoundResult(result, {
+    composer: composerActions,
+    environment,
+    openedProject,
+    openedVideo,
+    turn,
+  });
   return <SoundResultView model={model} result={result} />;
 }
 
@@ -34,7 +42,7 @@ export function SoundResultView({
   return (
     <section
       aria-label={`Generated ${result.request.kind === "music" ? "music" : "sound"}: ${asset.name}`}
-      className="my-1 min-w-0 rounded-2xl bg-card p-4 text-card-foreground shadow-sm ring-1 ring-border/60"
+      className="my-1 min-w-0 rounded-xl bg-card p-4 text-card-foreground ring-1 ring-border/60"
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <p className="flex items-center gap-1.5 font-medium text-foreground text-xs">

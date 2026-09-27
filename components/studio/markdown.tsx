@@ -1,8 +1,13 @@
 "use client";
 
 import { createContext, use, useMemo } from "react";
-import { type CodeHighlighterPlugin, Streamdown } from "streamdown";
-import { useCodeHighlighter } from "@/hooks/use-code-highlighter";
+import {
+  type CodeHighlighting,
+  NO_HIGHLIGHTING,
+  useCodeHighlighter,
+  useHighlighterFor,
+  useMarkdownRenderer,
+} from "@/hooks/use-code-highlighter";
 import { usePrefersReducedMotion } from "@/lib/dotmatrix-hooks";
 import { cn } from "@/lib/utils";
 
@@ -13,10 +18,11 @@ const ANIMATION = {
   stagger: 14,
 } as const;
 
-const HighlighterContext = createContext<CodeHighlighterPlugin | null>(null);
+const HighlighterContext = createContext<CodeHighlighting>(NO_HIGHLIGHTING);
 
 export function MarkdownProvider({ children }: { children: React.ReactNode }) {
   const highlighter = useCodeHighlighter();
+  useMarkdownRenderer();
 
   return (
     <HighlighterContext value={highlighter}>{children}</HighlighterContext>
@@ -36,23 +42,29 @@ export function Markdown({
   isAnimated?: boolean;
   isStreaming?: boolean;
 }) {
-  const code = use(HighlighterContext);
+  const renderer = useMarkdownRenderer();
+  const code = useHighlighterFor(use(HighlighterContext), children);
   const plugins = useMemo(() => (code === null ? {} : { code }), [code]);
   const reducedMotion = usePrefersReducedMotion();
+  const classes = cn(
+    "markdown-stream space-y-3 text-sm leading-relaxed [&_pre]:text-xs",
+    isStreaming && !reducedMotion && "code-reveal",
+    className
+  );
+
+  if (renderer === null) {
+    return <div className={cn(classes, "whitespace-pre-wrap")}>{children}</div>;
+  }
 
   return (
-    <Streamdown
+    <renderer.Streamdown
       animated={reducedMotion || !isAnimated ? false : ANIMATION}
-      className={cn(
-        "markdown-stream space-y-3 text-sm leading-relaxed [&_pre]:text-xs",
-        isStreaming && !reducedMotion && "code-reveal",
-        className
-      )}
+      className={classes}
       isAnimating={isStreaming}
       lineNumbers={false}
       plugins={plugins}
     >
       {children}
-    </Streamdown>
+    </renderer.Streamdown>
   );
 }

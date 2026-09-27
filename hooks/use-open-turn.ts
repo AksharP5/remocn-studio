@@ -7,7 +7,7 @@ import {
   useCodeWrites,
 } from "@/hooks/use-code-writes";
 import type { Selection } from "@/hooks/use-selections";
-import type { Turns } from "@/hooks/use-turns";
+import type { TurnActions } from "@/hooks/use-turns";
 import type { PermissionAction } from "@/lib/studio/permission";
 import type { LiveLine } from "@/lib/studio/reasoning";
 import {
@@ -42,7 +42,8 @@ export interface OpenTurnSettings {
   playing: () => PromptFrame | null;
   projectId: string | null;
   session: HistorySession | null;
-  turns: Turns;
+  states: ReadonlyMap<string, TurnState>;
+  turns: TurnActions;
   videoId: string | null;
   /** The code write, injected so a test can answer without a sidecar. */
   writeCode?: CodeWriteSettings["write"];
@@ -99,6 +100,7 @@ export function useOpenTurn({
   playing,
   projectId,
   session,
+  states,
   turns,
   videoId,
   writeCode,
@@ -113,7 +115,7 @@ export function useOpenTurn({
     stopTurn,
   } = turns;
   const dropQueued = turns.removeQueued;
-  const turn: TurnState = turns.turns.get(openId) ?? IDLE_TURN;
+  const turn: TurnState = states.get(openId) ?? IDLE_TURN;
 
   useEffect(() => {
     markOpen(openId);
