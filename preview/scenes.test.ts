@@ -122,6 +122,107 @@ describe("scenesOf", () => {
   it("shows no scenes for a video of one scene", () => {
     expect(names([sequence("Only", 0, 300)])).toEqual([]);
   });
+
+  it("finds a Series' scenes beside a soundtrack and an overlay", () => {
+    function IsInsideSeriesContainer() {
+      return null;
+    }
+    const cuts: [string, number, number][] = [
+      ["Name", 0, 165],
+      ["Paste", 165, 105],
+      ["September", 270, 75],
+      ["Bauhaus", 345, 135],
+      ["Grid", 480, 135],
+      ["Accents", 615, 60],
+      ["Type", 675, 135],
+      ["Signature", 810, 90],
+    ];
+    const registered = [
+      sequence("series", 0, 900, {
+        displayName: "<Series>",
+        singleChildComponent: IsInsideSeriesContainer,
+      }),
+      ...cuts.map(([name, from, duration]) =>
+        sequence(name, from, duration, {
+          isInsideSeries: true,
+          parent: "series",
+        })
+      ),
+      sequence("Stripe", 20, 60, { parent: "Type" }),
+      sequence("Score", 0, 846),
+      sequence("score-audio", 0, 846, { parent: "Score", type: "audio" }),
+      sequence("Score ending", 840, 60),
+      sequence("Sound: whoosh-1", 158, 12),
+      sequence("Sound: tick-4", 600, 30),
+      sequence("Sound: tick-5", 780, 8),
+      sequence("tick-audio", 0, 8, { parent: "Sound: tick-5", type: "audio" }),
+      sequence("Dot to baseline", 660, 45),
+    ];
+
+    expect(names(registered, 900)).toEqual([
+      "Name@0+165",
+      "Paste@165+105",
+      "September@270+75",
+      "Bauhaus@345+135",
+      "Grid@480+135",
+      "Accents@615+60",
+      "Type@675+135",
+      "Signature@810+90",
+    ]);
+  });
+
+  it("prefers the Series over another sequence spanning the video", () => {
+    expect(
+      names([
+        sequence("Light", 0, 300),
+        sequence("Leak 1", 10, 20, { parent: "Light" }),
+        sequence("Leak 2", 100, 20, { parent: "Light" }),
+        sequence("Leak 3", 200, 20, { parent: "Light" }),
+        sequence("series", 0, 300, { displayName: "<Series>" }),
+        sequence("Intro", 0, 150, { isInsideSeries: true, parent: "series" }),
+        sequence("Outro", 150, 150, { isInsideSeries: true, parent: "series" }),
+      ])
+    ).toEqual(["Intro@0+150", "Outro@150+150"]);
+  });
+
+  it("keeps the scenes beside a background that holds none", () => {
+    expect(
+      names([
+        sequence("Background", 0, 300),
+        sequence("Grain", 0, 300, { parent: "Background" }),
+        sequence("Intro", 0, 120),
+        sequence("Outro", 120, 180),
+      ])
+    ).toEqual(["Intro@0+120", "Outro@120+180"]);
+  });
+
+  it("drops sequences that sit within the scenes around them", () => {
+    expect(
+      names([
+        sequence("Intro", 0, 120),
+        sequence("Sound: pop", 30, 10),
+        sequence("Sound: whoosh", 110, 20),
+        sequence("Outro", 120, 180),
+      ])
+    ).toEqual(["Intro@0+120", "Outro@120+180"]);
+  });
+
+  it("shows a scene once when two sequences cover the same frames", () => {
+    expect(
+      names([
+        sequence("", 0, 120, { displayName: "<Sequence>" }),
+        sequence("Intro", 0, 120),
+        sequence("Outro", 120, 180),
+        sequence("Outro again", 120, 180),
+      ])
+    ).toEqual(["Intro@0+120", "Outro@120+180"]);
+  });
+
+  it("keeps two scenes that overlap for a transition", () => {
+    expect(
+      names([sequence("Intro", 0, 170), sequence("Outro", 150, 150)])
+    ).toEqual(["Intro@0+170", "Outro@150+150"]);
+  });
 });
 
 describe("sameScenes", () => {

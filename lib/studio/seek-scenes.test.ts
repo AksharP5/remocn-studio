@@ -42,6 +42,21 @@ describe("segmentsOf", () => {
     expect(last?.width).toBeCloseTo(66.667, 2);
   });
 
+  it("ends a segment where the next scene starts, so names never overlap", () => {
+    const segments = segmentsOf(
+      [scene("Outro", 150, 150), scene("Intro", 0, 170)],
+      300,
+      600
+    );
+
+    expect(
+      segments.map(({ left, name, width }) => [name, left, width])
+    ).toEqual([
+      ["Intro", 0, 50],
+      ["Outro", 50, 50],
+    ]);
+  });
+
   it("draws nothing for fewer than two scenes or an empty video", () => {
     expect(segmentsOf([scene("Only", 0, 300)], 300, 600)).toEqual([]);
     expect(segmentsOf([scene("A", 0, 1), scene("B", 1, 1)], 0, 600)).toEqual(

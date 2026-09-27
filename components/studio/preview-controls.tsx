@@ -302,7 +302,7 @@ function PlaybackSlider({
           {marks.map((left) => (
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute top-0 h-1.5 w-px -translate-x-1/2 bg-foreground/30"
+              className="pointer-events-none absolute top-0 h-2 w-px -translate-x-1/2 bg-foreground/50"
               key={left}
               style={{ left: `${left}%` }}
             />
