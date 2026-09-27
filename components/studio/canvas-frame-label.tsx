@@ -9,11 +9,9 @@ import {
 } from "@/hooks/use-frame-label";
 import { useWorkingPhrase } from "@/hooks/use-working-phrase";
 import { useStudioTurn } from "./studio-provider";
-import { ThinkingMark } from "./thinking";
+import { ThinkingStrip } from "./thinking";
 
-const WIDE_MARK = 3;
-
-const Mark = memo(ThinkingMark);
+const Strip = memo(ThinkingStrip);
 
 function FrameText({ name }: { name: string }) {
   const working = isTurnWorking(useStudioTurn());
@@ -25,7 +23,7 @@ function FrameText({ name }: { name: string }) {
 
   return (
     <>
-      <Mark className="shrink-0" tiles={WIDE_MARK} />
+      <Strip className="shrink-0" />
       <span className="shimmer min-w-0 truncate">{phrase}</span>
     </>
   );

@@ -176,7 +176,7 @@ describe("CanvasFrameLabel", () => {
     expect(label.style.maxWidth).toBe("640px");
   });
 
-  it("swaps the name for the wide thinking mark and a working phrase while the open chat's turn works", () => {
+  it("swaps the name for one wide thinking strip and a working phrase while the open chat's turn works", () => {
     const { camera } = stage({ x: 60, y: 140, zoom: 0.25 });
     turn.current = RUNNING;
 
@@ -195,7 +195,8 @@ describe("CanvasFrameLabel", () => {
       WORKING_PHRASES.some((phrase) => label.textContent?.includes(phrase))
     ).toBe(true);
     expect(label.lastElementChild).toHaveClass("shimmer");
-    expect(label.firstElementChild?.children).toHaveLength(3);
+    const dots = label.firstElementChild?.querySelectorAll(".dmx-dot") ?? [];
+    expect(dots).toHaveLength(75);
 
     turn.current = { ...RUNNING, permission: {} as Turn["permission"] };
     rerender(
