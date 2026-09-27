@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
-import * as fs from "node:fs";
+import fs from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const readdirSync = fs.readdirSync;
+const { readdirSync } = fs;
 
 mock.module("node:fs", () => ({
   ...fs,
