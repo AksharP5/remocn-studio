@@ -3,7 +3,23 @@ import { Marker, MarkerContent } from "@/components/ui/marker";
 import { runningTime } from "@/lib/studio/time";
 import { cn } from "@/lib/utils";
 
-export function ThinkingMark({ className }: { className?: string }) {
+export function ThinkingMark({
+  className,
+  tiles = 1,
+}: {
+  className?: string;
+  tiles?: number;
+}) {
+  if (tiles > 1) {
+    return (
+      <span className={cn("inline-flex gap-px", className)}>
+        {Array.from({ length: tiles }, (_, tile) => (
+          <ThinkingMark key={`tile-${tile.toString()}`} />
+        ))}
+      </span>
+    );
+  }
+
   return (
     <DotmSquare11
       animated

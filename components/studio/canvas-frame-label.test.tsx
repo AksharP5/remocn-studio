@@ -4,6 +4,7 @@ import { Profiler } from "react";
 import type { FrameCamera, FrameChrome } from "@/hooks/use-frame-label";
 import type { OpenTurn } from "@/hooks/use-open-turn";
 import type { PreviewCamera } from "@/lib/studio/preview-camera";
+import { WORKING_PHRASES } from "@/lib/studio/working-phrases";
 
 type Turn = Pick<OpenTurn, "isRunning" | "permission" | "source">;
 
@@ -175,7 +176,7 @@ describe("CanvasFrameLabel", () => {
     expect(label.style.maxWidth).toBe("640px");
   });
 
-  it("carries the thinking mark after the name while the open chat's turn works", () => {
+  it("swaps the name for the wide thinking mark and a working phrase while the open chat's turn works", () => {
     const { camera } = stage({ x: 60, y: 140, zoom: 0.25 });
     turn.current = RUNNING;
 
@@ -189,7 +190,12 @@ describe("CanvasFrameLabel", () => {
     );
     const label = labelIn(container);
     expect(label.children).toHaveLength(2);
-    expect(label.firstElementChild).toHaveTextContent("Launch");
+    expect(label).not.toHaveTextContent("Launch");
+    expect(
+      WORKING_PHRASES.some((phrase) => label.textContent?.includes(phrase))
+    ).toBe(true);
+    expect(label.lastElementChild).toHaveClass("shimmer");
+    expect(label.firstElementChild?.children).toHaveLength(3);
 
     turn.current = { ...RUNNING, permission: {} as Turn["permission"] };
     rerender(

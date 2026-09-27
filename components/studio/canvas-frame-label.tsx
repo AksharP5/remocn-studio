@@ -7,13 +7,28 @@ import {
   isTurnWorking,
   useFrameLabel,
 } from "@/hooks/use-frame-label";
+import { useWorkingPhrase } from "@/hooks/use-working-phrase";
 import { useStudioTurn } from "./studio-provider";
 import { ThinkingMark } from "./thinking";
 
+const WIDE_MARK = 3;
+
 const Mark = memo(ThinkingMark);
 
-function FrameWorking() {
-  return isTurnWorking(useStudioTurn()) ? <Mark className="shrink-0" /> : null;
+function FrameText({ name }: { name: string }) {
+  const working = isTurnWorking(useStudioTurn());
+  const phrase = useWorkingPhrase(working);
+
+  if (!working) {
+    return <span className="min-w-0 truncate">{name}</span>;
+  }
+
+  return (
+    <>
+      <Mark className="shrink-0" tiles={WIDE_MARK} />
+      <span className="shimmer min-w-0 truncate">{phrase}</span>
+    </>
+  );
 }
 
 export function CanvasFrameLabel({
@@ -51,8 +66,7 @@ function FrameLabel({
       hidden
       ref={label}
     >
-      <span className="min-w-0 truncate">{name}</span>
-      <FrameWorking />
+      <FrameText name={name} />
     </div>
   );
 }

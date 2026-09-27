@@ -4,7 +4,7 @@
 
 The canvas SHALL name the video frame with a small label just above the frame's top-left corner: the open video's name, in muted text, outside the frame so it never covers the video. The label SHALL follow the camera in the same frame the video moves — pan, zoom, Fit, Zoom to selection and their animations — and SHALL keep one screen size at every zoom. It SHALL be cut short with an ellipsis rather than run past the frame's right edge. While the frame's left edge is off the canvas or under the left ruler, the label SHALL sit at the left end of the frame's top edge that is still shown.
 
-While the open chat's turn is running and nothing waits on the person — no permission card and no source question — the label SHALL carry the chat's thinking animation just after the name, whether or not anything is selected on the canvas. It SHALL be the same mark the chat's "Thinking…" marker shows, and it SHALL go away as soon as the turn ends, however it ends. When the system asks for reduced motion the mark SHALL be shown still, as the chat's is.
+While the open chat's turn is running and nothing waits on the person — no permission card and no source question — the label SHALL show, in place of the name and whether or not anything is selected on the canvas, the chat's thinking animation drawn three marks wide followed by a short phrase about making the video (such as "Storyboarding…" or "Keyframing…") in the chat's shimmer, the phrase changing every few seconds. The mark SHALL be the one the chat's "Thinking…" marker shows. The name SHALL come back as soon as the turn ends, however it ends. When the system asks for reduced motion the mark SHALL be shown still, as the chat's is.
 
 The label SHALL NOT be shown while its place is not on the canvas: when the frame's top edge is above the canvas, below it, or close enough to the toolbar or the top ruler that the label would sit under them, or when less of the frame's top edge is on the canvas than the label needs to be read. It SHALL NOT be shown in the full-screen view, while the video is loading or has failed, or with no open video. The label SHALL NOT take pointer events and SHALL NOT be announced to a screen reader; the inspector names the video and the chat says what the turn is doing. The app window owns the label; the preview page draws nothing for it.
 
@@ -16,17 +16,18 @@ The label SHALL NOT be shown while its place is not on the canvas: when the fram
 #### Scenario: A turn works with nothing selected
 
 - **WHEN** the open chat's turn is running with nothing waiting on the person and nothing is selected on the canvas
-- **THEN** the thinking animation is shown just after the video's name above the frame
+- **THEN** the label above the frame shows the wide thinking animation and a working phrase instead of the video's name
+- **AND** the phrase changes every few seconds while the turn runs
 
 #### Scenario: The turn ends
 
 - **WHEN** the turn finishes, fails or is stopped
-- **THEN** the animation goes away and the name stays
+- **THEN** the animation and the phrase go away and the video's name is shown again
 
 #### Scenario: A card is waiting to be answered
 
 - **WHEN** the running turn raises a permission card or a source question
-- **THEN** the animation is not shown until the card is answered and the turn carries on
+- **THEN** the label shows the video's name, without the animation, until the card is answered and the turn carries on
 
 #### Scenario: The camera moves
 
@@ -56,4 +57,4 @@ The label SHALL NOT be shown while its place is not on the canvas: when the fram
 #### Scenario: Reduced motion
 
 - **WHEN** the system asks for reduced motion
-- **THEN** the mark beside the name is shown still, the way the chat's mark is
+- **THEN** the thinking mark is shown still, the way the chat's mark is
