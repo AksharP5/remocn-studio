@@ -3,6 +3,7 @@ import { act, render } from "@testing-library/react";
 import { Profiler } from "react";
 import type { FrameCamera, FrameChrome } from "@/hooks/use-frame-label";
 import type { OpenTurn } from "@/hooks/use-open-turn";
+import { resolveDmxColorTokens } from "@/lib/dotmatrix-core";
 import type { PreviewCamera } from "@/lib/studio/preview-camera";
 import { WORKING_PHRASES } from "@/lib/studio/working-phrases";
 
@@ -197,6 +198,10 @@ describe("CanvasFrameLabel", () => {
     expect(label.lastElementChild).toHaveClass("shimmer");
     const dots = label.firstElementChild?.querySelectorAll(".dmx-dot") ?? [];
     expect(dots).toHaveLength(75);
+    const strip = label.firstElementChild as HTMLElement;
+    expect(strip.style.getPropertyValue("--dmx-dot-fill")).toBe(
+      resolveDmxColorTokens("currentColor", "grad-prism").dotFill
+    );
 
     turn.current = { ...RUNNING, permission: {} as Turn["permission"] };
     rerender(

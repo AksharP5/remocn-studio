@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { DotmSquare11 } from "@/components/ui/dotm-square-11";
 import { Marker, MarkerContent } from "@/components/ui/marker";
+import { resolveDmxColorTokens } from "@/lib/dotmatrix-core";
 import { usePrefersReducedMotion } from "@/lib/dotmatrix-hooks";
 import {
   STRIP_COLUMNS,
@@ -31,11 +32,14 @@ export function ThinkingMark({ className }: { className?: string }) {
 
 const STRIP_DOT = 2;
 const STRIP_GAP = 1;
+const TURN_COLORS = resolveDmxColorTokens("currentColor", "grad-prism");
 const STRIP_STYLE = {
+  "--dmx-dot-fill": TURN_COLORS.dotFill,
   "--dmx-opacity-base": 0.12,
   "--dmx-opacity-mid": 0.42,
   "--dmx-opacity-peak": 1,
   "--dmx-speed": 1 / 1.05,
+  color: TURN_COLORS.resolvedColor,
 } as CSSProperties;
 const STRIP_GRID = {
   gap: STRIP_GAP,
@@ -60,7 +64,6 @@ export function ThinkingStrip({ className }: { className?: string }) {
             key={dot.id}
             style={
               {
-                "--dmx-dot-fill": dot.color,
                 "--dmx-ripple-parity": dot.parity,
                 "--dmx-ripple-ring": dot.ring,
                 height: STRIP_DOT,
