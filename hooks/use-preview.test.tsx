@@ -27,10 +27,11 @@ function listener(): PreviewListener {
 }
 
 function mockPreview() {
-  const state = { index: 0, stream: 0 };
+  const state = { index: 0, requests: 0, stream: 0 };
 
   mockIPC((cmd, args) => {
     if (cmd === "sidecar_request") {
+      state.requests += 1;
       const payload = args as Record<string, unknown>;
       state.stream = (payload.onStream as { id: number }).id;
       return new Promise(() => undefined);
@@ -42,6 +43,7 @@ function mockPreview() {
   });
 
   return {
+    requests: () => state.requests,
     send: (event: PreviewEvent) => {
       act(() => {
         internals().runCallback(state.stream, {
@@ -498,5 +500,34 @@ describe("usePreview", () => {
     post(SELECTION);
 
     expect(listen).not.toHaveBeenCalled();
+  });
+
+  it("reloads the page for another video of the same project rather than compiling again", async () => {
+    const host = mockPreview();
+    const rendered = renderHook(
+      ({ composition }: { composition: string | null }) =>
+        usePreview(FOLDER, composition, "ready"),
+      { initialProps: { composition: "opening-title" } }
+    );
+
+    await waitFor(() => {
+      expect(rendered.result.current.preview.phase).toBe("building");
+    });
+    host.send({ type: "ready", url: URL });
+    await waitFor(() => {
+      expect(rendered.result.current.preview).toEqual({
+        phase: "ready",
+        url: `${URL}/?composition=opening-title`,
+      });
+    });
+    expect(host.requests()).toBe(1);
+
+    rendered.rerender({ composition: "closing-scene" });
+
+    expect(rendered.result.current.preview).toEqual({
+      phase: "ready",
+      url: `${URL}/?composition=closing-scene`,
+    });
+    expect(host.requests()).toBe(1);
   });
 });

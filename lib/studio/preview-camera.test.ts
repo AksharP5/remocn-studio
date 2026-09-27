@@ -6,8 +6,10 @@ import {
   INITIAL_PREVIEW_CAMERA,
   interpolateCamera,
   MAX_PREVIEW_ZOOM,
+  MIN_PREVIEW_ZOOM,
   occludedInsets,
   PIXEL_GRID_ZOOM,
+  panPreviewCamera,
   pixelGrid,
   rulerStep,
   rulerTicks,
@@ -80,6 +82,19 @@ describe("fitPreviewCamera", () => {
       )
     ).toBe(camera);
   });
+
+  it("keeps the camera when occluders leave no free space at all", () => {
+    const camera = { x: 10, y: 20, zoom: 0.5 };
+    const insets = { bottom: 500, left: 600, right: 600, top: 500 };
+    expect(
+      fitPreviewCamera(
+        camera,
+        { height: 100, width: 100, x: 0, y: 0 },
+        viewport,
+        insets
+      )
+    ).toBe(camera);
+  });
 });
 
 describe("occludedInsets", () => {
@@ -135,6 +150,63 @@ describe("zoomPreviewCamera", () => {
     const camera = zoomPreviewCamera(INITIAL_PREVIEW_CAMERA, anchor, 2.5);
     expect(screenToCanvas(anchor, camera)).toEqual(before);
   });
+
+  it("clamps a zoom past the ceiling to the maximum, keeping the pointer anchored", () => {
+    const anchor = { x: 300, y: 200 };
+    const before = screenToCanvas(anchor, INITIAL_PREVIEW_CAMERA);
+    const camera = zoomPreviewCamera(INITIAL_PREVIEW_CAMERA, anchor, 500);
+
+    expect(camera.zoom).toBe(MAX_PREVIEW_ZOOM);
+    expect(screenToCanvas(anchor, camera)).toEqual(before);
+  });
+
+  it("clamps a zoom past the floor to the minimum, keeping the pointer anchored", () => {
+    const anchor = { x: 300, y: 200 };
+    const before = screenToCanvas(anchor, INITIAL_PREVIEW_CAMERA);
+    const camera = zoomPreviewCamera(INITIAL_PREVIEW_CAMERA, anchor, 0.0001);
+
+    expect(camera.zoom).toBe(MIN_PREVIEW_ZOOM);
+    expect(screenToCanvas(anchor, camera)).toEqual(before);
+  });
+
+  it("does nothing more once already at the ceiling", () => {
+    const atMax = { x: 0, y: 0, zoom: MAX_PREVIEW_ZOOM };
+    expect(zoomPreviewCamera(atMax, { x: 300, y: 200 }, 999)).toBe(atMax);
+  });
+
+  it("never yields a non-finite camera for a non-finite request", () => {
+    const camera = INITIAL_PREVIEW_CAMERA;
+    expect(zoomPreviewCamera(camera, { x: 300, y: 200 }, Number.NaN)).toBe(
+      camera
+    );
+    expect(zoomPreviewCamera(camera, { x: Number.NaN, y: 200 }, 2)).toBe(
+      camera
+    );
+  });
+});
+
+describe("panPreviewCamera", () => {
+  it("moves the camera by the pan delta", () => {
+    const camera = { x: 10, y: 20, zoom: 1 };
+    expect(panPreviewCamera(camera, { x: 5, y: -5 })).toEqual({
+      x: 15,
+      y: 15,
+      zoom: 1,
+    });
+  });
+
+  it("keeps the camera unchanged for a non-finite delta", () => {
+    const camera = { x: 10, y: 20, zoom: 1 };
+    expect(panPreviewCamera(camera, { x: Number.NaN, y: 0 })).toBe(camera);
+    expect(
+      panPreviewCamera(camera, { x: Number.POSITIVE_INFINITY, y: 0 })
+    ).toBe(camera);
+  });
+
+  it("keeps an already-invalid camera unchanged rather than propagating NaN", () => {
+    const camera = { x: Number.NaN, y: 0, zoom: 1 };
+    expect(panPreviewCamera(camera, { x: 5, y: 5 })).toBe(camera);
+  });
 });
 
 describe("interpolateCamera", () => {
@@ -177,6 +249,15 @@ describe("cameraAt", () => {
 
   it("refuses a centre that is not a number", () => {
     expect(cameraAt({ x: Number.NaN, y: 0 }, 1, viewport)).toBeNull();
+  });
+
+  it("clamps a zoom outside the camera's range", () => {
+    expect(cameraAt({ x: 0, y: 0 }, 999, viewport)?.zoom).toBe(
+      MAX_PREVIEW_ZOOM
+    );
+    expect(cameraAt({ x: 0, y: 0 }, 0.0001, viewport)?.zoom).toBe(
+      MIN_PREVIEW_ZOOM
+    );
   });
 });
 

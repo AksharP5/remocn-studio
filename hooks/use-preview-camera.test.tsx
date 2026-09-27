@@ -11,7 +11,12 @@ import {
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { act, render } from "@testing-library/react";
 import { Effect } from "effect";
-import { cameraCentre, type PreviewCamera } from "@/lib/studio/preview-camera";
+import {
+  cameraCentre,
+  INITIAL_PREVIEW_CAMERA,
+  type PreviewCamera,
+  SELECTION_ZOOM,
+} from "@/lib/studio/preview-camera";
 import { hydrateSettings } from "@/lib/studio/settings";
 import { useCameraView, usePreviewCamera } from "./use-preview-camera";
 
@@ -206,6 +211,129 @@ describe("usePreviewCamera", () => {
     advance(400);
 
     expect(camera()).toBe(before);
+  });
+
+  it("zooms to the selection but never past 400%", async () => {
+    const { advance, camera, view, viewport } = await mount({
+      x: 0,
+      y: 0,
+      zoom: 1,
+    });
+    const selection = document.createElement("div");
+    selection.setAttribute("data-remocn-selection-bounds", "");
+    viewport.append(selection);
+    spyOn(viewport, "getBoundingClientRect").mockReturnValue({
+      bottom: 800,
+      height: 800,
+      left: 0,
+      right: 1000,
+      top: 0,
+      width: 1000,
+    } as DOMRect);
+    spyOn(selection, "getBoundingClientRect").mockReturnValue({
+      bottom: 420,
+      height: 40,
+      left: 480,
+      right: 520,
+      top: 380,
+      width: 40,
+    } as DOMRect);
+    const before = camera();
+
+    act(() => view.current?.zoomToSelection());
+    advance(400);
+
+    expect(camera().zoom).not.toBe(before.zoom);
+    expect(camera().zoom).toBe(SELECTION_ZOOM);
+  });
+
+  it("does nothing for zoom-to-selection with nothing selected", async () => {
+    const { camera, view } = await mount({ x: 0, y: 0, zoom: 1 });
+    const before = camera();
+
+    act(() => view.current?.zoomToSelection());
+
+    expect(camera()).toBe(before);
+  });
+
+  it("still fits when Shift+1 is pressed while a geometry handle has focus", async () => {
+    const { advance, camera, viewport } = await mount({ x: 0, y: 0, zoom: 4 });
+    const handle = document.createElement("button");
+    handle.setAttribute("data-geometry-handle", "");
+    viewport.append(handle);
+    expect(camera().zoom).toBe(4);
+
+    act(() => {
+      handle.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          code: "Digit1",
+          key: "!",
+          shiftKey: true,
+        })
+      );
+    });
+    advance(400);
+
+    expect(camera().zoom).toBeCloseTo(fitted.zoom);
+  });
+
+  it("leaves room for a real occluder element when fitting", async () => {
+    const { advance, camera, press, viewport } = await mount({
+      x: 0,
+      y: 0,
+      zoom: 4,
+    });
+    spyOn(viewport, "getBoundingClientRect").mockReturnValue({
+      bottom: 800,
+      height: 800,
+      left: 0,
+      right: 1000,
+      top: 0,
+      width: 1000,
+    } as DOMRect);
+    const occluder = document.createElement("div");
+    occluder.setAttribute("data-canvas-occludes", "top");
+    viewport.append(occluder);
+    spyOn(occluder, "getBoundingClientRect").mockReturnValue({
+      bottom: 100,
+      height: 100,
+      left: 0,
+      right: 1000,
+      top: 0,
+      width: 1000,
+    } as DOMRect);
+
+    press({ code: "Digit1", key: "!", shiftKey: true });
+    advance(400);
+
+    expect(camera().zoom).toBeCloseTo(fitted.zoom);
+    expect(camera().y).not.toBeCloseTo(fitted.y);
+    expect(camera().y).toBeCloseTo(182.25);
+  });
+
+  it("keeps the last valid camera when the canvas cannot be measured", async () => {
+    viewportSize = { height: 0, width: 0 };
+    const { advance, camera, view } = await mount();
+
+    expect(camera()).toEqual(INITIAL_PREVIEW_CAMERA);
+
+    act(() => view.current?.fit());
+    advance(400);
+
+    expect(camera()).toEqual(INITIAL_PREVIEW_CAMERA);
+  });
+
+  it("never produces a NaN or infinite camera while the canvas has no size", async () => {
+    viewportSize = { height: 0, width: 0 };
+    const { advance, camera, view } = await mount();
+
+    act(() => view.current?.zoomIn());
+    advance(400);
+
+    expect(Number.isFinite(camera().x)).toBe(true);
+    expect(Number.isFinite(camera().y)).toBe(true);
+    expect(Number.isFinite(camera().zoom)).toBe(true);
   });
 
   it("restores a remembered camera with the same point at the centre", async () => {

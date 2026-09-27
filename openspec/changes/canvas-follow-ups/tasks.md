@@ -10,4 +10,4 @@
 
 ## 3. Coverage
 
-- [ ] 3.1 Tests for stale connection and disposal, camera boundaries, native bundling, reload and media cleanup, and packaged resources (moved from `shadow-preview-canvas` 4.2).
+- [x] 3.1 Tests for stale connection and disposal, camera boundaries, native bundling, reload and media cleanup, and packaged resources (moved from `shadow-preview-canvas` 4.2).
