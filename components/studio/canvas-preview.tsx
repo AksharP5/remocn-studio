@@ -163,7 +163,7 @@ export function CanvasPreview({
   );
 }
 
-function CanvasStage({
+export function CanvasStage({
   camera,
   metadata,
   nativeStage,
@@ -179,7 +179,8 @@ function CanvasStage({
       <div
         className={cn(
           "absolute top-0 left-0 origin-top-left bg-black shadow-lg transition-[opacity,visibility] duration-base ease-out",
-          shown ? "visible opacity-100" : "invisible opacity-0"
+          shown ? "visible opacity-100" : "invisible opacity-0",
+          camera.outside === "hide" && "overflow-clip"
         )}
         ref={camera.stage}
         style={{
