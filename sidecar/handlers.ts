@@ -40,7 +40,7 @@ import { type HistoryError, HistoryStore } from "./history/store";
 import { VideoStore } from "./history/videos";
 import { HandlerError, type Handlers } from "./host";
 import {
-  generateSound,
+  generateSounds,
   recoverSounds,
   soundStatus,
 } from "./integrations/sounds";
@@ -474,9 +474,9 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
               start: () => moved(store.startPipeline(params.historyId)),
             },
             sounds: {
-              generate: (request, execution) =>
+              generate: (requests, execution) =>
                 Effect.runPromise(
-                  generateSound(request, { ask, emit, gate, turnId }),
+                  generateSounds(requests, { ask, emit, gate, turnId }),
                   { signal: execution?.signal }
                 ),
               status: (id) =>

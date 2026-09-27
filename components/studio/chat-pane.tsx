@@ -338,6 +338,7 @@ function Conversation({
             {turn.permission === null ? null : (
               <AboveComposer>
                 <PermissionCard
+                  asks={turn.asks}
                   cwd={cwd}
                   key={turn.permission.id}
                   onAnswer={turn.answer}

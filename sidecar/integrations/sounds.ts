@@ -9,7 +9,7 @@ import {
 import type { PermissionGate } from "../agent/gate";
 import type { HandlerInput } from "../host";
 import { importSound } from "../library/sounds";
-import { listAssets } from "../library/store";
+import { type LibraryError, listAssets } from "../library/store";
 import { CoreError } from "./core";
 
 export interface SoundContext {
@@ -19,13 +19,20 @@ export interface SoundContext {
   turnId: string;
 }
 
+interface SoundAnswer {
+  readonly operationId: string;
+  readonly state: string;
+  readonly [field: string]: unknown;
+}
+
 export function soundStatus(
   ask: SoundContext["ask"],
   id: string,
   emit: SoundContext["emit"] = () => Effect.void
 ) {
   return ask("sounds.status", { id }).pipe(
-    Effect.flatMap((operation) => describeResult(ask, operation, emit))
+    Effect.flatMap((operation) => describeResult(ask, operation, emit)),
+    Effect.map((result) => JSON.stringify(result))
   );
 }
 
@@ -33,7 +40,7 @@ function describeResult(
   ask: SoundContext["ask"],
   operation: SoundOperation,
   emit: SoundContext["emit"]
-) {
+): Effect.Effect<SoundAnswer, CoreError | LibraryError> {
   const publish = (asset: Asset) =>
     emit({
       result: {
@@ -53,15 +60,13 @@ function describeResult(
               item.source.id === operation.id
           ) ?? null;
         return (asset === null ? Effect.void : publish(asset)).pipe(
-          Effect.as(
-            JSON.stringify({
-              asset,
-              message:
-                "This sound was saved previously. If it was deleted from the library, recovery will not recreate it.",
-              operationId: operation.id,
-              state: operation.state,
-            })
-          )
+          Effect.as({
+            asset,
+            message:
+              "This sound was saved previously. If it was deleted from the library, recovery will not recreate it.",
+            operationId: operation.id,
+            state: operation.state,
+          })
         );
       })
     );
@@ -70,68 +75,133 @@ function describeResult(
     return importSound(operation).pipe(
       Effect.tap(publish),
       Effect.tap(() => ask("sounds.imported", { id: operation.id })),
-      Effect.map((asset) =>
-        JSON.stringify({
-          asset: { name: asset.name, path: asset.path, slug: asset.slug },
-          message:
-            "Saved to the library. The person can listen locally and explicitly attach this asset to a Project or Video. Do not change project files unless requested.",
-          operationId: operation.id,
-          state: operation.state,
-        })
-      )
+      Effect.map((asset) => ({
+        asset: { name: asset.name, path: asset.path, slug: asset.slug },
+        message:
+          "Saved to the library. The person can listen locally and explicitly attach this asset to a Project or Video. Do not change project files unless requested.",
+        operationId: operation.id,
+        state: operation.state,
+      }))
     );
   }
-  return Effect.succeed(
-    JSON.stringify({
-      detail: operation.detail,
-      operationId: operation.id,
-      state: operation.state,
-    })
+  return Effect.succeed({
+    detail: operation.detail,
+    operationId: operation.id,
+    state: operation.state,
+  });
+}
+
+const DECLINED =
+  "The person declined this sound generation. Nothing was sent; do not repeat the request.";
+
+function approval(operation: SoundOperation, context: SoundContext) {
+  const { id, request } = operation;
+  return context.gate.wait({
+    id,
+    onReady: () =>
+      context.emit({
+        id,
+        input: { description: soundSummary(operation) },
+        name:
+          request.kind === "music" ? "Generate music" : "Generate sound effect",
+        reason: "outward",
+        type: "permission",
+      }),
+    rememberable: false,
+    signature: `sound:${id}`,
+    turnId: context.turnId,
+  });
+}
+
+function dispatch(
+  operation: SoundOperation,
+  context: SoundContext
+): Effect.Effect<SoundAnswer, CoreError | LibraryError> {
+  return Effect.gen(function* () {
+    const { id, request } = operation;
+    yield* context.emit({
+      message: `Generating ${request.kind === "music" ? "music" : "sound"} with ElevenLabs. Operation: ${id}. If waiting stops, check this operation; do not generate again automatically.`,
+      type: "notice",
+    });
+    let current = yield* context.ask("sounds.commit", { id });
+    while (current.state === "generating") {
+      yield* Effect.sleep("1 second");
+      current = yield* context.ask("sounds.status", { id });
+    }
+    return yield* describeResult(context.ask, current, context.emit);
+  });
+}
+
+function outcome(
+  operation: SoundOperation,
+  allowed: boolean,
+  context: SoundContext
+): Effect.Effect<SoundAnswer> {
+  const { id, request } = operation;
+  if (!allowed) {
+    return Effect.succeed({
+      message:
+        "The person declined this sound. Nothing was sent; do not request it again.",
+      name: request.name,
+      operationId: id,
+      state: "declined",
+    });
+  }
+  return dispatch(operation, context).pipe(
+    Effect.map((result) => ({ name: request.name, ...result })),
+    Effect.catch((failure) =>
+      Effect.succeed({
+        detail: failure.message,
+        name: request.name,
+        operationId: id,
+        state: "failed",
+      })
+    )
   );
 }
 
-export function generateSound(request: AudioRequest, context: SoundContext) {
+export function generateSounds(
+  requests: readonly AudioRequest[],
+  context: SoundContext
+) {
   return Effect.gen(function* () {
-    const operation = yield* context.ask("sounds.prepare", request);
-    const { id } = operation;
+    const prepared: SoundOperation[] = [];
     return yield* Effect.gen(function* () {
-      const answer = yield* context.gate.wait({
-        id,
-        onReady: () =>
-          context.emit({
-            id,
-            input: { description: soundSummary(operation) },
-            name:
-              request.kind === "music"
-                ? "Generate music"
-                : "Generate sound effect",
-            reason: "outward",
-            type: "permission",
-          }),
-        rememberable: false,
-        signature: `sound:${id}`,
-        turnId: context.turnId,
-      });
-      if (answer.decision !== "allow") {
+      for (const request of requests) {
+        prepared.push(yield* context.ask("sounds.prepare", request));
+      }
+      const answers = yield* Effect.forEach(
+        prepared,
+        (operation) => approval(operation, context),
+        { concurrency: "unbounded" }
+      );
+      const allowed = answers.map((answer) => answer.decision === "allow");
+      if (!allowed.some(Boolean)) {
         return yield* Effect.fail(
           new CoreError({
             message:
-              "The person declined this sound generation. Nothing was sent; do not repeat the request.",
+              prepared.length === 1
+                ? DECLINED
+                : "The person declined these sound generations. Nothing was sent; do not repeat the request.",
           })
         );
       }
-      yield* context.emit({
-        message: `Generating ${request.kind === "music" ? "music" : "sound"} with ElevenLabs. Operation: ${id}. If waiting stops, check this operation; do not generate again automatically.`,
-        type: "notice",
-      });
-      let current = yield* context.ask("sounds.commit", { id });
-      while (current.state === "generating") {
-        yield* Effect.sleep("1 second");
-        current = yield* context.ask("sounds.status", { id });
+      const [only] = prepared;
+      if (prepared.length === 1 && only !== undefined) {
+        return JSON.stringify(yield* dispatch(only, context));
       }
-      return yield* describeResult(context.ask, current, context.emit);
+      const results = yield* Effect.forEach(prepared, (operation, index) =>
+        outcome(operation, allowed[index], context)
+      );
+      return JSON.stringify({ sounds: results });
     }).pipe(
-      Effect.ensuring(context.ask("sounds.cancel", { id }).pipe(Effect.ignore))
+      Effect.ensuring(
+        Effect.forEach(
+          prepared,
+          ({ id }) => context.ask("sounds.cancel", { id }).pipe(Effect.ignore),
+          { discard: true }
+        )
+      )
     );
   });
 }

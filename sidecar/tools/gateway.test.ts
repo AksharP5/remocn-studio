@@ -259,8 +259,7 @@ it("cancels a running sound tool when its turn scope closes", async () => {
   const link = await connectGateway(path, TURN, "remocn-library");
   const answer = link.ask("generate_sound_effect", {
     connectionId: "cn_1",
-    name: "Door",
-    text: "Door closes",
+    sounds: [{ name: "Door", text: "Door closes" }],
   });
   await ready;
   await release();
@@ -306,7 +305,10 @@ describe("the in-process link", () => {
       ...tools(),
       sounds: { generate: waiting, status: () => Promise.resolve("unused") },
     };
-    const request = { connectionId: "cn_1", name: "Door", text: "Door closes" };
+    const request = {
+      connectionId: "cn_1",
+      sounds: [{ name: "Door", text: "Door closes" }],
+    };
 
     const ended = await serving(soundful, socketPath());
     const first = ended.gateway.ask("remocn-library", TURN)(

@@ -8,7 +8,7 @@ import {
 } from "@/hooks/use-code-writes";
 import type { Selection } from "@/hooks/use-selections";
 import type { TurnActions } from "@/hooks/use-turns";
-import type { PermissionAction } from "@/lib/studio/permission";
+import { gatheredAsks, type PermissionAction } from "@/lib/studio/permission";
 import type { LiveLine } from "@/lib/studio/reasoning";
 import {
   IDLE_TURN,
@@ -60,6 +60,7 @@ export interface OpenTurn {
     action: SourceAssetAction,
     file: string | null
   ) => Promise<boolean>;
+  asks: readonly PendingPermission[];
   canPickProvider: boolean;
   context: ContextUsage | null;
   entries: readonly TranscriptEntry[];
@@ -274,6 +275,7 @@ export function useOpenTurn({
     () => ({
       answer,
       answerSource,
+      asks: gatheredAsks(turn.permissions),
       canPickProvider,
       context: turn.context,
       entries: turn.entries,

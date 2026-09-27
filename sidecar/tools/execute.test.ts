@@ -731,8 +731,8 @@ it("routes music through paid generation with instrumental defaults and its own 
   const ids: (string | undefined)[] = [];
   const calls = tools({
     sounds: {
-      generate: (request) => {
-        requests.push(request);
+      generate: (batch) => {
+        requests.push(...batch);
         return Promise.resolve("prepared");
       },
       status: (id) => {
@@ -791,4 +791,62 @@ it("routes music through paid generation with instrumental defaults and its own 
     ).isError
   ).toBe(true);
   expect(requests).toHaveLength(1);
+});
+
+it("hands every sound of one call to paid generation on the chosen connection", async () => {
+  const batches: unknown[][] = [];
+  const calls = tools({
+    sounds: {
+      generate: (batch) => {
+        batches.push([...batch]);
+        return Promise.resolve("prepared");
+      },
+      status: () => Promise.resolve("unused"),
+    },
+  });
+  const answer = await executeTool(
+    "remocn-library",
+    "generate_sound_effect",
+    {
+      connectionId: "cn_1",
+      sounds: [
+        { name: "Door", text: "Door closes" },
+        { durationSeconds: 2, name: "Rain", text: "Light rain" },
+      ],
+    },
+    calls
+  );
+  expect(answer.isError).toBe(false);
+  expect(batches).toEqual([
+    [
+      {
+        connectionId: "cn_1",
+        durationSeconds: null,
+        format: "mp3_44100_128",
+        name: "Door",
+        text: "Door closes",
+      },
+      {
+        connectionId: "cn_1",
+        durationSeconds: 2,
+        format: "mp3_44100_128",
+        name: "Rain",
+        text: "Light rain",
+      },
+    ],
+  ]);
+  const refused = await executeTool(
+    "remocn-library",
+    "generate_sound_effect",
+    {
+      connectionId: "cn_1",
+      sounds: [
+        { name: "Door", text: "Door closes" },
+        { durationSeconds: 31, name: "Rain", text: "Light rain" },
+      ],
+    },
+    calls
+  );
+  expect(refused.isError).toBe(true);
+  expect(batches).toHaveLength(1);
 });

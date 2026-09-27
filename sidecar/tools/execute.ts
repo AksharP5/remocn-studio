@@ -110,7 +110,7 @@ export interface TurnTools {
   readonly pipeline: PipelineCalls;
   readonly sounds?: {
     generate: (
-      request: import("@/shared/sound-effects").AudioRequest,
+      requests: readonly import("@/shared/sound-effects").AudioRequest[],
       execution?: ToolExecution
     ) => Promise<string>;
     status: (id?: string) => Promise<string>;
@@ -155,16 +155,24 @@ export function executeTool(
       }
       if (tool === GENERATE_MUSIC) {
         return tools.sounds.generate(
-          {
-            ...args,
-            kind: "music",
-          } as import("@/shared/sound-effects").MusicRequest,
+          [
+            {
+              ...args,
+              kind: "music",
+            } as import("@/shared/sound-effects").MusicRequest,
+          ],
           execution
         );
       }
       return tool === GENERATE_SOUND
         ? tools.sounds.generate(
-            args as import("@/shared/sound-effects").AudioRequest,
+            (args.sounds as Record<string, unknown>[]).map(
+              (sound) =>
+                ({
+                  ...sound,
+                  connectionId: args.connectionId,
+                }) as import("@/shared/sound-effects").SoundRequest
+            ),
             execution
           )
         : tools.sounds.status(args.id as string | undefined);
