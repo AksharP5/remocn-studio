@@ -394,6 +394,7 @@ function Conversation({
               settings={settings}
               stages={turn.stages}
               tasks={currentTasks(turn.entries)}
+              working={turn.isRunning}
             />
             <QueueDock queue={queue} />
           </DockStack>

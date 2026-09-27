@@ -90,13 +90,18 @@ export function pipelineProgress(
 
 export function pipelineLabel(
   stages: readonly PipelineStage[],
-  tasks: readonly TaskRow[]
+  tasks: readonly TaskRow[],
+  working: boolean
 ): string {
   const running = tasks.find((task) => task.status === "in_progress");
-  if (running !== undefined) {
+  if (working && running !== undefined) {
     return running.activeForm ?? running.subject;
   }
 
   const active = activeStage(stages);
-  return active === null ? "Video" : stageTemplate(active.stage).activeForm;
+  if (active === null) {
+    return "Video";
+  }
+  const template = stageTemplate(active.stage);
+  return working ? template.activeForm : template.title;
 }

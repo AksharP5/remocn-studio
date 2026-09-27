@@ -33,9 +33,11 @@ const LABELS: Record<TaskGlyph, string> = {
 export function TaskStatusIcon({
   className,
   glyph,
+  still = false,
 }: {
   className?: string;
   glyph: TaskGlyph;
+  still?: boolean;
 }) {
   if (glyph === "finished") {
     // A whole plan finished is not one more completed row: the dashed ring is
@@ -60,6 +62,7 @@ export function TaskStatusIcon({
   if (glyph === "in_progress") {
     return (
       <DotmSquare1
+        animated={!still}
         ariaLabel={LABELS.in_progress}
         className={cn("size-4 shrink-0 text-foreground", className)}
         dotSize={2}

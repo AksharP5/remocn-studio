@@ -5,7 +5,13 @@ import type { TaskRow } from "@/lib/studio/tasks";
 import { cn } from "@/lib/utils";
 import { TaskStatusIcon } from "./task-status-icon";
 
-export function TaskChecklist({ tasks }: { tasks: readonly TaskRow[] }) {
+export function TaskChecklist({
+  tasks,
+  working,
+}: {
+  tasks: readonly TaskRow[];
+  working: boolean;
+}) {
   if (tasks.length === 0) {
     return null;
   }
@@ -13,13 +19,13 @@ export function TaskChecklist({ tasks }: { tasks: readonly TaskRow[] }) {
   return (
     <ul className="flex min-w-0 flex-col gap-0.5" data-slot="task-checklist">
       {tasks.map((task) => (
-        <TaskItem key={task.id} task={task} />
+        <TaskItem key={task.id} task={task} working={working} />
       ))}
     </ul>
   );
 }
 
-function TaskItem({ task }: { task: TaskRow }) {
+function TaskItem({ task, working }: { task: TaskRow; working: boolean }) {
   const disclosure = useDisclosure();
 
   return (
@@ -36,7 +42,11 @@ function TaskItem({ task }: { task: TaskRow }) {
         onClick={disclosure.toggle}
         type="button"
       >
-        <TaskStatusIcon className="mt-0.5" glyph={task.status} />
+        <TaskStatusIcon
+          className="mt-0.5"
+          glyph={task.status}
+          still={!working}
+        />
         {/* The subject wraps rather than truncating: a plan whose rows end in
             an ellipsis is a plan you cannot read, and the block is free to
             grow downwards where it is not free to grow sideways. */}
