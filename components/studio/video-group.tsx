@@ -229,7 +229,8 @@ function Rollup({ rollup }: { rollup: GroupRollup | null }) {
       {status === "running" ? (
         <DotmSquare1
           ariaLabel=""
-          className="shrink-0 text-sidebar-primary"
+          className="shrink-0"
+          colorPreset="grad-prism"
           dotSize={2}
           size={16}
         />

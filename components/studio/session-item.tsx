@@ -167,7 +167,8 @@ function Marker({ row }: { row: SessionRow }) {
     return (
       <DotmSquare1
         ariaLabel={label}
-        className={cn(className, "text-sidebar-primary")}
+        className={className}
+        colorPreset="grad-prism"
         dotSize={2}
         role="img"
         size={16}
