@@ -1,5 +1,22 @@
 # remocn-studio
 
+## 0.11.0
+
+### Minor Changes
+
+- 034ed88: The canvas names the video frame just above its top-left corner, and while a turn is working on the video the name gives way to a wide, single-ripple version of the chat's thinking mark and a changing phrase about the work, such as "Storyboarding…", whether or not anything is selected. The label follows the view as you pan and zoom, and the mark leaves when the turn ends or a card waits for you.
+- 6709ba2: The video can be watched full screen. The canvas toolbar, the playback panel and F open it: the window goes full screen, the video is fitted on black with nothing around it, and the playback panel fades while it plays. Esc or F brings the canvas back as it was, at the same frame.
+
+### Patch Changes
+
+- f9de1cc: Several sound effects are approved on one permission card. The agent asks for every sound in one call, the card lists each request with its description and the charge notice, and the person can send all of them, uncheck some, or decline all. Other asks raised together — commands, paths outside the project — also share one card instead of coming up one after another.
+- 666cec0: With content outside the frame hidden, the canvas now clips the video to the frame instead of covering the rest, so what lies beside the frame is no longer drawn underneath or picked by a click there, and scenes that reach far past the frame edges play smoothly.
+- 51ba474: With content outside the frame shown, videos now play on the canvas as smoothly as with it hidden: whatever moves is drawn once and slid into place instead of being redrawn on every frame, so a wall of filtered type that runs far past both frame edges no longer drops frames, and it stays visible and dimmed beside the frame while it plays.
+- 9d4628d: The preview plays videos with many sound effects. A video whose sounds all stayed mounted used to stop at a small warning sign in the preview while it exported fine; it now plays through, and a video that does fail to render says so and offers Retry.
+- 3c5c5a1: The seek bar names a video's real scenes. A video laid out in a Series beside a soundtrack now shows its scenes by name instead of "Series Container" and its sound effects. Scene names never draw over each other, and the boundary ticks are easier to see.
+- a5b31a4: A chat or video that is working shows its mark in the sidebar in the same purple as the chat's thinking mark, instead of white.
+- 811b8b5: The Video dock stops animating between turns. When a turn ends with a stage still open, such as Review, the dock names the stage and draws its mark still instead of showing "Reviewing the result" forever.
+
 ## 0.10.0
 
 ### Minor Changes
