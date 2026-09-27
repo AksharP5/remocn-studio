@@ -1,5 +1,108 @@
 # remocn-studio
 
+## 0.10.0
+
+### Minor Changes
+
+- 1091e17: Edit managed geometry on paused animation frames through explicit invertible pose mappings. Account for local scale and rotated, uniformly scaled ancestors, preserve the opposite resize anchor, cancel unfinished gestures when the playhead changes, and save base values with one Undo. Ship the opt-in v5 runtime without replacing authored runtimes.
+- 18090d2: The canvas camera feels more like a design tool's:
+  - Fit, 100%, zoom in and out and zoom to selection glide to their view in about a fifth of a second instead of jumping. Panning or pinching stops them where they are, and they jump at once when macOS is set to reduce motion.
+  - Rulers along the top and left edges measure the video in pixels, mark where the pointer is and highlight the selected object's extent. The ruler button in the toolbar or ⇧R shows or hides them, and the choice is remembered.
+  - From 800% a grid marks every pixel of the video. It never appears in Snapshot or Export.
+  - Each video opens where you left it after a relaunch, with the same point at the centre even if the window is a different size.
+- 1091e17: Move, resize and rotate explicitly bound managed objects in the preview with scale-aware handles, dimensions, modifier keys and gesture cancellation. Save each gesture atomically with one Undo and retain failed edits for Retry or Discard. Add the versioned v4 geometry runtime and enable it in new video templates without overwriting authored runtimes. Advance the sidecar protocol to 36 for grouped property operations.
+- 7cf9c9a: There is no paid plan anymore. Everything that was part of Pro is now available to everyone,
+  with nothing to sign in to:
+
+  - Inspect and Snapshot
+  - writing tuned values back into the code
+  - the bundled video-making skills
+  - the seven-stage pipeline
+  - the full studio conventions
+
+  The trial card, Settings › Account and the account row at the bottom of the sidebar are gone.
+  If you signed in to an earlier version, that sign-in is forgotten on first launch. It is
+  removed from your keychain along with the plan the studio had cached, and nothing is sent
+  anywhere.
+
+- 1091e17: Edit managed plain text by double-clicking it in the preview. The input follows the text's typography and grows with its content; clicking outside or pressing Cmd/Ctrl+Enter saves one undoable property change, and Escape cancels. Existing scenes support unambiguous text fields, while the versioned v3 object runtime adds explicit bindings for separate text regions without overwriting authored runtimes.
+- 2ac468a: The studio looks and feels more finished, and costs less while it works:
+  - Failures read as sentences, with the raw text behind Details and a Copy details button. Mono text is set in Geist Mono again, and the interface no longer says "session", "composition" or "sidecar".
+  - Videos and chats have native right-click menus. New Chat is on ⌘T, F2 renames a video and ⌘⌫ deletes a row.
+  - The preview shows a progress bar while it builds and fades the frame in. The export pill shows its stage, a long render asks before it stops, a finished export can be dismissed and a failed one retried.
+  - Motion, status colours, tooltips and floating cards share one set of tokens. The splash leaves as soon as its draw has landed, the window matches the theme, and the title bar shader rests while the window is in the background.
+  - The canvas compiler alone gets the preview ready. The render bundle is built only when a render needs it, without hot-reload output, and old preview folders are pruned at start.
+  - An export measures and renders in one browser. Claude's tool servers run inside the helper, Copilot and Grok keep their agent between turns, and account checks run at once and answer from the last sign-in.
+  - Streamed text is saved a few times a second instead of on every token, the log rolls over while the studio runs, and saving a pasted picture no longer holds up the window.
+
+### Patch Changes
+
+- 1058512: The studio does far less work while it streams and while you type:
+  - A streamed reply re-renders the transcript and nothing else, and lands at most once per frame; typing re-renders only the composer.
+  - Playing a video moves only the seek bar, and panning or zooming the canvas moves only the stage, the rulers and the overlays.
+  - The window opens on 1.3 MB less JavaScript: the markdown renderer, the code highlighter, the properties controls and the crash reporter load when they are first needed, and the release no longer carries the lab pages or preloads three fonts it does not use.
+  - Chats you have not opened in a while are read back from history when you return to them, and videos in a chat show a still frame instead of a live player.
+- d5f8512: Make canvas editing smoother: an ordinary element's card reopens after a
+  rebuild, moving and resizing snap to the frame and other objects with guides
+  (⌘/Ctrl turns it off), arrow keys nudge the selected object as one Undo,
+  ⌘0 / ⌘+ / ⌘− / ⇧1 / ⇧2 control the camera with a Zoom to selection button,
+  and content outside the frame is shown dimmed with a toggle to hide it.
+- b2de7a4: The inspector is a vertical bar of icons — Layers, Properties, Snapshot and a
+  collapse control — beside a collapsible panel; clicking the active view's icon
+  collapses it to the bar. Layers lists the video's editable objects as a tree of collapsible groups, with
+  scenes as their own groups and the scene on screen expanded:
+  hovering a row outlines the object on the canvas and clicking selects it, so
+  transparent, covered and off-screen objects can be reached, and objects not in
+  the current frame are dimmed. Tab / Shift+Tab step through the objects on
+  screen. Export moves to the preview pane's header, as in Docs.
+- e6fce60: Make the canvas the only preview: remove the iframe preview page, its host and
+  the separate properties column. The canvas now shows compile progress, and Fit
+  and Zoom to selection leave room for the panels that actually cover the canvas.
+  The render bundle no longer carries the preview runtime.
+- 6c63c22: Panning the canvas follows the pointer: drag, wheel and pinch updates are
+  applied once per frame, and the inspector no longer re-renders while the view
+  moves, so Space-drag no longer lags behind the mouse or moves in jerks.
+- 1091e17: Select preview elements directly without an Inspect button. A click pauses playback and opens the element's properties; hover uses a quiet outline and a text-aware cursor. Escape clears selection, Snapshot temporarily owns frame gestures, and element selection becomes available again after preview reloads.
+- 76f13a0: The preview header no longer carries the Preview / Docs switch. Docs opens with
+  ⌘D, the View menu, the command palette or a stage row, and shows a Preview
+  button to return. The canvas's zoom controls sit in the header row, and the
+  properties pane's color swatch is a square that fits its row.
+- d5f8512: Edit where an object enters from and leaves to by dragging it on the canvas.
+  The new `geometryBetween` helper in studio-objects-v5 moves an object between
+  two field-backed poses; early in the move a drag edits the start pose, late in
+  it the resting or end pose. The canvas names the edited pose and draws the other
+  one as an outline with the path between them. Objects outside the frame can now
+  be selected.
+- dacc80c: Explore Studio opens on a welcome cover the first time, then walks through six chapters, each with a still of the real interface, a short title and a line on how to use it. The recordings are gone, and progress segments replace the chapter list.
+- 1ad7743: Opus 5.5 is in the Claude model menu.
+- ab10090: The canvas playback panel has a full-height seek bar in the style of the
+  properties pane's sliders, with the elapsed and total time inside it. The
+  canvas hint and status messages sit in the row of playback buttons, and the
+  panel is shorter.
+- 1091e17: Move playback controls below the preview so they no longer cover editable content. Add frame stepping, a seek bar, time display, sound controls, scoped keyboard shortcuts, and fullscreen with the controls kept visible.
+- 492c68c: While a turn runs, the chat shows its latest steps and the model's reasoning
+  scrolling under a shimmering task phrase, three lines at a time. Reasoning is
+  shown live only and never stored. A finished turn reads "Worked for 2m 14s" in
+  place of "Work details" and expands into its steps.
+- 32b025f: The seek bar marks the video's scenes with short ticks and each scene's name
+  above its segment, the current one highlighted; clicking a name jumps to the
+  scene. The playback panel has a speed slider (0.25×, 0.5×, 1×, 2×) for the
+  preview, and a shorter volume slider in the same style; its text is set in one
+  face and size. The agent now names every scene and describes it in studio.json
+  with a scene object its objects belong to, and the design check reports a scene
+  without a name or a scene object. In the object list, clicking a scene, or an
+  object that is not on screen, moves the playhead to that scene.
+- c67537c: Replace the main Studio preview iframe with a navigable Shadow DOM canvas using
+  the project's own React and Remotion. Add pan, pointer-anchored zoom, Fit and
+  per-video camera memory, with the existing properties pane floating over the
+  canvas. Route selection, geometry handles, inline text, Snapshot, playback,
+  save receipts and Undo through the shared runtime and existing editing hooks.
+
+  Adapt supported studio-objects-v5 transports during native compilation without
+  rewriting video source. Scope styles and editing queries, retain playhead state
+  across preview-only rebuilds, and package the native runtime and compatibility
+  loader. Keep rendering/export on its existing bundle.
+
 ## 0.9.0
 
 ### Minor Changes
