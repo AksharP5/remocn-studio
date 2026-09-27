@@ -38,6 +38,7 @@ const MARKER = "data-remocn-transform";
 const REVEAL = "data-remocn-reveal";
 const INVISIBLE = 0.05;
 export const SELECTION_BOUNDS = "data-remocn-selection-bounds";
+export const SELECTION_LABEL = "data-remocn-selection-label";
 const SNAP_DISTANCE = 6;
 const NUDGE_SETTLE_MS = 400;
 const GUIDE_INK = "#f43f5e";
@@ -171,6 +172,7 @@ export function createGeometryEditor(
     transformOrigin: "center",
   });
   const label = overlay("div", depth + 1);
+  label.setAttribute(SELECTION_LABEL, "");
   Object.assign(label.style, {
     background: accent,
     borderRadius: "3px",

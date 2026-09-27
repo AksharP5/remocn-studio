@@ -3,6 +3,24 @@ import { Marker, MarkerContent } from "@/components/ui/marker";
 import { runningTime } from "@/lib/studio/time";
 import { cn } from "@/lib/utils";
 
+export function ThinkingMark({ className }: { className?: string }) {
+  return (
+    <DotmSquare11
+      animated
+      ariaLabel=""
+      className={className}
+      colorPreset="grad-prism"
+      dotSize={2}
+      opacityBase={0.12}
+      opacityMid={0.42}
+      opacityPeak={1}
+      pattern="full"
+      size={14}
+      speed={1.05}
+    />
+  );
+}
+
 export function Thinking({
   label,
   now,
@@ -16,19 +34,7 @@ export function Thinking({
 }) {
   return (
     <Marker className="min-w-0 items-baseline text-xs">
-      <DotmSquare11
-        animated
-        ariaLabel=""
-        className="shrink-0 self-center"
-        colorPreset="grad-prism"
-        dotSize={2}
-        opacityBase={0.12}
-        opacityMid={0.42}
-        opacityPeak={1}
-        pattern="full"
-        size={14}
-        speed={1.05}
-      />
+      <ThinkingMark className="shrink-0 self-center" />
       <MarkerContent
         className={cn("min-w-0 truncate", shimmer && "shimmer")}
         title={label ?? "Thinking…"}

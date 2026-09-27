@@ -24,6 +24,7 @@ export const MAX_PREVIEW_ZOOM = 8;
 export const INITIAL_PREVIEW_CAMERA: PreviewCamera = { x: 0, y: 0, zoom: 1 };
 export const SELECTION_ZOOM = 4;
 export const SELECTION_BOUNDS_ATTR = "data-remocn-selection-bounds";
+export const SELECTION_LABEL_ATTR = "data-remocn-selection-label";
 
 export const OCCLUDES_ATTR = "data-canvas-occludes";
 

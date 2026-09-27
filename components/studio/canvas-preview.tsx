@@ -34,6 +34,7 @@ import { formatShortcut, SHORTCUTS } from "@/lib/studio/command-registry";
 import type { LayerRow } from "@/lib/studio/layers";
 import { cn } from "@/lib/utils";
 import { CanvasRulers } from "./canvas-rulers";
+import { CanvasWorking } from "./canvas-working";
 import { DOCK_SURFACE } from "./dock-layout";
 import { FailureText } from "./failure-text";
 import { HintTooltip } from "./hint-tooltip";
@@ -109,6 +110,8 @@ export function CanvasPreview({
           className="pointer-events-none absolute inset-0 z-10 [clip-path:inset(0)]"
           ref={native.overlays}
         />
+
+        <CanvasWorking overlays={native.overlays} />
 
         {tools.managed?.isOpen ? null : (
           <CanvasInspectOverlay
