@@ -6,6 +6,7 @@ import {
   joinPath,
   projectFrames,
   truncateMarkup,
+  withoutRuntimeMarks,
 } from "./source";
 
 const ROOT = "/Users/me/projects/my-video";
@@ -153,6 +154,18 @@ describe("formatFrame", () => {
         name: null,
       })
     ).toBe(`${ROOT}/src/Title.tsx:12`);
+  });
+});
+
+describe("withoutRuntimeMarks", () => {
+  it("drops the marks the canvas puts on the video, and nothing the project wrote", () => {
+    expect(
+      withoutRuntimeMarks(
+        '<div data-remocn-frame-clip="" style="overflow:hidden"><span data-remocn-moving="" data-remocn-id="a">Hi</span></div>'
+      )
+    ).toBe(
+      '<div style="overflow:hidden"><span data-remocn-id="a">Hi</span></div>'
+    );
   });
 });
 
