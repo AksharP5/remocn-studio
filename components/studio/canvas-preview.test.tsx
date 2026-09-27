@@ -30,6 +30,7 @@ function mount() {
           metadata={VIDEO}
           nativeStage={nativeStage}
           shown
+          watching={false}
         />
       </div>
     );

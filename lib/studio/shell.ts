@@ -140,6 +140,51 @@ export function setWindowBackground(
   });
 }
 
+export function holdWindowFullScreen(
+  onLeave: () => void
+): Effect.Effect<void, ShellError, Scope.Scope> {
+  return Effect.gen(function* () {
+    const current = yield* Effect.try({ catch: fail, try: getCurrentWindow });
+    const already = yield* Effect.tryPromise({
+      catch: fail,
+      try: () => current.isFullscreen(),
+    });
+    if (already) {
+      return;
+    }
+    yield* Effect.acquireRelease(
+      Effect.tryPromise({
+        catch: fail,
+        try: () => current.setFullscreen(true),
+      }),
+      () => Effect.ignore(Effect.tryPromise(() => current.setFullscreen(false)))
+    );
+    let entered = false;
+    const check = Effect.tryPromise(() => current.isFullscreen()).pipe(
+      Effect.tap((now) =>
+        Effect.sync(() => {
+          if (now) {
+            entered = true;
+          } else if (entered) {
+            onLeave();
+          }
+        })
+      ),
+      Effect.ignore
+    );
+    yield* Effect.acquireRelease(
+      Effect.tryPromise({
+        catch: fail,
+        try: () =>
+          current.onResized(() => {
+            Effect.runFork(check);
+          }),
+      }),
+      (unlisten) => Effect.ignore(Effect.sync(unlisten))
+    );
+  });
+}
+
 export function watchWindowFocus(
   onFocus: () => void,
   onBlur: () => void = () => undefined

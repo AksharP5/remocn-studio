@@ -15,6 +15,7 @@
     "core:window:allow-set-progress-bar",
     "core:window:allow-set-badge-count",
     "core:window:allow-set-background-color",
+    "core:window:allow-set-fullscreen",
     {
       "identifier": "opener:allow-open-url",
       "allow": [{ "url": "x-apple.systempreferences:*" }]

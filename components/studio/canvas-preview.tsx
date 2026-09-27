@@ -8,6 +8,7 @@ import {
   HandIcon,
   InfoIcon,
   LayersIcon,
+  MaximizeIcon,
   MinusIcon,
   PanelRightCloseIcon,
   PanelRightOpenIcon,
@@ -53,6 +54,13 @@ const GRID = `linear-gradient(to right, ${GRID_LINE} 1px, transparent 1px), line
 type Canvas = ReturnType<typeof useCanvasPreview>;
 type Metadata = Canvas["metadata"];
 
+function inspectorWidth(watching: boolean, open: boolean): string {
+  if (watching) {
+    return "0px";
+  }
+  return open ? "min(340px, calc(100% - 24px))" : "3rem";
+}
+
 export function CanvasPreview({
   header,
   hidden,
@@ -70,28 +78,31 @@ export function CanvasPreview({
     settings,
     tools,
   });
-  const { camera, failure, metadata, native, rulers } = canvas;
+  const { camera, failure, metadata, native, rulers, viewing } = canvas;
   const shown = metadata !== null && failure === null;
+  const watching = viewing.viewing;
 
   return (
     <section
       aria-label="Canvas preview"
       className={cn(
-        "relative isolate flex min-h-0 flex-1 overflow-hidden bg-background [&:fullscreen]:h-screen",
+        "relative isolate flex min-h-0 flex-1 overflow-hidden bg-background",
+        watching && "fixed inset-0 z-50 bg-black",
         hidden && "hidden"
       )}
       ref={canvas.transport.surface}
       style={
         {
-          "--canvas-inspector-width": canvas.layers.shown
-            ? "min(340px, calc(100% - 24px))"
-            : "3rem",
-          "--canvas-ruler": `${rulers.size}px`,
+          "--canvas-inspector-width": inspectorWidth(
+            watching,
+            canvas.layers.shown
+          ),
+          "--canvas-ruler": watching ? "0px" : `${rulers.size}px`,
         } as CSSProperties
       }
     >
       <div
-        aria-label="Video canvas. Click to select; double-click text to edit; arrow keys nudge the selection. Space and drag to pan; pinch to zoom; Shift 1 fits, Shift 2 zooms to the selection; Shift R shows or hides the rulers; K to play."
+        aria-label="Video canvas. Click to select; double-click text to edit; arrow keys nudge the selection. Space and drag to pan; pinch to zoom; Shift 1 fits, Shift 2 zooms to the selection; Shift R shows or hides the rulers; K to play; F to watch full screen."
         className="relative min-h-0 flex-1 touch-none overflow-hidden outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset"
         ref={camera.viewport}
         role="application"
@@ -104,16 +115,34 @@ export function CanvasPreview({
           metadata={metadata}
           nativeStage={native.stage}
           shown={shown}
+          watching={watching}
         />
 
         <div
-          className="pointer-events-none absolute inset-0 z-10 [clip-path:inset(0)]"
+          className={cn(
+            "pointer-events-none absolute inset-0 z-10 [clip-path:inset(0)]",
+            watching && "invisible"
+          )}
           ref={native.overlays}
         />
 
-        <CanvasWorking overlays={native.overlays} />
+        {watching ? null : <CanvasWorking overlays={native.overlays} />}
 
-        {tools.managed?.isOpen ? null : (
+        {watching ? (
+          <div
+            aria-label="Video. Click, Space or K to play or pause; Esc or F leaves full screen."
+            className={cn(
+              "absolute inset-0 z-[15] outline-none",
+              viewing.controlsHidden && "cursor-none"
+            )}
+            data-canvas-chrome
+            ref={viewing.shield}
+            role="img"
+            tabIndex={-1}
+          />
+        ) : null}
+
+        {tools.managed?.isOpen || watching ? null : (
           <CanvasInspectOverlay
             camera={camera}
             cwd={openedProject?.path ?? null}
@@ -122,10 +151,13 @@ export function CanvasPreview({
           />
         )}
 
-        {rulers.shown ? <CanvasRulers rulers={rulers} /> : null}
+        {rulers.shown && !watching ? <CanvasRulers rulers={rulers} /> : null}
 
         <div
-          className="absolute top-(--canvas-ruler) right-(--canvas-inspector-width) left-(--canvas-ruler) z-20 pt-2"
+          className={cn(
+            "absolute top-(--canvas-ruler) right-(--canvas-inspector-width) left-(--canvas-ruler) z-20 pt-2",
+            watching && "hidden"
+          )}
           data-canvas-chrome
           data-canvas-occludes="top"
         >
@@ -133,29 +165,35 @@ export function CanvasPreview({
           <CanvasToolbar canvas={canvas} />
         </div>
 
-        <CanvasInspector
-          duration={canvas.transport.duration}
-          hasSelection={canvas.hasSelection}
-          layers={canvas.layers}
-          metadata={metadata}
-          tools={tools}
-          videoName={openedVideo?.name ?? null}
-        />
+        <div className={watching ? "hidden" : "contents"}>
+          <CanvasInspector
+            duration={canvas.transport.duration}
+            hasSelection={canvas.hasSelection}
+            layers={canvas.layers}
+            metadata={metadata}
+            tools={tools}
+            videoName={openedVideo?.name ?? null}
+          />
+        </div>
 
         <CanvasNotices canvas={canvas} restart={tools.preview.restart} />
 
         <div
           className={cn(
             DOCK_SURFACE,
-            "absolute right-[calc(var(--canvas-inspector-width)+16px)] bottom-4 left-[calc(var(--canvas-ruler)+16px)] z-20 flex min-h-0 flex-col p-[11px]"
+            "absolute right-[calc(var(--canvas-inspector-width)+16px)] bottom-4 left-[calc(var(--canvas-ruler)+16px)] z-20 flex min-h-0 flex-col p-[11px]",
+            watching &&
+              "inset-x-0 bottom-6 mx-auto w-[min(56rem,calc(100%-2rem))] transition-opacity duration-base ease-out",
+            viewing.controlsHidden && "pointer-events-none opacity-0"
           )}
           data-canvas-chrome
           data-canvas-occludes="bottom"
         >
           <PreviewControls
             playShortcut="K"
-            status={status}
+            status={watching ? viewing.notice : status}
             transport={canvas.transport}
+            viewing={viewing}
           />
         </div>
       </div>
@@ -168,11 +206,13 @@ export function CanvasStage({
   metadata,
   nativeStage,
   shown,
+  watching,
 }: {
   camera: PreviewCameraControl;
   metadata: Metadata;
   nativeStage: Canvas["native"]["stage"];
   shown: boolean;
+  watching: boolean;
 }) {
   return (
     <>
@@ -180,7 +220,8 @@ export function CanvasStage({
         className={cn(
           "absolute top-0 left-0 origin-top-left bg-black shadow-lg transition-[opacity,visibility] duration-base ease-out",
           shown ? "visible opacity-100" : "invisible opacity-0",
-          camera.outside === "hide" && "overflow-clip"
+          (camera.outside === "hide" || watching) && "overflow-clip",
+          watching && "shadow-none"
         )}
         ref={camera.stage}
         style={{
@@ -192,7 +233,7 @@ export function CanvasStage({
         <div className="relative size-full" ref={nativeStage} />
       </div>
 
-      {shown ? <CanvasSurround camera={camera} /> : null}
+      {shown && !watching ? <CanvasSurround camera={camera} /> : null}
     </>
   );
 }
@@ -269,7 +310,7 @@ function ZoomReadout({ camera }: { camera: PreviewCameraControl }) {
 }
 
 function CanvasToolbar({ canvas }: { canvas: Canvas }) {
-  const { camera, hasSelection, metadata, rulers } = canvas;
+  const { camera, hasSelection, metadata, rulers, viewing } = canvas;
   const dimmed = camera.outside === "dim";
 
   return (
@@ -394,6 +435,21 @@ function CanvasToolbar({ canvas }: { canvas: Canvas }) {
           shortcut="⇧R"
         >
           <RulerIcon />
+        </HintTooltip>
+        <HintTooltip
+          label="Full screen"
+          render={
+            <Button
+              aria-label="Full screen"
+              disabled={!viewing.canEnter}
+              onClick={viewing.toggle}
+              size="icon-sm"
+              variant="ghost"
+            />
+          }
+          shortcut="F"
+        >
+          <MaximizeIcon />
         </HintTooltip>
       </div>
     </div>

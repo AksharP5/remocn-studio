@@ -32,9 +32,6 @@ export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
     state: TransportState;
   } | null>(null);
   const [seek, setSeek] = useState<{ url: string; frame: number } | null>(null);
-  const [fullscreen, setFullscreen] = useState(false);
-  const [canFullscreen, setCanFullscreen] = useState(false);
-  const [fullscreenError, setFullscreenError] = useState<string | null>(null);
   const [sceneReport, setSceneReport] = useState<{
     composition: string;
     scenes: readonly PreviewScene[];
@@ -178,32 +175,6 @@ export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
   );
 
   useEffect(() => {
-    const changed = () => {
-      setFullscreen(document.fullscreenElement === surface.current);
-      setFullscreenError(null);
-    };
-    setCanFullscreen(document.fullscreenEnabled === true);
-    document.addEventListener("fullscreenchange", changed);
-    return () => document.removeEventListener("fullscreenchange", changed);
-  }, []);
-
-  const toggleFullscreen = useCallback(async () => {
-    if (!(ready && canFullscreen && surface.current)) {
-      return;
-    }
-    setFullscreenError(null);
-    try {
-      if (document.fullscreenElement === surface.current) {
-        await document.exitFullscreen();
-      } else {
-        await surface.current.requestFullscreen();
-      }
-    } catch {
-      setFullscreenError("Fullscreen is unavailable in this window.");
-    }
-  }, [canFullscreen, ready]);
-
-  useEffect(() => {
     if (!ready) {
       return;
     }
@@ -237,7 +208,7 @@ export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
 
   const pendingFrame = seek?.url === url ? seek.frame : null;
   const buffering = state?.buffering ?? false;
-  const error = state?.error ?? fullscreenError;
+  const error = state?.error ?? null;
   const muted = (state?.muted ?? false) || state?.volume === 0;
   const volume = Math.round((state?.muted ? 0 : (state?.volume ?? 1)) * 100);
   const { playing } = preview;
@@ -245,12 +216,10 @@ export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
   return useMemo(
     () => ({
       buffering,
-      canFullscreen,
       duration: previewTime(duration / fps),
       error,
       fps,
       frameOf,
-      fullscreen,
       lastFrame,
       muted,
       next,
@@ -270,18 +239,15 @@ export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
       setVolume,
       surface,
       toggle,
-      toggleFullscreen,
       toggleMute,
       volume,
     }),
     [
       buffering,
-      canFullscreen,
       duration,
       error,
       fps,
       frameOf,
-      fullscreen,
       lastFrame,
       muted,
       next,
@@ -297,7 +263,6 @@ export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
       setRateStep,
       setVolume,
       toggle,
-      toggleFullscreen,
       toggleMute,
       volume,
     ]

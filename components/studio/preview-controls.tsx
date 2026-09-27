@@ -19,6 +19,7 @@ import {
   useTransportEdge,
   useTransportFrame,
 } from "@/hooks/use-preview-transport";
+import type { PreviewViewing } from "@/hooks/use-preview-viewing";
 import { useSeekScenes } from "@/hooks/use-seek-scenes";
 import { cn } from "@/lib/utils";
 import { DOCK_ACTIONS } from "./dock-layout";
@@ -28,16 +29,16 @@ export function PreviewControls({
   transport,
   playShortcut = "Space",
   status,
+  viewing,
 }: {
   transport: PreviewTransport;
   playShortcut?: string;
   status?: ReactNode;
+  viewing?: Pick<PreviewViewing, "canEnter" | "toggle" | "viewing">;
 }) {
   const {
     buffering,
-    canFullscreen,
     error,
-    fullscreen,
     muted,
     next,
     playing,
@@ -50,7 +51,6 @@ export function PreviewControls({
     setRateStep,
     setVolume,
     toggle,
-    toggleFullscreen,
     toggleMute,
     volume,
   } = transport;
@@ -170,24 +170,27 @@ export function PreviewControls({
           value={volume}
           valueText={`${volume}%`}
         />
-        {canFullscreen ? (
+        {viewing === undefined ? null : (
           <HintTooltip
-            label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+            label={viewing.viewing ? "Exit full screen" : "Full screen"}
             render={
               <Button
-                aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                aria-label={
+                  viewing.viewing ? "Exit full screen" : "Full screen"
+                }
                 className="size-8 text-muted-foreground sm:size-8"
-                disabled={!ready}
-                onClick={toggleFullscreen}
+                disabled={!(viewing.viewing || viewing.canEnter)}
+                onClick={viewing.toggle}
                 size="icon"
                 variant="ghost"
               />
             }
+            shortcut={viewing.viewing ? "Esc" : "F"}
             side="top"
           >
-            {fullscreen ? <MinimizeIcon /> : <MaximizeIcon />}
+            {viewing.viewing ? <MinimizeIcon /> : <MaximizeIcon />}
           </HintTooltip>
-        ) : null}
+        )}
       </div>
     </fieldset>
   );
