@@ -41,7 +41,11 @@ export function walkProject(root: string, limit = MAX_PROJECT_FILES): Walked {
       return;
     }
 
-    for (const entry of readableEntriesIn(path.join(root, dir))) {
+    const entries = readableEntriesIn(path.join(root, dir)).sort((one, other) =>
+      byPath(one.name, other.name)
+    );
+
+    for (const entry of entries) {
       if (isSkipped(entry)) {
         continue;
       }
