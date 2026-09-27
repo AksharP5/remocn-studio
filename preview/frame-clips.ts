@@ -17,6 +17,26 @@ function fills(rect: DOMRect, frame: DOMRect): boolean {
   );
 }
 
+function release(node: Element, frame: DOMRect): void {
+  if (
+    node instanceof HTMLElement &&
+    !node.hasAttribute(FRAME_CLIP) &&
+    clips(getComputedStyle(node)) &&
+    fills(node.getBoundingClientRect(), frame)
+  ) {
+    node.setAttribute(FRAME_CLIP, "");
+  }
+}
+
+function outermost(nodes: Set<Element>, player: Element): Element[] {
+  const inside = [...nodes].filter(
+    (node) => node !== player && node.isConnected && player.contains(node)
+  );
+  return inside.filter(
+    (node) => !inside.some((other) => other !== node && other.contains(node))
+  );
+}
+
 export function releaseFrameClips(
   root: ShadowRoot,
   element: HTMLElement
@@ -25,26 +45,29 @@ export function releaseFrameClips(
   style.textContent = `[${FRAME_CLIP}] { overflow: visible !important; }`;
   root.append(style);
   let scheduled = 0;
+  let whole = true;
+  const added = new Set<Element>();
 
   const scan = () => {
     scheduled = 0;
     const player = root.querySelector<HTMLElement>(CANVAS_SELECTOR);
-    if (player === null) {
+    const frame = player?.getBoundingClientRect();
+    if (!(player && frame) || frame.width <= 0 || frame.height <= 0) {
+      whole = true;
+      added.clear();
       return;
     }
-    const frame = player.getBoundingClientRect();
-    if (frame.width <= 0 || frame.height <= 0) {
-      return;
-    }
-    for (const node of player.querySelectorAll<HTMLElement>("*")) {
-      if (node.hasAttribute(FRAME_CLIP)) {
-        continue;
+    const everything =
+      whole || [...added].some((node) => node.contains(player));
+    const subtrees = everything ? [player] : outermost(added, player);
+    whole = false;
+    added.clear();
+    for (const subtree of subtrees) {
+      if (subtree !== player) {
+        release(subtree, frame);
       }
-      if (
-        clips(getComputedStyle(node)) &&
-        fills(node.getBoundingClientRect(), frame)
-      ) {
-        node.setAttribute(FRAME_CLIP, "");
+      for (const node of subtree.querySelectorAll("*")) {
+        release(node, frame);
       }
     }
   };
@@ -53,13 +76,25 @@ export function releaseFrameClips(
       scheduled = requestAnimationFrame(scan);
     }
   };
-  const observer = new MutationObserver(schedule);
+  const observer = new MutationObserver((records) => {
+    for (const record of records) {
+      for (const node of record.addedNodes) {
+        if (node instanceof Element) {
+          added.add(node);
+        }
+      }
+    }
+    if (added.size > 0) {
+      schedule();
+    }
+  });
   observer.observe(element, { childList: true, subtree: true });
   schedule();
 
   return () => {
     observer.disconnect();
     cancelAnimationFrame(scheduled);
+    added.clear();
     style.remove();
   };
 }
