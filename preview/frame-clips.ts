@@ -1,7 +1,28 @@
 import { CANVAS_SELECTOR } from "./anchor";
 
 const FRAME_CLIP = "data-remocn-frame-clip";
+const MOVING = "data-remocn-moving";
 const TOLERANCE = 1;
+
+function transformed(transform: string): boolean {
+  return transform !== "" && transform !== "none";
+}
+
+function follow(node: HTMLElement, transforms: WeakMap<Element, string>): void {
+  const now = node.style.transform;
+  const before = transforms.get(node);
+  transforms.set(node, now);
+  if (!transformed(now)) {
+    node.removeAttribute(MOVING);
+  } else if (
+    before !== undefined &&
+    before !== now &&
+    !node.hasAttribute(MOVING) &&
+    getComputedStyle(node).display !== "inline"
+  ) {
+    node.setAttribute(MOVING, "");
+  }
+}
 
 function clips(style: CSSStyleDeclaration): boolean {
   return style.overflowX !== "visible" || style.overflowY !== "visible";
@@ -42,7 +63,7 @@ export function releaseFrameClips(
   element: HTMLElement
 ): () => void {
   const style = document.createElement("style");
-  style.textContent = `[${FRAME_CLIP}] { overflow: visible !important; }`;
+  style.textContent = `[${FRAME_CLIP}] { overflow: visible !important; } [${MOVING}] { will-change: transform; }`;
   root.append(style);
   let scheduled = 0;
   let whole = true;
@@ -90,8 +111,23 @@ export function releaseFrameClips(
   });
   observer.observe(element, { childList: true, subtree: true });
   schedule();
+  const transforms = new WeakMap<Element, string>();
+  const moving = new MutationObserver((records) => {
+    const player = root.querySelector<HTMLElement>(CANVAS_SELECTOR);
+    for (const { target } of records) {
+      if (
+        target instanceof HTMLElement &&
+        target !== player &&
+        player?.contains(target)
+      ) {
+        follow(target, transforms);
+      }
+    }
+  });
+  moving.observe(element, { attributeFilter: ["style"], subtree: true });
 
   return () => {
+    moving.disconnect();
     observer.disconnect();
     cancelAnimationFrame(scheduled);
     added.clear();
