@@ -421,6 +421,76 @@ describe("usePreviewCamera", () => {
     expect(camera()).toBe(interrupted);
   });
 
+  it("pans by the pointer's travel on a middle-button drag over the video, and passes nothing on", async () => {
+    const { advance, camera, viewport } = await mount({ x: 0, y: 0, zoom: 1 });
+    const video = document.createElement("div");
+    viewport.append(video);
+    const reached = mock();
+    video.addEventListener("pointerdown", reached);
+    video.addEventListener("pointermove", reached);
+    const pointer = (type: string, init: PointerEventInit) =>
+      act(() => {
+        video.dispatchEvent(
+          new PointerEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            pointerId: 1,
+            ...init,
+          })
+        );
+      });
+    const before = camera();
+
+    pointer("pointerdown", {
+      button: 1,
+      buttons: 4,
+      clientX: 100,
+      clientY: 100,
+    });
+    pointer("pointermove", { buttons: 4, clientX: 130, clientY: 110 });
+    advance(20);
+    pointer("pointermove", { buttons: 4, clientX: 160, clientY: 130 });
+    pointer("pointerup", { button: 1, clientX: 160, clientY: 130 });
+    advance(200);
+
+    expect(camera().x).toBeCloseTo(before.x + 60);
+    expect(camera().y).toBeCloseTo(before.y + 30);
+    expect(camera().zoom).toBe(before.zoom);
+    expect(reached).not.toHaveBeenCalled();
+  });
+
+  it("does not pan on a left-button drag that starts on the video", async () => {
+    const { advance, camera, viewport } = await mount({ x: 0, y: 0, zoom: 1 });
+    const video = document.createElement("div");
+    viewport.append(video);
+    const before = camera();
+
+    act(() => {
+      video.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          button: 0,
+          buttons: 1,
+          clientX: 100,
+          clientY: 100,
+          pointerId: 1,
+        })
+      );
+      video.dispatchEvent(
+        new PointerEvent("pointermove", {
+          bubbles: true,
+          buttons: 1,
+          clientX: 160,
+          clientY: 130,
+          pointerId: 1,
+        })
+      );
+    });
+    advance(200);
+
+    expect(camera()).toEqual(before);
+  });
+
   it("remembers where an animation was going when the canvas goes away", async () => {
     const { advance, press, rendered, written } = await mount({
       x: 960,

@@ -1,7 +1,7 @@
 ## 1. Middle button
 
-- [ ] 1.1 Log pointer events for a middle-button drag in the running app (moved from `canvas-pan-follows-the-pointer` 2.1) and find the layer that drops the moves.
-- [ ] 1.2 Fix it in that layer and verify in the app that a middle-button drag pans like Space-drag (moved from 2.2 and the middle-button part of 3.2).
+- [x] 1.1 Log pointer events for a middle-button drag in the running app (moved from `canvas-pan-follows-the-pointer` 2.1) and find the layer that drops the moves. No layer drops them any more: a WKWebView with wry's `otherMouseDown:`/`otherMouseUp:` rerouting, fed real `NSEvent`s through `NSWindow sendEvent:` with the middle button held, delivers `pointerdown` (button 1, buttons 4), every `pointermove` and `pointerup` with pointer capture kept; tao forwards them unchanged; and the camera hook pans on them in WebKit.
+- [x] 1.2 Fix it in that layer and verify in the app that a middle-button drag pans like Space-drag (moved from 2.2 and the middle-button part of 3.2). Nothing to fix; confirmed in the running app on 2026-09-27, and `hooks/use-preview-camera.test.tsx` now pins the middle-button pan and that a left-button drag over the video does not pan.
 
 ## 2. Cleanup
 
