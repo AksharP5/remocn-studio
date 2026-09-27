@@ -9,7 +9,6 @@ pub const DEEP_LINK_EVENT: &str = "app://deep-link";
 pub const HOST_PID_ENV: &str = "REMOCN_STUDIO_HOST_PID";
 pub const DATA_DIR_ENV: &str = "REMOCN_STUDIO_DATA_DIR";
 pub const PREVIEW_ENTRY_ENV: &str = "REMOCN_STUDIO_PREVIEW_ENTRY";
-pub const GRAB_SCRIPT_ENV: &str = "REMOCN_STUDIO_GRAB_SCRIPT";
 pub const TEMPLATE_DIR_ENV: &str = "REMOCN_STUDIO_TEMPLATE_DIR";
 pub const PLUGIN_DIR_ENV: &str = "REMOCN_STUDIO_PLUGIN_DIR";
 pub const LIBRARY_DIR_ENV: &str = "REMOCN_STUDIO_LIBRARY_DIR";

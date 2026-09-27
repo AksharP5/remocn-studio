@@ -1,13 +1,12 @@
 import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, readdir, readFile, rm } from "node:fs/promises";
+import { mkdir, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { Effect, Exit, FiberMap, Ref, Scope, Semaphore, Stream } from "effect";
 import { FORMAT_SPECS, fileNameOf, withExtension } from "@/shared/export";
 import {
   type ExportEvent,
-  GRAB_SCRIPT_ENV,
   PREVIEW_ENTRY_ENV,
   type PreviewEvent,
   type Still,
@@ -52,7 +51,6 @@ import {
 } from "./design";
 import { clipMedia, exporterOf, exportMedia, OUT_DIR, planFor } from "./export";
 import type { RenderContext } from "./failure";
-import { withoutWebFonts } from "./grab";
 import {
   JOBS_DIR,
   type JobRegistry,
@@ -275,7 +273,6 @@ function boot(root: string, preferred: string | null) {
     const staticBase = `/static-${randomBytes(6).toString("hex")}`;
     const previewBase = `/preview-${randomBytes(6).toString("hex")}`;
     let native: NativeBundle | null = null;
-    const grab = yield* grabScript;
     const cache = makeCompositionCache();
     const session = yield* Ref.make<Session | null>(null);
     const running = yield* FiberMap.make<string>();
@@ -304,7 +301,6 @@ function boot(root: string, preferred: string | null) {
     );
 
     const server = yield* serve({
-      grab,
       jobs,
       native: () => native,
       outDir,
@@ -472,32 +468,6 @@ function remotionVersionOf(root: string): Effect.Effect<string> {
     Effect.catch(() => Effect.succeed(""))
   );
 }
-
-const grabScript: Effect.Effect<string | null> = Effect.gen(function* () {
-  const file = process.env[GRAB_SCRIPT_ENV];
-
-  if (file === undefined) {
-    yield* log(`${GRAB_SCRIPT_ENV} is not set, so Inspect is unavailable`);
-    return null;
-  }
-
-  const source = yield* Effect.tryPromise(() => readFile(file, "utf8")).pipe(
-    Effect.catch((cause) =>
-      log(`could not read ${file}: ${String(cause)}`).pipe(Effect.as(null))
-    )
-  );
-
-  if (source === null) {
-    return null;
-  }
-
-  const stripped = withoutWebFonts(source);
-  yield* log(
-    `serving grab from ${file}, ${stripped.removed} web font import(s) removed`
-  );
-
-  return stripped.source;
-});
 
 function ours(
   config: WebpackConfig,

@@ -40,10 +40,6 @@ describe("renderPage", () => {
     expect(rendered()).not.toContain('id="__remotion-studio-container"');
   });
 
-  it("loads grab nowhere near a render", () => {
-    expect(rendered()).not.toContain("/__remocn/grab.js");
-  });
-
   it("loads the bundle relative to itself, so its sourcemap resolves too", () => {
     expect(rendered()).toContain('<script src="bundle.js"></script>');
   });
