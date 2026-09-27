@@ -56,10 +56,12 @@ const PLAN: readonly TaskRow[] = [
 ];
 
 const TRIGGER = /^Plan, /;
+const VIDEO_TRIGGER = /^Video, /;
+const SWEEP = ".dmx-diagonal-alt-sweep";
 
 describe("TaskDock", () => {
   it("collapses to the task in hand and how far the plan has got", () => {
-    render(<TaskDock settings={SETTINGS} stages={[]} tasks={PLAN} />);
+    render(<TaskDock settings={SETTINGS} stages={[]} tasks={PLAN} working />);
 
     expect(screen.getByText("Registering the scene")).toBeVisible();
     expect(screen.getByText("1/3")).toBeVisible();
@@ -67,7 +69,7 @@ describe("TaskDock", () => {
   });
 
   it("shows the running task's status as its own icon", () => {
-    render(<TaskDock settings={SETTINGS} stages={[]} tasks={PLAN} />);
+    render(<TaskDock settings={SETTINGS} stages={[]} tasks={PLAN} working />);
 
     expect(screen.getAllByLabelText("In progress")).not.toHaveLength(0);
   });
@@ -77,7 +79,7 @@ describe("TaskDock", () => {
       ...task,
       status: "completed" as const,
     }));
-    render(<TaskDock settings={SETTINGS} stages={[]} tasks={done} />);
+    render(<TaskDock settings={SETTINGS} stages={[]} tasks={done} working />);
 
     expect(screen.getByText("All done")).toBeVisible();
     expect(screen.getByLabelText("All done")).toBeVisible();
@@ -89,7 +91,9 @@ describe("TaskDock", () => {
       ...task,
       status: "pending" as const,
     }));
-    render(<TaskDock settings={SETTINGS} stages={[]} tasks={pending} />);
+    render(
+      <TaskDock settings={SETTINGS} stages={[]} tasks={pending} working />
+    );
 
     expect(screen.getByText("Plan")).toBeVisible();
     expect(screen.getByLabelText("Pending")).toBeVisible();
@@ -97,7 +101,7 @@ describe("TaskDock", () => {
   });
 
   it("opens into the whole list, and closes again", () => {
-    render(<TaskDock settings={SETTINGS} stages={[]} tasks={PLAN} />);
+    render(<TaskDock settings={SETTINGS} stages={[]} tasks={PLAN} working />);
     const trigger = screen.getByRole("button", { name: TRIGGER });
 
     fireEvent.click(trigger);
@@ -116,14 +120,31 @@ describe("TaskDock", () => {
         settings={{ ...SETTINGS, taskDock: true }}
         stages={[]}
         tasks={PLAN}
+        working
       />
     );
 
     expect(screen.getByText("Check the build")).toBeVisible();
   });
 
+  it("stops animating a task a stopped turn left in progress", () => {
+    const { container } = render(
+      <TaskDock
+        settings={{ ...SETTINGS, taskDock: true }}
+        stages={[]}
+        tasks={PLAN}
+        working={false}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: TRIGGER })).toHaveTextContent(
+      "Plan"
+    );
+    expect(container.querySelector(SWEEP)).toBeNull();
+  });
+
   it("draws nothing at all when the turn wrote no plan", () => {
-    render(<TaskDock settings={SETTINGS} stages={[]} tasks={[]} />);
+    render(<TaskDock settings={SETTINGS} stages={[]} tasks={[]} working />);
 
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
@@ -140,14 +161,16 @@ const STAGES: readonly PipelineStage[] = [
 
 describe("TaskDock with a pipeline", () => {
   it("stays on screen with no plan at all while the pipeline is unfinished", () => {
-    render(<TaskDock settings={SETTINGS} stages={STAGES} tasks={[]} />);
+    render(<TaskDock settings={SETTINGS} stages={STAGES} tasks={[]} working />);
 
     expect(screen.getByText("Writing the script")).toBeVisible();
     expect(screen.getByText("2/6")).toBeVisible();
   });
 
   it("collapses to the running sub-task when the turn has one", () => {
-    render(<TaskDock settings={SETTINGS} stages={STAGES} tasks={PLAN} />);
+    render(
+      <TaskDock settings={SETTINGS} stages={STAGES} tasks={PLAN} working />
+    );
 
     expect(screen.getByText("Registering the scene")).toBeVisible();
     expect(screen.getByText("2/6")).toBeVisible();
@@ -159,6 +182,7 @@ describe("TaskDock with a pipeline", () => {
         settings={{ ...SETTINGS, taskDock: true }}
         stages={STAGES}
         tasks={PLAN}
+        working
       />
     );
 
@@ -188,6 +212,7 @@ describe("TaskDock with a pipeline", () => {
         settings={{ ...SETTINGS, taskDock: true }}
         stages={STAGES}
         tasks={[]}
+        working
       />
     );
 
@@ -200,12 +225,46 @@ describe("TaskDock with a pipeline", () => {
     expect(opened).toEqual([path]);
   });
 
+  it("rests on the active stage between turns instead of animating it", () => {
+    const { container } = render(
+      <TaskDock
+        settings={{ ...SETTINGS, taskDock: true }}
+        stages={STAGES}
+        tasks={PLAN}
+        working={false}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: VIDEO_TRIGGER })
+    ).toHaveTextContent("Script");
+    expect(screen.queryByText("Writing the script")).not.toBeInTheDocument();
+    expect(screen.queryByText("Registering the scene")).not.toBeInTheDocument();
+    expect(screen.getAllByLabelText("In progress")).not.toHaveLength(0);
+    expect(container.querySelector(SWEEP)).toBeNull();
+  });
+
+  it("animates the active stage while a turn works on it", () => {
+    const { container } = render(
+      <TaskDock
+        settings={{ ...SETTINGS, taskDock: true }}
+        stages={STAGES}
+        tasks={[]}
+        working
+      />
+    );
+
+    expect(container.querySelector(SWEEP)).not.toBeNull();
+  });
+
   it("hands the dock back to the plan once every stage is done", () => {
     const finished = STAGES.map((row) => ({
       ...row,
       status: "done" as const,
     }));
-    render(<TaskDock settings={SETTINGS} stages={finished} tasks={[]} />);
+    render(
+      <TaskDock settings={SETTINGS} stages={finished} tasks={[]} working />
+    );
 
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });

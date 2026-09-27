@@ -36,6 +36,29 @@ Review the actual audio mix and visual cue alignment in the exported fragment.
 A beat map alone does not verify perceived sync. Inspect full-render coverage,
 stale flags and failed/skipped checks before claiming completion.
 
+## Sound effects end when the sound does
+
+Symptom: the Studio preview stops with a warning or "The video could not render"
+once playback passes the first few sound cues, while the export renders fine.
+Applies to any `<Audio>` (or `<Html5Audio>`) cue inside a `<Sequence>` that has
+`from` but no `durationInFrames`. Such a sequence lasts until the end of the video,
+so every cue already played stays mounted, and the count of mounted audio elements
+only grows. Remotion's Player limits how many can be mounted at once
+(`numberOfSharedAudioTags`, 5 by default) and throws
+`Tried to simultaneously mount N <Html5Audio /> tags`; the renderer has no such
+pool, which is why an export succeeds. Observed on evlibutton (Remotion 4.0.520):
+a score plus about twenty one-shot effects, each in an open-ended sequence.
+
+Correction: give every one-shot cue its own length. Set the sequence's
+`durationInFrames` to the sample's duration in frames (read it from the file, e.g.
+with `getAudioDurationInSeconds` from `@remotion/media-utils` in
+`calculateMetadata`, or a measured table next to the samples), so the cue unmounts
+when its sound has finished. Keep the score and other beds that genuinely run to the
+end open-ended or sized to their section. Verify by previewing past the densest run
+of cues, not only by rendering.
+
+Counterexample: a single music bed that plays to the last frame needs no duration.
+
 ## Media and project setup
 
 Inspect media duration, trim offsets and freeze points so a video never seeks past

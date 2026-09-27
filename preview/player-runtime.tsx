@@ -106,6 +106,7 @@ function Stage() {
   const mounted = resolved.metadata === null ? null : (picked?.id ?? null);
 
   usePlayhead(player, mounted);
+  usePlayerFailure(player, mounted);
 
   const unplayable =
     resolved.state === "failed" || (compositions.length > 0 && picked === null);
@@ -201,6 +202,7 @@ function InteractivePlayer({
       controls={false}
       doubleClickToFullscreen={false}
       durationInFrames={durationInFrames}
+      errorFallback={drawNothing}
       fps={fps}
       initialFrame={Math.max(
         0,
@@ -208,6 +210,7 @@ function InteractivePlayer({
       )}
       inputProps={inputProps}
       loop
+      numberOfSharedAudioTags={0}
       overflowVisible={hooks !== null}
       playbackRate={playbackRate}
       ref={player}
@@ -286,6 +289,33 @@ function usePlayhead(
       ref.removeEventListener("play", onPlay);
       ref.removeEventListener("pause", onPause);
     };
+  }, [mounted, player]);
+}
+
+const RENDER_FAILED =
+  "The video could not render. Fix the project, then retry the preview.";
+
+function drawNothing() {
+  return null;
+}
+
+function usePlayerFailure(
+  player: React.RefObject<PlayerRef | null>,
+  mounted: string | null
+) {
+  useEffect(() => {
+    const ref = player.current;
+
+    if (ref === null || mounted === null) {
+      return;
+    }
+
+    const onError = () =>
+      post({ message: RENDER_FAILED, type: "native.error" });
+
+    ref.addEventListener("error", onError);
+
+    return () => ref.removeEventListener("error", onError);
   }, [mounted, player]);
 }
 

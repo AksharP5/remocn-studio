@@ -338,6 +338,7 @@ function Conversation({
             {turn.permission === null ? null : (
               <AboveComposer>
                 <PermissionCard
+                  asks={turn.asks}
                   cwd={cwd}
                   key={turn.permission.id}
                   onAnswer={turn.answer}
@@ -394,6 +395,7 @@ function Conversation({
               settings={settings}
               stages={turn.stages}
               tasks={currentTasks(turn.entries)}
+              working={turn.isRunning}
             />
             <QueueDock queue={queue} />
           </DockStack>

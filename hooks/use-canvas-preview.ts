@@ -15,6 +15,7 @@ import {
   usePreviewCamera,
 } from "./use-preview-camera";
 import { usePreviewTransport } from "./use-preview-transport";
+import { usePreviewViewing } from "./use-preview-viewing";
 import type { Tools } from "./use-tools";
 
 interface Rect {
@@ -87,10 +88,18 @@ export function useCanvasPreview({
   const { inspect, managed, preview } = tools;
   const metadata = preview.pick?.metadata ?? null;
   const transport = usePreviewTransport(preview, !hidden);
+  const viewing = usePreviewViewing({
+    enabled: !hidden,
+    playing: transport.playing,
+    ready: transport.ready,
+    surface: transport.surface,
+    toggle: transport.toggle,
+  });
   const camera = usePreviewCamera(
     metadata,
     projectId === null ? null : `${projectId}:${preview.composition}`,
-    transport.toggle
+    transport.toggle,
+    viewing.viewing
   );
   const selection = selectionOf(managed, inspect.card);
   const layers = useCanvasLayers({
@@ -136,6 +145,7 @@ export function useCanvasPreview({
     rulers,
     stale,
     transport,
+    viewing,
   };
 }
 

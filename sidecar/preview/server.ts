@@ -8,7 +8,6 @@ import path from "node:path";
 import { Effect, type Scope } from "effect";
 import { errorMessage } from "@/lib/error-message";
 import { etagOf, matches } from "./caching";
-import { GRAB_PATH } from "./grab";
 import { renderPage } from "./html";
 import { type JobRegistry, jobPath, type Pinned } from "./job";
 import { NATIVE_MANIFEST, type NativeBundle } from "./native";
@@ -67,7 +66,6 @@ export interface PreviewServer {
 }
 
 export interface ServerOptions {
-  grab: string | null;
   jobs: JobRegistry;
   native?: () => NativeBundle | null;
   outDir: string;
@@ -221,11 +219,6 @@ function handle(
 
   if (pathname === HOT_PATH) {
     openStream(listeners, response);
-    return;
-  }
-
-  if (pathname === GRAB_PATH) {
-    sendGrab(options.grab, response);
     return;
   }
 
@@ -396,19 +389,6 @@ function sendJson(body: unknown, response: ServerResponse): void {
     "content-type": "application/json; charset=utf-8",
   });
   response.end(JSON.stringify(body));
-}
-
-function sendGrab(source: string | null, response: ServerResponse): void {
-  if (source === null) {
-    response.writeHead(404).end();
-    return;
-  }
-
-  response.writeHead(200, {
-    "cache-control": "no-store",
-    "content-type": "text/javascript; charset=utf-8",
-  });
-  response.end(source);
 }
 
 function openStream(

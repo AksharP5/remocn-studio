@@ -75,7 +75,6 @@ async function standing(): Promise<Standing> {
   const server = await Effect.runPromise(
     Effect.provideService(
       serve({
-        grab: null,
         jobs,
         outDir,
         preferred: null,

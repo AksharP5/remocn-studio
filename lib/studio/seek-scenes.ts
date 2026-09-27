@@ -19,11 +19,13 @@ export function segmentsOf(
   if (scenes.length < 2 || totalFrames <= 0) {
     return [];
   }
-  return scenes.map((scene) => {
+  const ordered = [...scenes].sort((one, two) => one.from - two.from);
+  return ordered.map((scene, index) => {
     const from = Math.max(0, Math.min(totalFrames, scene.from));
+    const next = ordered[index + 1]?.from ?? totalFrames;
     const end = Math.max(
       from,
-      Math.min(totalFrames, scene.from + scene.duration)
+      Math.min(totalFrames, next, scene.from + scene.duration)
     );
     const width = ((end - from) / totalFrames) * 100;
     return {

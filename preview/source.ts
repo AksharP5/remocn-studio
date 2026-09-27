@@ -98,6 +98,12 @@ export function formatFrame(spot: SourceSpot): string {
   return spot.name === null ? at : `${spot.name} (${at})`;
 }
 
+const RUNTIME_MARKS = / data-remocn-(?:frame-clip|moving)(?:="")?/g;
+
+export function withoutRuntimeMarks(html: string): string {
+  return html.replace(RUNTIME_MARKS, "");
+}
+
 export function truncateMarkup(html: string, limit: number): string {
   return html.length <= limit ? html : `${html.slice(0, limit)}…`;
 }

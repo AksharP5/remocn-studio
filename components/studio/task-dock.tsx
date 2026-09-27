@@ -30,12 +30,14 @@ export function TaskDock({
   settings,
   stages,
   tasks,
+  working,
 }: {
   documents?: ReadonlyMap<PipelineStageId, string>;
   onOpenDocument?: (event: MouseEvent<HTMLButtonElement>) => void;
   settings: StudioSettings | null;
   stages: readonly PipelineStage[];
   tasks: readonly TaskRow[];
+  working: boolean;
 }) {
   const dock = useTaskDock(settings);
   const pipeline = pipelineProgress(stages);
@@ -54,6 +56,7 @@ export function TaskDock({
             onOpenDocument={onOpenDocument}
             stages={stages}
             tasks={tasks}
+            working={working}
           />
         }
         glyph={
@@ -61,8 +64,9 @@ export function TaskDock({
             ? "in_progress"
             : "pending"
         }
-        label={pipelineLabel(stages, tasks)}
+        label={pipelineLabel(stages, tasks, working)}
         name="Video"
+        working={working}
       />
     );
   }
@@ -72,17 +76,18 @@ export function TaskDock({
     return null;
   }
 
-  const running = activeTask(tasks);
+  const running = working ? activeTask(tasks) : null;
   const glyph = taskGlyph(tasks);
 
   return (
     <DockShell
       count={`${progress.done}/${progress.total}`}
       dock={dock}
-      expanded={<TaskChecklist tasks={tasks} />}
+      expanded={<TaskChecklist tasks={tasks} working={working} />}
       glyph={glyph}
       label={planLabel(running, glyph)}
       name="Plan"
+      working={working}
     />
   );
 }
@@ -94,6 +99,7 @@ function DockShell({
   glyph,
   label,
   name,
+  working,
 }: {
   count: string;
   dock: ReturnType<typeof useTaskDock>;
@@ -101,11 +107,12 @@ function DockShell({
   glyph: Parameters<typeof TaskStatusIcon>[0]["glyph"];
   label: string;
   name: string;
+  working: boolean;
 }) {
   return (
     <DockSection
       count={count}
-      icon={<TaskStatusIcon glyph={glyph} />}
+      icon={<TaskStatusIcon glyph={glyph} still={!working} />}
       isExpanded={dock.isExpanded}
       label={label}
       onToggle={dock.toggle}
@@ -147,11 +154,13 @@ function PipelineList({
   onOpenDocument,
   stages,
   tasks,
+  working,
 }: {
   documents?: ReadonlyMap<PipelineStageId, string>;
   onOpenDocument?: (event: MouseEvent<HTMLButtonElement>) => void;
   stages: readonly PipelineStage[];
   tasks: readonly TaskRow[];
+  working: boolean;
 }) {
   return (
     <ul className="flex min-w-0 flex-col gap-0.5" data-slot="pipeline-list">
@@ -168,13 +177,14 @@ function PipelineList({
               onOpen={onOpenDocument}
               status={stage.status}
               title={template.title}
+              working={working}
             />
 
             {/* The turn's own plan is the active stage's sub-tasks, so it nests
               under that stage instead of standing beside it. */}
             {stage.status === "active" && tasks.length > 0 ? (
               <div className="pl-6">
-                <TaskChecklist tasks={tasks} />
+                <TaskChecklist tasks={tasks} working={working} />
               </div>
             ) : null}
           </li>
@@ -189,11 +199,13 @@ function StageRow({
   onOpen,
   status,
   title,
+  working,
 }: {
   document: string | undefined;
   onOpen?: (event: MouseEvent<HTMLButtonElement>) => void;
   status: PipelineStatus;
   title: string;
+  working: boolean;
 }) {
   const shell = cn(
     "flex w-full min-w-0 items-start gap-2 rounded-md px-2 py-1.5 text-left text-sm",
@@ -202,7 +214,11 @@ function StageRow({
 
   const label = (
     <>
-      <TaskStatusIcon className="mt-0.5" glyph={STAGE_GLYPHS[status]} />
+      <TaskStatusIcon
+        className="mt-0.5"
+        glyph={STAGE_GLYPHS[status]}
+        still={!working}
+      />
       <span
         className={cn(
           "wrap-break-word min-w-0 text-pretty leading-snug",

@@ -18,6 +18,7 @@ import {
   fitPreviewCamera,
   INITIAL_PREVIEW_CAMERA,
   interpolateCamera,
+  MAX_PREVIEW_ZOOM,
   OCCLUDES_ATTR,
   type Occluder,
   occludedInsets,
@@ -47,8 +48,9 @@ const INTERACTIVE =
 const ZOOM_STEP = 1.2;
 const FIT_MARGIN = 24;
 const SELECTION_MARGIN = 72;
+const WHOLE_VIEWPORT = { bottom: 0, left: 0, right: 0, top: 0 };
 
-function insetsOf(node: HTMLElement | null, margin: number) {
+export function insetsOf(node: HTMLElement | null, margin: number) {
   if (node === null) {
     return occludedInsets({ bottom: 0, left: 0, right: 0, top: 0 }, [], margin);
   }
@@ -142,7 +144,8 @@ export function transformOf(camera: PreviewCamera): string {
 export function usePreviewCamera(
   size: { width: number; height: number } | null,
   identity: string | null,
-  togglePlayback: () => void
+  togglePlayback: () => void,
+  viewing = false
 ) {
   const viewport = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
@@ -162,6 +165,10 @@ export function usePreviewCamera(
   const pending = useRef<{ camera: RememberedCamera; key: string } | null>(
     null
   );
+  const beforeViewing = useRef<{
+    camera: PreviewCamera;
+    key: string | null;
+  } | null>(null);
   const width = size ? size.width : 0;
   const height = size ? size.height : 0;
   const key = identity ? `${identity}:${width}:${height}` : null;
@@ -234,6 +241,7 @@ export function usePreviewCamera(
   const remember = useCallback(
     (settled: PreviewCamera) => {
       if (
+        viewing ||
         key === null ||
         fitted.current !== key ||
         !moved.current ||
@@ -247,12 +255,12 @@ export function usePreviewCamera(
       };
       return true;
     },
-    [bounds, key]
+    [bounds, key, viewing]
   );
 
   const jump = useCallback(
     (next: (base: PreviewCamera) => PreviewCamera) => {
-      if (editing()) {
+      if (viewing || editing()) {
         return;
       }
       const base = tween.current?.to ?? latest.current;
@@ -286,7 +294,7 @@ export function usePreviewCamera(
       tween.current = { frame: requestAnimationFrame(step), to: target };
       remember(target);
     },
-    [bounds, editing, place, remember, settle, show, stopTween]
+    [bounds, editing, place, remember, settle, show, stopTween, viewing]
   );
 
   useEffect(() => stopTween, [stopTween]);
@@ -407,6 +415,7 @@ export function usePreviewCamera(
 
   useEffect(() => {
     if (
+      viewing ||
       key === null ||
       width <= 0 ||
       height <= 0 ||
@@ -426,7 +435,37 @@ export function usePreviewCamera(
       ? cameraAt({ x: saved.x, y: saved.y }, saved.zoom, bounds)
       : null;
     place(restored ?? framed(latest.current));
-  }, [bounds, framed, height, key, place, stopTween, width]);
+  }, [bounds, framed, height, key, place, stopTween, viewing, width]);
+
+  useLayoutEffect(() => {
+    if (viewing) {
+      beforeViewing.current ??= {
+        camera: tween.current?.to ?? latest.current,
+        key,
+      };
+      stopTween();
+      const box = viewport.current?.getBoundingClientRect();
+      place(
+        fitPreviewCamera(
+          latest.current,
+          { height, width, x: 0, y: 0 },
+          box && box.width > 0 && box.height > 0 ? box : bounds,
+          WHOLE_VIEWPORT,
+          MAX_PREVIEW_ZOOM
+        )
+      );
+      return;
+    }
+    const restore = beforeViewing.current;
+    if (restore === null) {
+      return;
+    }
+    beforeViewing.current = null;
+    if (restore.key === key) {
+      stopTween();
+      place(restore.camera);
+    }
+  }, [bounds, height, key, place, stopTween, viewing, width]);
 
   useLayoutEffect(() => {
     const node = viewport.current;

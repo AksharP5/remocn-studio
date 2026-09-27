@@ -13,6 +13,7 @@ import {
   type SourceSpot,
   type StackFrame,
   truncateMarkup,
+  withoutRuntimeMarks,
 } from "./source";
 import {
   contentRoot,
@@ -828,7 +829,10 @@ async function report(
       file: target?.file ?? null,
       fps,
       frame,
-      html: truncateMarkup(element.outerHTML, MARKUP_LIMIT),
+      html: truncateMarkup(
+        withoutRuntimeMarks(element.outerHTML),
+        MARKUP_LIMIT
+      ),
       line: target?.line ?? null,
       scene: sceneOf(element, frame),
       stack: parentsOf(stack, target).map(formatFrame),

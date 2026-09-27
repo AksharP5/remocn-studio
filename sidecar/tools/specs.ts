@@ -271,14 +271,29 @@ export const TOOL_SPECS: Record<ToolServer, readonly ToolSpec[]> = {
     },
     {
       description:
-        "Generate a sound effect only when the person asks for one. List connections first and use the chosen ElevenLabs connection ID. Studio shows exact parameters and asks before spending credits. It saves audio to the library without editing the project. Never repeat an uncertain generation: use sound_effect_status with its operation ID instead. Each new generation spends credits and requires new approval.",
+        "Generate sound effects only when the person asks for them. List connections first and use the chosen ElevenLabs connection ID. Put every sound the person wants in `sounds` and make one call: the studio shows all of them on one card, with exact parameters, and asks before spending credits; the person may approve all or some. Do not split sounds into separate calls. It saves audio to the library without editing the project, and answers with the outcome of each sound. Never repeat an uncertain or declined generation: use sound_effect_status with its operation ID instead. Each new generation spends credits and requires new approval.",
       name: GENERATE_SOUND,
       shape: {
         connectionId: z.string().min(1),
-        durationSeconds: z.number().min(0.5).max(30).nullable().default(null),
-        format: z.enum(SOUND_FORMATS).default("mp3_44100_128"),
-        name: z.string().trim().min(1).max(5000),
-        text: z.string().trim().min(1).max(5000),
+        sounds: z
+          .array(
+            z.object({
+              durationSeconds: z
+                .number()
+                .min(0.5)
+                .max(30)
+                .nullable()
+                .default(null),
+              format: z.enum(SOUND_FORMATS).default("mp3_44100_128"),
+              name: z.string().trim().min(1).max(5000),
+              text: z.string().trim().min(1).max(5000),
+            })
+          )
+          .min(1)
+          .max(10)
+          .describe(
+            "Every sound effect the person asked for, in one list, so they are approved on one card."
+          ),
       },
     },
     {

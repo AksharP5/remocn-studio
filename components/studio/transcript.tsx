@@ -97,6 +97,7 @@ export function Transcript({
         <MessageScrollerItem key={item.id} messageId={item.id}>
           <Row
             cwd={cwd}
+            isRunning={isRunning}
             isStreaming={isRunning && item.id === lastId}
             item={item}
           />
@@ -156,6 +157,7 @@ export function Transcript({
               ? technical.map((item) => (
                   <Row
                     cwd={cwd}
+                    isRunning={isRunning}
                     isStreaming={false}
                     item={item}
                     key={item.id}
@@ -183,15 +185,17 @@ export function Transcript({
 
 function Row({
   cwd,
+  isRunning,
   isStreaming,
   item,
 }: {
   cwd: string | null;
+  isRunning: boolean;
   isStreaming: boolean;
   item: TranscriptItem;
 }) {
   if (item.kind === "tasks") {
-    return <TaskChecklist tasks={item.tasks} />;
+    return <TaskChecklist tasks={item.tasks} working={isRunning} />;
   }
 
   if (item.kind === "run") {
