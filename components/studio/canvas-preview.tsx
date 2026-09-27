@@ -34,8 +34,8 @@ import type { Tools } from "@/hooks/use-tools";
 import { formatShortcut, SHORTCUTS } from "@/lib/studio/command-registry";
 import type { LayerRow } from "@/lib/studio/layers";
 import { cn } from "@/lib/utils";
+import { CanvasFrameLabel } from "./canvas-frame-label";
 import { CanvasRulers } from "./canvas-rulers";
-import { CanvasWorking } from "./canvas-working";
 import { DOCK_SURFACE } from "./dock-layout";
 import { FailureText } from "./failure-text";
 import { HintTooltip } from "./hint-tooltip";
@@ -126,7 +126,14 @@ export function CanvasPreview({
           ref={native.overlays}
         />
 
-        {watching ? null : <CanvasWorking overlays={native.overlays} />}
+        {watching ? null : (
+          <CanvasFrameLabel
+            camera={camera}
+            chrome={{ inspector: canvas.layers.shown, rulers: rulers.shown }}
+            name={openedVideo?.name}
+            shown={shown}
+          />
+        )}
 
         {watching ? (
           <div

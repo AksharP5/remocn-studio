@@ -2,7 +2,10 @@ import { describe, expect, it } from "bun:test";
 import {
   cameraAt,
   cameraCentre,
+  FRAME_LABEL_GAP,
+  FRAME_LABEL_HEIGHT,
   fitPreviewCamera,
+  frameLabelOf,
   INITIAL_PREVIEW_CAMERA,
   interpolateCamera,
   MAX_PREVIEW_ZOOM,
@@ -340,5 +343,83 @@ describe("surroundOf", () => {
     for (const rect of rects) {
       expect(rect.width * rect.height).toBe(0);
     }
+  });
+});
+
+describe("frameLabelOf", () => {
+  const video = { height: 1080, width: 1920 };
+  const chrome = { bottom: 120, left: 20, right: 340, top: 68 };
+
+  it("sits just above the frame's top-left corner, as wide as the frame", () => {
+    expect(
+      frameLabelOf({ x: 60, y: 140, zoom: 0.25 }, video, viewport, none)
+    ).toEqual({
+      maxWidth: 480,
+      x: 60,
+      y: 140 - FRAME_LABEL_GAP - FRAME_LABEL_HEIGHT,
+    });
+  });
+
+  it("keeps its screen size at any zoom", () => {
+    const near = frameLabelOf(
+      { x: 60, y: 140, zoom: 4 },
+      video,
+      viewport,
+      none
+    );
+    const far = frameLabelOf(
+      { x: 60, y: 140, zoom: 0.1 },
+      video,
+      viewport,
+      none
+    );
+    expect(near?.y).toBe(far?.y);
+  });
+
+  it("hides when it would sit under the chrome along the top", () => {
+    expect(
+      frameLabelOf({ x: 60, y: 80, zoom: 0.25 }, video, viewport, chrome)
+    ).toBeNull();
+    expect(
+      frameLabelOf({ x: 60, y: 90, zoom: 0.25 }, video, viewport, chrome)
+    ).not.toBeNull();
+  });
+
+  it("hides when the frame's top edge has left the canvas", () => {
+    expect(
+      frameLabelOf({ x: 60, y: -40, zoom: 1 }, video, viewport, none)
+    ).toBeNull();
+    expect(
+      frameLabelOf({ x: 60, y: 700, zoom: 0.25 }, video, viewport, chrome)
+    ).toBeNull();
+  });
+
+  it("stays on the shown part of the top edge when the frame's left is off the canvas", () => {
+    expect(
+      frameLabelOf({ x: -300, y: 140, zoom: 0.5 }, video, viewport, chrome)
+    ).toEqual({ maxWidth: 640, x: 20, y: 118 });
+  });
+
+  it("hides when too little of the top edge is on the canvas", () => {
+    expect(
+      frameLabelOf({ x: 640, y: 140, zoom: 0.25 }, video, viewport, chrome)
+    ).toBeNull();
+    expect(
+      frameLabelOf({ x: -470, y: 140, zoom: 0.25 }, video, viewport, chrome)
+    ).toBeNull();
+  });
+
+  it("draws nothing for a camera or a canvas it cannot measure", () => {
+    expect(
+      frameLabelOf({ x: 60, y: 140, zoom: 0 }, video, viewport, none)
+    ).toBeNull();
+    expect(
+      frameLabelOf(
+        { x: 60, y: 140, zoom: 0.25 },
+        video,
+        { height: 0, width: 0 },
+        none
+      )
+    ).toBeNull();
   });
 });

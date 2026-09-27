@@ -2,11 +2,7 @@ import { anchorOf, CANVAS_SELECTOR, resolveAnchor } from "./anchor";
 import { assetBase, assetNames, forgetAssets, staticBase } from "./assets";
 import { post } from "./bridge";
 import { displayName, fiberOf, nearestInFibers } from "./fiber";
-import {
-  createGeometryEditor,
-  SELECTION_BOUNDS,
-  SELECTION_LABEL,
-} from "./geometry";
+import { createGeometryEditor, SELECTION_BOUNDS } from "./geometry";
 import { createInlineTextEditor } from "./inline-text";
 import { managedIdentity, managedRoots } from "./managed-objects";
 import { covers, nearText, OVERLAY_ATTR, pickAt } from "./picker";
@@ -586,7 +582,6 @@ function selectionPair(): { box: HTMLElement; tag: HTMLElement } {
   box.setAttribute(SELECTION_ATTR, "");
   box.setAttribute(SELECTION_BOUNDS, "");
   box.style.border = `2px solid ${ACCENT}`;
-  tag.setAttribute(SELECTION_LABEL, "");
 
   overlayRoot().append(pulseStyle());
   overlayRoot().append(box, tag);

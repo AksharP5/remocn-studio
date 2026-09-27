@@ -50,7 +50,7 @@ const FIT_MARGIN = 24;
 const SELECTION_MARGIN = 72;
 const WHOLE_VIEWPORT = { bottom: 0, left: 0, right: 0, top: 0 };
 
-function insetsOf(node: HTMLElement | null, margin: number) {
+export function insetsOf(node: HTMLElement | null, margin: number) {
   if (node === null) {
     return occludedInsets({ bottom: 0, left: 0, right: 0, top: 0 }, [], margin);
   }

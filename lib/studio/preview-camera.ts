@@ -24,7 +24,6 @@ export const MAX_PREVIEW_ZOOM = 8;
 export const INITIAL_PREVIEW_CAMERA: PreviewCamera = { x: 0, y: 0, zoom: 1 };
 export const SELECTION_ZOOM = 4;
 export const SELECTION_BOUNDS_ATTR = "data-remocn-selection-bounds";
-export const SELECTION_LABEL_ATTR = "data-remocn-selection-label";
 
 export const OCCLUDES_ATTR = "data-canvas-occludes";
 
@@ -371,4 +370,39 @@ export function surroundOf(
       y: frameTop,
     },
   ];
+}
+
+export const FRAME_LABEL_GAP = 6;
+export const FRAME_LABEL_HEIGHT = 16;
+export const FRAME_LABEL_MIN_WIDTH = 32;
+
+export interface FrameLabel extends CanvasPoint {
+  maxWidth: number;
+}
+
+export function frameLabelOf(
+  camera: PreviewCamera,
+  video: CanvasSize,
+  viewport: CanvasSize,
+  insets: CanvasInsets
+): FrameLabel | null {
+  if (!validCamera(camera) || video.width <= 0 || viewport.width <= 0) {
+    return null;
+  }
+  const y = camera.y - FRAME_LABEL_GAP - FRAME_LABEL_HEIGHT;
+  if (
+    y < insets.top ||
+    y + FRAME_LABEL_HEIGHT > viewport.height - insets.bottom
+  ) {
+    return null;
+  }
+  const x = Math.max(camera.x, insets.left);
+  const right = Math.min(
+    camera.x + video.width * camera.zoom,
+    viewport.width - insets.right
+  );
+  if (right - x < FRAME_LABEL_MIN_WIDTH) {
+    return null;
+  }
+  return { maxWidth: right - x, x, y };
 }

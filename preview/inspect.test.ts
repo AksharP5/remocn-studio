@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
-import { SELECTION_LABEL_ATTR } from "../lib/studio/preview-camera";
 import {
   armInspect,
   clearSelection,
@@ -273,21 +272,6 @@ describe("the selection box", () => {
     expect(
       document.body.querySelector("div[data-remocn-selection]")
     ).not.toBeNull();
-  });
-
-  it("marks its name label and the size readout the way the app window finds them", () => {
-    armed();
-    highlightTarget(null);
-
-    const labels = boxes().filter((node) =>
-      node.hasAttribute(SELECTION_LABEL_ATTR)
-    );
-
-    expect(labels).toHaveLength(2);
-    expect(labels.every((node) => node.style.display === "none")).toBe(true);
-    expect(
-      labels.some((node) => node.hasAttribute("data-remocn-selection"))
-    ).toBe(false);
   });
 
   it("carries a pulse rule the browser can turn off for reduced motion", () => {
