@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="1200" height="630" alt="Remocn Studio" src="https://github.com/user-attachments/assets/f01c6e05-a0cb-4c07-a712-a3071a6961fa" />
+  <img width="960" alt="Remocn Studio: one sentence in, a Remotion video out" src="docs/assets/remocn-studio.gif" />
 </p>
 
 <h1 align="center">Remocn Studio</h1>
@@ -44,9 +44,7 @@
   <a href="#behind-the-scenes">Build from source</a>
 </p>
 
-<p align="center">
-  <img width="960" alt="Remocn Studio: one sentence in, a Remotion video out" src="docs/assets/remocn-studio.gif" />
-</p>
+
 
 ## The pitch
 
