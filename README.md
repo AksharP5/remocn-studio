@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>Ship a launch video without opening After Effects.</b><br />
-  A macOS app where your own coding agent makes the video —<br />
+  A macOS app where your own coding agent makes the video<br />
   as a real Remotion project you own, not a file you rent.
 </p>
 
@@ -44,27 +44,9 @@
   <a href="#behind-the-scenes">Build from source</a>
 </p>
 
-```text
-FADE IN:
-
-INT. YOUR MAC — THE NIGHT BEFORE LAUNCH
-
-An empty timeline. A blinking cursor. Forty-one After Effects tutorials,
-all still unwatched.
-
-                              YOU
-                 I just need a thirty-second video.
-
-REMOCN STUDIO opens. You type one sentence. On the right, a preview
-starts to move.
-
-                              YOU (CONT'D)
-                 ...the headline comes in too fast.
-
-You click the headline. The agent slows it down. In the code.
-
-                                                             CUT TO:
-```
+<p align="center">
+  <img width="960" alt="Remocn Studio: one sentence in, a Remotion video out" src="docs/assets/remocn-studio.gif" />
+</p>
 
 ## The pitch
 
@@ -93,9 +75,7 @@ Remocn Studio puts you in the director's chair. You watch the take, then give
 notes:
 
 > "Fix the text here."
->
 > "The animation is too fast here."
->
 > "Why did everything break here?"
 
 There are three ways to say *here*:
