@@ -33,6 +33,7 @@ import {
 import type { Tools } from "@/hooks/use-tools";
 import { formatShortcut, SHORTCUTS } from "@/lib/studio/command-registry";
 import type { LayerRow } from "@/lib/studio/layers";
+import { INSPECTOR_WIDTH } from "@/lib/studio/panes";
 import { cn } from "@/lib/utils";
 import { CanvasFrameLabel } from "./canvas-frame-label";
 import { CanvasRulers } from "./canvas-rulers";
@@ -58,7 +59,7 @@ function inspectorWidth(watching: boolean, open: boolean): string {
   if (watching) {
     return "0px";
   }
-  return open ? "min(340px, calc(100% - 24px))" : "3rem";
+  return open ? `min(${INSPECTOR_WIDTH}px, calc(100% - 24px))` : "3rem";
 }
 
 export function CanvasPreview({
@@ -162,7 +163,7 @@ export function CanvasPreview({
 
         <div
           className={cn(
-            "absolute top-(--canvas-ruler) right-(--canvas-inspector-width) left-(--canvas-ruler) z-20 pt-2",
+            "@container/canvas-top absolute top-(--canvas-ruler) right-(--canvas-inspector-width) left-(--canvas-ruler) z-20 pt-2",
             watching && "hidden"
           )}
           data-canvas-chrome
@@ -316,6 +317,12 @@ function ZoomReadout({ camera }: { camera: PreviewCameraControl }) {
   return <>{Math.round(zoom * 100)}%</>;
 }
 
+// The toolbar shares its row with the pane's actions. On a narrow canvas the
+// buttons that have a shortcut, or a twin in the playback dock, step aside
+// before the row runs under Export.
+const NARROW = "@max-[30rem]/canvas-top:hidden";
+const NARROWER = "@max-[25rem]/canvas-top:hidden";
+
 function CanvasToolbar({ canvas }: { canvas: Canvas }) {
   const { camera, hasSelection, metadata, rulers, viewing } = canvas;
   const dimmed = camera.outside === "dim";
@@ -357,6 +364,7 @@ function CanvasToolbar({ canvas }: { canvas: Canvas }) {
           render={
             <Button
               aria-label="Zoom to selection"
+              className={NARROWER}
               disabled={!hasSelection}
               onClick={camera.zoomToSelection}
               size="icon-sm"
@@ -372,6 +380,7 @@ function CanvasToolbar({ canvas }: { canvas: Canvas }) {
           render={
             <Button
               aria-label="Zoom out"
+              className={NARROW}
               onClick={camera.zoomOut}
               size="icon-sm"
               variant="ghost"
@@ -401,6 +410,7 @@ function CanvasToolbar({ canvas }: { canvas: Canvas }) {
           render={
             <Button
               aria-label="Zoom in"
+              className={NARROW}
               onClick={camera.zoomIn}
               size="icon-sm"
               variant="ghost"
@@ -434,6 +444,7 @@ function CanvasToolbar({ canvas }: { canvas: Canvas }) {
             <Button
               aria-label="Rulers"
               aria-pressed={rulers.shown}
+              className={NARROWER}
               onClick={rulers.toggle}
               size="icon-sm"
               variant={rulers.shown ? "secondary" : "ghost"}
@@ -448,6 +459,7 @@ function CanvasToolbar({ canvas }: { canvas: Canvas }) {
           render={
             <Button
               aria-label="Full screen"
+              className={NARROW}
               disabled={!viewing.canEnter}
               onClick={viewing.toggle}
               size="icon-sm"

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { panelIdsOf, showsPreview } from "@/lib/studio/panes";
+import {
+  CHAT_MIN_WIDTH,
+  PREVIEW_ROOM,
+  panelIdsOf,
+  previewRoom,
+  showsPreview,
+} from "@/lib/studio/panes";
 
 describe("showsPreview", () => {
   it("hides the preview when there is nothing to preview", () => {
@@ -31,5 +37,36 @@ describe("panelIdsOf", () => {
   it("answers the same array for the same panes", () => {
     expect(panelIdsOf(true)).toBe(panelIdsOf(true));
     expect(panelIdsOf(false)).toBe(panelIdsOf(false));
+  });
+});
+
+describe("previewRoom", () => {
+  it("widens a squeezed preview to its room when the chat can give it", () => {
+    expect(previewRoom(500, 1422)).toBe(PREVIEW_ROOM);
+  });
+
+  // The default window with the sidebar open: the chat stops at its minimum
+  // and the preview takes what is left rather than the whole room.
+  it("takes no more than the chat can give above its minimum", () => {
+    expect(previewRoom(502, 1142)).toBe(1142 - CHAT_MIN_WIDTH);
+  });
+
+  it("leaves a preview that already has its room", () => {
+    expect(previewRoom(PREVIEW_ROOM, 1422)).toBeNull();
+    expect(previewRoom(1000, 1422)).toBeNull();
+  });
+
+  it("never narrows the preview when the chat is already at its minimum", () => {
+    expect(previewRoom(400, 700)).toBeNull();
+  });
+
+  // The library rounds each pane to a thousandth of a percent, so a preview
+  // it has just placed at the room can read a fraction short of it.
+  it("ignores a difference smaller than a pixel", () => {
+    expect(previewRoom(PREVIEW_ROOM - 0.5, 1422)).toBeNull();
+  });
+
+  it("does nothing before the group has a width", () => {
+    expect(previewRoom(0, 0)).toBeNull();
   });
 });

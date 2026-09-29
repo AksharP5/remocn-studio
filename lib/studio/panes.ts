@@ -16,3 +16,28 @@ export function showsPreview(
 export function panelIdsOf(isPreviewShown: boolean): string[] {
   return isPreviewShown ? WITH_PREVIEW : CHAT_ALONE;
 }
+
+export const CHAT_MIN_WIDTH = 380;
+export const PREVIEW_MIN_WIDTH = 360;
+export const INSPECTOR_WIDTH = 340;
+
+// The inspector lives inside the preview, so a preview at its own minimum was
+// a sliver of canvas beside it. The room is the open inspector plus a canvas,
+// rulers included, wide enough for the toolbar and the pane's actions to share
+// their row and for the playback dock to keep its controls.
+const CANVAS_ROOM = 500;
+export const PREVIEW_ROOM = INSPECTOR_WIDTH + CANVAS_ROOM;
+
+/**
+ * The width to widen the preview to so the chat yields first: its room, or as
+ * much of it as the chat can give without going below its own minimum. `null`
+ * when the preview already has that — it is never narrowed from here.
+ */
+export function previewRoom(
+  previewWidth: number,
+  groupWidth: number
+): number | null {
+  const room = Math.min(PREVIEW_ROOM, groupWidth - CHAT_MIN_WIDTH);
+
+  return room - previewWidth > 1 ? room : null;
+}
