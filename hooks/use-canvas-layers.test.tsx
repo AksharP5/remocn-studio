@@ -53,8 +53,17 @@ function setup(
     selected: objects.find((item) => item.id === id) ?? null,
   });
   const hook = renderHook(
-    ({ picked, selection }: { picked?: string | null; selection: unknown }) =>
+    ({
+      hasRoom,
+      picked,
+      selection,
+    }: {
+      hasRoom?: boolean;
+      picked?: string | null;
+      selection: unknown;
+    }) =>
       useCanvasLayers({
+        hasRoom,
         managed: managed(picked === undefined ? selected : picked),
         preview,
         scenes,
@@ -64,6 +73,7 @@ function setup(
       }),
     {
       initialProps: { selection: selected } as {
+        hasRoom?: boolean;
         picked?: string | null;
         selection: unknown;
       },
@@ -289,6 +299,41 @@ describe("useCanvasLayers", () => {
     act(() => result.current.toggle());
 
     expect(result.current.shown).toBe(true);
+  });
+
+  it("folds to its bar when the preview has no room, keeping the choice", () => {
+    const { rerender, result } = setup();
+    rerender({ hasRoom: false, selection: null });
+
+    expect(result.current.shown).toBe(false);
+    expect(result.current.floating).toBe(false);
+
+    rerender({ hasRoom: true, selection: null });
+
+    expect(result.current.shown).toBe(true);
+  });
+
+  it("expands over the canvas while folded, and docks when room returns", () => {
+    const { rerender, result } = setup();
+    rerender({ hasRoom: false, selection: null });
+    act(() => result.current.toggle());
+
+    expect(result.current.shown).toBe(true);
+    expect(result.current.floating).toBe(true);
+
+    act(() => result.current.onView(clickView("layers")));
+
+    expect(result.current.shown).toBe(false);
+
+    act(() => result.current.toggle());
+    rerender({ hasRoom: true, selection: null });
+
+    expect(result.current.shown).toBe(true);
+    expect(result.current.floating).toBe(false);
+
+    rerender({ hasRoom: false, selection: null });
+
+    expect(result.current.floating).toBe(false);
   });
 
   function toggleRow(value: string) {

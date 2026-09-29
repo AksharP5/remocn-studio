@@ -137,6 +137,19 @@ describe("usePreviewTransport speed", () => {
     expect(result.current.rate).toBe(0.25);
   });
 
+  it("cycles through the speeds from the compact button, wrapping at the end", () => {
+    const { result } = setup();
+
+    act(() => result.current.cycleRate());
+    expect(result.current.rate).toBe(2);
+
+    act(() => result.current.cycleRate());
+    expect(result.current.rate).toBe(0.25);
+
+    act(() => result.current.cycleRate());
+    expect(result.current.rate).toBe(0.5);
+  });
+
   it("sends the speed again to a rebuilt runtime", () => {
     const { emit, rates, result } = setup();
     act(() => result.current.setRate(0.5));

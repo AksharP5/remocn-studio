@@ -14,7 +14,11 @@ import { useFrozenWidth } from "@/hooks/use-frozen-width";
 import { usePlatformAttribute } from "@/hooks/use-platform";
 import { usePreviewCollapse } from "@/hooks/use-preview-collapse";
 import { usePreviewRoom } from "@/hooks/use-preview-room";
-import { useSidebarCollapse } from "@/hooks/use-sidebar-collapse";
+import {
+  type SidebarCollapse,
+  useSidebarCollapse,
+} from "@/hooks/use-sidebar-collapse";
+import { useSidebarPeek } from "@/hooks/use-sidebar-peek";
 import { useBoot } from "@/hooks/use-splash";
 import {
   CHAT_MIN_WIDTH,
@@ -76,6 +80,12 @@ const StillPreviewPane = memo(PreviewPane);
 const PANE_SLIDE =
   "transition-[flex-grow] duration-base ease-out motion-reduce:transition-none";
 
+const SIDEBAR_SLIDE = "ease-out motion-reduce:transition-none";
+
+function slideDuration(isEntering: boolean): string {
+  return isEntering ? "duration-base" : "duration-180";
+}
+
 /* The preview holds the compiled bundle in an iframe, and an iframe that
    changes size every frame of a pane slide is a cross-document layout plus
    the Player rescaling its canvas — the lag the sidebar collapse had. While
@@ -110,8 +120,10 @@ function ShellPanes({
   className?: string;
   isSliding: boolean;
 }) {
-  const { hidePreview, isPreviewShown } = useStudio();
+  const { hidePreview, isChatPeeking, isChatShown, isPreviewShown } =
+    useStudio();
   const collapse = usePreviewCollapse(isPreviewShown, hidePreview);
+  const chatPeek = useSidebarCollapse(isChatPeeking, isChatShown);
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: SHELL_LAYOUT_ID,
     onlySaveAfterUserInteractions: true,
@@ -142,17 +154,34 @@ function ShellPanes({
           isPreviewShown ? "preserve-pixel-size" : "preserve-relative-size"
         }
         id="chat"
-        minSize={`${CHAT_MIN_WIDTH}px`}
+        maxSize={isChatShown ? "100%" : "0px"}
+        minSize={isChatShown ? `${CHAT_MIN_WIDTH}px` : "0px"}
       >
-        <StillChatPane />
+        <div
+          className={cn(
+            "h-full",
+            !isChatShown && [
+              "motion-reduce:translate-none absolute inset-y-0 left-0 z-30 w-[min(26rem,calc(100%-3rem))] border-pane-border border-r bg-background shadow-xl transition-[translate] ease-out motion-reduce:transition-opacity",
+              slideDuration(chatPeek.isExpanded),
+              chatPeek.isExpanded
+                ? "translate-x-0"
+                : "-translate-x-full motion-reduce:opacity-0",
+              !chatPeek.isMounted && "invisible",
+            ]
+          )}
+          inert={!(isChatShown || isChatPeeking)}
+          onTransitionEnd={chatPeek.onTransitionEnd}
+        >
+          <StillChatPane />
+        </div>
       </ResizablePanel>
 
       <ResizableHandle
         className={cn(
           "studio-boot-transition bg-pane-border transition-opacity duration-base",
-          isPreviewShown ? "opacity-100" : "opacity-0"
+          isPreviewShown && isChatShown ? "opacity-100" : "opacity-0"
         )}
-        disabled={!isPreviewShown}
+        disabled={!(isPreviewShown && isChatShown)}
       />
 
       <ResizablePanel
@@ -176,9 +205,15 @@ function ShellPanes({
 }
 
 function ShellLayout({ isBooting }: { isBooting: boolean }) {
-  const { isProjectsShown, mood, preferences, projects, settingsView } =
-    useStudio();
-  const collapse = useSidebarCollapse(isProjectsShown);
+  const {
+    hasProjectsRoom,
+    isProjectsShown,
+    mood,
+    preferences,
+    projects,
+    settingsView,
+  } = useStudio();
+  const collapse = useSidebarCollapse(isProjectsShown, hasProjectsRoom);
 
   return (
     // `inert` while Settings covers it: the shell keeps its state — the
@@ -204,29 +239,29 @@ function ShellLayout({ isBooting }: { isBooting: boolean }) {
 
       <div
         className={cn(
-          "studio-boot-transition relative z-10 grid min-h-0 flex-1 transition-[grid-template-columns] duration-base ease-out motion-reduce:transition-none",
+          "studio-boot-transition relative z-10 grid min-h-0 flex-1",
+          collapse.isAnimating && [
+            "transition-[grid-template-columns]",
+            SIDEBAR_SLIDE,
+            slideDuration(collapse.isExpanded),
+          ],
           collapse.isExpanded
             ? "grid-cols-[18rem_minmax(0,1fr)]"
             : "grid-cols-[0rem_minmax(0,1fr)]"
         )}
+        data-tauri-drag-region
         onTransitionEnd={collapse.onTransitionEnd}
       >
-        {/* The sidebar is not a panel: it holds fixed-width rows and a card
-            grid that gain nothing from resizing, so it only ever collapses —
-            one width, no handle, nothing for the layout store to remember.
-            Its top offset tucks the brand row under the traffic lights,
-            inside the band's glow. */}
-        <div className="flex min-h-0 overflow-hidden">
-          {collapse.isMounted ? (
-            <div className="mt-12 w-72 shrink-0" inert={!isProjectsShown}>
-              <ProjectsPane />
-            </div>
-          ) : null}
-        </div>
+        <SidebarSlot collapse={collapse} />
 
         <div
           className={cn(
-            "studio-boot-transition relative my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-xl border border-pane-border bg-background transition-[margin] duration-base ease-out motion-reduce:transition-none",
+            "studio-boot-transition relative my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-xl border border-pane-border bg-background",
+            collapse.isAnimating && [
+              "transition-[margin]",
+              SIDEBAR_SLIDE,
+              slideDuration(collapse.isExpanded),
+            ],
             isProjectsShown ? "ml-0" : "ml-2"
           )}
         >
@@ -235,6 +270,74 @@ function ShellLayout({ isBooting }: { isBooting: boolean }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/* The sidebar is not a panel: it holds fixed-width rows and a card grid that
+   gain nothing from resizing, so it only ever collapses — one width, no handle,
+   nothing for the layout store to remember. Its top offset tucks the brand row
+   under the traffic lights, inside the band's glow. */
+function SidebarSlot({ collapse }: { collapse: SidebarCollapse }) {
+  const { isProjectsPeeking, isProjectsShown, peekProjects } = useStudio();
+  const isDocked = collapse.isMounted;
+  const peek = useSidebarCollapse(isProjectsPeeking);
+  const hover = useSidebarPeek(isProjectsPeeking, peekProjects);
+
+  let pane: React.ReactNode = null;
+  if (isDocked) {
+    pane = (
+      <div
+        className={cn(
+          "mt-12 w-72 shrink-0",
+          collapse.isAnimating && [
+            "motion-reduce:translate-none starting:-translate-x-full transition-[translate]",
+            SIDEBAR_SLIDE,
+            slideDuration(collapse.isExpanded),
+          ],
+          collapse.isExpanded ? "translate-x-0" : "-translate-x-full"
+        )}
+        inert={!isProjectsShown}
+      >
+        <ProjectsPane />
+      </div>
+    );
+  } else if (peek.isMounted) {
+    pane = (
+      <div
+        className={cn(
+          "motion-reduce:translate-none absolute inset-y-2 left-2 z-40 w-72 starting:-translate-x-[calc(100%+1rem)] overflow-hidden rounded-xl border border-pane-border bg-sidebar pt-10 shadow-xl transition-[translate] ease-out motion-reduce:starting:opacity-0 motion-reduce:transition-opacity",
+          slideDuration(peek.isExpanded),
+          peek.isExpanded
+            ? "translate-x-0"
+            : "-translate-x-[calc(100%+1rem)] motion-reduce:opacity-0"
+        )}
+        data-tauri-drag-region
+        inert={!isProjectsPeeking}
+        onPointerDown={hover.onPanelPointerDown}
+        onPointerEnter={hover.onPanelEnter}
+        onPointerLeave={hover.onPanelLeave}
+        onTransitionEnd={peek.onTransitionEnd}
+      >
+        <ProjectsPane />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex min-h-0 overflow-hidden" data-tauri-drag-region>
+        {pane}
+      </div>
+
+      {isProjectsShown ? null : (
+        <div
+          aria-hidden="true"
+          className="absolute top-12 bottom-0 left-0 z-20 w-3"
+          onPointerEnter={hover.onEdgeEnter}
+          onPointerLeave={hover.onEdgeLeave}
+        />
+      )}
+    </>
   );
 }
 

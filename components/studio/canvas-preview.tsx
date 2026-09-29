@@ -41,6 +41,7 @@ import { DOCK_SURFACE } from "./dock-layout";
 import { FailureText } from "./failure-text";
 import { HintTooltip } from "./hint-tooltip";
 import { InspectOverlay } from "./inspect-overlay";
+import { PaneHeader, PREVIEW_LEADING } from "./pane";
 import { PreviewControls } from "./preview-controls";
 import { useStudio } from "./studio-provider";
 
@@ -55,26 +56,45 @@ const GRID = `linear-gradient(to right, ${GRID_LINE} 1px, transparent 1px), line
 type Canvas = ReturnType<typeof useCanvasPreview>;
 type Metadata = Canvas["metadata"];
 
-function inspectorWidth(watching: boolean, open: boolean): string {
+const INSPECTOR_OPEN = `min(${INSPECTOR_WIDTH}px, calc(100% - 24px))`;
+
+function inspectorWidth(watching: boolean, layers: CanvasLayers): string {
   if (watching) {
     return "0px";
   }
-  return open ? `min(${INSPECTOR_WIDTH}px, calc(100% - 24px))` : "3rem";
+  return isDocked(layers) ? INSPECTOR_OPEN : "3rem";
+}
+
+function isDocked(layers: CanvasLayers): boolean {
+  return layers.shown && !layers.floating;
+}
+
+function inspectorPanel(layers: CanvasLayers): string {
+  return layers.floating ? INSPECTOR_OPEN : "var(--canvas-inspector-width)";
 }
 
 export function CanvasPreview({
-  header,
+  actions,
   hidden,
+  leading,
   status,
 }: {
-  header: ReactNode;
+  actions: ReactNode;
   hidden: boolean;
+  leading: ReactNode;
   status: ReactNode;
 }) {
-  const { tools, activeProject, openedProject, openedVideo, settings } =
-    useStudio();
+  const {
+    tools,
+    activeProject,
+    isChatShown,
+    openedProject,
+    openedVideo,
+    settings,
+  } = useStudio();
   const canvas = useCanvasPreview({
     hidden,
+    isLeftmost: !isChatShown,
     projectId: activeProject?.id ?? null,
     settings,
     tools,
@@ -94,10 +114,8 @@ export function CanvasPreview({
       ref={canvas.transport.surface}
       style={
         {
-          "--canvas-inspector-width": inspectorWidth(
-            watching,
-            canvas.layers.shown
-          ),
+          "--canvas-inspector-panel": inspectorPanel(canvas.layers),
+          "--canvas-inspector-width": inspectorWidth(watching, canvas.layers),
           "--canvas-ruler": watching ? "0px" : `${rulers.size}px`,
         } as CSSProperties
       }
@@ -130,7 +148,10 @@ export function CanvasPreview({
         {watching ? null : (
           <CanvasFrameLabel
             camera={camera}
-            chrome={{ inspector: canvas.layers.shown, rulers: rulers.shown }}
+            chrome={{
+              inspector: isDocked(canvas.layers),
+              rulers: rulers.shown,
+            }}
             name={openedVideo?.name}
             shown={shown}
           />
@@ -161,17 +182,13 @@ export function CanvasPreview({
 
         {rulers.shown && !watching ? <CanvasRulers rulers={rulers} /> : null}
 
-        <div
-          className={cn(
-            "@container/canvas-top absolute top-(--canvas-ruler) right-(--canvas-inspector-width) left-(--canvas-ruler) z-20 pt-2",
-            watching && "hidden"
-          )}
-          data-canvas-chrome
-          data-canvas-occludes="top"
-        >
-          {header}
-          <CanvasToolbar canvas={canvas} />
-        </div>
+        <CanvasHeader
+          actions={actions}
+          canvas={canvas}
+          isLeftmost={!isChatShown}
+          leading={leading}
+          watching={watching}
+        />
 
         <div className={watching ? "hidden" : "contents"}>
           <CanvasInspector
@@ -206,6 +223,40 @@ export function CanvasPreview({
         </div>
       </div>
     </section>
+  );
+}
+
+function CanvasHeader({
+  actions,
+  canvas,
+  isLeftmost,
+  leading,
+  watching,
+}: {
+  actions: ReactNode;
+  canvas: Canvas;
+  isLeftmost: boolean;
+  leading: ReactNode;
+  watching: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "absolute top-(--canvas-ruler) right-(--canvas-inspector-width) left-(--canvas-ruler) z-20 pt-2",
+        watching && "hidden"
+      )}
+      data-canvas-chrome
+      data-canvas-occludes="top"
+    >
+      <PaneHeader
+        className={cn(isLeftmost && PREVIEW_LEADING)}
+        data-tauri-drag-region="deep"
+      >
+        {leading}
+        <CanvasToolbar canvas={canvas} />
+        {actions}
+      </PaneHeader>
+    </div>
   );
 }
 
@@ -317,18 +368,15 @@ function ZoomReadout({ camera }: { camera: PreviewCameraControl }) {
   return <>{Math.round(zoom * 100)}%</>;
 }
 
-// The toolbar shares its row with the pane's actions. On a narrow canvas the
-// buttons that have a shortcut, or a twin in the playback dock, step aside
-// before the row runs under Export.
-const NARROW = "@max-[30rem]/canvas-top:hidden";
-const NARROWER = "@max-[25rem]/canvas-top:hidden";
+const NARROW = "@max-[19.5rem]/canvas-toolbar:hidden";
+const NARROWER = "@max-[14rem]/canvas-toolbar:hidden";
 
 function CanvasToolbar({ canvas }: { canvas: Canvas }) {
   const { camera, hasSelection, metadata, rulers, viewing } = canvas;
   const dimmed = camera.outside === "dim";
 
   return (
-    <div className="absolute top-2 left-4 flex h-10 items-center">
+    <div className="@container/canvas-toolbar flex min-w-0 flex-1 items-center">
       <div className="flex items-center gap-0.5 rounded-lg border border-border bg-field p-0.5">
         <HintTooltip
           label="Pan tool — or hold"
@@ -495,7 +543,10 @@ function InspectorPanel({
   return (
     <aside
       aria-label="Inspector"
-      className="absolute inset-y-0 right-0 z-20 flex w-(--canvas-inspector-width) flex-row-reverse overflow-hidden border-pane-border border-l bg-background"
+      className={cn(
+        "absolute inset-y-0 right-0 z-20 flex w-(--canvas-inspector-panel) flex-row-reverse overflow-hidden border-pane-border border-l bg-background",
+        layers.floating && "z-30 shadow-xl"
+      )}
       data-canvas-chrome
       data-canvas-occludes="right"
     >

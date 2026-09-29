@@ -7,21 +7,28 @@ import {
   type SlideDirection,
   slideDirection,
 } from "@/lib/studio/pane-view";
-import { showsPreview } from "@/lib/studio/panes";
+import { fitPanes, showsPreview } from "@/lib/studio/panes";
 import {
   type StudioSettings,
   savePaneView,
   savePreviewPane,
   saveProjectsPane,
 } from "@/lib/studio/settings";
+import { useWindowWidth } from "./use-window-width";
 
 export interface Panes {
+  hasProjectsRoom: boolean;
   hidePreview: () => void;
+  isChatPeeking: boolean;
+  isChatShown: boolean;
   isPreviewShown: boolean;
+  isProjectsPeeking: boolean;
   isProjectsShown: boolean;
   paneSlide: SlideDirection;
   paneView: PaneView;
+  peekProjects: (isOpen: boolean) => void;
   showPane: (view: PaneView) => void;
+  toggleChat: () => void;
   togglePreview: () => void;
   toggleProjects: () => void;
 }
@@ -34,14 +41,27 @@ export function usePanes(
   const [preview, setPreview] = useState<boolean | null>(null);
   const [projects, setProjects] = useState<boolean | null>(null);
   const [view, setView] = useState<PaneView | null>(null);
+  const [projectsPeek, setProjectsPeek] = useState(false);
+  const [chatPeek, setChatPeek] = useState(false);
   const cameFrom = useRef<PaneView | null>(null);
+  const windowWidth = useWindowWidth();
 
   const isPreviewShown = showsPreview(
     preview ?? settings?.previewPane ?? null,
     hasProjects,
     isLoadingProjects
   );
-  const isProjectsShown = projects ?? settings?.projectsPane ?? true;
+  const fit = fitPanes(windowWidth, isPreviewShown);
+  const isProjectsShown =
+    (projects ?? settings?.projectsPane ?? true) && fit.projects;
+  const isChatShown = fit.chat;
+
+  if (isProjectsShown && projectsPeek) {
+    setProjectsPeek(false);
+  }
+  if (isChatShown && chatPeek) {
+    setChatPeek(false);
+  }
 
   const togglePreview = useCallback(() => {
     const next = !isPreviewShown;
@@ -61,10 +81,26 @@ export function usePanes(
   }, [isPreviewShown]);
 
   const toggleProjects = useCallback(() => {
+    if (projectsPeek) {
+      setProjectsPeek(false);
+      return;
+    }
+    if (!(isProjectsShown || fit.projects)) {
+      setProjectsPeek(true);
+      return;
+    }
     const next = !isProjectsShown;
     setProjects(next);
     Effect.runFork(saveProjectsPane(next));
-  }, [isProjectsShown]);
+  }, [fit.projects, isProjectsShown, projectsPeek]);
+
+  const peekProjects = useCallback((isOpen: boolean) => {
+    setProjectsPeek(isOpen);
+  }, []);
+
+  const toggleChat = useCallback(() => {
+    setChatPeek((open) => !open);
+  }, []);
 
   const paneView = view ?? settings?.paneView ?? "videos";
   const held = useRef(paneView);
@@ -83,22 +119,34 @@ export function usePanes(
 
   return useMemo(
     () => ({
+      hasProjectsRoom: fit.projects,
       hidePreview,
+      isChatPeeking: chatPeek && !isChatShown,
+      isChatShown,
       isPreviewShown,
+      isProjectsPeeking: projectsPeek && !isProjectsShown,
       isProjectsShown,
       paneSlide,
       paneView,
+      peekProjects,
       showPane,
+      toggleChat,
       togglePreview,
       toggleProjects,
     }),
     [
+      chatPeek,
+      fit.projects,
       hidePreview,
+      isChatShown,
       isPreviewShown,
       isProjectsShown,
       paneSlide,
       paneView,
+      peekProjects,
+      projectsPeek,
       showPane,
+      toggleChat,
       togglePreview,
       toggleProjects,
     ]
