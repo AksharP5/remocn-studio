@@ -162,6 +162,7 @@ try {
           sampleEveryFrames: 8,
         },
         progress: () => undefined,
+        publicDir: path.join(root, "public"),
         renderer,
         renderOptions: {
           chromeMode: null,
@@ -170,6 +171,7 @@ try {
         },
         root,
         serveUrl,
+        staticBase: "/public",
         video: {
           camera: null,
           scenes: [

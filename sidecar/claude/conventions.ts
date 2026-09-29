@@ -68,6 +68,17 @@ them. Preserve time to understand actions and read results. Confirm the perceive
 sync against the actual rendered audio mix; amplitude peaks alone do not define
 the edit or require a cut.
 
+Embed footage with \`<Video>\` from \`@remotion/media\`, not \`OffthreadVideo\`. Phone
+and camera files often start a frame a fraction of a millisecond after its slot,
+and \`OffthreadVideo\` then shows the previous frame again and skips the next, so
+the export stutters where the source plays smoothly. When the project's
+\`package.json\` does not list \`@remotion/media\`, add it with the project's own
+package manager, pinned to the version of its \`remotion\`. Leave an existing
+\`OffthreadVideo\` alone unless the person asks or the design check reports
+\`footage_late_frames\` for its file; then switch that component, and never
+rewrite the person's file. On a Remotion older than 4.0.351, which has no
+\`@remotion/media\`, keep \`OffthreadVideo\` rather than upgrading unasked.
+
 Keep the result editable: a scene is a named component in its own file with plain
 props and readable timing, because the person will open this code and change it.`;
 

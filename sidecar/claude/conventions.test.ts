@@ -34,6 +34,26 @@ describe("conventionsFor structure", () => {
     expect(text).toContain("[Element #N]");
   });
 
+  it("embeds footage with @remotion/media on every turn, whether or not skills loaded", () => {
+    for (const hasSkills of [true, false]) {
+      const compact = conventionsFor(hasSkills).replaceAll("\n", " ");
+
+      expect(compact).toContain(
+        "Embed footage with `<Video>` from `@remotion/media`, not `OffthreadVideo`."
+      );
+      expect(compact).toContain(
+        "add it with the project's own package manager, pinned to the version of its `remotion`"
+      );
+      expect(compact).toContain(
+        "Leave an existing `OffthreadVideo` alone unless the person asks or the design check reports `footage_late_frames`"
+      );
+      expect(compact).toContain("never rewrite the person's file");
+      expect(compact).toContain(
+        "keep `OffthreadVideo` rather than upgrading unasked"
+      );
+    }
+  });
+
   it("asks for every scene to be named and described by a scene object", () => {
     const compact = conventionsFor(false).replaceAll("\n", " ");
 

@@ -75,6 +75,13 @@ function fakes(
           value: [{ matches: 0, target: null }],
         });
       }
+      if (named === "offthreadFootage") {
+        return await Promise.resolve({
+          value: [
+            { src: "http://localhost:3000/static-a/clip.mp4", time: 0.5 },
+          ],
+        });
+      }
       return await Promise.resolve({ value: null });
     },
     openBrowser: async () => {
@@ -276,6 +283,7 @@ describe("openSession", () => {
     expect(audit).toEqual({
       findings: [],
       fingerprint: "frame-state",
+      footage: [{ src: "http://localhost:3000/static-a/clip.mp4", time: 0.5 }],
       motion: [],
     });
     expect(journal.seeks).toEqual([20]);
@@ -283,7 +291,8 @@ describe("openSession", () => {
       null,
       "/tmp/design.png",
     ]);
-    expect(journal.steps.slice(-3)).toEqual([
+    expect(journal.steps.slice(-4)).toEqual([
+      "evaluate:offthreadFootage",
       "evaluate:prepareDesignAudit",
       "evaluate:finishDesignContrast",
       "evaluate:restoreDesignAudit",
@@ -299,7 +308,8 @@ describe("openSession", () => {
     );
 
     expect(audit.motion).toEqual([{ matches: 0, target: null }]);
-    expect(journal.steps.slice(-4)).toEqual([
+    expect(journal.steps.slice(-5)).toEqual([
+      "evaluate:offthreadFootage",
       "evaluate:probeMotionTargets",
       "evaluate:prepareDesignAudit",
       "evaluate:finishDesignContrast",

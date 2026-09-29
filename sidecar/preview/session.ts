@@ -5,6 +5,8 @@ import {
   type FrameDesignAudit,
   finishDesignContrast,
   type MotionProbe,
+  type OffthreadFootage,
+  offthreadFootage,
   type PreparedDesignAudit,
   prepareDesignAudit,
   probeMotionTargets,
@@ -317,6 +319,10 @@ function sessionOf(
           let prepared = false;
           try {
             await seek(frame);
+            const footage = await evaluate<OffthreadFootage[]>(
+              offthreadFootage as (...args: never[]) => unknown,
+              []
+            );
             const motion =
               selectors.length === 0
                 ? []
@@ -352,6 +358,7 @@ function sessionOf(
               ...(details ? { details } : {}),
               findings: [...audit.findings, ...contrast],
               fingerprint: audit.fingerprint,
+              footage,
               motion,
             };
           } finally {

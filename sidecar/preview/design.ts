@@ -10,6 +10,8 @@ export const DesignFindingCode = Schema.Literals([
   "motion_contract_target",
   "motion_contract_collision",
   "contrast_aa_failure",
+  "footage_late_frames",
+  "footage_unmeasured",
   "resource_failed",
   "render_failed",
   "platform_safe_zone",
@@ -55,7 +57,7 @@ export type DesignFindingCode = (typeof DesignFindingCode)["Type"];
 
 export type RenderedFindingCode = Exclude<
   DesignFindingCode,
-  "timeline_static" | `tunability_${string}`
+  "timeline_static" | `tunability_${string}` | `footage_${string}`
 >;
 
 export const DesignSeverity = Schema.Literals(["error", "warning", "info"]);
@@ -227,10 +229,16 @@ export interface MotionSample {
   readonly probes: readonly MotionProbe[];
 }
 
+export interface OffthreadFootage {
+  readonly src: string;
+  readonly time: number;
+}
+
 export interface FrameDesignAudit {
   readonly details?: import("./readiness-browser").ReadinessFrame;
   readonly findings: readonly BrowserDesignFinding[];
   readonly fingerprint: string;
+  readonly footage?: readonly OffthreadFootage[];
   readonly motion: readonly MotionProbe[];
 }
 
@@ -318,6 +326,7 @@ export function finishDesignResult(input: {
   readonly assertions: readonly MotionAssertion[];
   readonly audits: readonly { frame: number; audit: FrameDesignAudit }[];
   readonly composition: string;
+  readonly footage?: readonly DesignFinding[];
   readonly height: number;
   readonly snapshots: readonly DesignSnapshot[];
   readonly video?: readonly DesignFinding[];
@@ -341,6 +350,7 @@ export function finishDesignResult(input: {
     })
   );
   collected.push(...(input.video ?? []));
+  collected.push(...(input.footage ?? []));
   const fingerprints = input.audits.map(({ audit }) => audit.fingerprint);
 
   if (
@@ -765,6 +775,34 @@ function relativeLuminance(color: Rgba): number {
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
+}
+
+export function offthreadFootage(): OffthreadFootage[] {
+  const port = String(
+    (window as Window & { remotion_proxyPort?: number }).remotion_proxyPort ??
+      ""
+  );
+  const found: OffthreadFootage[] = [];
+  for (const entry of performance.getEntriesByType("resource")) {
+    let url: URL;
+    try {
+      url = new URL(entry.name);
+    } catch {
+      continue;
+    }
+    const src = url.searchParams.get("src");
+    const time = Number(url.searchParams.get("time"));
+    if (
+      url.pathname === "/proxy" &&
+      url.port === port &&
+      src !== null &&
+      Number.isFinite(time)
+    ) {
+      found.push({ src, time });
+    }
+  }
+  performance.clearResourceTimings();
+  return found;
 }
 
 // This function is serialized into the Remotion render page, like
