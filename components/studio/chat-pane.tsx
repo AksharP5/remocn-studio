@@ -1,6 +1,6 @@
 "use client";
 
-import { PanelLeftOpenIcon } from "lucide-react";
+import { PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,7 +54,7 @@ import { MarkdownProvider } from "./markdown";
 import { NewProjectWizard } from "./new-project-wizard";
 import { NewVideoWizard } from "./new-video-wizard";
 import { AboveComposer, NoticeCard } from "./notice-card";
-import { Pane, PaneBody, PaneHeader, PaneTitle } from "./pane";
+import { Pane, PaneActions, PaneBody, PaneHeader, PaneTitle } from "./pane";
 import { PermissionCard } from "./permission-card";
 import { QueueDock } from "./queue-dock";
 import { SoundPrompt } from "./sound-prompt";
@@ -79,6 +79,7 @@ export function ChatPane() {
     activeSession,
     docs,
     environment,
+    isChatShown,
     isPreviewShown,
     isLoadingProjects,
     isProjectsShown,
@@ -92,6 +93,7 @@ export function ChatPane() {
     relocateProject,
     reloadProjects,
     settings,
+    toggleChat,
     toggleProjects,
   } = useStudio();
   const { locate } = useLocateProject(
@@ -144,6 +146,26 @@ export function ChatPane() {
           </div>
           <PaneTitle>{titleOf(openedProject, activeSession)}</PaneTitle>
         </div>
+        {isChatShown ? null : (
+          <PaneActions>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    aria-label="Hide the chat"
+                    className="text-muted-foreground"
+                    onClick={toggleChat}
+                    size="icon-sm"
+                    variant="ghost"
+                  />
+                }
+              >
+                <PanelLeftCloseIcon />
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Hide the chat</TooltipContent>
+            </Tooltip>
+          </PaneActions>
+        )}
       </PaneHeader>
 
       <ChatBody

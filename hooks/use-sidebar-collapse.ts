@@ -10,23 +10,30 @@ export interface SidebarCollapse {
   isAnimating: boolean;
   isExpanded: boolean;
   isMounted: boolean;
-  onTransitionEnd: (event: TransitionEvent<HTMLDivElement>) => void;
+  onTransitionEnd: (event: TransitionEvent<HTMLElement>) => void;
 }
 
-export function useSidebarCollapse(isShown: boolean): SidebarCollapse {
+function nextPhase(current: Phase, isShown: boolean, isInstant: boolean) {
+  if (isInstant) {
+    return isShown ? "shown" : "hidden";
+  }
+  if (isShown) {
+    return current === "shown" || current === "showing" ? current : "showing";
+  }
+  return current === "hidden" || current === "hiding" ? current : "hiding";
+}
+
+export function useSidebarCollapse(
+  isShown: boolean,
+  hasRoom = true
+): SidebarCollapse {
   const [phase, setPhase] = useState<Phase>(isShown ? "shown" : "hidden");
+  const [seen, setSeen] = useState({ hasRoom, isShown });
 
-  useEffect(() => {
-    setPhase((current) => {
-      if (isShown) {
-        return current === "shown" || current === "showing"
-          ? current
-          : "showing";
-      }
-
-      return current === "hidden" || current === "hiding" ? current : "hiding";
-    });
-  }, [isShown]);
+  if (seen.isShown !== isShown || seen.hasRoom !== hasRoom) {
+    setSeen({ hasRoom, isShown });
+    setPhase(nextPhase(phase, isShown, seen.hasRoom !== hasRoom));
+  }
 
   const settle = useCallback(() => {
     setPhase((current) => {
@@ -48,7 +55,7 @@ export function useSidebarCollapse(isShown: boolean): SidebarCollapse {
   }, [phase, settle]);
 
   const onTransitionEnd = useCallback(
-    (event: TransitionEvent<HTMLDivElement>) => {
+    (event: TransitionEvent<HTMLElement>) => {
       if (event.target === event.currentTarget) {
         settle();
       }

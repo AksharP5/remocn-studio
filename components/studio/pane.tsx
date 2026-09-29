@@ -59,4 +59,6 @@ function PaneBody({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-export { Pane, PaneActions, PaneBody, PaneHeader, PaneTitle };
+const PREVIEW_LEADING = "ps-[max(var(--titlebar-inline-inset),1rem)]";
+
+export { Pane, PaneActions, PaneBody, PaneHeader, PaneTitle, PREVIEW_LEADING };

@@ -313,7 +313,7 @@ function StudioStateProvider({
     groups: workspace.groups,
     inspectUnavailable: tools.inspect.unavailable,
     isPreviewShown: panes.isPreviewShown,
-    isProjectsShown: panes.isProjectsShown,
+    isProjectsShown: panes.isProjectsShown || panes.isProjectsPeeking,
     isTurnRunning: turn.isRunning,
     locateProject: projectMenu.locate,
     openExport: tools.exporting.open,

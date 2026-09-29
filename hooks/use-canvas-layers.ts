@@ -51,6 +51,7 @@ export type InspectorView = "layers" | "properties";
 const NO_SCENES: readonly PreviewScene[] = [];
 
 export function useCanvasLayers({
+  hasRoom = true,
   managed,
   preview,
   scenes = NO_SCENES,
@@ -58,6 +59,7 @@ export function useCanvasLayers({
   selection,
   viewport,
 }: {
+  hasRoom?: boolean;
   managed: Managed | undefined;
   preview: PreviewControl;
   scenes?: readonly PreviewScene[];
@@ -67,7 +69,13 @@ export function useCanvasLayers({
 }) {
   const [present, setPresent] = useState<ReadonlySet<string> | null>(null);
   const [layersFor, setLayersFor] = useState<unknown>(null);
-  const [shown, setShown] = useState(true);
+  const [chosen, setChosen] = useState(true);
+  const [peek, setPeek] = useState(false);
+  if (hasRoom && peek) {
+    setPeek(false);
+  }
+  const shown = hasRoom ? chosen : peek;
+  const setShown = hasRoom ? setChosen : setPeek;
   if (selection === null && layersFor !== null) {
     setLayersFor(null);
   }
@@ -170,7 +178,7 @@ export function useCanvasLayers({
     (next: unknown) => setLayersFor(next === "layers" ? selection : null),
     [selection]
   );
-  const toggle = useCallback(() => setShown((value) => !value), []);
+  const toggle = useCallback(() => setShown((value) => !value), [setShown]);
   const onView = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
       const next = event.currentTarget.value;
@@ -181,7 +189,7 @@ export function useCanvasLayers({
       setShown(true);
       choose(next);
     },
-    [choose, shown, view]
+    [choose, setShown, shown, view]
   );
   const onSelect = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => select(event.currentTarget.value),
@@ -234,6 +242,7 @@ export function useCanvasLayers({
       choose,
       enabled,
       error,
+      floating: !hasRoom && peek,
       hover,
       isOpen,
       isPresent: (row: LayerRow) => present === null || present.has(row.id),
@@ -255,6 +264,7 @@ export function useCanvasLayers({
       choose,
       enabled,
       error,
+      hasRoom,
       hover,
       isOpen,
       loading,
@@ -263,6 +273,7 @@ export function useCanvasLayers({
       onSelect,
       onToggle,
       onView,
+      peek,
       present,
       rows,
       select,

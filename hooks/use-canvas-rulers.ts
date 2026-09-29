@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { RULER_WIDTH } from "@/lib/studio/panes";
 import {
   type CanvasPoint,
   type CanvasSize,
@@ -20,7 +21,7 @@ import {
 import { type StudioSettings, saveCanvasRulers } from "@/lib/studio/settings";
 import type { CameraView } from "./use-preview-camera";
 
-export const RULER_SIZE = 20;
+export const RULER_SIZE = RULER_WIDTH;
 
 const TYPING =
   "button,input,textarea,select,a,[contenteditable],[data-canvas-chrome]";

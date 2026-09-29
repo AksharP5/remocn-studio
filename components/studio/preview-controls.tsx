@@ -38,6 +38,7 @@ export function PreviewControls({
 }) {
   const {
     buffering,
+    cycleRate,
     error,
     muted,
     next,
@@ -127,6 +128,22 @@ export function PreviewControls({
             status
           )}
         </div>
+        <HintTooltip
+          label="Playback speed"
+          render={
+            <Button
+              aria-label={`Playback speed ${rate}×`}
+              className="@min-[28rem]:hidden h-8 min-w-10 px-1.5 font-medium text-muted-foreground text-xs tabular-nums sm:h-8"
+              disabled={!ready}
+              onClick={cycleRate}
+              size="sm"
+              variant="ghost"
+            />
+          }
+          side="top"
+        >
+          {rate}×
+        </HintTooltip>
         <div className="@min-[28rem]:flex hidden shrink-0 items-center gap-2">
           <span
             aria-hidden="true"

@@ -109,6 +109,15 @@ export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
     (position: unknown) => setRate(PLAYBACK_RATES[Number(position)]),
     [setRate]
   );
+  const cycleRate = useCallback(
+    () =>
+      setRate(
+        PLAYBACK_RATES[
+          (PLAYBACK_RATES.indexOf(rate) + 1) % PLAYBACK_RATES.length
+        ]
+      ),
+    [rate, setRate]
+  );
 
   const toggle = useCallback(() => {
     if (ready) {
@@ -216,6 +225,7 @@ export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
   return useMemo(
     () => ({
       buffering,
+      cycleRate,
       duration: previewTime(duration / fps),
       error,
       fps,
@@ -244,6 +254,7 @@ export function usePreviewTransport(preview: PreviewControl, enabled: boolean) {
     }),
     [
       buffering,
+      cycleRate,
       duration,
       error,
       fps,

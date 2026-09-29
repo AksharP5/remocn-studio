@@ -3,6 +3,7 @@
 import {
   ArrowLeftIcon,
   FolderOpenIcon,
+  MessageSquareIcon,
   PanelRightCloseIcon,
   RotateCwIcon,
   XIcon,
@@ -24,7 +25,7 @@ import type { Exported } from "@/shared/ipc";
 import { DocsView } from "./docs-view";
 import { ExportButton } from "./export-button";
 import { FailureText } from "./failure-text";
-import { Pane, PaneActions, PaneHeader } from "./pane";
+import { Pane, PaneActions, PaneHeader, PREVIEW_LEADING } from "./pane";
 import { useStudio } from "./studio-provider";
 
 const ROW =
@@ -35,51 +36,83 @@ const CanvasPreview = dynamic(() =>
 );
 
 export function PreviewPane() {
-  const { activeProject, docs, togglePreview, tools } = useStudio();
+  const {
+    activeProject,
+    docs,
+    isChatPeeking,
+    isChatShown,
+    toggleChat,
+    togglePreview,
+    tools,
+  } = useStudio();
   const isDocs = docs.mode === "docs";
 
-  const header = (
-    <PaneHeader data-tauri-drag-region="deep">
-      {isDocs ? (
-        <Button
-          className="text-muted-foreground"
-          onClick={docs.onPickMode}
-          size="sm"
-          value="preview"
-          variant="ghost"
+  const leading = isChatShown ? null : (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            aria-expanded={isChatPeeking}
+            aria-label="Show the chat"
+            className="shrink-0 text-muted-foreground"
+            onClick={toggleChat}
+            size="icon-sm"
+            variant="ghost"
+          />
+        }
+      >
+        <MessageSquareIcon />
+      </TooltipTrigger>
+      <TooltipContent side="bottom">Show the chat</TooltipContent>
+    </Tooltip>
+  );
+
+  const actions = (
+    <PaneActions className="ms-auto">
+      <ExportButton
+        composition={tools.preview.composition}
+        exporting={tools.exporting}
+      />
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              aria-label="Hide the preview"
+              className="text-muted-foreground"
+              onClick={togglePreview}
+              size="icon-sm"
+              variant="ghost"
+            />
+          }
         >
-          <ArrowLeftIcon data-icon="inline-start" />
-          Preview
-        </Button>
-      ) : null}
-      <PaneActions className="ms-auto">
-        <ExportButton
-          composition={tools.preview.composition}
-          exporting={tools.exporting}
-        />
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                aria-label="Hide the preview"
-                className="text-muted-foreground"
-                onClick={togglePreview}
-                size="icon-sm"
-                variant="ghost"
-              />
-            }
-          >
-            <PanelRightCloseIcon />
-          </TooltipTrigger>
-          <TooltipContent side="bottom">Hide the preview</TooltipContent>
-        </Tooltip>
-      </PaneActions>
-    </PaneHeader>
+          <PanelRightCloseIcon />
+        </TooltipTrigger>
+        <TooltipContent side="bottom">Hide the preview</TooltipContent>
+      </Tooltip>
+    </PaneActions>
   );
 
   return (
     <Pane>
-      {isDocs ? header : null}
+      {isDocs ? (
+        <PaneHeader
+          className={cn(!isChatShown && PREVIEW_LEADING)}
+          data-tauri-drag-region="deep"
+        >
+          {leading}
+          <Button
+            className="text-muted-foreground"
+            onClick={docs.onPickMode}
+            size="sm"
+            value="preview"
+            variant="ghost"
+          >
+            <ArrowLeftIcon data-icon="inline-start" />
+            Preview
+          </Button>
+          {actions}
+        </PaneHeader>
+      ) : null}
 
       {isDocs ? <DocsView docs={docs} /> : null}
 
@@ -87,8 +120,9 @@ export function PreviewPane() {
           cost a rebuild and the frame the person was looking at every time
           they read a document. */}
       <CanvasPreview
-        header={isDocs ? null : header}
+        actions={isDocs ? null : actions}
         hidden={isDocs}
+        leading={isDocs ? null : leading}
         status={
           <StatusSlot
             projectPath={activeProject?.path ?? null}
@@ -188,20 +222,14 @@ function StatusSlot({
         />
       )}
 
-      {hint === null ? null : (
-        <p className="shrink-0 text-center text-muted-foreground text-xs">
-          {hint}
-        </p>
-      )}
+      {hint === null ? null : <LineHint text={hint} />}
 
       {quiet && tools.preview.isServing && !snapshot.isArmed ? (
-        <p className="text-center text-muted-foreground text-xs">
-          {inspect.unavailable ??
-            canvasHint(
-              tools.managed?.editingText === true,
-              inspect.card !== null || tools.managed?.isOpen === true
-            )}
-        </p>
+        <QuietHint
+          editingText={tools.managed?.editingText === true}
+          selecting={inspect.card !== null || tools.managed?.isOpen === true}
+          unavailable={inspect.unavailable}
+        />
       ) : null}
     </div>
   );
@@ -280,6 +308,40 @@ function ExportFailedRow({
         </Button>
       </div>
     </div>
+  );
+}
+
+function LineHint({ text }: { text: string }) {
+  return (
+    <p
+      className="shrink-0 truncate text-center text-muted-foreground text-xs"
+      title={text}
+    >
+      {text}
+    </p>
+  );
+}
+
+function QuietHint({
+  editingText,
+  selecting,
+  unavailable,
+}: {
+  editingText: boolean;
+  selecting: boolean;
+  unavailable: string | null;
+}) {
+  if (unavailable !== null) {
+    return <LineHint text={unavailable} />;
+  }
+
+  return (
+    <p className="flex h-4 flex-wrap justify-center overflow-hidden text-muted-foreground text-xs">
+      <span aria-hidden="true" className="h-4 w-0" />
+      <span className="whitespace-nowrap">
+        {canvasHint(editingText, selecting)}
+      </span>
+    </p>
   );
 }
 

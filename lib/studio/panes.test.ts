@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import {
   CHAT_MIN_WIDTH,
+  fitPanes,
+  inspectorHasRoom,
   PREVIEW_ROOM,
   panelIdsOf,
   previewRoom,
@@ -68,5 +70,45 @@ describe("previewRoom", () => {
 
   it("does nothing before the group has a width", () => {
     expect(previewRoom(0, 0)).toBeNull();
+  });
+});
+
+describe("fitPanes", () => {
+  it("docks everything at the default window", () => {
+    expect(fitPanes(1440, true)).toEqual({ chat: true, projects: true });
+  });
+
+  it("folds the sidebar first", () => {
+    expect(fitPanes(1436, true)).toEqual({ chat: true, projects: false });
+  });
+
+  it("folds the chat last, leaving the preview", () => {
+    expect(fitPanes(865, true)).toEqual({ chat: true, projects: false });
+    expect(fitPanes(864, true)).toEqual({ chat: false, projects: false });
+    expect(fitPanes(640, true)).toEqual({ chat: false, projects: false });
+  });
+
+  it("keeps the chat whenever the preview is hidden", () => {
+    expect(fitPanes(640, false)).toEqual({ chat: true, projects: false });
+    expect(fitPanes(676, false)).toEqual({ chat: true, projects: true });
+  });
+});
+
+describe("inspectorHasRoom", () => {
+  it("needs the canvas floor beside the ruler and the open inspector", () => {
+    expect(inspectorHasRoom(760, false)).toBe(true);
+    expect(inspectorHasRoom(759, false)).toBe(false);
+  });
+
+  it("needs more when the preview also clears the traffic lights", () => {
+    expect(inspectorHasRoom(800, true)).toBe(false);
+    expect(inspectorHasRoom(860, true)).toBe(true);
+  });
+
+  it("folds before the chat does, at the chat's minimum", () => {
+    const preview = 1156 - 16 - CHAT_MIN_WIDTH - 1;
+
+    expect(inspectorHasRoom(preview, false)).toBe(false);
+    expect(fitPanes(1156, true).chat).toBe(true);
   });
 });

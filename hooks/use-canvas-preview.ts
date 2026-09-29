@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import type { NativePreviewState } from "@/lib/studio/native-preview";
+import { inspectorHasRoom } from "@/lib/studio/panes";
 import type { PreviewComposition } from "@/lib/studio/preview";
 import type { StudioSettings } from "@/lib/studio/settings";
 import { useCanvasLayers } from "./use-canvas-layers";
@@ -76,11 +77,13 @@ function selectionOf(
 
 export function useCanvasPreview({
   hidden,
+  isLeftmost = false,
   projectId,
   settings,
   tools,
 }: {
   hidden: boolean;
+  isLeftmost?: boolean;
   projectId: string | null;
   settings: StudioSettings | null;
   tools: Tools;
@@ -102,7 +105,9 @@ export function useCanvasPreview({
     viewing.viewing
   );
   const selection = selectionOf(managed, inspect.card);
+  const { width } = camera.bounds;
   const layers = useCanvasLayers({
+    hasRoom: width === 0 || inspectorHasRoom(width, isLeftmost),
     managed,
     preview,
     scenes: transport.scenes,

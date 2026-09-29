@@ -18,8 +18,19 @@ export function panelIdsOf(isPreviewShown: boolean): string[] {
 }
 
 export const CHAT_MIN_WIDTH = 380;
-export const PREVIEW_MIN_WIDTH = 360;
 export const INSPECTOR_WIDTH = 340;
+export const INSPECTOR_BAR_WIDTH = 48;
+export const RULER_WIDTH = 20;
+export const SIDEBAR_WIDTH = 288;
+
+export const CANVAS_MIN_WIDTH = 400;
+const CANVAS_LEAD_WIDTH = 100;
+
+export const PREVIEW_MIN_WIDTH =
+  RULER_WIDTH + CANVAS_MIN_WIDTH + INSPECTOR_BAR_WIDTH;
+
+const CARD_INSET = 8;
+const DIVIDER_WIDTH = 1;
 
 // The inspector lives inside the preview, so a preview at its own minimum was
 // a sliver of canvas beside it. The room is the open inspector plus a canvas,
@@ -40,4 +51,44 @@ export function previewRoom(
   const room = Math.min(PREVIEW_ROOM, groupWidth - CHAT_MIN_WIDTH);
 
   return room - previewWidth > 1 ? room : null;
+}
+
+export function inspectorHasRoom(
+  previewWidth: number,
+  isLeftmost: boolean
+): boolean {
+  const canvas = CANVAS_MIN_WIDTH + (isLeftmost ? CANVAS_LEAD_WIDTH : 0);
+
+  return previewWidth >= RULER_WIDTH + canvas + INSPECTOR_WIDTH;
+}
+
+export interface PaneFit {
+  chat: boolean;
+  projects: boolean;
+}
+
+export function fitPanes(
+  windowWidth: number,
+  isPreviewShown: boolean
+): PaneFit {
+  if (!isPreviewShown) {
+    return {
+      chat: true,
+      projects: windowWidth >= SIDEBAR_WIDTH + CARD_INSET + CHAT_MIN_WIDTH,
+    };
+  }
+
+  const beside =
+    CHAT_MIN_WIDTH +
+    DIVIDER_WIDTH +
+    RULER_WIDTH +
+    CANVAS_MIN_WIDTH +
+    INSPECTOR_WIDTH;
+
+  return {
+    chat:
+      windowWidth >=
+      2 * CARD_INSET + CHAT_MIN_WIDTH + DIVIDER_WIDTH + PREVIEW_MIN_WIDTH,
+    projects: windowWidth >= SIDEBAR_WIDTH + CARD_INSET + beside,
+  };
 }
