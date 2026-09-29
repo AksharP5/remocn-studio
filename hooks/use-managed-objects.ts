@@ -6,15 +6,28 @@ import { causeMessage } from "@/lib/error-message";
 import { inlineTextField } from "@/lib/studio/inline-text";
 import {
   readManagedObjects,
+  removeManagedObject,
   writeManagedObject,
 } from "@/lib/studio/managed-objects";
 import type { StagedDocument } from "@/lib/studio/native-preview";
-import type { PreviewCommand, PreviewMessage } from "@/lib/studio/preview";
+import {
+  hideCommand,
+  managedSelector,
+  PREVIEW_COMMAND_SOURCE,
+  type PreviewCommand,
+  type PreviewMessage,
+  unhideCommand,
+} from "@/lib/studio/preview";
 import {
   fieldProblem,
   inverseStudioOperation,
+  isObjectOperation,
+  isRemoved,
+  SCENE_DEFINITION,
   type StudioDefinition,
+  type StudioFieldOperation,
   type StudioObject,
+  type StudioObjectOperation,
   type StudioOperation,
   type StudioSnapshot,
   type StudioValue,
@@ -27,9 +40,24 @@ import { type PreviewControl, useOnPreview } from "./use-preview";
 interface Draft {
   attempted: boolean;
   error: string | null;
-  operation: StudioOperation;
+  operation: StudioFieldOperation;
   saving: boolean;
 }
+
+export interface VideoRef {
+  readonly projectId: string;
+  readonly video: string;
+}
+
+export type Removal =
+  | {
+      readonly from: VideoRef;
+      readonly label: string;
+      readonly ok: true;
+      readonly operation: StudioObjectOperation;
+      readonly upgraded: string | null;
+    }
+  | { readonly error: string; readonly ok: false };
 
 interface Session {
   awaitingOperation: string | null;
@@ -42,12 +70,14 @@ interface Session {
   loading: boolean;
   open: boolean;
   projectId: string;
+  removing: boolean;
   renderedOperation: string | null;
   selected: string | null;
   snapshot: StudioSnapshot | null;
   undoing: boolean;
   video: string;
   writing: boolean;
+  written: Map<string, number>;
 }
 
 type GeometryBegin = Extract<PreviewMessage, { type: "studio.geometry.begin" }>;
@@ -65,6 +95,7 @@ interface Options {
   preview: PreviewControl;
   projectId: string | null;
   read?: typeof readManagedObjects;
+  removeObject?: typeof removeManagedObject;
   write?: typeof writeManagedObject;
 }
 
@@ -75,6 +106,7 @@ export function useManagedObjects({
   inlineEnabled = enabled,
   armed,
   read = readManagedObjects,
+  removeObject = removeManagedObject,
   write = writeManagedObject,
 }: Options) {
   const [localRevision, repaint] = useState(0);
@@ -91,7 +123,7 @@ export function useManagedObjects({
   inlineAllowed.current = inlineOn;
   const inline = useRef<{
     generation: string;
-    operation: StudioOperation;
+    operation: StudioFieldOperation;
     owner: Session;
     requestId: string;
   } | null>(null);
@@ -148,7 +180,7 @@ export function useManagedObjects({
     (
       owner: Session,
       operation: Pick<
-        StudioOperation,
+        StudioFieldOperation,
         "field" | "objectId" | "after" | "changes"
       >
     ) => {
@@ -221,9 +253,10 @@ export function useManagedObjects({
         owner.error = null;
         if (
           owner.selected !== null &&
-          !result.value.document.objects.some(
+          (!result.value.document.objects.some(
             (object) => object.id === owner.selected
-          )
+          ) ||
+            isRemoved(result.value.document.objects, owner.selected))
         ) {
           owner.selected = null;
         }
@@ -307,7 +340,8 @@ export function useManagedObjects({
       (armed && !session.dismissed && session.generation !== null));
   const selected =
     session?.snapshot?.document.objects.find(
-      (object) => object.id === session.selected
+      (object, _index, all) =>
+        object.id === session.selected && !isRemoved(all, object.id)
     ) ?? null;
   const definition =
     session?.snapshot?.document.definitions.find(
@@ -494,6 +528,7 @@ export function useManagedObjects({
                 owner.snapshot = result.value;
                 owner.awaitingOperation =
                   result.value.document.operations.at(-1)?.id ?? null;
+                owner.written.set(draft.operation.id, Date.now());
                 owner.drafts.delete(address);
               }
               publish();
@@ -609,7 +644,7 @@ export function useManagedObjects({
       geometryResult(message.requestId, problem);
     } else if (changes.length > 0) {
       const [first, ...rest] = changes;
-      const operation: StudioOperation = {
+      const operation: StudioFieldOperation = {
         ...first,
         changes: rest,
         definition: declared,
@@ -801,7 +836,8 @@ export function useManagedObjects({
       geometry.current !== null ||
       inline.current !== null ||
       owner.writing ||
-      owner.undoing
+      owner.undoing ||
+      owner.removing
     ) {
       return false;
     }
@@ -848,45 +884,158 @@ export function useManagedObjects({
 
   const operations = session?.snapshot?.document.operations ?? [];
   const undoable = lastUndoable(operations);
-  const undo = useCallback(() => {
-    const owner = active.current;
-    if (
-      owner === null ||
-      !allowed.current ||
-      !undoable ||
-      owner.undoing ||
-      geometry.current !== null ||
-      inline.current !== null ||
-      owner.drafts.size > 0
-    ) {
-      return;
-    }
-    owner.undoing = true;
-    owner.error = null;
-    publish();
-    const operation = inverseStudioOperation(undoable, crypto.randomUUID());
-    Effect.runPromiseExit(
-      write({
-        operation,
-        projectId: owner.projectId,
-        video: owner.video,
-      })
-    ).then((result) => {
-      owner.undoing = false;
-      if (Exit.isFailure(result)) {
-        owner.error =
-          causeMessage(result.cause) ?? "The change could not be undone.";
-      } else {
+  const undoOperation = useCallback(
+    (target: StudioOperation, from?: VideoRef): Promise<string | null> => {
+      const owner = active.current;
+      if (owner === null || !allowed.current) {
+        return Promise.resolve(null);
+      }
+      const refusal = undoRefusal(owner, target, from, {
+        editing: geometry.current !== null || inline.current !== null,
+      });
+      if (refusal !== null) {
+        return Promise.resolve(refusal || null);
+      }
+      owner.undoing = true;
+      owner.error = null;
+      publish();
+      const operation = inverseStudioOperation(target, crypto.randomUUID());
+      return Effect.runPromiseExit(
+        write({
+          operation,
+          projectId: owner.projectId,
+          video: owner.video,
+        })
+      ).then((result) => {
+        owner.undoing = false;
+        if (Exit.isFailure(result)) {
+          const error =
+            causeMessage(result.cause) ?? "The change could not be undone.";
+          owner.error = error;
+          publish();
+          return error;
+        }
         owner.epoch += 1;
         owner.loading = false;
         owner.snapshot = result.value;
         owner.awaitingOperation =
           result.value.document.operations.at(-1)?.id ?? null;
-        broadcast(owner, operation);
+        if (isObjectOperation(target)) {
+          owner.selected = target.objectId;
+          owner.open = true;
+          owner.dismissed = false;
+        } else if (!isObjectOperation(operation)) {
+          broadcast(owner, operation);
+        }
+        publish();
+        return null;
+      });
+    },
+    [broadcast, publish, write]
+  );
+  const undo = useCallback(
+    (): Promise<string | null> =>
+      undoable ? undoOperation(undoable) : Promise.resolve(null),
+    [undoOperation, undoable]
+  );
+
+  const remove = useCallback(
+    (objectId: string): Promise<Removal | null> => {
+      const owner = active.current;
+      const document = owner?.snapshot?.document;
+      const object = document?.objects.find((item) => item.id === objectId);
+      if (
+        owner === null ||
+        document === undefined ||
+        object === undefined ||
+        !allowed.current ||
+        owner.undoing ||
+        owner.removing ||
+        object.definition === SCENE_DEFINITION ||
+        isRemoved(document.objects, objectId)
+      ) {
+        return Promise.resolve(null);
       }
+      if ([...owner.drafts.values()].some((draft) => draft.saving)) {
+        owner.error = "Wait for the change to finish saving, then delete.";
+        publish();
+        return Promise.resolve(null);
+      }
+      cancelInline();
+      cancelGeometry();
+      const hidden = document.objects
+        .filter(
+          (item) =>
+            !isRemoved(document.objects, item.id) &&
+            withinTree(document.objects, item.id, objectId)
+        )
+        .map((item) => item.id);
+      for (const [address, draft] of owner.drafts) {
+        if (hidden.includes(draft.operation.objectId)) {
+          owner.drafts.delete(address);
+        }
+      }
+      const operation: StudioObjectOperation = {
+        id: crypto.randomUUID(),
+        kind: "remove",
+        objectId,
+      };
+      const wasSelected =
+        owner.selected !== null && hidden.includes(owner.selected);
+      send(hideCommand(operation.id, hidden.map(managedSelector)));
+      if (wasSelected) {
+        send({ source: PREVIEW_COMMAND_SOURCE, type: "inspect.clear" });
+        owner.selected = null;
+        owner.open = false;
+        owner.dismissed = true;
+      }
+      owner.removing = true;
+      owner.error = null;
       publish();
-    });
-  }, [broadcast, publish, undoable, write]);
+      return Effect.runPromiseExit(
+        removeObject({
+          operation,
+          projectId: owner.projectId,
+          video: owner.video,
+        })
+      ).then((result): Removal => {
+        owner.removing = false;
+        if (Exit.isFailure(result)) {
+          const error =
+            causeMessage(result.cause) ?? "The object could not be deleted.";
+          send(unhideCommand(operation.id));
+          if (wasSelected) {
+            owner.selected = objectId;
+            owner.open = true;
+            owner.dismissed = false;
+          }
+          owner.error = error;
+          if (owner.snapshot !== null) {
+            replay(owner, owner.snapshot);
+          }
+          publish();
+          return { error, ok: false };
+        }
+        owner.epoch += 1;
+        owner.loading = false;
+        owner.snapshot = {
+          document: result.value.document,
+          revision: result.value.revision,
+        };
+        owner.awaitingOperation = operation.id;
+        owner.written.set(operation.id, Date.now());
+        publish();
+        return {
+          from: { projectId: owner.projectId, video: owner.video },
+          label: object.label,
+          ok: true,
+          operation,
+          upgraded: result.value.upgraded,
+        };
+      });
+    },
+    [cancelGeometry, cancelInline, publish, removeObject, replay, send]
+  );
 
   const close = useCallback(() => {
     cancelInline();
@@ -908,10 +1057,7 @@ export function useManagedObjects({
       : rendersBehind(session, session.renderedOperation);
   const isGesturing = geometry.current !== null;
   const editingText = inline.current !== null;
-  const busy =
-    drafts.some((draft) => draft.saving) ||
-    (session?.undoing ?? false) ||
-    isGesturing;
+  const busy = isBusy(session, drafts) || isGesturing;
   const canUndo =
     enabled &&
     undoable !== undefined &&
@@ -922,7 +1068,13 @@ export function useManagedObjects({
   const failure =
     session?.error ?? drafts.find((draft) => draft.error)?.error ?? null;
   const isLoading = session?.loading ?? false;
-  const objects = session?.snapshot?.document.objects ?? NO_OBJECTS;
+  const allObjects = session?.snapshot?.document.objects ?? NO_OBJECTS;
+  const objects = useMemo(
+    (): readonly StudioObject[] =>
+      allObjects.filter((item) => !isRemoved(allObjects, item.id)),
+    [allObjects]
+  );
+  const undoableAt = stampOf(session, undoable);
   const pending = drafts.length;
   const isLocked = isGesturing || editingText;
 
@@ -953,10 +1105,13 @@ export function useManagedObjects({
       open,
       pending,
       reload,
+      remove,
       retry,
       select,
       selected,
       undo,
+      undoableAt,
+      undoOperation,
     }),
     [
       acceptsPreview,
@@ -978,10 +1133,13 @@ export function useManagedObjects({
       open,
       pending,
       reload,
+      remove,
       retry,
       select,
       selected,
       undo,
+      undoableAt,
+      undoOperation,
     ]
   );
 }
@@ -1017,13 +1175,85 @@ function newSession(projectId: string, video: string): Session {
     loading: false,
     open: false,
     projectId,
+    removing: false,
     renderedOperation: null,
     selected: null,
     snapshot: null,
     undoing: false,
     video,
     writing: false,
+    written: new Map(),
   };
+}
+
+const EDITING_REFUSAL = "Finish the current edit, then undo.";
+
+function undoRefusal(
+  owner: Session,
+  target: StudioOperation,
+  from: VideoRef | undefined,
+  state: { editing: boolean }
+): string | "" | null {
+  if (
+    from !== undefined &&
+    (from.projectId !== owner.projectId || from.video !== owner.video)
+  ) {
+    return "Open the video it was deleted from to undo this.";
+  }
+  if (owner.undoing || owner.removing) {
+    return "";
+  }
+  if (state.editing || owner.drafts.size > 0) {
+    return EDITING_REFUSAL;
+  }
+  if (
+    owner.snapshot?.document.operations.some(
+      (item) => item.undoOf === target.id
+    )
+  ) {
+    return "This change was already undone.";
+  }
+  return null;
+}
+
+function isBusy(session: Session | null, drafts: readonly Draft[]): boolean {
+  return (
+    drafts.some((draft) => draft.saving) ||
+    session?.undoing === true ||
+    session?.removing === true
+  );
+}
+
+function stampOf(
+  session: Session | null,
+  undoable: StudioOperation | undefined
+): number | null {
+  if (undoable === undefined) {
+    return null;
+  }
+  if (session === null) {
+    return 0;
+  }
+  return session.written.get(undoable.id) ?? 0;
+}
+
+function withinTree(
+  objects: readonly StudioObject[],
+  id: string,
+  root: string
+): boolean {
+  const byId = new Map(objects.map((item) => [item.id, item]));
+  const visited = new Set<string>();
+  let current = byId.get(id);
+  while (current !== undefined && !visited.has(current.id)) {
+    if (current.id === root) {
+      return true;
+    }
+    visited.add(current.id);
+    current =
+      current.parentId === null ? undefined : byId.get(current.parentId);
+  }
+  return false;
 }
 
 function geometryFields(

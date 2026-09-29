@@ -422,8 +422,9 @@ function start(container: HTMLElement, stage: Stage): Session {
     if (geometry.pointerDown(event)) {
       return;
     }
+    const menu = event.button === 2;
     if (
-      event.button !== 0 ||
+      (event.button !== 0 && !menu) ||
       !overCanvas(container, event.clientX, event.clientY)
     ) {
       return;
@@ -432,11 +433,17 @@ function start(container: HTMLElement, stage: Stage): Session {
     event.preventDefault();
     event.stopPropagation();
 
-    const found =
-      pickAt(event.clientX, event.clientY, container, event.altKey) ?? hovered;
+    choose(
+      pickAt(event.clientX, event.clientY, container, event.altKey) ?? hovered,
+      menu
+    );
+  };
 
+  const choose = (found: Element | null, menu: boolean) => {
     if (found === null || found === container) {
-      dismissSelection();
+      if (!menu) {
+        dismissSelection();
+      }
       return;
     }
 
@@ -446,6 +453,11 @@ function start(container: HTMLElement, stage: Stage): Session {
     const repeat =
       picked !== null &&
       anchorOf(picked, container) === anchorOf(found, container);
+
+    if (menu && repeat) {
+      post({ type: "canvas.menu" });
+      return;
+    }
 
     picked = found;
     selected = found;
@@ -457,7 +469,14 @@ function start(container: HTMLElement, stage: Stage): Session {
       pulse();
     }
 
-    report(found, stage, repeat, pickVersion).catch(nothing);
+    const version = pickVersion;
+    report(found, stage, repeat, version)
+      .then(() => {
+        if (menu && version === pickVersion) {
+          post({ type: "canvas.menu" });
+        }
+      })
+      .catch(nothing);
   };
 
   // A click that picks must never also reach Remotion's `clickToPlay`

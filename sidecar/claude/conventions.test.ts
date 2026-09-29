@@ -361,3 +361,15 @@ it("gives managed videos precedence over legacy Interactive authoring rules", ()
   expect(text).toContain("useStudioObject(stableId)");
   expect(text).toContain("takes precedence over the legacy Interactive");
 });
+
+it("teaches the v6 provider and what a removed object means", () => {
+  const text = conventionsFor(true, "intro");
+  expect(text).toContain("src/lib/studio-objects-v6/README.md");
+  expect(text).toContain(
+    "Import the provider and hook from src/lib/studio-objects-v6"
+  );
+  expect(text).toContain('"removed": true');
+  expect(text).toContain(
+    "Never render it back, clear the flag or reuse its ID"
+  );
+});

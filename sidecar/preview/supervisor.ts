@@ -32,6 +32,7 @@ import {
   decodeHostReply,
   type HostCommand,
   type HostReply,
+  type RemoveDone,
   type WriteDone,
 } from "./protocol";
 import type { ReadinessOptions } from "./readiness-contract";
@@ -78,6 +79,11 @@ type Pending =
       fail: (message: string) => void;
       kind: "write";
       succeed: (built: WriteDone) => void;
+    }
+  | {
+      fail: (message: string) => void;
+      kind: "remove";
+      succeed: (removed: RemoveDone) => void;
     };
 
 type ExportPending = Extract<Pending, { kind: "export" }>;
@@ -232,6 +238,23 @@ export function writeFrom(
       fail: (message) => settle(Effect.fail(failed(message))),
       kind: "write",
       succeed: (built) => settle(Effect.succeed(built)),
+    })
+  );
+}
+
+export function removeFrom(
+  projectId: string,
+  component: string,
+  target: CodeTarget,
+  video: VideoConfigValues
+): Effect.Effect<RemoveDone, PreviewError> {
+  return ask<RemoveDone>(
+    projectId,
+    (id) => ({ component, id, target, type: "remove", video }),
+    (settle) => ({
+      fail: (message) => settle(Effect.fail(failed(message))),
+      kind: "remove",
+      succeed: (removed) => settle(Effect.succeed(removed)),
     })
   );
 }
@@ -407,7 +430,8 @@ function deliver(reply: HostReply, pending: Map<string, Pending>): void {
     reply.type === "design-failed" ||
     reply.type === "source-failed" ||
     reply.type === "status-failed" ||
-    reply.type === "write-failed"
+    reply.type === "write-failed" ||
+    reply.type === "remove-failed"
   ) {
     waiting.fail(reply.message);
     return;
@@ -422,6 +446,13 @@ function deliver(reply: HostReply, pending: Map<string, Pending>): void {
 
   if (waiting.kind === "write") {
     if (reply.type === "write-done") {
+      waiting.succeed(reply);
+    }
+    return;
+  }
+
+  if (waiting.kind === "remove") {
+    if (reply.type === "remove-done") {
       waiting.succeed(reply);
     }
     return;

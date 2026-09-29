@@ -53,27 +53,47 @@ export function ensureRegistry(
   });
 }
 
+const RUNTIMES = [
+  "studio-motion-v1",
+  "studio-motion-v2",
+  "studio-objects-v1",
+  "studio-objects-v2",
+  "studio-objects-v3",
+  "studio-objects-v4",
+  "studio-objects-v5",
+  "studio-objects-v6",
+] as const;
+
+export type Runtime = (typeof RUNTIMES)[number];
+
+function copyRuntime(source: string, root: string, version: Runtime) {
+  const folder = join("src", "lib", version);
+  return copyInto(
+    join(source, folder),
+    join(root, folder),
+    () => null,
+    () => false
+  );
+}
+
+export async function installRuntime(
+  root: string,
+  version: Runtime
+): Promise<void> {
+  const source = process.env[TEMPLATE_DIR_ENV];
+  if (source === undefined) {
+    throw new ScaffoldError({
+      message: `${TEMPLATE_DIR_ENV} is not set, so there is no runtime to add`,
+    });
+  }
+  await copyRuntime(source, root, version);
+}
+
 async function install(source: string, root: string): Promise<Registered> {
   // Versioned, owned resources also reach projects opened before this release.
   // copyInto preserves authored copies, so opening a project cannot change its film.
   await Promise.all(
-    [
-      "studio-motion-v1",
-      "studio-motion-v2",
-      "studio-objects-v1",
-      "studio-objects-v2",
-      "studio-objects-v3",
-      "studio-objects-v4",
-      "studio-objects-v5",
-    ].map((version) => {
-      const motion = join("src", "lib", version);
-      return copyInto(
-        join(source, motion),
-        join(root, motion),
-        () => null,
-        () => false
-      );
-    })
+    RUNTIMES.map((version) => copyRuntime(source, root, version))
   );
   const videos = join(root, "src", VIDEOS_DIR);
   const registry = join(videos, REGISTRY_FILE);

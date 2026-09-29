@@ -24,6 +24,7 @@ import {
   type PreviewMessage,
   type PreviewScene,
 } from "@/lib/studio/preview";
+import type { Deletion } from "./use-deletion";
 import type { ManagedObjects } from "./use-managed-objects";
 import { type PreviewControl, useOnPreview } from "./use-preview";
 
@@ -50,7 +51,38 @@ export type InspectorView = "layers" | "properties";
 
 const NO_SCENES: readonly PreviewScene[] = [];
 
+type Deleting = Pick<Deletion, "openRowMenu" | "remove" | "undo">;
+
+function deletes(event: KeyboardEvent): boolean {
+  return (
+    (event.key === "Backspace" || event.key === "Delete") &&
+    !(event.metaKey || event.ctrlKey || event.altKey || event.shiftKey)
+  );
+}
+
+function undoes(event: KeyboardEvent): boolean {
+  return (
+    event.key.toLowerCase() === "z" &&
+    event.metaKey &&
+    !(event.ctrlKey || event.altKey || event.shiftKey)
+  );
+}
+
+function shortcut(event: KeyboardEvent, deletion: Deleting | undefined) {
+  if (deletes(event)) {
+    deletion?.remove();
+  } else if (undoes(event)) {
+    deletion?.undo();
+  } else {
+    return false;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  return true;
+}
+
 export function useCanvasLayers({
+  deletion,
   hasRoom = true,
   managed,
   preview,
@@ -59,6 +91,7 @@ export function useCanvasLayers({
   selection,
   viewport,
 }: {
+  deletion?: Deleting;
   hasRoom?: boolean;
   managed: Managed | undefined;
   preview: PreviewControl;
@@ -195,9 +228,17 @@ export function useCanvasLayers({
     (event: MouseEvent<HTMLButtonElement>) => select(event.currentTarget.value),
     [select]
   );
+  const openRowMenu = deletion?.openRowMenu;
+  const onRowMenu = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      openRowMenu?.(event.currentTarget.value);
+    },
+    [openRowMenu]
+  );
 
-  const tab = useRef({ present, rows, select, selectedId });
-  tab.current = { present, rows, select, selectedId };
+  const tab = useRef({ deletion, present, rows, select, selectedId });
+  tab.current = { deletion, present, rows, select, selectedId };
 
   useEffect(() => {
     const node = viewport.current;
@@ -205,17 +246,21 @@ export function useCanvasLayers({
       return;
     }
     const keydown = (event: KeyboardEvent) => {
+      if (node.hasAttribute("data-preview-editing") || fromControl(event)) {
+        return;
+      }
+      const { current } = tab;
+      if (shortcut(event, current.deletion)) {
+        return;
+      }
       if (
         event.key !== "Tab" ||
         event.metaKey ||
         event.ctrlKey ||
-        event.altKey ||
-        node.hasAttribute("data-preview-editing") ||
-        fromControl(event)
+        event.altKey
       ) {
         return;
       }
-      const { current } = tab;
       const next = nextPresent(
         current.rows,
         current.present ?? new Set(current.rows.map((row) => row.id)),
@@ -249,6 +294,7 @@ export function useCanvasLayers({
       loading,
       onEnter,
       onLeave,
+      onRowMenu,
       onSelect,
       onToggle,
       onView,
@@ -270,6 +316,7 @@ export function useCanvasLayers({
       loading,
       onEnter,
       onLeave,
+      onRowMenu,
       onSelect,
       onToggle,
       onView,

@@ -69,6 +69,7 @@
       "../preview/native-remotion.ts": "preview/native-remotion.ts",
       "../preview/native-style.ts": "preview/native-style.ts",
       "../preview/frame-clips.ts": "preview/frame-clips.ts",
+      "../preview/hidden.ts": "preview/hidden.ts",
       "../preview/anchor.ts": "preview/anchor.ts",
       "../preview/assets.ts": "preview/assets.ts",
       "../preview/bridge.ts": "preview/bridge.ts",

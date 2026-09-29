@@ -93,6 +93,8 @@ export type PreviewCommand =
       video: string;
     }
   | { objectId: string | null; type: "studio.hover" }
+  | { selectors: readonly string[]; token: string; type: "studio.hide" }
+  | { token: string; type: "studio.unhide" }
   | { armed: boolean; type: "inspect" }
   | { type: "inspect.clear" }
   | { armed: boolean; type: "snapshot" }

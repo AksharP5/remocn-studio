@@ -292,6 +292,7 @@ function StudioStateProvider({
     isDocs: docs.mode === "docs",
     isMissing: openedMissing,
     isShown: panes.isPreviewShown,
+    isTurnRunning: turn.isRunning,
     isWaiting: turn.permission !== null || turn.source !== null,
     openedProjectId: openedId,
     preview,

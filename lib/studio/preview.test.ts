@@ -4,7 +4,9 @@ import { PLAYBACK_RATES as RUNTIME_RATES } from "@/preview/playback-rate";
 import {
   decodePreviewCommand,
   decodePreviewMessage,
+  hideCommand,
   inspectCommand,
+  managedSelector,
   originOf,
   PLAYBACK_RATES,
   pauseCommand,
@@ -14,6 +16,7 @@ import {
   tuneResetCommand,
   tuneSetCommand,
   tuningStatusesCommand,
+  unhideCommand,
 } from "./preview";
 
 const picked = {
@@ -705,6 +708,24 @@ describe("decodePreviewCommand", () => {
           tuningStatusesCommand([{ nodePath: null, props: {}, targetId: "" }])
         )
       )
+    ).toBe(true);
+  });
+
+  it("carries a hide with its selectors and the unhide that ends it", () => {
+    const hidden = decodePreviewCommand(
+      hideCommand("remove-1", [managedSelector("subtitle")])
+    );
+    expect(Exit.isSuccess(hidden) && hidden.value).toEqual({
+      selectors: ['[data-studio-object="subtitle"]'],
+      source: "remocn-studio",
+      token: "remove-1",
+      type: "studio.hide",
+    });
+    expect(
+      Exit.isSuccess(decodePreviewCommand(unhideCommand("remove-1")))
+    ).toBe(true);
+    expect(
+      Exit.isFailure(decodePreviewCommand(hideCommand("remove-1", [""])))
     ).toBe(true);
   });
 

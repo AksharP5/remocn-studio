@@ -1,7 +1,18 @@
 import { describe, expect, it } from "bun:test";
-import { Effect } from "effect";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { Effect, Exit } from "effect";
 import type { CodeEdit, CodeNodePath, CodeTarget } from "@/shared/ipc";
-import { assemble, type Codemods, statusesOf } from "@/sidecar/preview/codemod";
+import {
+  AMBIGUOUS_LINE,
+  assemble,
+  CANNOT_DELETE,
+  type Codemods,
+  codemodsOf,
+  removalOf,
+  statusesOf,
+} from "@/sidecar/preview/codemod";
 
 const FILE = "/videos/promo/src/videos/intro/Title.tsx";
 const OTHER = "/videos/promo/src/videos/intro/Backdrop.tsx";
@@ -261,5 +272,185 @@ describe("assembling a write", () => {
       message: "the file is not TypeScript",
       ok: false,
     });
+  });
+});
+
+describe("removing an element", () => {
+  const TITLE = [
+    "export const Title = () => (",
+    "  <Frame>",
+    "    <Badge />",
+    "  </Frame>",
+    ");",
+    "",
+  ].join("\n");
+  const reader = (text: string) => () => Promise.resolve(text);
+  const deleting = (): Codemods => ({
+    ...codemods(),
+    deleteJsxNode: ({ input }) =>
+      Promise.resolve({
+        logLine: 3,
+        output: input.replace("    <Badge />\n", ""),
+      }),
+  });
+  const at = (overrides: Partial<CodeTarget> = {}) =>
+    target({ line: 3, ...overrides });
+  const finding = (): Codemods => ({
+    ...deleting(),
+    computeSequencePropsSubscriptionFromContent: ({ line }) =>
+      line === 3
+        ? { nodePath: NODE_PATH, status: { props: {} }, success: true }
+        : { status: { reason: "not-found" }, success: false },
+  });
+  const failure = async (
+    effect: Effect.Effect<unknown, { message: string }>
+  ) => {
+    const exit = await Effect.runPromiseExit(effect);
+    return Exit.isFailure(exit) ? String(exit.cause) : "succeeded";
+  };
+
+  it("answers the new text and the old, and writes nothing", async () => {
+    const removed = await Effect.runPromise(
+      removalOf(finding(), "Badge", at(), VIDEO, reader(TITLE))
+    );
+    expect(removed).toEqual({
+      after: TITLE.replace("    <Badge />\n", ""),
+      before: TITLE,
+      file: FILE,
+      line: 3,
+    });
+  });
+
+  it("refuses when the element is no longer at its line", async () => {
+    expect(
+      await failure(
+        removalOf(finding(), "Badge", at({ line: 2 }), VIDEO, reader(TITLE))
+      )
+    ).toContain("could not find this element in the code");
+  });
+
+  it("refuses when the codemod removed something other than the picked element", async () => {
+    expect(
+      await failure(removalOf(finding(), "Frame", at(), VIDEO, reader(TITLE)))
+    ).toContain(AMBIGUOUS_LINE);
+  });
+
+  it("refuses a project whose codemods cannot delete, and a file that is not TypeScript", async () => {
+    expect(
+      await failure(removalOf(codemods(), "Badge", at(), VIDEO, reader(TITLE)))
+    ).toContain(CANNOT_DELETE);
+    expect(
+      await failure(
+        removalOf(
+          finding(),
+          "Badge",
+          at({ file: "/videos/promo/src/Title.jsx" }),
+          VIDEO,
+          reader(TITLE)
+        )
+      )
+    ).toContain("the file is not TypeScript");
+  });
+});
+
+const FIXTURE = fileURLToPath(
+  new URL("../../test/fixtures/render-smoke", import.meta.url)
+);
+const hasCodemods = existsSync(
+  path.join(FIXTURE, "node_modules/@remotion/studio-codemods")
+);
+
+describe.skipIf(!hasCodemods)("removing with Remotion's own codemods", () => {
+  const SCENE = [
+    'import { AbsoluteFill } from "remotion";',
+    "",
+    "export const Scene = ({ show, items }: { show: boolean; items: string[] }) => (",
+    "  <AbsoluteFill>",
+    "    <Badge />",
+    "    {show && <Badge />}",
+    "    {show ? <Card /> : <Badge />}",
+    "    {items.map((item) => <Badge key={item} />)}",
+    "    {show ? <Badge /> : <Card />}",
+    "    <Footer />",
+    "  </AbsoluteFill>",
+    ");",
+    "",
+  ].join("\n");
+
+  const removeAt = async (line: number, component = "Badge") => {
+    const real = await Effect.runPromise(codemodsOf(FIXTURE));
+    return Effect.runPromise(
+      removalOf(
+        real,
+        component,
+        target({ identity: null, keys: [], line }),
+        VIDEO,
+        () => Promise.resolve(SCENE)
+      )
+    );
+  };
+
+  it("removes a plain child and nothing else", async () => {
+    const removed = await removeAt(5);
+    expect(removed.after).not.toContain("    <Badge />\n");
+    expect(removed.after).toContain("{show && <Badge />}");
+    expect(removed.after).toContain("<Footer />");
+  });
+
+  it("replaces an element in && and in a ternary with null", async () => {
+    expect((await removeAt(6)).after).toContain("{show && null}");
+    expect((await removeAt(7)).after).toContain("{show ? <Card /> : null}");
+  });
+
+  it("removes the one line a .map draws every instance from", async () => {
+    const removed = await removeAt(8);
+    expect(removed.after).toContain("items.map((item) => null)");
+  });
+
+  it("refuses rather than remove the wrong element of a shared line", async () => {
+    await expect(removeAt(9)).rejects.toThrow(AMBIGUOUS_LINE);
+  });
+
+  it("removes one of several siblings that all start with <", async () => {
+    const LIST = [
+      "export const List = () => (",
+      "  <AbsoluteFill>",
+      "    <Badge />",
+      "    <Footer />",
+      '    <Card title="a" />',
+      '    <Card title="b" />',
+      "  </AbsoluteFill>",
+      ");",
+      "",
+    ].join("\n");
+    const real = await Effect.runPromise(codemodsOf(FIXTURE));
+    const at = (line: number, component: string) =>
+      Effect.runPromise(
+        removalOf(
+          real,
+          component,
+          target({ identity: null, keys: [], line }),
+          VIDEO,
+          () => Promise.resolve(LIST)
+        )
+      );
+    expect((await at(3, "Badge")).after).toBe(
+      LIST.replace("    <Badge />\n", "")
+    );
+    expect((await at(4, "Footer")).after).toBe(
+      LIST.replace("    <Footer />\n", "")
+    );
+    expect((await at(5, "Card")).after).toBe(
+      LIST.replace('    <Card title="a" />\n', "")
+    );
+    expect((await at(6, "Card")).after).toBe(
+      LIST.replace('    <Card title="b" />\n', "")
+    );
+  });
+
+  it("refuses a line where no element starts", async () => {
+    await expect(removeAt(2)).rejects.toThrow(
+      "could not find this element in the code"
+    );
   });
 });

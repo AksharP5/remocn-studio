@@ -34,12 +34,13 @@ import {
 import { AudioRequest, SoundOperation, SoundRef } from "./sound-effects";
 import {
   StudioDocumentRef,
+  StudioObjectOperation,
   StudioOperation,
   StudioSnapshot,
 } from "./studio-document";
 import { TemplateDraft } from "./templates";
 
-export const SIDECAR_PROTOCOL = 37;
+export const SIDECAR_PROTOCOL = 38;
 
 export const SIDECAR_STATUS_EVENT = "sidecar://status";
 export const SIDECAR_NOTIFY_EVENT = "sidecar://notify";
@@ -95,6 +96,8 @@ export const METHOD_NAMES = [
   "pipeline.set",
   "pipeline.start",
   "preview.export",
+  "preview.remove",
+  "preview.restore",
   "preview.start",
   "preview.status",
   "preview.still",
@@ -102,6 +105,7 @@ export const METHOD_NAMES = [
   "preview.write",
   "studio.read",
   "studio.patch",
+  "studio.remove",
   "project.check",
   "project.create",
   "project.move",
@@ -1143,6 +1147,33 @@ export const WriteParams = Schema.Struct({
   projectId: Schema.NonEmptyString,
 });
 
+export const RemoveParams = Schema.Struct({
+  component: Schema.NonEmptyString,
+  projectId: Schema.NonEmptyString,
+  target: CodeTarget,
+  video: VideoConfigValues,
+});
+
+export const Removed = Schema.Struct({
+  file: Schema.NonEmptyString,
+  line: Schema.NullOr(Schema.Int),
+  removal: Schema.NonEmptyString,
+});
+
+export const RestoreParams = Schema.Struct({
+  projectId: Schema.NonEmptyString,
+  removal: Schema.NonEmptyString,
+});
+
+export const Restored = Schema.Struct({
+  file: Schema.NonEmptyString,
+});
+
+export const StudioRemoved = Schema.Struct({
+  ...StudioSnapshot.fields,
+  upgraded: Schema.NullOr(Schema.NonEmptyString),
+});
+
 export const CodeWritten = Schema.Struct({
   file: Schema.NonEmptyString,
   id: Schema.NonEmptyString,
@@ -1186,6 +1217,11 @@ export type CodePropUpdate = (typeof CodePropUpdate)["Type"];
 export type CodeKeyframeUpdate = (typeof CodeKeyframeUpdate)["Type"];
 export type CodeEdit = (typeof CodeEdit)["Type"];
 export type WriteParams = (typeof WriteParams)["Type"];
+export type RemoveParams = (typeof RemoveParams)["Type"];
+export type Removed = (typeof Removed)["Type"];
+export type RestoreParams = (typeof RestoreParams)["Type"];
+export type Restored = (typeof Restored)["Type"];
+export type StudioRemoved = (typeof StudioRemoved)["Type"];
 export type CodeWritten = (typeof CodeWritten)["Type"];
 export type WriteResult = (typeof WriteResult)["Type"];
 export type RecordedMessage = (typeof RecordedMessage)["Type"];
@@ -1331,6 +1367,16 @@ export const SIDECAR_METHODS = {
     params: ExportParams,
     result: Exported,
     stream: ExportEvent,
+  },
+  "preview.remove": {
+    params: RemoveParams,
+    result: Removed,
+    stream: Schema.Never,
+  },
+  "preview.restore": {
+    params: RestoreParams,
+    result: Restored,
+    stream: Schema.Never,
   },
   "preview.start": {
     params: PreviewParams,
@@ -1479,6 +1525,14 @@ export const SIDECAR_METHODS = {
   "studio.read": {
     params: StudioDocumentRef,
     result: StudioSnapshot,
+    stream: Schema.Never,
+  },
+  "studio.remove": {
+    params: Schema.Struct({
+      ...StudioDocumentRef.fields,
+      operation: StudioObjectOperation,
+    }),
+    result: StudioRemoved,
     stream: Schema.Never,
   },
   "video.brandConfirm": {

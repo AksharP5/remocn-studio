@@ -8,6 +8,8 @@ import {
 import {
   applyStudioOperation,
   inverseStudioOperation,
+  isRemoved,
+  removedIds,
   StudioDocument,
 } from "./studio-document";
 
@@ -120,6 +122,111 @@ describe("managed object contract", () => {
     expect(() =>
       applyStudioOperation(documentFixture, operationFixture({ after: "72" }))
     ).toThrow("number");
+  });
+});
+
+describe("removing an object", () => {
+  const grouped: StudioDocument = {
+    ...documentFixture,
+    definitions: [
+      ...documentFixture.definitions,
+      { fields: [], id: "scene", version: 1 },
+    ],
+    objects: [
+      {
+        definition: "scene",
+        id: "opening",
+        label: "Opening",
+        parentId: null,
+        values: {},
+      },
+      ...documentFixture.objects.map((item) =>
+        item.id === "third" ? { ...item, parentId: "second" } : item
+      ),
+    ],
+  };
+  const remove = (objectId: string, id = `remove-${objectId}`) =>
+    ({ id, kind: "remove", objectId }) as const;
+
+  it("marks the record and keeps its values and place", () => {
+    const removed = applyStudioOperation(grouped, remove("first"));
+    const index = removed.objects.findIndex((item) => item.id === "first");
+    expect(index).toBe(1);
+    expect(removed.objects[index]).toEqual({
+      ...grouped.objects[1],
+      removed: true,
+    });
+    expect(removed.operations).toHaveLength(1);
+    expect(Exit.isSuccess(decode(removed))).toBe(true);
+  });
+
+  it("restores exactly what was removed", () => {
+    const removed = applyStudioOperation(grouped, remove("first"));
+    const restored = applyStudioOperation(
+      removed,
+      inverseStudioOperation(remove("first"), "undo")
+    );
+    expect(restored.objects).toEqual(grouped.objects);
+  });
+
+  it("removes descendants with their group", () => {
+    const removed = applyStudioOperation(grouped, remove("second"));
+    expect(isRemoved(removed.objects, "third")).toBe(true);
+    expect([...removedIds(removed.objects)].sort()).toEqual([
+      "second",
+      "third",
+    ]);
+    expect(() => applyStudioOperation(removed, remove("third"))).toThrow(
+      "already deleted"
+    );
+  });
+
+  it("refuses a scene, a second removal and an unknown object", () => {
+    expect(() => applyStudioOperation(grouped, remove("opening"))).toThrow(
+      "A scene cannot be deleted"
+    );
+    const removed = applyStudioOperation(grouped, remove("first"));
+    expect(() =>
+      applyStudioOperation(removed, remove("first", "again"))
+    ).toThrow("already deleted");
+    expect(() => applyStudioOperation(grouped, remove("missing"))).toThrow(
+      "no longer in the video"
+    );
+  });
+
+  it("refuses a restore once the object is back", () => {
+    const removed = applyStudioOperation(grouped, remove("first"));
+    const restored = applyStudioOperation(
+      removed,
+      inverseStudioOperation(remove("first"), "undo")
+    );
+    expect(() =>
+      applyStudioOperation(
+        restored,
+        inverseStudioOperation(remove("first"), "undo-again")
+      )
+    ).toThrow("changed since it was deleted");
+  });
+
+  it("refuses editing a removed object or one under a removed group", () => {
+    const removed = applyStudioOperation(grouped, remove("second"));
+    expect(() =>
+      applyStudioOperation(removed, operationFixture({ objectId: "second" }))
+    ).toThrow("was deleted");
+    expect(() => applyStudioOperation(removed, operationFixture())).toThrow(
+      "was deleted"
+    );
+  });
+
+  it("retries once and refuses reusing the ID for another change", () => {
+    const removed = applyStudioOperation(grouped, remove("first"));
+    expect(applyStudioOperation(removed, remove("first"))).toBe(removed);
+    expect(() =>
+      applyStudioOperation(removed, remove("second", "remove-first"))
+    ).toThrow("different change");
+    expect(() =>
+      applyStudioOperation(removed, operationFixture({ id: "remove-first" }))
+    ).toThrow("different change");
   });
 });
 

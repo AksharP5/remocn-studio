@@ -14,7 +14,10 @@ import {
 } from "@/test/fixtures/studio-document";
 import { useManagedObjects } from "./use-managed-objects";
 
-function setup(document = documentFixture) {
+function setup(
+  document = documentFixture,
+  removal: { fails?: string; held?: Promise<void> } = {}
+) {
   const listeners = new Set<PreviewListener>();
   const preview: PreviewControl = {
     attachSurface: () => () => undefined,
@@ -58,6 +61,30 @@ function setup(document = documentFixture) {
         },
       })
   );
+  const removeObject = mock(
+    (
+      params: Parameters<
+        NonNullable<Parameters<typeof useManagedObjects>[0]["removeObject"]>
+      >[0]
+    ) =>
+      Effect.tryPromise({
+        catch: (cause) =>
+          new SidecarError({
+            message: cause instanceof Error ? cause.message : String(cause),
+          }),
+        try: async () => {
+          await removal.held;
+          if (removal.fails) {
+            throw new Error(removal.fails);
+          }
+          saved = {
+            document: applyStudioOperation(saved.document, params.operation),
+            revision: params.operation.id,
+          };
+          return { ...saved, upgraded: "src/videos/intro/index.tsx" };
+        },
+      })
+  );
   const emit = (message: PreviewMessage) =>
     act(() => {
       for (const listener of listeners) {
@@ -72,6 +99,7 @@ function setup(document = documentFixture) {
         preview,
         projectId,
         read,
+        removeObject,
         write,
       }),
     { initialProps: { projectId: "project-one" } }
@@ -102,6 +130,7 @@ function setup(document = documentFixture) {
         type: "studio.ready",
         video: "intro",
       }),
+    removeObject,
     saved: () => saved,
     write,
   };
@@ -122,7 +151,9 @@ describe("managed inspector", () => {
     expect(test.saved().document.objects[2].values.size).toBe(72);
     expect(test.saved().document.objects[0].values.size).toBe(48);
     expect(test.result.current.selected?.id).toBe("first");
-    act(() => test.result.current.undo());
+    act(() => {
+      test.result.current.undo();
+    });
     await waitFor(() =>
       expect(test.saved().document.objects[2].values.size).toBe(48)
     );
@@ -312,10 +343,187 @@ it("drops equal curve drafts and saves and undoes the entire custom curve", asyn
   expect(test.saved().document.objects[0].values.entryEasing).toEqual([
     0.2, -0.5, 0.8, 1.4,
   ]);
-  act(() => test.result.current.undo());
+  act(() => {
+    test.result.current.undo();
+  });
   await waitFor(() =>
     expect(test.saved().document.objects[0].values.entryEasing).toEqual([
       0, 0, 0.58, 1,
     ])
   );
+});
+
+describe("deleting an object", () => {
+  const grouped = {
+    ...documentFixture,
+    objects: documentFixture.objects.map((item) =>
+      item.id === "third" ? { ...item, parentId: "second" } : item
+    ),
+  };
+  const sent = (test: ReturnType<typeof setup>) =>
+    (test.preview.send as ReturnType<typeof mock>).mock.calls.map(
+      ([command]) =>
+        command as { selectors?: string[]; token?: string; type: string }
+    );
+
+  it("hides the object and its children before the write resolves, then drops them from the list", async () => {
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const test = setup(grouped, { held });
+    test.ready();
+    await waitFor(() => expect(test.result.current.objects).toHaveLength(3));
+    act(() => test.result.current.select("second"));
+    let removed: Promise<unknown> = Promise.resolve();
+    act(() => {
+      removed = test.result.current.remove("second");
+    });
+    expect(
+      sent(test).find((command) => command.type === "studio.hide")
+    ).toMatchObject({
+      selectors: [
+        '[data-studio-object="second"]',
+        '[data-studio-object="third"]',
+      ],
+    });
+    expect(test.result.current.selected).toBeNull();
+    expect(test.result.current.isOpen).toBe(false);
+    expect(test.saved().document.operations).toHaveLength(0);
+    release();
+    await act(() => removed);
+    expect(await removed).toMatchObject({
+      label: "second",
+      ok: true,
+      upgraded: "src/videos/intro/index.tsx",
+    });
+    expect(test.result.current.objects.map((item) => item.id)).toEqual([
+      "first",
+    ]);
+  });
+
+  it("brings the object back, selected, when the write is refused", async () => {
+    const test = setup(documentFixture, { fails: "The video changed." });
+    test.ready();
+    await waitFor(() => expect(test.result.current.objects).toHaveLength(3));
+    act(() => test.result.current.select("first"));
+    let removed: Promise<unknown> = Promise.resolve();
+    act(() => {
+      removed = test.result.current.remove("first");
+    });
+    await act(() => removed);
+    expect(await removed).toEqual({ error: "The video changed.", ok: false });
+    const hide = sent(test).find((command) => command.type === "studio.hide");
+    const unhide = sent(test).find(
+      (command) => command.type === "studio.unhide"
+    );
+    expect(unhide?.token).toBe(hide?.token);
+    expect(test.result.current.selected?.id).toBe("first");
+    expect(test.result.current.error).toBe("The video changed.");
+  });
+
+  it("undoes the removal, restores the object and selects it again", async () => {
+    const test = setup();
+    test.ready();
+    await waitFor(() => expect(test.result.current.objects).toHaveLength(3));
+    await act(() => test.result.current.remove("first"));
+    expect(test.result.current.objects).toHaveLength(2);
+    expect(test.result.current.undoableAt).toBeGreaterThan(0);
+    act(() => {
+      test.result.current.undo();
+    });
+    await waitFor(() => expect(test.result.current.objects).toHaveLength(3));
+    expect(test.saved().document.objects[0].removed).toBeUndefined();
+    expect(test.result.current.selected?.id).toBe("first");
+  });
+
+  it("says why when an undo can no longer apply", async () => {
+    const test = setup();
+    test.ready();
+    await waitFor(() => expect(test.result.current.objects).toHaveLength(3));
+    await act(() => test.result.current.remove("first"));
+    const [removal] = test.saved().document.operations;
+    await act(() =>
+      Effect.runPromise(
+        test.write({
+          operation: {
+            id: "restored-elsewhere",
+            kind: "restore",
+            objectId: "first",
+            undoOf: removal.id,
+          },
+          projectId: "project-one",
+          video: "intro",
+        })
+      )
+    );
+    act(() => {
+      test.result.current.undoOperation({ ...removal, id: "other" });
+    });
+    await waitFor(() =>
+      expect(test.result.current.error).toContain(
+        "changed since it was deleted"
+      )
+    );
+  });
+
+  it("keeps the current selection when another object is deleted from its row", async () => {
+    const test = setup();
+    test.ready();
+    await waitFor(() => expect(test.result.current.objects).toHaveLength(3));
+    act(() => test.result.current.select("third"));
+    await act(() => test.result.current.remove("first"));
+    expect(test.result.current.selected?.id).toBe("third");
+    expect(test.result.current.isOpen).toBe(true);
+  });
+
+  it("refuses the notice's Undo from another video, and says an undone change is undone", async () => {
+    const test = setup();
+    test.ready();
+    await waitFor(() => expect(test.result.current.objects).toHaveLength(3));
+    await act(() => test.result.current.remove("first"));
+    const [removal] = test.saved().document.operations;
+    expect(
+      await test.result.current.undoOperation(removal, {
+        projectId: "project-one",
+        video: "outro",
+      })
+    ).toBe("Open the video it was deleted from to undo this.");
+    let first: string | null = "pending";
+    await act(async () => {
+      first = await test.result.current.undoOperation(removal, {
+        projectId: "project-one",
+        video: "intro",
+      });
+    });
+    expect(first).toBeNull();
+    await waitFor(() => expect(test.result.current.objects).toHaveLength(3));
+    expect(await test.result.current.undoOperation(removal)).toBe(
+      "This change was already undone."
+    );
+  });
+
+  it("refuses a scene and leaves everything as it was", async () => {
+    const test = setup({
+      ...documentFixture,
+      definitions: [
+        ...documentFixture.definitions,
+        { fields: [], id: "scene", version: 1 },
+      ],
+      objects: [
+        {
+          definition: "scene",
+          id: "opening",
+          label: "Opening",
+          parentId: null,
+          values: {},
+        },
+        ...documentFixture.objects,
+      ],
+    });
+    test.ready();
+    await waitFor(() => expect(test.result.current.objects).toHaveLength(4));
+    expect(await test.result.current.remove("opening")).toBeNull();
+    expect(test.removeObject).not.toHaveBeenCalled();
+  });
 });

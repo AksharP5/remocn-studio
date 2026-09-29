@@ -1,13 +1,16 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile, writeFile } from "node:fs/promises";
+import { join, relative } from "node:path";
 import { Data, Effect, Schema } from "effect";
 import { errorMessage } from "@/lib/error-message";
 import {
   applyStudioOperation,
   StudioDocument,
+  type StudioObjectOperation,
   type StudioOperation,
   type StudioSnapshot,
 } from "@/shared/studio-document";
 import { remotionRootOf } from "../preview/project";
+import { installRuntime } from "../scaffold/registry";
 import {
   atomicJson,
   contained,
@@ -109,6 +112,166 @@ export function writeStudioDocument(
         const saved = `${JSON.stringify(next, null, 2)}\n`;
         return { document: next, revision: hashBytes(saved) };
       })
+    )
+  );
+}
+
+const SOURCE_FILE = /\.[cm]?[jt]sx?$/;
+const PROVIDER_IMPORT =
+  /import\s*\{([^}]*)\}\s*from\s*(["'])([^"']*\/studio-objects-v(\d+)(?:\/index(?:\.tsx?)?)?)\2/g;
+const TYPE_PREFIX = /^type\s+/;
+const ALIAS = /\s+as\s+/;
+const V5 = /studio-objects-v5/;
+
+interface Provider {
+  readonly path: string;
+  readonly specifier: string;
+  readonly start: number;
+  readonly text: string;
+  readonly version: number;
+}
+
+function importsProvider(names: string): boolean {
+  return names
+    .split(",")
+    .map((name) => name.trim().replace(TYPE_PREFIX, "").split(ALIAS)[0])
+    .includes("StudioObjects");
+}
+
+async function sourcesUnder(folder: string): Promise<string[]> {
+  const entries = await readdir(folder, {
+    recursive: true,
+    withFileTypes: true,
+  });
+  return entries
+    .filter((entry) => entry.isFile() && SOURCE_FILE.test(entry.name))
+    .map((entry) => join(entry.parentPath, entry.name));
+}
+
+function providersIn(path: string, text: string): Provider[] {
+  return [...text.matchAll(PROVIDER_IMPORT)]
+    .filter((match) => importsProvider(match[1]))
+    .map((match) => ({
+      path,
+      specifier: match[3],
+      start: (match.index ?? 0) + match[0].lastIndexOf(match[3]),
+      text,
+      version: Number(match[4]),
+    }));
+}
+
+async function providerOf(root: string, video: string): Promise<Provider> {
+  const folder = await contained(root, `src/videos/${video}`);
+  const files = await sourcesUnder(folder);
+  const found = (
+    await Promise.all(
+      files.map(async (file) =>
+        providersIn(
+          join("src", "videos", video, relative(folder, file)),
+          await readFile(file, "utf8")
+        )
+      )
+    )
+  ).flat();
+  if (found.length === 0) {
+    throw new StudioDocumentError({
+      message:
+        "This video does not load its objects through the studio's runtime, so they cannot be deleted here.",
+    });
+  }
+  if (found.length > 1) {
+    throw new StudioDocumentError({
+      message:
+        "This video loads its objects in more than one place, so the studio cannot upgrade it to delete objects.",
+    });
+  }
+  const [provider] = found;
+  if (provider.version < 5) {
+    throw new StudioDocumentError({
+      message: "This video's editing runtime is too old to delete objects.",
+    });
+  }
+  return provider;
+}
+
+function upgradedText(provider: Provider): string {
+  const specifier = provider.specifier.replace(V5, "studio-objects-v6");
+  return (
+    provider.text.slice(0, provider.start) +
+    specifier +
+    provider.text.slice(provider.start + provider.specifier.length)
+  );
+}
+
+async function upgrade(root: string, provider: Provider): Promise<string> {
+  const target = await contained(root, provider.path);
+  await installRuntime(root, "studio-objects-v6");
+  await writeFile(target, upgradedText(provider), "utf8").catch((cause) => {
+    throw new StudioDocumentError({
+      message: `${provider.path} could not be upgraded to delete objects: ${errorMessage(cause)}`,
+    });
+  });
+  return target;
+}
+
+async function replaceDocument(
+  root: string,
+  video: string,
+  before: string,
+  next: StudioDocument
+): Promise<void> {
+  const path = documentPath(video);
+  const now = await readFile(await contained(root, path), "utf8");
+  if (now !== before) {
+    throw new StudioDocumentError({
+      message: "The video changed while deleting. Try again.",
+    });
+  }
+  await atomicJson(root, path, next);
+}
+
+async function removeLocked(
+  root: string,
+  video: string,
+  operation: StudioObjectOperation
+) {
+  const current = await Effect.runPromise(read(root, video));
+  const next = applyStudioOperation(current.document, operation);
+  if (next === current.document) {
+    return {
+      document: current.document,
+      revision: current.revision,
+      upgraded: null,
+    };
+  }
+  await Effect.runPromise(decode(next));
+  const provider = await providerOf(root, video);
+  const upgraded =
+    provider.version === 5 ? await upgrade(root, provider) : null;
+  try {
+    await replaceDocument(root, video, current.text, next);
+  } catch (cause) {
+    if (upgraded !== null) {
+      await writeFile(upgraded, provider.text, "utf8");
+    }
+    throw cause;
+  }
+  return {
+    document: next,
+    revision: hashBytes(`${JSON.stringify(next, null, 2)}\n`),
+    upgraded: upgraded === null ? null : provider.path,
+  };
+}
+
+export function removeStudioObject(
+  folder: string,
+  video: string,
+  operation: StudioObjectOperation
+) {
+  const root = remotionRootOf(folder);
+  return attempt(() =>
+    serialized(root, () =>
+      withConfigLock(root, () => removeLocked(root, video, operation))
     )
   );
 }

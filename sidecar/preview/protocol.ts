@@ -78,6 +78,13 @@ export const HostCommand = Schema.Union([
     type: Schema.Literal("write"),
   }),
   Schema.Struct({
+    component: Schema.NonEmptyString,
+    id: Schema.NonEmptyString,
+    target: CodeTarget,
+    type: Schema.Literal("remove"),
+    video: VideoConfigValues,
+  }),
+  Schema.Struct({
     id: Schema.NonEmptyString,
     type: Schema.Literal("cancel"),
   }),
@@ -184,6 +191,19 @@ export const HostReply = Schema.Union([
     message: Schema.String,
     type: Schema.Literal("write-failed"),
   }),
+  Schema.Struct({
+    after: Schema.String,
+    before: Schema.String,
+    file: Schema.NonEmptyString,
+    id: Schema.NonEmptyString,
+    line: Schema.NullOr(Schema.Int),
+    type: Schema.Literal("remove-done"),
+  }),
+  Schema.Struct({
+    id: Schema.NonEmptyString,
+    message: Schema.String,
+    type: Schema.Literal("remove-failed"),
+  }),
 ]);
 
 export type HostCommand = (typeof HostCommand)["Type"];
@@ -196,6 +216,8 @@ export type SourceCommand = Extract<HostCommand, { type: "source" }>;
 export type StatusCommand = Extract<HostCommand, { type: "status" }>;
 export type WriteCommand = Extract<HostCommand, { type: "write" }>;
 export type WriteDone = Extract<HostReply, { type: "write-done" }>;
+export type RemoveCommand = Extract<HostCommand, { type: "remove" }>;
+export type RemoveDone = Extract<HostReply, { type: "remove-done" }>;
 
 export const decodeHostCommand = Schema.decodeExit(
   Schema.fromJsonString(HostCommand)

@@ -40,7 +40,7 @@ import {
   videoFindings,
   videoPlan,
 } from "./choreography";
-import { assemble, codemodsOf, statusesOf } from "./codemod";
+import { assemble, codemodsOf, removalOf, statusesOf } from "./codemod";
 import { optionsFor, type ResolvedConfig } from "./config";
 import { type ConfigCache, makeConfigCache } from "./config-host";
 import {
@@ -79,6 +79,7 @@ import {
   type ExportCommand,
   type HostReply,
   RENDER_BASE,
+  type RemoveCommand,
   type SourceCommand,
   type StatusCommand,
   type StillCommand,
@@ -647,6 +648,10 @@ export function obey(booted: Booted, line: string): Effect.Effect<void> {
     return assembleWrite(booted, command);
   }
 
+  if (command.type === "remove") {
+    return assembleRemoval(booted, command);
+  }
+
   return queue(booted, command.id, answer(booted, command));
 }
 
@@ -681,6 +686,33 @@ function readStatuses(
             id: command.id,
             message: error.message,
             type: "status-failed",
+          })
+        )
+      )
+    );
+}
+
+function assembleRemoval(
+  booted: Booted,
+  command: RemoveCommand
+): Effect.Effect<void> {
+  return codemodsOf(booted.root)
+    .pipe(
+      Effect.flatMap((codemods) =>
+        removalOf(codemods, command.component, command.target, command.video)
+      ),
+      Effect.flatMap((removed) =>
+        write({ ...removed, id: command.id, type: "remove-done" })
+      )
+    )
+    .pipe(
+      Effect.catch((error) =>
+        Effect.andThen(
+          log(`removal failed: ${error.message}`),
+          write({
+            id: command.id,
+            message: error.message,
+            type: "remove-failed",
           })
         )
       )

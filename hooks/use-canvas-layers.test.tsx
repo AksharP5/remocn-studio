@@ -31,6 +31,7 @@ function setup(
   const send = mock();
   const select = mock();
   const seekTo = mock();
+  const deletion = { openRowMenu: mock(), remove: mock(), undo: mock() };
   const preview = {
     send,
     subscribe: (listener: PreviewListener) => {
@@ -63,6 +64,7 @@ function setup(
       selection: unknown;
     }) =>
       useCanvasLayers({
+        deletion,
         hasRoom,
         managed: managed(picked === undefined ? selected : picked),
         preview,
@@ -95,7 +97,7 @@ function setup(
     target.dispatchEvent(event);
     return event;
   };
-  return { ...hook, emit, press, seekTo, select, send, viewport };
+  return { ...hook, deletion, emit, press, seekTo, select, send, viewport };
 }
 
 afterEach(() => {
@@ -452,5 +454,49 @@ describe("useCanvasLayers", () => {
       expect(seekTo).not.toHaveBeenCalled();
       expect(select).toHaveBeenCalledWith("legacy");
     });
+  });
+});
+
+describe("deleting from the canvas and the list", () => {
+  it("deletes on Delete and ⌫, and undoes on ⌘Z", () => {
+    const { deletion, press } = setup("card");
+    expect(press({ key: "Backspace" }).defaultPrevented).toBe(true);
+    expect(press({ key: "Delete" }).defaultPrevented).toBe(true);
+    expect(deletion.remove).toHaveBeenCalledTimes(2);
+    expect(press({ key: "z", metaKey: true }).defaultPrevented).toBe(true);
+    expect(deletion.undo).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the keys to the inline editor, controls and modified presses", () => {
+    const { deletion, press, viewport } = setup("card");
+    const button = document.createElement("button");
+    viewport.append(button);
+    expect(press({ key: "Backspace" }, button).defaultPrevented).toBe(false);
+    expect(press({ key: "Backspace", metaKey: true }).defaultPrevented).toBe(
+      false
+    );
+    expect(
+      press({ key: "z", metaKey: true, shiftKey: true }).defaultPrevented
+    ).toBe(false);
+    viewport.setAttribute("data-preview-editing", "");
+    expect(press({ key: "Backspace" }).defaultPrevented).toBe(false);
+    expect(press({ key: "z", metaKey: true }).defaultPrevented).toBe(false);
+    expect(deletion.remove).not.toHaveBeenCalled();
+    expect(deletion.undo).not.toHaveBeenCalled();
+  });
+
+  it("opens the row's menu for its object", () => {
+    const { deletion, result } = setup();
+    const button = document.createElement("button");
+    button.value = "price";
+    const preventDefault = mock();
+    act(() =>
+      result.current.onRowMenu({
+        currentTarget: button,
+        preventDefault,
+      } as unknown as MouseEvent<HTMLButtonElement>)
+    );
+    expect(preventDefault).toHaveBeenCalled();
+    expect(deletion.openRowMenu).toHaveBeenCalledWith("price");
   });
 });

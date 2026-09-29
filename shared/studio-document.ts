@@ -61,6 +61,7 @@ export const StudioObject = Schema.Struct({
   id: Identifier,
   label: Schema.NonEmptyString,
   parentId: Schema.NullOr(Identifier),
+  removed: Schema.optionalKey(Schema.Literal(true)),
   values: Schema.Record(Identifier, StudioValue),
 });
 export type StudioObject = typeof StudioObject.Type;
@@ -72,7 +73,7 @@ export const StudioFieldChange = Schema.Struct({
 });
 export type StudioFieldChange = typeof StudioFieldChange.Type;
 
-export const StudioOperation = Schema.Struct({
+export const StudioFieldOperation = Schema.Struct({
   ...StudioFieldChange.fields,
   changes: Schema.optionalKey(Schema.Array(StudioFieldChange)),
   definition: StudioDefinition,
@@ -91,7 +92,53 @@ export const StudioOperation = Schema.Struct({
     );
   })
 );
+export type StudioFieldOperation = typeof StudioFieldOperation.Type;
+
+export const StudioObjectOperation = Schema.Struct({
+  id: Schema.NonEmptyString,
+  kind: Schema.Literals(["remove", "restore"]),
+  objectId: Identifier,
+  undoOf: Schema.optionalKey(Schema.NonEmptyString),
+});
+export type StudioObjectOperation = typeof StudioObjectOperation.Type;
+
+export const StudioOperation = Schema.Union([
+  StudioFieldOperation,
+  StudioObjectOperation,
+]);
 export type StudioOperation = typeof StudioOperation.Type;
+
+export function isObjectOperation(
+  operation: StudioOperation
+): operation is StudioObjectOperation {
+  return "kind" in operation;
+}
+
+export function isRemoved(
+  objects: readonly StudioObject[],
+  id: string
+): boolean {
+  const byId = new Map(objects.map((item) => [item.id, item]));
+  const visited = new Set<string>();
+  let current = byId.get(id);
+  while (current !== undefined && !visited.has(current.id)) {
+    if (current.removed === true) {
+      return true;
+    }
+    visited.add(current.id);
+    current =
+      current.parentId === null ? undefined : byId.get(current.parentId);
+  }
+  return false;
+}
+
+export function removedIds(
+  objects: readonly StudioObject[]
+): ReadonlySet<string> {
+  return new Set(
+    objects.filter((item) => isRemoved(objects, item.id)).map((item) => item.id)
+  );
+}
 
 export const StudioDocument = Schema.Struct({
   definitions: Schema.Array(StudioDefinition),
@@ -279,27 +326,99 @@ export function applyStudioOperation(
 ): StudioDocument {
   const previous = document.operations.find((item) => item.id === operation.id);
   if (previous !== undefined) {
-    if (
-      previous.objectId !== operation.objectId ||
-      previous.field !== operation.field ||
-      !sameStudioValue(previous.before, operation.before) ||
-      !sameStudioValue(previous.after, operation.after) ||
-      !sameChanges(previous, operation) ||
-      previous.undoOf !== operation.undoOf ||
-      !sameDefinition(previous.definition, operation.definition)
-    ) {
+    if (!sameOperation(previous, operation)) {
       throw new Error(
         "This edit ID has already been used for a different change."
       );
     }
     return document;
   }
+  return isObjectOperation(operation)
+    ? applyObjectOperation(document, operation)
+    : applyFieldOperation(document, operation);
+}
+
+function sameOperation(
+  previous: StudioOperation,
+  operation: StudioOperation
+): boolean {
+  if (isObjectOperation(previous) || isObjectOperation(operation)) {
+    return (
+      isObjectOperation(previous) &&
+      isObjectOperation(operation) &&
+      previous.kind === operation.kind &&
+      previous.objectId === operation.objectId &&
+      previous.undoOf === operation.undoOf
+    );
+  }
+  return !(
+    previous.objectId !== operation.objectId ||
+    previous.field !== operation.field ||
+    !sameStudioValue(previous.before, operation.before) ||
+    !sameStudioValue(previous.after, operation.after) ||
+    !sameChanges(previous, operation) ||
+    previous.undoOf !== operation.undoOf ||
+    !sameDefinition(previous.definition, operation.definition)
+  );
+}
+
+function applyObjectOperation(
+  document: StudioDocument,
+  operation: StudioObjectOperation
+): StudioDocument {
+  const object = document.objects.find(
+    (item) => item.id === operation.objectId
+  );
+  if (object === undefined) {
+    throw new Error(
+      "This object is no longer in the video. Reload and try again."
+    );
+  }
+  if (operation.kind === "remove") {
+    if (object.definition === SCENE_DEFINITION) {
+      throw new Error(
+        "A scene cannot be deleted: its place on the timeline lives in the code."
+      );
+    }
+    if (isRemoved(document.objects, object.id)) {
+      throw new Error(`${object.label} was already deleted.`);
+    }
+  } else if (object.removed !== true) {
+    throw new Error(
+      `${object.label} changed since it was deleted. Reload before trying again.`
+    );
+  }
+  return {
+    ...document,
+    objects: document.objects.map((item) => {
+      if (item.id !== object.id) {
+        return item;
+      }
+      if (operation.kind === "remove") {
+        return { ...item, removed: true as const };
+      }
+      const { removed: _removed, ...restored } = item;
+      return restored;
+    }),
+    operations: [...document.operations, operation],
+  };
+}
+
+function applyFieldOperation(
+  document: StudioDocument,
+  operation: StudioFieldOperation
+): StudioDocument {
   const object = document.objects.find(
     (item) => item.id === operation.objectId
   );
   if (object === undefined) {
     throw new Error(
       "This object was removed. Reload the properties before editing."
+    );
+  }
+  if (isRemoved(document.objects, object.id)) {
+    throw new Error(
+      `${object.label} was deleted. Undo the deletion before editing it.`
     );
   }
   const definition = document.definitions.find(
@@ -355,6 +474,14 @@ export function inverseStudioOperation(
   operation: StudioOperation,
   id: string
 ): StudioOperation {
+  if (isObjectOperation(operation)) {
+    return {
+      id,
+      kind: operation.kind === "remove" ? "restore" : "remove",
+      objectId: operation.objectId,
+      undoOf: operation.id,
+    };
+  }
   return {
     ...operation,
     after: operation.before,
@@ -374,7 +501,10 @@ export function inverseStudioOperation(
 }
 
 export function studioOperationChanges(
-  operation: Pick<StudioOperation, "field" | "before" | "after" | "changes">
+  operation: Pick<
+    StudioFieldOperation,
+    "field" | "before" | "after" | "changes"
+  >
 ): readonly StudioFieldChange[] {
   return [
     {
@@ -386,7 +516,10 @@ export function studioOperationChanges(
   ];
 }
 
-function sameChanges(left: StudioOperation, right: StudioOperation): boolean {
+function sameChanges(
+  left: StudioFieldOperation,
+  right: StudioFieldOperation
+): boolean {
   const a = left.changes ?? [];
   const b = right.changes ?? [];
   return (

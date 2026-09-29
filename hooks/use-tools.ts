@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Composer } from "@/hooks/use-composer";
+import { type Deletion, useDeletion } from "@/hooks/use-deletion";
 import { type Exporting, useExport } from "@/hooks/use-export";
 import { type Inspection, useInspect } from "@/hooks/use-inspect";
 import {
@@ -18,6 +19,7 @@ import {
 type Tool = "snapshot" | null;
 
 export interface Tools {
+  deletion: Deletion;
   exporting: Exporting;
   inspect: Inspection;
   managed?: ManagedObjects;
@@ -30,6 +32,7 @@ export interface ToolSettings {
   isDocs: boolean;
   isMissing: boolean;
   isShown: boolean;
+  isTurnRunning?: boolean;
   isWaiting: boolean;
   openedProjectId: string | null;
   preview: PreviewControl;
@@ -43,6 +46,7 @@ export function useTools({
   isDocs,
   isMissing,
   isShown,
+  isTurnRunning = false,
   isWaiting,
   openedProjectId,
   preview,
@@ -101,6 +105,14 @@ export function useTools({
     projectId: writeProjectId,
     toggle: toggleInspect,
     unavailable,
+  });
+
+  const deletion = useDeletion({
+    inspect,
+    isTurnRunning,
+    managed,
+    preview,
+    projectId: writeProjectId,
   });
 
   const snapshot = useSnapshot({
@@ -165,8 +177,8 @@ export function useTools({
   });
 
   return useMemo(
-    () => ({ exporting, inspect, managed, preview, snapshot }),
-    [exporting, inspect, preview, snapshot, managed]
+    () => ({ deletion, exporting, inspect, managed, preview, snapshot }),
+    [deletion, exporting, inspect, preview, snapshot, managed]
   );
 }
 

@@ -369,6 +369,10 @@ export const PreviewMessage = Schema.Union([
     source: from,
     type: Schema.Literal("tune.result"),
   }),
+  Schema.Struct({
+    source: from,
+    type: Schema.Literal("canvas.menu"),
+  }),
 ]);
 
 const to = Schema.Literal(PREVIEW_COMMAND_SOURCE);
@@ -456,6 +460,17 @@ export const PreviewCommand = Schema.Union([
     objectId: Schema.NullOr(Schema.NonEmptyString),
     source: to,
     type: Schema.Literal("studio.hover"),
+  }),
+  Schema.Struct({
+    selectors: Schema.Array(Schema.NonEmptyString),
+    source: to,
+    token: Schema.NonEmptyString,
+    type: Schema.Literal("studio.hide"),
+  }),
+  Schema.Struct({
+    source: to,
+    token: Schema.NonEmptyString,
+    type: Schema.Literal("studio.unhide"),
   }),
   Schema.Struct({
     armed: Schema.Boolean,
@@ -567,6 +582,26 @@ export function highlightCommand(
   open: boolean
 ): PreviewCommand {
   return { open, source: PREVIEW_COMMAND_SOURCE, targetId, type: "highlight" };
+}
+
+export function hideCommand(
+  token: string,
+  selectors: readonly string[]
+): PreviewCommand {
+  return {
+    selectors,
+    source: PREVIEW_COMMAND_SOURCE,
+    token,
+    type: "studio.hide",
+  };
+}
+
+export function unhideCommand(token: string): PreviewCommand {
+  return { source: PREVIEW_COMMAND_SOURCE, token, type: "studio.unhide" };
+}
+
+export function managedSelector(objectId: string): string {
+  return `[data-studio-object="${objectId}"]`;
 }
 
 export function seekCommand(frame: number): PreviewCommand {

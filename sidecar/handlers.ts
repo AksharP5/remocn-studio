@@ -73,11 +73,13 @@ import {
 } from "./library/store";
 import { installNode } from "./node-installer";
 import { remotionRootOf } from "./preview/project";
+import { removals } from "./preview/removals";
 import {
   clipFrom,
   designFrom,
   exportFrom,
   previewEvents,
+  removeFrom,
   sourceFrom,
   statusFrom,
   stillFrom,
@@ -109,6 +111,7 @@ import {
 } from "./projects/move";
 import {
   readStudioDocument,
+  removeStudioObject,
   writeStudioDocument,
 } from "./projects/studio-document";
 import {
@@ -219,6 +222,11 @@ const onDisk = (project: Project) =>
         })
       )
     : Effect.succeed(project);
+
+const joinedBriefs = (...briefs: readonly (string | null)[]) => {
+  const present = briefs.filter((brief): brief is string => brief !== null);
+  return present.length === 0 ? null : present.join("\n\n");
+};
 
 const OUTSIDE_PROJECT =
   "this element is written outside the project folder, so the studio will not touch it";
@@ -507,7 +515,10 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
                 briefs: {
                   assets: assetBrief(placed, addCommandFor(project.path)),
                   brand,
-                  media: mediaBrief(placedMedia),
+                  media: joinedBriefs(
+                    mediaBrief(placedMedia),
+                    removals.brief(project.path)
+                  ),
                   pipeline: pipelineBrief(stages, video),
                 },
                 cwd: project.path,
@@ -714,6 +725,41 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
     ).pipe(
       Effect.mapError((error) => new HandlerError({ message: error.message }))
     ),
+  "preview.remove": ({ log, params }) =>
+    Effect.gen(function* () {
+      const project = yield* located(params.projectId);
+      yield* insideProject(project.path, [params.target.file]);
+      const removed = yield* removeFrom(
+        params.projectId,
+        params.component,
+        params.target,
+        params.video
+      ).pipe(
+        Effect.mapError((error) => new HandlerError({ message: error.message }))
+      );
+      const written = yield* removals
+        .commit(project.path, removed, params.component)
+        .pipe(
+          Effect.mapError(
+            (error) => new HandlerError({ message: error.message })
+          )
+        );
+      yield* log(`removed an element from ${written.file}`);
+      return written;
+    }),
+  "preview.restore": ({ log, params }) =>
+    Effect.gen(function* () {
+      const project = yield* located(params.projectId);
+      const restored = yield* removals
+        .restore(project.path, params.removal)
+        .pipe(
+          Effect.mapError(
+            (error) => new HandlerError({ message: error.message })
+          )
+        );
+      yield* log(`restored an element in ${restored.file}`);
+      return restored;
+    }),
 
   "preview.start": ({ emit, log, params }) =>
     Effect.flatMap(located(params.projectId), (project) =>
@@ -1151,6 +1197,17 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
     Effect.gen(function* () {
       const project = yield* located(params.projectId);
       return yield* readStudioDocument(project.path, params.video).pipe(
+        Effect.mapError((error) => new HandlerError({ message: error.message }))
+      );
+    }),
+  "studio.remove": ({ params }) =>
+    Effect.gen(function* () {
+      const project = yield* located(params.projectId);
+      return yield* removeStudioObject(
+        project.path,
+        params.video,
+        params.operation
+      ).pipe(
         Effect.mapError((error) => new HandlerError({ message: error.message }))
       );
     }),
