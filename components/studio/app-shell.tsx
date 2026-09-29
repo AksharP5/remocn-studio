@@ -13,9 +13,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useFrozenWidth } from "@/hooks/use-frozen-width";
 import { usePlatformAttribute } from "@/hooks/use-platform";
 import { usePreviewCollapse } from "@/hooks/use-preview-collapse";
+import { usePreviewRoom } from "@/hooks/use-preview-room";
 import { useSidebarCollapse } from "@/hooks/use-sidebar-collapse";
 import { useBoot } from "@/hooks/use-splash";
-import { panelIdsOf } from "@/lib/studio/panes";
+import {
+  CHAT_MIN_WIDTH,
+  PREVIEW_MIN_WIDTH,
+  panelIdsOf,
+} from "@/lib/studio/panes";
 import { layoutStorage } from "@/lib/studio/settings";
 import { cn } from "@/lib/utils";
 import { ChatPane } from "./chat-pane";
@@ -113,12 +118,19 @@ function ShellPanes({
     panelIds: panelIdsOf(true),
     storage: layoutStorage,
   });
+  const room = usePreviewRoom({
+    isShown: isPreviewShown,
+    isSliding,
+    onLayoutChanged,
+    panelRef: collapse.panelRef,
+  });
 
   return (
     <ResizablePanelGroup
       className={cn("min-h-0", className)}
       defaultLayout={defaultLayout}
-      onLayoutChanged={onLayoutChanged}
+      elementRef={room.groupRef}
+      onLayoutChanged={room.onLayoutChanged}
     >
       <ResizablePanel
         className={cn(
@@ -130,7 +142,7 @@ function ShellPanes({
           isPreviewShown ? "preserve-pixel-size" : "preserve-relative-size"
         }
         id="chat"
-        minSize="380px"
+        minSize={`${CHAT_MIN_WIDTH}px`}
       >
         <StillChatPane />
       </ResizablePanel>
@@ -149,7 +161,7 @@ function ShellPanes({
         collapsible
         defaultSize="44%"
         id="preview"
-        minSize="360px"
+        minSize={`${PREVIEW_MIN_WIDTH}px`}
         onResize={collapse.onResize}
         panelRef={collapse.panelRef}
       >
