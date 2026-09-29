@@ -1,5 +1,18 @@
 # remocn-studio
 
+## 0.12.0
+
+### Minor Changes
+
+- e01aa72: Delete what you selected on the canvas yourself, without asking the agent: press ⌫ or Delete, use Delete in the properties header, or right-click the object on the canvas or its row in Layers. It disappears at once, and ⌘Z or Undo in the notice brings it back. A managed object is removed in the video's `studio.json` and stops being painted while everything that reads its values keeps working; the first deletion in a video moves it to the `studio-objects-v6` runtime. An element outside the catalogue is removed from its place in the code; one line that draws several instances offers Delete all N. Scenes and objects not on screen cannot be deleted, and say why.
+
+### Patch Changes
+
+- 0dbe006: Footage attached in one video's chat can no longer be swapped for another video's clip with the same file name. An attached clip or sound now lands in its video's own folder, `public/library/<video>/`. A different file whose name is already taken there is copied as `name-2`, `name-3` and so on, and attaching the same file again reuses the copy already there. Media attached before this update stays where it was.
+- 64a88a4: Phone and camera footage no longer stutters in exports of new videos. The agent now embeds footage with `<Video>` from `@remotion/media`, which new projects declare. That component shows every frame of files whose frames start a fraction of a millisecond after their slot, where `OffthreadVideo` repeated one frame and skipped the next. It also matches the source's brightness. The design check now names each clip that `OffthreadVideo` would show late, counts its late frames, and says how to fix it.
+- c60fd2c: Fit small windows: as the window narrows the sidebar folds first, then the inspector, then the chat, and the preview stays down to a 640 px window; a folded pane still opens over the layout, and the sidebar slides out when the pointer reaches the window's left edge. The canvas keeps room for its toolbar beside Export. The window can be dragged by its headers again.
+- 333dfbc: Showing the preview no longer squeezes it. The inspector lives inside the preview, so a preview opened at its old width left a sliver of canvas, a playback panel whose hint wrapped one word per line and a toolbar cut off under Export. Now the chat narrows first, down to its own minimum, whenever the preview is shown, the app launches, the sidebar opens or closes, or the window is resized, and nothing is closed to make room. Dragging the divider still puts the preview wherever you drop it. On a narrow canvas the toolbar's zoom, full screen, zoom to selection and ruler buttons step aside, and their shortcuts keep working.
+
 ## 0.11.0
 
 ### Minor Changes
