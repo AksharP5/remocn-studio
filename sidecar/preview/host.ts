@@ -40,7 +40,7 @@ import {
   videoFindings,
   videoPlan,
 } from "./choreography";
-import { assemble, codemodsOf, statusesOf } from "./codemod";
+import { assemble, codemodsOf, removalOf, statusesOf } from "./codemod";
 import { optionsFor, type ResolvedConfig } from "./config";
 import { type ConfigCache, makeConfigCache } from "./config-host";
 import {
@@ -51,6 +51,7 @@ import {
 } from "./design";
 import { clipMedia, exporterOf, exportMedia, OUT_DIR, planFor } from "./export";
 import type { RenderContext } from "./failure";
+import { footageDesignFindings, measureFootage } from "./footage";
 import {
   JOBS_DIR,
   type JobRegistry,
@@ -79,6 +80,7 @@ import {
   type ExportCommand,
   type HostReply,
   RENDER_BASE,
+  type RemoveCommand,
   type SourceCommand,
   type StatusCommand,
   type StillCommand,
@@ -200,6 +202,7 @@ export interface Booted {
   running: FiberMap.FiberMap<string>;
   serveUrl: string;
   session: Ref.Ref<Session | null>;
+  staticBase: string;
 }
 
 interface Tools {
@@ -449,6 +452,7 @@ function boot(root: string, preferred: string | null) {
       running,
       serveUrl: `http://127.0.0.1:${server.port}${RENDER_BASE}/index.html`,
       session,
+      staticBase,
     } satisfies Booted;
   });
 }
@@ -647,6 +651,10 @@ export function obey(booted: Booted, line: string): Effect.Effect<void> {
     return assembleWrite(booted, command);
   }
 
+  if (command.type === "remove") {
+    return assembleRemoval(booted, command);
+  }
+
   return queue(booted, command.id, answer(booted, command));
 }
 
@@ -681,6 +689,33 @@ function readStatuses(
             id: command.id,
             message: error.message,
             type: "status-failed",
+          })
+        )
+      )
+    );
+}
+
+function assembleRemoval(
+  booted: Booted,
+  command: RemoveCommand
+): Effect.Effect<void> {
+  return codemodsOf(booted.root)
+    .pipe(
+      Effect.flatMap((codemods) =>
+        removalOf(codemods, command.component, command.target, command.video)
+      ),
+      Effect.flatMap((removed) =>
+        write({ ...removed, id: command.id, type: "remove-done" })
+      )
+    )
+    .pipe(
+      Effect.catch((error) =>
+        Effect.andThen(
+          log(`removal failed: ${error.message}`),
+          write({
+            id: command.id,
+            message: error.message,
+            type: "remove-failed",
           })
         )
       )
@@ -799,10 +834,12 @@ function inspectFullDesign(
       motion: command.motion,
       options: command.options ?? {},
       progress: designProgress(command.id),
+      publicDir: booted.publicDir,
       renderer: tools.renderer,
       renderOptions: tools.options,
       root: booted.root,
       serveUrl: booted.serveUrl,
+      staticBase: booted.staticBase,
       video: command.video,
     });
     yield* write({ id: command.id, result, type: "design-done" });
@@ -886,10 +923,23 @@ function inspectDesign(
         ? []
         : yield* choreographyPass(session, command.video);
 
+    const footage = yield* measureFootage({
+      fps: session.fps,
+      publicDir: booted.publicDir,
+      root: booted.root,
+      serveUrl: booted.serveUrl,
+      sightings: audits.map(({ audit, frame }) => ({
+        footage: audit.footage,
+        frame,
+      })),
+      staticBase: booted.staticBase,
+    });
+
     const result = finishDesignResult({
       assertions: command.motion,
       audits,
       composition: command.composition,
+      footage: footageDesignFindings(footage),
       height: session.height,
       snapshots: audits.map(({ frame, output }) => ({ frame, path: output })),
       video,

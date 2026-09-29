@@ -15,6 +15,7 @@ import {
   type ResolvedMetadata,
   useResolvedMetadata,
 } from "./composition";
+import { hide, reveal } from "./hidden";
 import {
   armInspect,
   clearSelection,
@@ -424,6 +425,14 @@ function studioCommand(command: PreviewCommand): boolean {
   }
   if (command.type === "studio.hover") {
     hoverManaged(command.objectId);
+    return true;
+  }
+  if (command.type === "studio.hide") {
+    hide(command.token, command.selectors);
+    return true;
+  }
+  if (command.type === "studio.unhide") {
+    reveal(command.token);
     return true;
   }
   return (

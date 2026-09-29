@@ -5,7 +5,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import { StudioObjects, useStudioObject } from "../../lib/studio-objects-v5";
+import { StudioObjects, useStudioObject } from "../../lib/studio-objects-v6";
 import document from "./studio.json";
 
 export const meta = {

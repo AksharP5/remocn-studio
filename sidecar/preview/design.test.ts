@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import {
   type BrowserDesignFinding,
   composite,
@@ -11,6 +11,7 @@ import {
   motionFindings,
   motionFrames,
   motionSamplingError,
+  offthreadFootage,
   parseCssColor,
   requiredContrastRatio,
 } from "./design";
@@ -115,6 +116,36 @@ describe("finishDesignResult", () => {
       severity: "error",
     });
     expect(result.summary).toEqual({ errors: 1, info: 0, warnings: 0 });
+  });
+
+  it("carries footage findings into the findings and the summary", () => {
+    const late = {
+      bbox: null,
+      code: "footage_late_frames" as const,
+      expected: "on the slot",
+      fix: "use Video",
+      frames: [10],
+      message: "late",
+      observed: "75 of 226",
+      selector: "public/clip.mp4",
+      severity: "warning" as const,
+      text: null,
+    };
+    const result = finishDesignResult({
+      assertions: [],
+      audits: [
+        { audit: { findings: [], fingerprint: "a", motion: [] }, frame: 10 },
+        { audit: { findings: [], fingerprint: "b", motion: [] }, frame: 20 },
+      ],
+      composition: "Main",
+      footage: [late],
+      height: 1080,
+      snapshots: [],
+      width: 1920,
+    });
+
+    expect(result.findings).toEqual([late]);
+    expect(result.summary).toEqual({ errors: 0, info: 0, warnings: 1 });
   });
 
   it("keeps a one-frame layer issue informational", () => {
@@ -480,5 +511,49 @@ describe("motionFindings", () => {
       severity: "error",
     });
     expect(result.summary.errors).toBe(1);
+  });
+});
+
+describe("offthreadFootage", () => {
+  const port = 4127;
+  const proxy = (src: string, time: number) =>
+    `http://localhost:${port}/proxy?src=${encodeURIComponent(src)}&time=${time}&transparent=false&toneMapped=true`;
+
+  afterEach(() => {
+    Reflect.deleteProperty(window, "remotion_proxyPort");
+  });
+
+  function entries(names: readonly string[]) {
+    return spyOn(performance, "getEntriesByType").mockImplementation(
+      () => names.map((name) => ({ name })) as unknown as PerformanceEntryList
+    );
+  }
+
+  it("reads the frame requests OffthreadVideo made, decoded, and clears them", () => {
+    Object.assign(window, { remotion_proxyPort: port });
+    const listed = entries([
+      proxy("http://localhost:3000/static-a/library/1 (3).mp4", 1 / 30),
+      proxy("http://localhost:3000/static-a/b.mp4", 0.5),
+      "http://localhost:3000/static-a/poster.png",
+      "http://localhost:9999/proxy?src=x&time=1",
+    ]);
+    const cleared = spyOn(performance, "clearResourceTimings");
+
+    expect(offthreadFootage()).toEqual([
+      { src: "http://localhost:3000/static-a/library/1 (3).mp4", time: 1 / 30 },
+      { src: "http://localhost:3000/static-a/b.mp4", time: 0.5 },
+    ]);
+    expect(cleared).toHaveBeenCalledTimes(1);
+
+    listed.mockRestore();
+    cleared.mockRestore();
+  });
+
+  it("finds nothing on a page with no proxy port", () => {
+    const listed = entries([proxy("http://localhost:3000/a.mp4", 0)]);
+
+    expect(offthreadFootage()).toEqual([]);
+
+    listed.mockRestore();
   });
 });

@@ -7,6 +7,8 @@ import { toastManager } from "@/components/ui/toast";
 import type { Composer } from "@/hooks/use-composer";
 import { useNow } from "@/hooks/use-now";
 import { type PreviewControl, useOnPreview } from "@/hooks/use-preview";
+import { causeMessage } from "@/lib/error-message";
+import { removeCode } from "@/lib/studio/code-removal";
 import {
   type Changed,
   emptyPlan,
@@ -18,8 +20,10 @@ import {
   type WritePlan,
 } from "@/lib/studio/code-writes";
 import {
+  hideCommand,
   highlightCommand,
   inspectCommand,
+  PREVIEW_COMMAND_SOURCE,
   type PreviewInspect,
   type PreviewMessage,
   type PreviewRect,
@@ -34,6 +38,7 @@ import {
   tuneResetCommand,
   tuneSetCommand,
   tuningStatusesCommand,
+  unhideCommand,
 } from "@/lib/studio/preview";
 import {
   byTarget,
@@ -41,6 +46,7 @@ import {
   changedPaths,
   titleOf,
 } from "@/lib/studio/tuning";
+import { isTypeScriptFile, NO_CALL_SITE } from "@/shared/codemod";
 import type {
   CodeTargetStatus,
   PromptElement,
@@ -93,6 +99,47 @@ export interface PendingComment {
   window?: PreviewWindow | null;
 }
 
+export interface CodeRemoval {
+  /** How many instances the element's one place in the code draws. */
+  count: number;
+  label: string;
+  /** Why it cannot be deleted from the code, or null when it can. */
+  reason: string | null;
+}
+
+export type CodeRemoved =
+  | { label: string; ok: true; removal: string }
+  | { error: string; ok: false };
+
+export function removalOf(
+  card: PendingComment | null,
+  projectId: string | null
+): CodeRemoval | null {
+  const target = card?.tuning ?? null;
+  if (card === null || target === null) {
+    return null;
+  }
+  const label = titleOf(target);
+  const count = Math.max(1, target.instances);
+  const { origin } = target;
+  const refused = (reason: string) => ({ count, label, reason });
+  if (origin === null || origin.file === null || origin.line === null) {
+    return refused(`The studio cannot delete this: ${NO_CALL_SITE}.`);
+  }
+  if (!isTypeScriptFile(origin.file)) {
+    return refused(
+      "The studio cannot delete this: the file is not TypeScript."
+    );
+  }
+  if (projectId === null) {
+    return refused("Open this video's project to delete from its code.");
+  }
+  if (card.video === null) {
+    return refused("Wait for the video to load, then delete.");
+  }
+  return { count, label, reason: null };
+}
+
 export interface TuningRefusal {
   message: string;
   path: string | null;
@@ -109,6 +156,8 @@ export interface Inspection {
   markers: readonly Marker[];
   openSelection: (index: number) => void;
   openTarget: (index: number) => void;
+  removal: CodeRemoval | null;
+  removeCard: () => Promise<CodeRemoved | null>;
   replay: () => void;
   resetSelection: (index: number) => void;
   resetTuning: (paths?: readonly string[]) => void;
@@ -130,6 +179,7 @@ export interface InspectSettings {
   projectId?: string | null;
   /** The status reader, injected so a test can answer without a sidecar. */
   readStatuses?: typeof readCodeStatuses;
+  removeElement?: typeof removeCode;
   replayDelay?: Duration.Input;
   toggle: () => void;
   unavailable: string | null;
@@ -155,6 +205,7 @@ export function useInspect({
   preview,
   projectId = null,
   readStatuses = readCodeStatuses,
+  removeElement = removeCode,
   replayDelay = REPLAY_DELAY,
   toggle,
   unavailable,
@@ -722,6 +773,65 @@ export function useInspect({
     setCard(null);
   }, [resetTuning]);
 
+  const removeCard = useCallback(async (): Promise<CodeRemoved | null> => {
+    const open = cardRef.current;
+    const target = open?.tuning ?? null;
+    const writing = project.current;
+    const file = target?.origin?.file ?? null;
+    const line = target?.origin?.line ?? null;
+    if (
+      open === null ||
+      target === null ||
+      writing === null ||
+      open.video === null ||
+      file === null ||
+      line === null ||
+      removalOf(open, writing)?.reason !== null
+    ) {
+      return null;
+    }
+    const token = crypto.randomUUID();
+    send(
+      hideCommand(
+        token,
+        target.instanceId.length > 0 ? [target.instanceId] : []
+      )
+    );
+    send({ source: PREVIEW_COMMAND_SOURCE, type: "inspect.clear" });
+    cardRef.current = null;
+    setCard(null);
+    const exit = await Effect.runPromiseExit(
+      removeElement({
+        component: target.componentName,
+        projectId: writing,
+        target: {
+          file,
+          id: target.targetId,
+          identity: target.identity,
+          keys: [...target.keys],
+          line,
+        },
+        video: open.video,
+      })
+    );
+    if (Exit.isFailure(exit)) {
+      send(unhideCommand(token));
+      if (cardRef.current === null) {
+        cardRef.current = open;
+        setCard(open);
+      }
+      return {
+        error: causeMessage(exit.cause) ?? "The element could not be deleted.",
+        ok: false,
+      };
+    }
+    pending.current.clear();
+    for (const [owner, owned] of changedPaths(open)) {
+      send(tuneResetCommand(nextRequestId(minted), owner, owned));
+    }
+    return { label: titleOf(target), ok: true, removal: exit.value.removal };
+  }, [removeElement, send]);
+
   const openSelection = useCallback(
     (index: number) => {
       const item = selections.items[index];
@@ -803,6 +913,7 @@ export function useInspect({
 
   const now = useNow(isArmed && reported === null ? SILENCE : null);
   const trouble = troubleOf(isArmed, reported, asked, now);
+  const removal = useMemo(() => removalOf(card, projectId), [card, projectId]);
 
   return useMemo(
     () => ({
@@ -815,6 +926,8 @@ export function useInspect({
       markers,
       openSelection,
       openTarget,
+      removal,
+      removeCard,
       replay,
       resetSelection,
       resetTuning,
@@ -836,6 +949,8 @@ export function useInspect({
       markers,
       openSelection,
       openTarget,
+      removal,
+      removeCard,
       replay,
       resetTuning,
       resetSelection,

@@ -1,4 +1,4 @@
-import type {StudioDocument, StudioOperation} from "@/shared/studio-document";
+import type {StudioDocument, StudioFieldOperation} from "@/shared/studio-document";
 
 export const documentFixture: StudioDocument = {
   definitions: [
@@ -31,8 +31,8 @@ export const documentFixture: StudioDocument = {
 };
 
 export function operationFixture(
-  patch: Partial<StudioOperation> = {}
-): StudioOperation {
+  patch: Partial<StudioFieldOperation> = {}
+): StudioFieldOperation {
   return {
     after: 72,
     before: 48,

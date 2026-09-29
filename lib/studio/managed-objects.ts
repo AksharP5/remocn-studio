@@ -15,3 +15,10 @@ export function writeManagedObject(params: SidecarParams<"studio.patch">) {
     return yield* requestSidecar({ id, method: "studio.patch", params });
   });
 }
+
+export function removeManagedObject(params: SidecarParams<"studio.remove">) {
+  return Effect.gen(function* () {
+    const id = yield* newRequestId;
+    return yield* requestSidecar({ id, method: "studio.remove", params });
+  });
+}

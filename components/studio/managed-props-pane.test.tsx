@@ -33,10 +33,13 @@ function fixture(): ManagedObjects {
     open: mock(),
     pending: 0,
     reload: mock(),
+    remove: mock(() => Promise.resolve(null)),
     retry: mock(),
     select: mock(),
     selected: documentFixture.objects[2],
     undo: mock(),
+    undoableAt: null,
+    undoOperation: mock(),
   };
 }
 
@@ -413,4 +416,51 @@ it("keeps unknown controls accessible and saves pending drafts when switching ta
   expect(
     screen.getByText("No animation controls for this element.")
   ).toBeTruthy();
+});
+
+it("offers Delete in the header beside Undo", () => {
+  const onDelete = mock();
+  render(
+    <ManagedPropsPane
+      deletion={{ label: "Delete", reason: null }}
+      objects={fixture()}
+      onDelete={onDelete}
+    />
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  expect(onDelete).toHaveBeenCalledTimes(1);
+});
+
+it("says why a scene cannot be deleted", () => {
+  const onDelete = mock();
+  render(
+    <ManagedPropsPane
+      deletion={{
+        label: "Delete",
+        reason:
+          "A scene cannot be deleted: its place on the timeline lives in the code.",
+      }}
+      objects={fixture()}
+      onDelete={onDelete}
+    />
+  );
+  const button = screen.getByRole("button", { name: "Delete" });
+  expect(button.getAttribute("aria-disabled")).toBe("true");
+  fireEvent.click(button);
+  expect(onDelete).not.toHaveBeenCalled();
+});
+
+it("keeps focus in the field when Delete is pressed, so a draft is dropped rather than saved", () => {
+  const onDelete = mock();
+  render(
+    <ManagedPropsPane
+      deletion={{ label: "Delete", reason: null }}
+      objects={fixture()}
+      onDelete={onDelete}
+    />
+  );
+  const pressed = fireEvent.pointerDown(
+    screen.getByRole("button", { name: "Delete" })
+  );
+  expect(pressed).toBe(false);
 });

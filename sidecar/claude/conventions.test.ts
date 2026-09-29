@@ -34,6 +34,26 @@ describe("conventionsFor structure", () => {
     expect(text).toContain("[Element #N]");
   });
 
+  it("embeds footage with @remotion/media on every turn, whether or not skills loaded", () => {
+    for (const hasSkills of [true, false]) {
+      const compact = conventionsFor(hasSkills).replaceAll("\n", " ");
+
+      expect(compact).toContain(
+        "Embed footage with `<Video>` from `@remotion/media`, not `OffthreadVideo`."
+      );
+      expect(compact).toContain(
+        "add it with the project's own package manager, pinned to the version of its `remotion`"
+      );
+      expect(compact).toContain(
+        "Leave an existing `OffthreadVideo` alone unless the person asks or the design check reports `footage_late_frames`"
+      );
+      expect(compact).toContain("never rewrite the person's file");
+      expect(compact).toContain(
+        "keep `OffthreadVideo` rather than upgrading unasked"
+      );
+    }
+  });
+
   it("asks for every scene to be named and described by a scene object", () => {
     const compact = conventionsFor(false).replaceAll("\n", " ");
 
@@ -360,4 +380,16 @@ it("gives managed videos precedence over legacy Interactive authoring rules", ()
   expect(text).toContain("studio-objects-v5/README.md");
   expect(text).toContain("useStudioObject(stableId)");
   expect(text).toContain("takes precedence over the legacy Interactive");
+});
+
+it("teaches the v6 provider and what a removed object means", () => {
+  const text = conventionsFor(true, "intro");
+  expect(text).toContain("src/lib/studio-objects-v6/README.md");
+  expect(text).toContain(
+    "Import the provider and hook from src/lib/studio-objects-v6"
+  );
+  expect(text).toContain('"removed": true');
+  expect(text).toContain(
+    "Never render it back, clear the flag or reuse its ID"
+  );
 });

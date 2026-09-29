@@ -148,6 +148,26 @@ describe("ensureRegistry", () => {
     expect(await readFile(timing, "utf8")).toBe("// authored motion\n");
   });
 
+  it("installs v6 beside authored v1 to v5 without overwriting them", async () => {
+    const root = await project();
+    const v5 = join(root, "src/lib/studio-objects-v5/index.tsx");
+    await mkdir(join(root, "src/lib/studio-objects-v5"), { recursive: true });
+    await writeFile(v5, "// authored v5\n");
+    await run(ensureRegistry(root));
+    expect(await readFile(v5, "utf8")).toBe("// authored v5\n");
+    expect(
+      await readFile(join(root, "src/lib/studio-objects-v6/index.tsx"), "utf8")
+    ).toBe(
+      await readFile(
+        join(TEMPLATE, "src/lib/studio-objects-v6/index.tsx"),
+        "utf8"
+      )
+    );
+    expect(
+      await readFile(join(root, "src/lib/studio-objects-v6/between.ts"), "utf8")
+    ).toContain("studio-objects-v5/between");
+  });
+
   it("is safe to run twice", async () => {
     const root = await project();
 

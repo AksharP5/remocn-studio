@@ -71,8 +71,10 @@ function draw(
     groups: { collapsed: readonly string[]; toggle: (group: string) => void };
     assets: readonly string[];
     card: PendingComment;
+    deletion: { label: string; reason: string | null };
     frame: number;
     onCancel: () => void;
+    onDelete: () => void;
     onOpenTarget: (index: number) => void;
     onChange: (path: string, value: unknown) => void;
     onChangeText: (value: string) => void;
@@ -109,11 +111,13 @@ function draw(
     <PropsPanel
       card={shown}
       cwd="/Users/me/projects/my-video"
+      deletion={handlers.deletion}
       frames={stillFrames(handlers.frame ?? 42)}
       groups={handlers.groups}
       onCancel={handlers.onCancel ?? mock()}
       onChange={(handlers.onChange ?? mock()) as never}
       onChangeText={handlers.onChangeText ?? mock()}
+      onDelete={handlers.onDelete}
       onOpenTarget={handlers.onOpenTarget}
       onReplay={handlers.onReplay ?? mock()}
       onReset={handlers.onReset ?? mock()}
@@ -1011,5 +1015,32 @@ describe("folding a section", () => {
     fireEvent.click(screen.getByRole("button", { name: "Layer" }));
 
     expect(toggle).toHaveBeenCalledWith("Layer");
+  });
+});
+
+describe("Delete in the header", () => {
+  it("deletes every instance of a shared call site", () => {
+    const onDelete = mock();
+    draw([field({ label: "Font size", path: "size" })], {
+      deletion: { label: "Delete all 4", reason: null },
+      onDelete,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Delete all 4" }));
+    expect(onDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays in place, inert, with its reason when the element cannot be deleted", () => {
+    const onDelete = mock();
+    draw([field({ label: "Font size", path: "size" })], {
+      deletion: {
+        label: "Delete",
+        reason: "The studio cannot delete this: the file is not TypeScript.",
+      },
+      onDelete,
+    });
+    const button = screen.getByRole("button", { name: "Delete" });
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(button);
+    expect(onDelete).not.toHaveBeenCalled();
   });
 });

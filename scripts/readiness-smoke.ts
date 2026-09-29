@@ -101,6 +101,7 @@ const base = {
       last = stage;
     }
   },
+  publicDir: path.join(root, "public"),
   renderer,
   renderOptions: {
     chromeMode: null,
@@ -109,6 +110,7 @@ const base = {
   },
   root,
   serveUrl: `http://localhost:${server.port}/index.html`,
+  staticBase: "/public",
   video: {
     camera: null,
     scenes: [

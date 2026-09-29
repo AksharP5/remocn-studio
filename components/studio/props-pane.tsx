@@ -24,6 +24,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useComment } from "@/hooks/use-comment";
+import type { DeletionTarget } from "@/hooks/use-deletion";
 import {
   isFieldAnimated,
   isTextChanged,
@@ -46,6 +47,7 @@ import { VERBATIM_INPUT } from "@/lib/studio/text-input";
 import { changedFields, subtitleOf, titleOf } from "@/lib/studio/tuning";
 import { cn } from "@/lib/utils";
 import type { TuningValue } from "@/shared/ipc";
+import { DeleteAction } from "./delete-action";
 import { DialKitSurface } from "./dialkit-surface";
 import { DOCK_ACTIONS, DOCK_INSET, DOCK_SURFACE } from "./dock-layout";
 import { ManagedPropsPane } from "./managed-props-pane";
@@ -94,11 +96,13 @@ export function PropsPane() {
   if (tools.managed?.isOpen) {
     return (
       <ManagedPropsPane
+        deletion={tools.deletion.target}
         fps={tools.preview.pick?.metadata?.fps}
         groups={groups}
         key={`${openedProject?.id}:${tools.preview.composition}`}
         objects={tools.managed}
         onAddInstruction={addManagedInstruction}
+        onDelete={tools.deletion.remove}
       />
     );
   }
@@ -111,12 +115,14 @@ export function PropsPane() {
     <PropsPanel
       card={card}
       cwd={openedProject?.path ?? null}
+      deletion={tools.deletion.target}
       frames={tools.preview}
       groups={groups}
       key={card.targets.at(0)?.instanceId || "element"}
       onCancel={inspect.cancelComment}
       onChange={inspect.changeTuning}
       onChangeText={inspect.changeText}
+      onDelete={tools.deletion.remove}
       onOpenTarget={inspect.openTarget}
       onReplay={inspect.replay}
       onReset={inspect.resetTuning}
@@ -131,11 +137,13 @@ export function PropsPane() {
 export function PropsPanel({
   card,
   cwd,
+  deletion = null,
   frames,
   groups: folds,
   onCancel,
   onChange,
   onChangeText,
+  onDelete,
   onOpenTarget,
   onReplay,
   onReset,
@@ -146,12 +154,14 @@ export function PropsPanel({
 }: {
   card: PendingComment;
   cwd: string | null;
+  deletion?: DeletionTarget | null;
   frames: PreviewFrames;
   /** Which sections are folded shut, and how to fold one. */
   groups?: PropGroups;
   onCancel: () => void;
   onChange: (path: string, value: TuningValue) => void;
   onChangeText: (value: string) => void;
+  onDelete?: () => void;
   onOpenTarget?: (index: number) => void;
   onReplay: () => void;
   onReset: (paths?: readonly string[]) => void;
@@ -186,6 +196,9 @@ export function PropsPanel({
           )}
         </div>
         <PaneActions>
+          {onDelete === undefined ? null : (
+            <DeleteAction onDelete={onDelete} target={deletion} />
+          )}
           <Tooltip>
             <TooltipTrigger
               render={

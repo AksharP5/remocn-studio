@@ -1,7 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { Effect } from "effect";
 import { errorMessage } from "@/lib/error-message";
-import { isTypeScriptFile, NOT_TYPESCRIPT } from "@/shared/codemod";
+import {
+  isTypeScriptFile,
+  NO_CALL_SITE,
+  NOT_TYPESCRIPT,
+} from "@/shared/codemod";
 import type {
   CodeEdit,
   CodeNodePath,
@@ -31,6 +35,10 @@ export interface Codemods {
     preferredNodePath: null;
     videoConfigValues: VideoConfigValues;
   }) => SubscriptionAnswer;
+  readonly deleteJsxNode?: (input: {
+    input: string;
+    nodePath: readonly (number | string)[];
+  }) => Promise<{ logLine: number; output: string }>;
   readonly updateMultipleSequenceProps: (input: {
     changes: {
       nodePath: readonly (number | string)[];
@@ -421,4 +429,145 @@ async function contentsOf(
   );
 
   return new Map(entries);
+}
+
+export interface Removal {
+  readonly after: string;
+  readonly before: string;
+  readonly file: string;
+  readonly line: number | null;
+}
+
+export const CANNOT_DELETE =
+  "This project's Remotion cannot delete elements from the code. Update Remotion in this project to delete here.";
+
+export const AMBIGUOUS_LINE =
+  "The studio cannot delete this: its line in the code starts more than one element, so it cannot tell which one you picked.";
+
+function escaped(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function lineStart(text: string, line: number): number {
+  let offset = 0;
+  for (let at = 1; at < line; at += 1) {
+    const next = text.indexOf("\n", offset);
+    if (next === -1) {
+      return -1;
+    }
+    offset = next + 1;
+  }
+  return offset;
+}
+
+function tagOffset(
+  text: string,
+  line: number,
+  component: string
+): number | null {
+  const start = lineStart(text, line);
+  if (start === -1) {
+    return null;
+  }
+  const end = text.indexOf("\n", start);
+  const row = text.slice(start, end === -1 ? text.length : end);
+  const found = [
+    ...row.matchAll(new RegExp(`<${escaped(component)}(?![\\w$.])`, "g")),
+  ];
+  return found.length === 1 ? start + (found[0].index ?? 0) : null;
+}
+
+function sharedPrefix(before: string, after: string, limit: number): number {
+  let length = 0;
+  while (length < limit && before[length] === after[length]) {
+    length += 1;
+  }
+  return length;
+}
+
+function sharedSuffix(before: string, after: string, limit: number): number {
+  let length = 0;
+  while (length < limit && before.at(-1 - length) === after.at(-1 - length)) {
+    length += 1;
+  }
+  return length;
+}
+
+// Where the removed text starts is ambiguous when it sits among repeated
+// text — `<Badge />` above `<Footer />` share their indent and `<`. Every
+// alignment starts between the left-most (suffix matched first) and the
+// right-most (prefix matched first); the picked tag has to be one of them.
+function removedFrom(before: string, after: string, offset: number): boolean {
+  const right = sharedPrefix(before, after, after.length);
+  const end = before.length - sharedSuffix(before, after, after.length - right);
+  const tail = sharedSuffix(before, after, after.length);
+  const left = sharedPrefix(before, after, after.length - tail);
+  if (offset < left || offset >= end) {
+    return false;
+  }
+  return offset <= right || before.slice(right, offset).trim().length === 0;
+}
+
+export function removalOf(
+  codemods: Codemods,
+  component: string,
+  target: CodeTarget,
+  video: VideoConfigValues,
+  read: (file: string) => Promise<string> = (file) => readFile(file, "utf8")
+): Effect.Effect<Removal, PreviewError> {
+  return Effect.tryPromise({
+    catch: (cause) =>
+      cause instanceof PreviewError
+        ? cause
+        : new PreviewError({ message: errorMessage(cause) }),
+    try: async () => {
+      const refuse = (message: string) => new PreviewError({ message });
+      if (!isTypeScriptFile(target.file)) {
+        throw refuse(`The studio cannot delete this: ${NOT_TYPESCRIPT}.`);
+      }
+      const remove = codemods.deleteJsxNode;
+      if (remove === undefined) {
+        throw refuse(CANNOT_DELETE);
+      }
+      const before = await read(target.file);
+      const found = codemods.computeSequencePropsSubscriptionFromContent({
+        absolutePath: target.file,
+        assetKeys: [],
+        componentIdentity: target.identity,
+        effects: [],
+        fileContents: before,
+        keys: [...target.keys],
+        line: target.line,
+        preferredNodePath: null,
+        videoConfigValues: video,
+      });
+      if (!found.success) {
+        throw refuse(
+          `The studio cannot delete this: ${NO_CALL_SITE}. Pick it again and retry.`
+        );
+      }
+      const offset = tagOffset(before, target.line, component);
+      if (offset === null) {
+        throw refuse(AMBIGUOUS_LINE);
+      }
+      const removed = await remove({
+        input: before,
+        nodePath: found.nodePath.nodePath,
+      });
+      if (!removedFrom(before, removed.output, offset)) {
+        throw refuse(AMBIGUOUS_LINE);
+      }
+      if (removed.output === before) {
+        throw refuse(
+          `The studio cannot delete this: ${NO_CALL_SITE}. Pick it again and retry.`
+        );
+      }
+      return {
+        after: removed.output,
+        before,
+        file: target.file,
+        line: removed.logLine,
+      };
+    },
+  });
 }

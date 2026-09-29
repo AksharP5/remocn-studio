@@ -19,6 +19,7 @@ import {
   motionFrames,
 } from "./design";
 import type { Exporter } from "./export";
+import { footageRule, measureFootage } from "./footage";
 import { MotionContractReview } from "./motion-contract";
 import { type Measured, PreviewError, type RenderOptions } from "./project";
 import {
@@ -59,6 +60,7 @@ const RULES = [
   "audio_silence",
   "audio_boundaries",
   "audio_masking",
+  "footage_timing",
 ];
 const ignored = new Set([
   "node_modules",
@@ -133,10 +135,12 @@ export interface ReadinessInput {
   motion: readonly MotionAssertion[];
   options: ReadinessOptions;
   progress: (stage: string, completed: number, total: number) => void;
+  publicDir: string;
   renderer: Renderer;
   renderOptions: RenderOptions;
   root: string;
   serveUrl: string;
+  staticBase: string;
   video: VideoCheck | null;
 }
 
@@ -440,6 +444,21 @@ export async function runReadiness(
       plan.step
     );
     findings.push(...motionReview.findings(samples));
+    const footage = await footageRule(
+      measureFootage({
+        fps,
+        publicDir: input.publicDir,
+        root: input.root,
+        serveUrl: input.serveUrl,
+        sightings: samples.map(({ audit, frame }) => ({
+          footage: audit.footage,
+          frame,
+        })),
+        staticBase: input.staticBase,
+      })
+    );
+    findings.push(...footage.findings);
+    status("footage_timing", footage.status, footage.reason);
     const contractCoverage = motionReview.summary(
       samples.map((sample) => sample.frame)
     );

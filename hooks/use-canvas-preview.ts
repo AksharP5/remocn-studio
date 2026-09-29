@@ -107,6 +107,7 @@ export function useCanvasPreview({
   const selection = selectionOf(managed, inspect.card);
   const { width } = camera.bounds;
   const layers = useCanvasLayers({
+    deletion: tools.deletion,
     hasRoom: width === 0 || inspectorHasRoom(width, isLeftmost),
     managed,
     preview,

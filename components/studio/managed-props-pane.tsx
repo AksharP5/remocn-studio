@@ -5,24 +5,30 @@ import { RotateCcwIcon, XIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs";
+import type { DeletionTarget } from "@/hooks/use-deletion";
 import type { ManagedObjects } from "@/hooks/use-managed-objects";
 import type { PropGroups } from "@/hooks/use-prop-groups";
 import { readableLabel } from "@/lib/studio/property-presentation";
+import { DeleteAction } from "./delete-action";
 import { DialKitSurface } from "./dialkit-surface";
 import { ManagedFields } from "./managed-fields";
 import { ManagedInstruction } from "./managed-instruction";
 import { Pane, PaneActions, PaneBody, PaneHeader } from "./pane";
 
 export function ManagedPropsPane({
+  deletion = null,
   objects,
   groups,
   fps,
   onAddInstruction,
+  onDelete,
 }: {
+  deletion?: DeletionTarget | null;
   objects: ManagedObjects;
   groups?: PropGroups;
   fps?: number;
   onAddInstruction?: (instruction: string) => void;
+  onDelete?: () => void;
 }) {
   const [tab, setTab] = useState("appearance");
   const changeTab = useCallback(
@@ -68,6 +74,9 @@ export function ManagedPropsPane({
               />
             </DialKitSurface>
             <PaneActions>
+              {onDelete === undefined ? null : (
+                <DeleteAction onDelete={onDelete} target={deletion} />
+              )}
               <Button
                 aria-label="Undo last object change"
                 disabled={!objects.canUndo}

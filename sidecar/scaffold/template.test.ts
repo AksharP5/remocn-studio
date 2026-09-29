@@ -99,6 +99,16 @@ describe("the vendored template", () => {
     expect(new Set(pinned.map(([, range]) => range)).size).toBe(1);
   });
 
+  it("declares @remotion/media, so footage imports it directly", async () => {
+    const manifest = JSON.parse(
+      await readFile(join(TEMPLATE, "package.json"), "utf8")
+    ) as { dependencies: Record<string, string> };
+
+    expect(manifest.dependencies["@remotion/media"]).toBe(
+      manifest.dependencies.remotion
+    );
+  });
+
   it("scaffolds on a Remotion that can express text and typography", async () => {
     const manifest = JSON.parse(
       await readFile(join(TEMPLATE, "package.json"), "utf8")

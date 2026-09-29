@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -18,6 +20,7 @@ import {
   type Placement,
   placeAssets,
   placeMedia,
+  sameContent,
 } from "@/sidecar/library/insert";
 import { saveAsset } from "@/sidecar/library/store";
 
@@ -160,53 +163,155 @@ describe("placeAssets", () => {
 });
 
 describe("placeMedia", () => {
-  it("copies an attached video into public/library and says where", async () => {
-    const clip = join(work, "intro.mp4");
-    writeFileSync(clip, "frames", "utf8");
+  const clip = (name: string, content: string, dir = work): string => {
+    const folder = join(dir, `${name}-${content}`);
+    mkdirSync(folder, { recursive: true });
+    const path = join(folder, name);
+    writeFileSync(path, content, "utf8");
+    return path;
+  };
+
+  const attached = (path: string, name = "intro.mp4") => ({
+    mediaType: "video/mp4" as const,
+    name,
+    path,
+  });
+
+  const inProject = (path: string) => readFileSync(join(project, path), "utf8");
+
+  it("copies an attached video into the video's own folder and says where", async () => {
+    const [placed] = await run(
+      placeMedia(project, "launch", [attached(clip("intro.mp4", "frames"))])
+    );
+
+    expect(placed?.copied).toEqual(["public/library/launch/intro.mp4"]);
+    expect(placed?.type).toBe("video");
+    expect(inProject("public/library/launch/intro.mp4")).toBe("frames");
+  });
+
+  it("keeps two videos' clips of the same name apart", async () => {
+    await run(
+      placeMedia(project, "a", [attached(clip("footage.mp4", "first"))])
+    );
+    const [placed] = await run(
+      placeMedia(project, "b", [attached(clip("footage.mp4", "second"))])
+    );
+
+    expect(placed?.copied).toEqual(["public/library/b/footage.mp4"]);
+    expect(inProject("public/library/a/footage.mp4")).toBe("first");
+    expect(inProject("public/library/b/footage.mp4")).toBe("second");
+  });
+
+  it("reuses an identical file rather than copying it again", async () => {
+    await run(placeMedia(project, "a", [attached(clip("intro.mp4", "same"))]));
+    const [placed] = await run(
+      placeMedia(project, "a", [attached(clip("intro.mp4", "same", library))])
+    );
+
+    expect(placed?.copied).toEqual([]);
+    expect(placed?.skipped).toEqual(["public/library/a/intro.mp4"]);
+    expect(readdirSync(join(project, "public/library/a"))).toEqual([
+      "intro.mp4",
+    ]);
+  });
+
+  it("gives a different file under a taken name the next free number", async () => {
+    mkdirSync(join(project, "public/library/a"), { recursive: true });
+    writeFileSync(join(project, "public/library/a/intro.mp4"), "old", "utf8");
 
     const [placed] = await run(
-      placeMedia(project, [
-        { mediaType: "video/mp4", name: "intro.mp4", path: clip },
+      placeMedia(project, "a", [attached(clip("intro.mp4", "new"))])
+    );
+
+    expect(placed?.copied).toEqual(["public/library/a/intro-2.mp4"]);
+    expect(inProject("public/library/a/intro.mp4")).toBe("old");
+    expect(inProject("public/library/a/intro-2.mp4")).toBe("new");
+  });
+
+  it("reuses a numbered copy when the same file comes again", async () => {
+    await run(placeMedia(project, "a", [attached(clip("intro.mp4", "one"))]));
+    await run(placeMedia(project, "a", [attached(clip("intro.mp4", "two"))]));
+    const [placed] = await run(
+      placeMedia(project, "a", [attached(clip("intro.mp4", "two", library))])
+    );
+
+    expect(placed?.skipped).toEqual(["public/library/a/intro-2.mp4"]);
+    expect(readdirSync(join(project, "public/library/a")).sort()).toEqual([
+      "intro-2.mp4",
+      "intro.mp4",
+    ]);
+  });
+
+  it("lands two different files of one name in one message side by side", async () => {
+    const placed = await run(
+      placeMedia(project, "a", [
+        attached(clip("intro.mp4", "left")),
+        attached(clip("intro.mp4", "right")),
       ])
     );
 
-    expect(placed?.copied).toEqual(["public/library/intro.mp4"]);
-    expect(placed?.type).toBe("video");
-    expect(
-      readFileSync(join(project, "public/library/intro.mp4"), "utf8")
-    ).toBe("frames");
+    expect(placed.map((one) => one.copied)).toEqual([
+      ["public/library/a/intro.mp4"],
+      ["public/library/a/intro-2.mp4"],
+    ]);
   });
 
-  it("leaves a file already in the project untouched", async () => {
-    const clip = join(work, "intro.mp4");
-    writeFileSync(clip, "new", "utf8");
-
+  it("leaves media already at the top of the library untouched", async () => {
     mkdirSync(join(project, "public/library"), { recursive: true });
     writeFileSync(join(project, "public/library/intro.mp4"), "old", "utf8");
 
     const [placed] = await run(
-      placeMedia(project, [
-        { mediaType: "video/mp4", name: "intro.mp4", path: clip },
-      ])
+      placeMedia(project, "a", [attached(clip("intro.mp4", "new"))])
     );
 
-    expect(placed?.skipped).toEqual(["public/library/intro.mp4"]);
+    expect(placed?.copied).toEqual(["public/library/a/intro.mp4"]);
+    expect(inProject("public/library/intro.mp4")).toBe("old");
+  });
+
+  it("leaves nothing under the real name when the copy fails", async () => {
+    const exit = await Effect.runPromiseExit(
+      placeMedia(project, "a", [attached(join(work, "gone.mp4"), "gone.mp4")])
+    );
+
+    expect(exit._tag).toBe("Failure");
+    expect(existsSync(join(project, "public/library/a/gone.mp4"))).toBe(false);
     expect(
-      readFileSync(join(project, "public/library/intro.mp4"), "utf8")
-    ).toBe("old");
+      existsSync(join(project, "public/library/a/.gone.mp4.partial"))
+    ).toBe(false);
   });
 
   it("calls a sound a sound", async () => {
-    const theme = join(work, "theme.wav");
-    writeFileSync(theme, "samples", "utf8");
-
     const [placed] = await run(
-      placeMedia(project, [
-        { mediaType: "audio/wav", name: "theme.wav", path: theme },
+      placeMedia(project, "a", [
+        {
+          mediaType: "audio/wav",
+          name: "theme.wav",
+          path: clip("theme.wav", "samples"),
+        },
       ])
     );
 
     expect(placed?.type).toBe("audio");
+  });
+});
+
+describe("sameContent", () => {
+  it("knows an identical file", async () => {
+    expect(
+      await run(sameContent(source("a.mp4", "abc"), source("b.mp4", "abc")))
+    ).toBe(true);
+  });
+
+  it("tells apart files of one size with different bytes", async () => {
+    expect(
+      await run(sameContent(source("a.mp4", "abc"), source("b.mp4", "abd")))
+    ).toBe(false);
+  });
+
+  it("tells apart files of different sizes", async () => {
+    expect(
+      await run(sameContent(source("a.mp4", "abc"), source("b.mp4", "abcd")))
+    ).toBe(false);
   });
 });
 
@@ -231,6 +336,25 @@ describe("mediaBrief", () => {
 
     expect(brief).toContain('staticFile("library/intro.mp4")');
     expect(brief).toContain("intro.mp4 (video)");
+  });
+
+  it("names the clip inside the video's own folder", () => {
+    const brief = mediaBrief([
+      {
+        audiomap: null,
+        copied: [],
+        missing: [],
+        name: "intro.mp4",
+        reason: null,
+        role: null,
+        skipped: ["public/library/launch/intro-2.mp4"],
+        type: "video",
+      },
+    ]);
+
+    expect(brief).toContain(
+      'sits at public/library/launch/intro-2.mp4 — reference it with staticFile("library/launch/intro-2.mp4")'
+    );
   });
 
   it("carries the audiomap of an analysed track", () => {

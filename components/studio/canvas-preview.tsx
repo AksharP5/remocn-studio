@@ -810,6 +810,7 @@ function LayerItem({ layers, row }: { layers: CanvasLayers; row: LayerRow }) {
         )}
         onBlur={layers.onLeave}
         onClick={layers.onSelect}
+        onContextMenu={layers.onRowMenu}
         onFocus={layers.onEnter}
         onPointerEnter={layers.onEnter}
         onPointerLeave={layers.onLeave}

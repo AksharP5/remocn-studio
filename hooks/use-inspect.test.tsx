@@ -6,15 +6,18 @@ import type { Composer } from "@/hooks/use-composer";
 import {
   isFieldAnimated,
   type PendingComment,
+  removalOf,
   useInspect,
 } from "@/hooks/use-inspect";
 import type { PreviewControl } from "@/hooks/use-preview";
+import type { removeCode } from "@/lib/studio/code-removal";
 import type {
   PreviewCommand,
   PreviewMessage,
   readCodeStatuses,
   TuningTarget,
 } from "@/lib/studio/preview";
+import { SidecarError } from "@/lib/studio/sidecar";
 import type { PromptElement, StatusResult } from "@/shared/ipc";
 import { stubGlobal, unstubAllGlobals } from "@/test/stub-global";
 
@@ -172,6 +175,7 @@ function harness(
     playing?: boolean;
     projectId?: string | null;
     readStatuses?: typeof readCodeStatuses;
+    removeElement?: typeof removeCode;
     select?: (element: unknown) => string;
   } = {}
 ) {
@@ -224,6 +228,7 @@ function harness(
         preview,
         projectId: options.projectId ?? null,
         readStatuses: options.readStatuses ?? (() => Effect.succeed(NO_STATUS)),
+        removeElement: options.removeElement,
         replayDelay: REPLAY_DELAY,
         toggle: () => undefined,
         unavailable: null,
@@ -1516,5 +1521,106 @@ describe("the words a Remotion too old to declare them still carries", () => {
     });
 
     expect(result.current.card?.text?.draft).toBe("Ship it");
+  });
+});
+
+describe("deleting the picked element from the code", () => {
+  const removed = () =>
+    mock((params: Parameters<typeof removeCode>[0]) =>
+      Effect.succeed({
+        file: params.target.file,
+        line: params.target.line,
+        removal: "removal-1",
+      })
+    );
+
+  it("offers Delete for a picked element with a place in the code", () => {
+    const test = harness({ projectId: "project-1" });
+    test.deliver(SELECTION);
+    expect(test.result.current.removal).toEqual({
+      count: 1,
+      label: "Headline",
+      reason: null,
+    });
+  });
+
+  it("names every instance a shared call site draws", () => {
+    const test = harness({ projectId: "project-1" });
+    test.deliver({
+      ...SELECTION,
+      tuning: [{ ...TUNING, instances: 4 }],
+    } as PreviewMessage);
+    expect(test.result.current.removal?.count).toBe(4);
+  });
+
+  it("says why it cannot delete an element without a call site or a project", () => {
+    const card = (origin: TuningTarget["origin"]) =>
+      ({
+        tuning: { ...TUNING, origin },
+        video: { durationInFrames: 300, fps: 30, height: 1080, width: 1920 },
+      }) as PendingComment;
+    expect(removalOf(card(null), "project-1")?.reason).toContain(
+      "could not find this element in the code"
+    );
+    expect(
+      removalOf(
+        card({ column: 1, file: "/p/src/Title.jsx", line: 3 }),
+        "project-1"
+      )?.reason
+    ).toContain("not TypeScript");
+    expect(removalOf(card(TUNING.origin), null)?.reason).toContain(
+      "Open this video's project"
+    );
+  });
+
+  it("hides the element, closes the card and asks the sidecar with the call site", async () => {
+    const removeElement = removed();
+    const test = harness({ projectId: "project-1", removeElement });
+    test.deliver(SELECTION);
+    let outcome: unknown = null;
+    await act(async () => {
+      outcome = await test.result.current.removeCard();
+    });
+    expect(outcome).toEqual({
+      label: "Headline",
+      ok: true,
+      removal: "removal-1",
+    });
+    expect(test.result.current.card).toBeNull();
+    expect(
+      test.commands().find((command) => command.type === "studio.hide")
+    ).toMatchObject({ selectors: ['[data-design-id="title"]'] });
+    expect(removeElement.mock.calls[0]?.[0]).toMatchObject({
+      component: "Title",
+      projectId: "project-1",
+      target: {
+        file: "/Users/me/projects/my-video/src/videos/intro/Title.tsx",
+        identity: "remotion.Div",
+        line: 24,
+      },
+    });
+  });
+
+  it("brings the element and its card back when the sidecar refuses", async () => {
+    const test = harness({
+      projectId: "project-1",
+      removeElement: () =>
+        Effect.fail(
+          new SidecarError({ message: "The file changed while deleting." })
+        ),
+    });
+    test.deliver(SELECTION);
+    let outcome: unknown = null;
+    await act(async () => {
+      outcome = await test.result.current.removeCard();
+    });
+    expect(outcome).toEqual({
+      error: "The file changed while deleting.",
+      ok: false,
+    });
+    expect(test.result.current.card?.tuning?.targetId).toBe("title-1");
+    expect(
+      test.commands().some((command) => command.type === "studio.unhide")
+    ).toBe(true);
   });
 });

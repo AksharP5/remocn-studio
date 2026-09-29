@@ -2,6 +2,8 @@ import { describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { Effect } from "effect";
+import { type FootageOutcome, footageRule } from "./footage";
 import { sourceRevision } from "./readiness";
 import {
   type AuditSample,
@@ -552,4 +554,76 @@ it("does not turn unsampled motion frames into missing targets or shift selector
   expect(mixed.complete).toBe(false);
   expect(mixed.findings[0]?.code).toBe("motion_target_missing");
   expect(mixed.findings[0]?.selector).toBe("#second");
+});
+
+describe("footage timing in the full check", () => {
+  const late: FootageOutcome = {
+    file: "public/library/1 (3).mp4",
+    frames: [12, 48, 96],
+    kind: "late",
+    report: { lateSlots: 75, maxLatenessMs: 1 / 3, slots: 226 },
+  };
+  const clean: FootageOutcome = {
+    file: "public/library/cfr/1 (3).mp4",
+    frames: [150],
+    kind: "clean",
+  };
+  const unmeasured: FootageOutcome = {
+    file: "public/notes.webm",
+    frames: [30],
+    kind: "unmeasured",
+    reason: "The file is not MP4 or MOV.",
+  };
+
+  it("is completed, with a measured finding for the late clip only", async () => {
+    const rule = await footageRule(Effect.succeed([late, clean]));
+
+    expect(rule.status).toBe("completed");
+    expect(rule.reason).toBe("Measured 2 clips shown through OffthreadVideo.");
+    expect(rule.findings).toHaveLength(1);
+    expect(rule.findings[0]).toMatchObject({
+      audience: "viewer",
+      category: "footage",
+      code: "footage_late_frames",
+      conclusion: "measurement",
+      frames: [12, 48, 96],
+      from: 12,
+      measurements: { lateSlots: 75, maxLatenessMs: 1 / 3, slots: 226 },
+      selector: "public/library/1 (3).mp4",
+      severity: "warning",
+      to: 97,
+    });
+  });
+
+  it("is not applicable when no frame showed OffthreadVideo footage", async () => {
+    const rule = await footageRule(Effect.succeed([]));
+
+    expect(rule).toEqual({
+      findings: [],
+      reason: "No inspected frame showed footage through OffthreadVideo.",
+      status: "not_applicable",
+    });
+  });
+
+  it("is skipped, naming each file it could not measure, and keeps what it did measure", async () => {
+    const rule = await footageRule(Effect.succeed([late, unmeasured]));
+
+    expect(rule.status).toBe("skipped");
+    expect(rule.reason).toBe(
+      "public/notes.webm could not be checked for late frames. The file is not MP4 or MOV."
+    );
+    expect(rule.findings.map(({ code }) => code)).toEqual([
+      "footage_late_frames",
+    ]);
+  });
+
+  it("is failed, in words, when the measurement itself breaks", async () => {
+    const rule = await footageRule(Effect.die(new Error("reader crashed")));
+
+    expect(rule).toEqual({
+      findings: [],
+      reason: "Footage timing could not be measured: reader crashed.",
+      status: "failed",
+    });
+  });
 });

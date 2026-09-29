@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import {
+  chmod,
   mkdir,
   mkdtemp,
   readFile,
@@ -9,13 +10,19 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Effect } from "effect";
+import { TEMPLATE_DIR_ENV } from "@/shared/ipc";
 import {
   documentFixture,
   easingDocumentFixture,
   operationFixture,
 } from "@/test/fixtures/studio-document";
-import { readStudioDocument, writeStudioDocument } from "./studio-document";
+import {
+  readStudioDocument,
+  removeStudioObject,
+  writeStudioDocument,
+} from "./studio-document";
 
 let root: string;
 let file: string;
@@ -98,4 +105,119 @@ it("persists custom curves atomically and accepts a serialized retry", async () 
     operation.after
   );
   expect(retried.document.operations).toHaveLength(1);
+});
+
+describe("removing an object", () => {
+  const TEMPLATE = fileURLToPath(
+    new URL("../../templates/remotion", import.meta.url)
+  );
+  const remove = {
+    id: "remove-first",
+    kind: "remove",
+    objectId: "first",
+  } as const;
+  const V5 =
+    'import { StudioObjects, useStudioObject } from "../../lib/studio-objects-v5";\nimport { geometryBetween } from "../../lib/studio-objects-v5/between";\nimport document from "./studio.json";\n';
+  const entry = () => join(root, "src/videos/intro/index.tsx");
+  const scene = () => join(root, "src/videos/intro/Scene.tsx");
+
+  beforeEach(async () => {
+    process.env[TEMPLATE_DIR_ENV] = TEMPLATE;
+    await writeFile(entry(), V5);
+    await writeFile(
+      scene(),
+      'import { useStudioObject } from "../../lib/studio-objects-v5";\n'
+    );
+  });
+
+  it("upgrades a v5 video's provider import and marks the record", async () => {
+    const removed = await Effect.runPromise(
+      removeStudioObject(root, "intro", remove)
+    );
+    expect(removed.upgraded).toBe("src/videos/intro/index.tsx");
+    expect(removed.document.objects[0].removed).toBe(true);
+    expect(await readFile(entry(), "utf8")).toBe(
+      V5.replace(
+        '"../../lib/studio-objects-v5";\nimport { geometryBetween }',
+        '"../../lib/studio-objects-v6";\nimport { geometryBetween }'
+      )
+    );
+    expect(await readFile(scene(), "utf8")).toContain("studio-objects-v5");
+    expect(
+      await readFile(join(root, "src/lib/studio-objects-v6/index.tsx"), "utf8")
+    ).toContain('data-studio-runtime="6"');
+    const read = await Effect.runPromise(readStudioDocument(root, "intro"));
+    expect(read.document.objects[0].removed).toBe(true);
+    expect(read.revision).toBe(removed.revision);
+  });
+
+  it("writes only the document for a video already on v6, and once on retry", async () => {
+    const v6 = V5.replace('studio-objects-v5"', 'studio-objects-v6"');
+    await writeFile(entry(), v6);
+    const first = await Effect.runPromise(
+      removeStudioObject(root, "intro", remove)
+    );
+    const retried = await Effect.runPromise(
+      removeStudioObject(root, "intro", remove)
+    );
+    expect(first.upgraded).toBeNull();
+    expect(retried.document.operations).toHaveLength(1);
+    expect(await readFile(entry(), "utf8")).toBe(v6);
+  });
+
+  it("refuses a video with no provider or two, and writes nothing", async () => {
+    const before = await readFile(file, "utf8");
+    await writeFile(entry(), 'import document from "./studio.json";\n');
+    await expect(
+      Effect.runPromise(removeStudioObject(root, "intro", remove))
+    ).rejects.toThrow("does not load its objects through the studio's runtime");
+    await writeFile(entry(), V5);
+    await writeFile(
+      scene(),
+      'import { StudioObjects as Objects } from "../../lib/studio-objects-v5";\n'
+    );
+    await expect(
+      Effect.runPromise(removeStudioObject(root, "intro", remove))
+    ).rejects.toThrow("more than one place");
+    expect(await readFile(file, "utf8")).toBe(before);
+    expect(await readFile(entry(), "utf8")).toBe(V5);
+  });
+
+  it("refuses a runtime older than v5", async () => {
+    await writeFile(
+      entry(),
+      V5.replace('studio-objects-v5"', 'studio-objects-v4"')
+    );
+    await expect(
+      Effect.runPromise(removeStudioObject(root, "intro", remove))
+    ).rejects.toThrow("too old to delete objects");
+  });
+
+  it("puts the provider back when the document cannot be written", async () => {
+    const before = await readFile(file, "utf8");
+    await chmod(join(root, "src/videos/intro"), 0o555);
+    try {
+      await expect(
+        Effect.runPromise(removeStudioObject(root, "intro", remove))
+      ).rejects.toThrow();
+    } finally {
+      await chmod(join(root, "src/videos/intro"), 0o755);
+    }
+    expect(await readFile(file, "utf8")).toBe(before);
+    expect(await readFile(entry(), "utf8")).toBe(V5);
+  });
+
+  it("leaves everything as it was when the provider cannot be rewritten", async () => {
+    const before = await readFile(file, "utf8");
+    await chmod(entry(), 0o444);
+    try {
+      await expect(
+        Effect.runPromise(removeStudioObject(root, "intro", remove))
+      ).rejects.toThrow("could not be upgraded");
+    } finally {
+      await chmod(entry(), 0o644);
+    }
+    expect(await readFile(file, "utf8")).toBe(before);
+    expect(await readFile(entry(), "utf8")).toBe(V5);
+  });
 });

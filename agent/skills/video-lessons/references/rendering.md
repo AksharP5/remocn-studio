@@ -79,3 +79,39 @@ Node render/bundle scripts may need explicit configuration rather than inheritin
 CLI settings. Check aliases, CSS setup, backend and environment loading. Reuse a
 bundle when taking many stills of unchanged source. Verify CORS for cross-origin
 assets and the environment variables actually exposed to the composition.
+
+## Footage stutters where the source is smooth
+
+Symptom: in the export, footage repeats a frame and then skips the next one, in a
+steady rhythm (every third frame at 30 fps), while the source file plays smoothly
+and the preview looks fine. Applies to `OffthreadVideo` playing phone or camera
+files whose frames are stamped on a millisecond-rounded clock: a time base that
+does not divide the frame rate, such as 1/16000 at 30 fps, where the steps
+alternate 528 and 544 ticks instead of 533⅓. Recognise the file with
+`ffprobe -v error -select_streams v:0 -show_entries packet=pts -of csv=p=0 <file>`:
+the differences between consecutive values are not all equal. `OffthreadVideo`
+asks for exactly `frame / fps`. A source frame that starts even 0.3 ms after that
+moment is "not started yet", so the previous frame is shown again and the late
+one never is. The studio's design check reports such a file as
+`footage_late_frames`, with the number of late slots.
+
+Observed on test-orcdev (Remotion 4.0.520, 220 frames of one clip): through
+`OffthreadVideo`, 144 of 220 exported frames were the right source frame. Through
+`<Video>` from `@remotion/media`, 212 of 220 were, and rendering the original file
+or a remuxed copy gave pixel-identical output. The whole 803-frame film then
+matched a clean reference on 499 of 500 distinguishable frames.
+
+Correction: embed the clip with `<Video>` from `@remotion/media`, which accepts a
+frame that starts within a millisecond of the requested time. Add the package with
+the project's own package manager, pinned to its `remotion` version. Pass
+`objectFit` as a prop rather than as CSS. Do not rewrite the person's file. Only on
+a Remotion without `@remotion/media` (before 4.0.351), remux the clip onto an exact
+grid without re-encoding and point the scene at the copy:
+`ffmpeg -i in.mp4 -map 0:v:0 -c copy -bsf:v h264_mp4toannexb -f h264 v.h264`, then
+`ffmpeg -r 30 -i v.h264 -i in.mp4 -map 0:v:0 -map 1:a:0 -c copy -video_track_timescale 15360 out.mp4`.
+Verify by matching exported frames to source frames over a few seconds of motion.
+
+Counterexample: a near-identical frame that recurs strictly every sixth frame is
+a 25 fps capture padded to 30 by the camera. It is in the source itself, no
+component removes it, and fixing it is a timeline or interpolation decision for the
+person.
