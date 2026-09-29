@@ -1,6 +1,7 @@
-import { existsSync } from "node:fs";
-import { copyFile, mkdir } from "node:fs/promises";
-import { basename, dirname, join, relative } from "node:path";
+import { createHash } from "node:crypto";
+import { createReadStream, existsSync } from "node:fs";
+import { copyFile, mkdir, rename, rm, stat } from "node:fs/promises";
+import { basename, dirname, join, parse, relative } from "node:path";
 import { Effect } from "effect";
 import { errorMessage } from "@/lib/error-message";
 import { type Audiomap, audiomapBrief } from "@/shared/audiomap";
@@ -46,18 +47,16 @@ export function placeAssets(
 
 export function placeMedia(
   cwd: string,
+  video: string,
   media: readonly PromptMedia[]
 ): Effect.Effect<readonly Placement[], LibraryError> {
-  return Effect.forEach(media, (item) =>
-    Effect.tryPromise({
-      catch: (cause) => new LibraryError({ message: errorMessage(cause) }),
-      try: async () => {
-        const root = remotionRootOf(cwd);
-        const landed = await copyInto(dirname(item.path), root, MEDIA_FOLDER, [
-          basename(item.path),
-        ]);
+  const folder = `${MEDIA_FOLDER}/${video}`;
+  const dir = join(remotionRootOf(cwd), folder);
 
-        return {
+  return Effect.forEach(media, (item) =>
+    landMedia(item.path, dir, folder).pipe(
+      Effect.map(
+        (landed): Placement => ({
           audiomap: item.audiomap ?? null,
           copied: landed.copied,
           missing: [],
@@ -65,13 +64,98 @@ export function placeMedia(
           reason: null,
           role: null,
           skipped: landed.skipped,
-          type: item.mediaType.startsWith("video/")
-            ? ("video" as const)
-            : ("audio" as const),
-        } satisfies Placement;
-      },
-    })
+          type: item.mediaType.startsWith("video/") ? "video" : "audio",
+        })
+      )
+    )
   );
+}
+
+export function sameContent(
+  one: string,
+  other: string
+): Effect.Effect<boolean, LibraryError> {
+  return Effect.tryPromise({
+    catch: (cause) => new LibraryError({ message: errorMessage(cause) }),
+    try: async () => {
+      const [first, second] = await Promise.all([stat(one), stat(other)]);
+
+      if (!(first.isFile() && second.isFile()) || first.size !== second.size) {
+        return false;
+      }
+
+      const [left, right] = await Promise.all([digest(one), digest(other)]);
+      return left === right;
+    },
+  });
+}
+
+async function digest(path: string): Promise<string> {
+  const hash = createHash("sha256");
+
+  for await (const chunk of createReadStream(path)) {
+    hash.update(chunk);
+  }
+
+  return hash.digest("hex");
+}
+
+interface Landed {
+  readonly copied: readonly string[];
+  readonly skipped: readonly string[];
+}
+
+function landMedia(
+  from: string,
+  dir: string,
+  folder: string
+): Effect.Effect<Landed, LibraryError> {
+  const { ext, name } = parse(basename(from));
+
+  const landAt = (suffix: number): Effect.Effect<Landed, LibraryError> =>
+    Effect.suspend(() => {
+      const file = suffix === 1 ? `${name}${ext}` : `${name}-${suffix}${ext}`;
+      const target = join(dir, file);
+      const shown = `${folder}/${file}`;
+
+      if (!existsSync(target)) {
+        return copyWhole(from, dir, file).pipe(
+          Effect.as<Landed>({ copied: [shown], skipped: [] })
+        );
+      }
+
+      return sameContent(from, target).pipe(
+        Effect.flatMap((same) =>
+          same
+            ? Effect.succeed<Landed>({ copied: [], skipped: [shown] })
+            : landAt(suffix + 1)
+        )
+      );
+    });
+
+  return landAt(1);
+}
+
+function copyWhole(
+  from: string,
+  dir: string,
+  file: string
+): Effect.Effect<void, LibraryError> {
+  return Effect.tryPromise({
+    catch: (cause) => new LibraryError({ message: errorMessage(cause) }),
+    try: async () => {
+      const partial = join(dir, `.${file}.partial`);
+      await mkdir(dir, { recursive: true });
+
+      try {
+        await copyFile(from, partial);
+        await rename(partial, join(dir, file));
+      } catch (cause) {
+        await rm(partial, { force: true });
+        throw cause;
+      }
+    },
+  });
 }
 
 export function mediaBrief(placements: readonly Placement[]): string | null {

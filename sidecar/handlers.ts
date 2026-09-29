@@ -385,7 +385,7 @@ export const handlers: Handlers<HistoryStore | ProjectStore | VideoStore> = {
       );
       const placedMedia = yield* copied(
         "attached media",
-        placeMedia(project.path, params.media)
+        placeMedia(project.path, video, params.media)
       );
 
       const switcher = yield* makeModeSwitch();
