@@ -1,0 +1,36 @@
+{
+  "category": "Typography",
+  "componentName": "SqueezeIn",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "Characters appear one by one on a tight stagger; when the last one lands, every letter gap compresses as one and the word squeezes together.",
+  "files": [
+    {
+      "file": "squeeze-in.tsx",
+      "target": "src/components/remocn/squeeze-in.tsx"
+    }
+  ],
+  "name": "squeeze-in",
+  "preview": {
+    "durationInFrames": 60,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#ffffff"
+    },
+    "defaults": {
+      "text": "Remocn",
+      "fontSize": 72,
+      "stagger": 3,
+      "squeeze": 0.03,
+      "color": "#171717",
+      "fontWeight": "400",
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Squeeze In"
+}

@@ -1,0 +1,37 @@
+{
+  "category": "Typography",
+  "componentName": "StretchIn",
+  "dependencies": [
+    "remotion",
+    "opentype.js"
+  ],
+  "description": "Letters fly in from off-canvas and smear horizontally on the way — a vertex-lag deformation, not a scale.",
+  "files": [
+    {
+      "file": "stretch-in.tsx",
+      "target": "src/components/remocn/stretch-in.tsx"
+    }
+  ],
+  "name": "stretch-in",
+  "preview": {
+    "durationInFrames": 60,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#141318"
+    },
+    "defaults": {
+      "text": "REMOCN",
+      "fill": "#ffffff",
+      "fontSize": 510,
+      "entryStagger": 3,
+      "travelFrames": 33,
+      "vertexLagFrames": 3.5,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Stretch In"
+}

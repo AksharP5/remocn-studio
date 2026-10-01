@@ -1,0 +1,34 @@
+{
+  "category": "Typography",
+  "componentName": "ShaderTextReveal",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "Reveal words through the original OpenShaders hero shader, then settle into white type.",
+  "files": [
+    {
+      "file": "shader-text-reveal.tsx",
+      "target": "src/components/remocn/shader-text-reveal.tsx"
+    }
+  ],
+  "name": "shader-text-reveal",
+  "preview": {
+    "durationInFrames": 75,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#000000"
+    },
+    "defaults": {
+      "text": "Your product",
+      "fontSize": 400,
+      "wordDuration": 30,
+      "intensity": 1,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Shader Text Reveal"
+}

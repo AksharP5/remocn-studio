@@ -1,0 +1,39 @@
+{
+  "category": "Typography",
+  "componentName": "CaretSwap",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "A gradient caret swells into a block that consumes the first phrase right-to-left, collapses back and types the second phrase out with a blinking caret.",
+  "files": [
+    {
+      "file": "caret-swap.tsx",
+      "target": "src/components/remocn/caret-swap.tsx"
+    }
+  ],
+  "name": "caret-swap",
+  "preview": {
+    "durationInFrames": 100,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#fdf6f0"
+    },
+    "defaults": {
+      "fromText": "Executing it?",
+      "toText": "That's where everyone quits",
+      "fontSize": 72,
+      "swapAt": 20,
+      "typeSpeed": 1,
+      "color": "#171717",
+      "caretColor": "#FF4DAA",
+      "caretColorEnd": "#8A5CF6",
+      "fontWeight": "400",
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Caret Swap"
+}

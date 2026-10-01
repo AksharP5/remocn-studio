@@ -14,7 +14,7 @@ import { dirname, join, resolve } from "node:path";
 // child scenes) are rendered through that same example, fetched from the pin;
 // anything that cannot be mounted is skipped out loud and its card keeps the
 // icon.
-const PIN = "0797bfe319bd2dae06eea5a9f67591e1b31392e5";
+const PIN = "8ae853e4c08108105684d4b8cac7f22400840d2a";
 const RAW = `https://raw.githubusercontent.com/Remocn/remocn/${PIN}`;
 
 const CLIP_SECONDS = 6;
@@ -61,6 +61,37 @@ async function manifestOf(name: string): Promise<Manifest> {
   return JSON.parse(
     await readFile(join(REGISTRY, name, "manifest.json"), "utf8")
   ) as Manifest;
+}
+
+const WEBGL_CONTEXT = /getContext\(\s*["']webgl/;
+
+async function needsGl(
+  name: string,
+  seen: Set<string> = new Set()
+): Promise<boolean> {
+  if (seen.has(name)) {
+    return false;
+  }
+  seen.add(name);
+
+  const manifest = await manifestOf(name);
+  if (manifest.dependencies.includes("@paper-design/shaders-react")) {
+    return true;
+  }
+  for (const file of manifest.files) {
+    // biome-ignore lint/performance/noAwaitInLoops: a build script, run once
+    const source = await readFile(join(REGISTRY, name, file.file), "utf8");
+    if (WEBGL_CONTEXT.test(source)) {
+      return true;
+    }
+  }
+  for (const referenced of manifest.registryDependencies) {
+    // biome-ignore lint/performance/noAwaitInLoops: stops at the first hit
+    if (await needsGl(referenced, seen)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // __index__.tsx knows how the docs preview mounts each component: straight
@@ -384,15 +415,12 @@ async function main(): Promise<void> {
 
   for (const mount of mountable) {
     const { name } = mount.manifest;
-    const useGl = mount.manifest.dependencies.includes(
-      "@paper-design/shaders-react"
-    );
-    const gl = glFlag ?? (useGl ? "angle" : null);
+    // biome-ignore lint/performance/noAwaitInLoops: renders are memory-bound, sequential on purpose
+    const gl = glFlag ?? ((await needsGl(name)) ? "angle" : null);
     const chromiumOptions = gl === null ? {} : { gl };
     const out = join(REGISTRY, name);
 
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: renders are memory-bound, sequential on purpose
       const composition = await renderer.selectComposition({
         chromiumOptions,
         id: name,

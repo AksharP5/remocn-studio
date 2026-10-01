@@ -1,0 +1,40 @@
+{
+  "category": "Typography",
+  "componentName": "StripeType",
+  "dependencies": [
+    "remotion",
+    "@remotion/google-fonts"
+  ],
+  "description": "A word cut into horizontal bands, as in the IBM logo, slides together from alternating sides and locks, then can pass on through.",
+  "files": [
+    {
+      "file": "stripe-type.tsx",
+      "target": "src/components/remocn/stripe-type.tsx"
+    }
+  ],
+  "name": "stripe-type",
+  "preview": {
+    "durationInFrames": 100,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#2b3bff"
+    },
+    "defaults": {
+      "text": "Launch",
+      "color": "#fafafa",
+      "settle": "striped",
+      "fontSize": 180,
+      "fontWeight": 800,
+      "stripes": 8,
+      "gap": 0.35,
+      "hold": 30,
+      "exit": true,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Stripe Type"
+}

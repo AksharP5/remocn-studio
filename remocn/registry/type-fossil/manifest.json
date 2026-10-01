@@ -1,0 +1,35 @@
+{
+  "category": "Typography",
+  "componentName": "TypeFossil",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "A readable word carries layers of fine contours, revises itself, then compresses into a clean typographic imprint.",
+  "files": [
+    {
+      "file": "type-fossil.tsx",
+      "target": "src/components/remocn/type-fossil.tsx"
+    }
+  ],
+  "name": "type-fossil",
+  "preview": {
+    "durationInFrames": 208,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "defaults": {
+      "text": "Form",
+      "drafts": "Idea | Maybe | Try | Almost | Again | Closer",
+      "layers": 16,
+      "depth": 100,
+      "fontSize": 220,
+      "fontWeight": "600",
+      "color": "#302b26",
+      "accentColor": "#a800b7",
+      "backgroundColor": "#eeeae2",
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Type Fossil"
+}

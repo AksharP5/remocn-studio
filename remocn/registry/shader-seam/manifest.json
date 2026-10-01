@@ -1,0 +1,34 @@
+{
+  "category": "Transitions",
+  "componentName": null,
+  "dependencies": [
+    "remotion",
+    "@remotion/transitions"
+  ],
+  "description": "Dissolve a stationary OpenShaders material to uncover the next scene.",
+  "files": [
+    {
+      "file": "shader-seam.tsx",
+      "target": "src/components/remocn/shader-seam.tsx"
+    }
+  ],
+  "name": "shader-seam",
+  "preview": {
+    "durationInFrames": 156,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#14121c"
+    },
+    "defaults": {
+      "softness": 0.18,
+      "detail": 0.65,
+      "timeOffset": 0,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Shader Seam"
+}

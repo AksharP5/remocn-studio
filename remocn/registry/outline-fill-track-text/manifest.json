@@ -1,0 +1,45 @@
+{
+  "category": "Typography",
+  "componentName": "OutlineFillTrackText",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "A rising lead word gives way to an outlined value that fills from left to right while both travel on one continuous track.",
+  "files": [
+    {
+      "file": "outline-fill-track-text.tsx",
+      "target": "src/components/remocn/outline-fill-track-text.tsx"
+    }
+  ],
+  "name": "outline-fill-track-text",
+  "preview": {
+    "durationInFrames": 80,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#030012"
+    },
+    "defaults": {
+      "leadText": "Keep",
+      "valueText": "1000000000%",
+      "fontSize": 368,
+      "enterOffset": 240,
+      "anchorOffsetX": -84,
+      "trackDistance": 0,
+      "wordGap": 220,
+      "endPadding": 96,
+      "fillDuration": 38,
+      "outlineWidth": 3,
+      "color": "#f4f3f6",
+      "outlineColor": "#e6e2ed",
+      "backgroundColor": "#030012",
+      "glowColor": "#64109a",
+      "fontWeight": "700",
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Outline Fill Track Text"
+}

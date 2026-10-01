@@ -1,0 +1,36 @@
+{
+  "category": "Typography",
+  "componentName": "GooeyMorph",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "Bars fly in Tetris-style, land as a row, and melt into a word through a gooey blur-and-threshold morph.",
+  "files": [
+    {
+      "file": "gooey-morph.tsx",
+      "target": "src/components/remocn/gooey-morph.tsx"
+    }
+  ],
+  "name": "gooey-morph",
+  "preview": {
+    "durationInFrames": 120,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#141318"
+    },
+    "defaults": {
+      "word": "HELLO",
+      "fill": "#f2f2f2",
+      "fontFamily": "'Bodoni Moda', Georgia, serif",
+      "blurRadius": 6,
+      "displaceAmount": 20,
+      "barTravelFrames": 30,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Gooey Morph"
+}

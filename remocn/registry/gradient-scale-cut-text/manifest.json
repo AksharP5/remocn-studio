@@ -1,0 +1,44 @@
+{
+  "category": "Typography",
+  "componentName": "GradientScaleCutText",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "An oversized gradient reveal snaps to a separate compact blurred line that settles left while the reveal continues.",
+  "files": [
+    {
+      "file": "gradient-scale-cut-text.tsx",
+      "target": "src/components/remocn/gradient-scale-cut-text.tsx"
+    }
+  ],
+  "name": "gradient-scale-cut-text",
+  "preview": {
+    "durationInFrames": 36,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#000000"
+    },
+    "defaults": {
+      "text": "Introducing",
+      "giantFontSize": 520,
+      "compactFontSize": 132,
+      "anchorOffsetX": -16,
+      "giantTravel": 400,
+      "settleTravel": 160,
+      "cutFrame": 13,
+      "revealSoftness": 14,
+      "compactBlur": 12,
+      "gradientStart": "#f04a14",
+      "gradientEnd": "#f3f1f1",
+      "ghostColor": "#170b0a",
+      "backgroundColor": "#000000",
+      "fontWeight": "700",
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Gradient Scale Cut Text"
+}

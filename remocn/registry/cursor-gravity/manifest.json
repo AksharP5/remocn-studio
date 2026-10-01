@@ -1,0 +1,32 @@
+{
+  "category": "Effects",
+  "componentName": "CursorGravity",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "A rounded triangular cursor tugs a button out of the screen edge with pulsed elastic resistance.",
+  "files": [
+    {
+      "file": "cursor-gravity.tsx",
+      "target": "src/components/remocn/cursor-gravity.tsx"
+    }
+  ],
+  "name": "cursor-gravity",
+  "preview": {
+    "durationInFrames": 180,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "defaults": {
+      "label": "Create something",
+      "tension": 1,
+      "cursorColor": "#fffaf0",
+      "color": "#fffaf0",
+      "textColor": "#32153c",
+      "backgroundColor": "#a800b7",
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Cursor Gravity"
+}

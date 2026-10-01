@@ -1,0 +1,39 @@
+{
+  "category": "Typography",
+  "componentName": "EchoStack",
+  "dependencies": [
+    "remotion",
+    "@remotion/google-fonts"
+  ],
+  "description": "A word focuses in at the center while outline copies of it unfold above and below and keep drifting, like the one clear line on a spinning drum.",
+  "files": [
+    {
+      "file": "echo-stack.tsx",
+      "target": "src/components/remocn/echo-stack.tsx"
+    }
+  ],
+  "name": "echo-stack",
+  "preview": {
+    "durationInFrames": 120,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#0a0a0a"
+    },
+    "defaults": {
+      "text": "Bold.",
+      "color": "#fafafa",
+      "echoColor": "#fafafa",
+      "direction": "up",
+      "fontSize": 170,
+      "echoes": 3,
+      "echoOpacity": 0.35,
+      "cycle": 60,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Echo Stack"
+}

@@ -6,7 +6,7 @@ import { dirname, join, relative, resolve } from "node:path";
 // upstream, so one commit names every file this script will ever fetch.
 // Updating the set is a deliberate bump of this constant, never a side effect
 // of running the script.
-const PIN = "0797bfe319bd2dae06eea5a9f67591e1b31392e5";
+const PIN = "8ae853e4c08108105684d4b8cac7f22400840d2a";
 
 const REPO = "Remocn/remocn";
 const RAW = `https://raw.githubusercontent.com/${REPO}/${PIN}`;

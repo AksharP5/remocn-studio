@@ -1,0 +1,35 @@
+{
+  "category": "Transitions",
+  "componentName": null,
+  "dependencies": [
+    "remotion",
+    "@remotion/transitions"
+  ],
+  "description": "A hard cut disguised as a lens punch-in: barrel distortion, zoom blur, chromatic split and camera shake around the splice.",
+  "files": [
+    {
+      "file": "lens-zoom.tsx",
+      "target": "src/components/remocn/lens-zoom.tsx"
+    }
+  ],
+  "name": "lens-zoom",
+  "preview": {
+    "durationInFrames": 112,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#141318"
+    },
+    "defaults": {
+      "lensSteps": 9,
+      "blurSamples": 7,
+      "shakeAmount": 50,
+      "shakeTranslatePx": 73,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Lens Zoom"
+}

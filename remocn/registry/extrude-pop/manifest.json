@@ -1,0 +1,36 @@
+{
+  "category": "Typography",
+  "componentName": "ExtrudePop",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "A flat word pops up out of the plane on a solid colored 3D body, no camera involved.",
+  "files": [
+    {
+      "file": "extrude-pop.tsx",
+      "target": "src/components/remocn/extrude-pop.tsx"
+    }
+  ],
+  "name": "extrude-pop",
+  "preview": {
+    "durationInFrames": 90,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#141318"
+    },
+    "defaults": {
+      "letter": "WIN",
+      "bodyColor": "#e8192b",
+      "faceColor": "#ffffff",
+      "minimaxRadius": 80,
+      "extrudeAngleDeg": -58.6,
+      "extrudeEndFrame": 48,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Extrude Pop"
+}

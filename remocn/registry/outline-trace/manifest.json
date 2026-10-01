@@ -1,0 +1,39 @@
+{
+  "category": "Typography",
+  "componentName": "OutlineTrace",
+  "dependencies": [
+    "remotion",
+    "opentype.js"
+  ],
+  "description": "Every glyph contour draws itself as a stroke, letter by letter, then the fill wipes up inside each letter and the stroke fades into it.",
+  "files": [
+    {
+      "file": "outline-trace.tsx",
+      "target": "src/components/remocn/outline-trace.tsx"
+    }
+  ],
+  "name": "outline-trace",
+  "preview": {
+    "durationInFrames": 75,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#ff4d1a"
+    },
+    "defaults": {
+      "text": "Outline",
+      "color": "#111111",
+      "strokeColor": "#111111",
+      "fontSize": 150,
+      "strokeWidth": 2.5,
+      "stagger": 3,
+      "fill": true,
+      "keepStroke": false,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Outline Trace"
+}

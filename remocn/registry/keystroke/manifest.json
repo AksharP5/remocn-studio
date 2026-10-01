@@ -1,0 +1,37 @@
+{
+  "category": "Effects",
+  "componentName": "Keystroke",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "Physical keycaps rise in for each shortcut, press in real order with the modifiers held while the letter taps, spring back with a small capped overshoot, and leave after an idle hold, firing on the same frames as the remocn-ui steps they trigger.",
+  "files": [
+    {
+      "file": "keystroke.tsx",
+      "target": "src/components/remocn/keystroke.tsx"
+    }
+  ],
+  "name": "keystroke",
+  "preview": {
+    "durationInFrames": 180,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#e9e9e5"
+    },
+    "defaults": {
+      "platform": "mac",
+      "theme": "light",
+      "accent": "#0a84ff",
+      "size": 64,
+      "linger": 30,
+      "x": 0.5,
+      "y": 0.86,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Keystroke"
+}

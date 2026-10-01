@@ -1,0 +1,36 @@
+{
+  "category": "Typography",
+  "componentName": "SheenSlideIn",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "A title glides in from the right with an exponential settle and a slow final creep to center, while a gradient sheen sweeps once through the glyphs.",
+  "files": [
+    {
+      "file": "sheen-slide-in.tsx",
+      "target": "src/components/remocn/sheen-slide-in.tsx"
+    }
+  ],
+  "name": "sheen-slide-in",
+  "preview": {
+    "durationInFrames": 70,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#ffffff"
+    },
+    "defaults": {
+      "text": "Introducing",
+      "exitAt": 60,
+      "fontSize": 72,
+      "baseColor": "#18181b",
+      "sheenColor": "#4f8ef7",
+      "fontWeight": "400",
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Sheen Slide In"
+}

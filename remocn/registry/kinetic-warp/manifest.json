@@ -1,0 +1,34 @@
+{
+  "category": "Typography",
+  "componentName": "KineticWarp",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "A coarse mesh warp bends a whole word in staccato beats, one axis per keyframe.",
+  "files": [
+    {
+      "file": "kinetic-warp.tsx",
+      "target": "src/components/remocn/kinetic-warp.tsx"
+    }
+  ],
+  "name": "kinetic-warp",
+  "preview": {
+    "durationInFrames": 120,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "defaults": {
+      "text": "REM\nOCN",
+      "textColor": "#FFFFFF",
+      "fontFamily": "Passion One",
+      "fontUrl": "https://fonts.googleapis.com/css2?family=Passion+One:wght@400;700;900&display=block",
+      "fontWeight": "700",
+      "fontSize": 107.1,
+      "layerScale": 480,
+      "keyframeStride": 20,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Kinetic Warp"
+}

@@ -1,0 +1,36 @@
+{
+  "category": "Typography",
+  "componentName": "PerspectiveSqueeze",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "Two lines of heavy type endlessly trade height while corner-pinned perspective bends the flat stack into receding planes.",
+  "files": [
+    {
+      "file": "perspective-squeeze.tsx",
+      "target": "src/components/remocn/perspective-squeeze.tsx"
+    }
+  ],
+  "name": "perspective-squeeze",
+  "preview": {
+    "durationInFrames": 225,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#141318"
+    },
+    "defaults": {
+      "upperText": "REMOCN",
+      "lowerText": "BEST",
+      "fill": "#f2f2f2",
+      "upperFontFamily": "Impact, 'Arial Narrow', sans-serif",
+      "lowerFontFamily": "Impact, 'Arial Narrow', sans-serif",
+      "lineGap": 50,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Perspective Squeeze"
+}
