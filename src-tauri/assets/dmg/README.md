@@ -9,6 +9,14 @@ sidebar in `app/globals.css`. Animation is frozen at frame 120, speed 0.
 Finder displays the PNG behind the real application and Applications icons.
 The image is committed, so release builds do not need a browser or WebGL.
 
+Finder draws the icon names in black at 16 px, which disappears on the dark
+background, so the image carries a white pill under each name. Finder centers
+a name 84 px below its icon's center: the pills sit at `y = 314` under the
+`appPosition` and `applicationFolderPosition` x values, 134 px wide for
+"Remocn Studio" and 114 px for "Applications". Move them together with the
+icon positions in `src-tauri/tauri.conf.json`, and widen the app pill if the
+product name changes.
+
 To regenerate from the repository root on macOS with Google Chrome installed:
 
 ```sh

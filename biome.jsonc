@@ -23,6 +23,8 @@
       // Vendored remocn registry components; same story via `remocn:check`.
       "!!remocn",
       "!!test/fixtures",
+      "!!videos",
+      "!!artifacts",
       // A copy of the landing's welcome composition, synced by hand until it
       // is published to the registry. Formatting it would turn every sync into
       // a merge.
