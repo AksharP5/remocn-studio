@@ -1,5 +1,17 @@
 # remocn-studio
 
+## 1.0.0
+
+### Major Changes
+
+- e61b9a7: Remocn Studio is 1.0.
+
+### Patch Changes
+
+- 8f5a54f: The installer window's labels are readable again. "Remocn Studio" and "Applications" were black text on the dark background; each name now sits on a white badge.
+- a47164d: The model menus carry the latest models. Claude adds Sonnet 5.5. Codex adds GPT-6.1 Sol, GPT-6 Sol and GPT-6 Luna, which need codex-cli 0.159 or newer. Copilot offers Fable 5.1, Opus 5.5, Sonnet 5.5, GPT-6.1 Sol, GPT-6 Astra, Gemini 3.8 Flash and Grok 4.6; Gemini 3.1 Pro is gone from its catalog. Grok adds Grok 4.7 and Grok 4.7 Fast.
+- 798d161: The library has forty-one new remocn components from August and September, among them Lens Zoom, Shader Seam, Shader Spiral Pass, Shader Light Tunnel, Keystroke, Radial Burst and thirty-four typography animations. The components already in the library are updated to their latest versions, with new previews.
+
 ## 0.12.0
 
 ### Minor Changes
