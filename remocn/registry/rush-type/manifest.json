@@ -1,0 +1,39 @@
+{
+  "category": "Typography",
+  "componentName": "RushType",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "A resting white word blasts through vertical scale motion, separating into energy-conserving RGB shutter trails before the next word resolves.",
+  "files": [
+    {
+      "file": "rush-type.tsx",
+      "target": "src/components/remocn/rush-type.tsx"
+    }
+  ],
+  "name": "rush-type",
+  "preview": {
+    "durationInFrames": 104,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#000000"
+    },
+    "defaults": {
+      "phrase": "gone before you look",
+      "fontSize": 68,
+      "fontWeight": "400",
+      "color": "#ffffff",
+      "backgroundColor": "#000000",
+      "verticalStretch": 7,
+      "chromaticSpread": 1,
+      "restDuration": 12,
+      "peakHoldDuration": 3,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Rush Type"
+}

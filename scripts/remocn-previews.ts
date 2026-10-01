@@ -14,7 +14,7 @@ import { dirname, join, resolve } from "node:path";
 // child scenes) are rendered through that same example, fetched from the pin;
 // anything that cannot be mounted is skipped out loud and its card keeps the
 // icon.
-const PIN = "0797bfe319bd2dae06eea5a9f67591e1b31392e5";
+const PIN = "8ae853e4c08108105684d4b8cac7f22400840d2a";
 const RAW = `https://raw.githubusercontent.com/Remocn/remocn/${PIN}`;
 
 const CLIP_SECONDS = 6;

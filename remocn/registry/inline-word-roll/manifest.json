@@ -1,0 +1,38 @@
+{
+  "category": "Typography",
+  "componentName": "InlineWordRoll",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "Roll through words beside a fixed prefix with accelerating timing and smoothly centered width.",
+  "files": [
+    {
+      "file": "inline-word-roll.tsx",
+      "target": "src/components/remocn/inline-word-roll.tsx"
+    }
+  ],
+  "name": "inline-word-roll",
+  "preview": {
+    "durationInFrames": 105,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#000000"
+    },
+    "defaults": {
+      "prefix": "Looking for",
+      "text": "leads | customers | subscribers | appointments | demos | quotes | registrants | trials | conversions",
+      "suffix": "?",
+      "fontSize": 60,
+      "interval": 12,
+      "acceleration": 0.9,
+      "transitionFrames": 6,
+      "color": "#f5f5f5",
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Inline Word Roll"
+}

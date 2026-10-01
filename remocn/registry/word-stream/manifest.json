@@ -1,0 +1,37 @@
+{
+  "category": "Typography",
+  "componentName": "WordStream",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "Voiceover-paced phrases that build word by word — the next word looms as a blurred ghost before it resolves, then the phrase cuts away.",
+  "files": [
+    {
+      "file": "word-stream.tsx",
+      "target": "src/components/remocn/word-stream.tsx"
+    }
+  ],
+  "name": "word-stream",
+  "preview": {
+    "durationInFrames": 100,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#ffffff"
+    },
+    "defaults": {
+      "text": "introducing | one-tap checkout | for your store",
+      "fontSize": 72,
+      "wordGap": 6,
+      "hold": 18,
+      "drift": 2,
+      "color": "#171717",
+      "fontWeight": "400",
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Word Stream"
+}

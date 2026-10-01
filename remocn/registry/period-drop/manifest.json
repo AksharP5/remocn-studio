@@ -1,0 +1,37 @@
+{
+  "category": "Typography",
+  "componentName": "PeriodDrop",
+  "dependencies": [
+    "remotion",
+    "@remotion/google-fonts"
+  ],
+  "description": "A word rises out of its line, then a colored dot falls from above the frame, bounces with squash and stretch, and settles as the period.",
+  "files": [
+    {
+      "file": "period-drop.tsx",
+      "target": "src/components/remocn/period-drop.tsx"
+    }
+  ],
+  "name": "period-drop",
+  "preview": {
+    "durationInFrames": 75,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#0a0a0a"
+    },
+    "defaults": {
+      "text": "remocn",
+      "color": "#fafafa",
+      "dotColor": "#ff4d1a",
+      "fontSize": 160,
+      "fontWeight": 800,
+      "dotSize": 0.2,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Period Drop"
+}

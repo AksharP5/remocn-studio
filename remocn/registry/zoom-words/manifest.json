@@ -1,0 +1,39 @@
+{
+  "category": "Typography",
+  "componentName": "ZoomWords",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "A close-up word reveal: huge words fade into a long line while the camera rides the write head, the line streaming off-frame as the shot eases into focus.",
+  "files": [
+    {
+      "file": "zoom-words.tsx",
+      "target": "src/components/remocn/zoom-words.tsx"
+    }
+  ],
+  "name": "zoom-words",
+  "preview": {
+    "durationInFrames": 75,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "gradient",
+      "value": "linear-gradient(180deg, #0a0612 25%, #6a3fd6 100%)"
+    },
+    "defaults": {
+      "text": "Still piecing together tools",
+      "fontSize": 64,
+      "wordGap": 12,
+      "zoom": 2.2,
+      "anchor": 0.5,
+      "blur": 0.04,
+      "blurFrames": 60,
+      "color": "#cfc2ff",
+      "fontWeight": "400",
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Zoom Words"
+}

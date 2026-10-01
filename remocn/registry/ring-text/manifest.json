@@ -1,0 +1,40 @@
+{
+  "category": "Typography",
+  "componentName": "RingText",
+  "dependencies": [
+    "remotion",
+    "@remotion/google-fonts"
+  ],
+  "description": "Text runs around a tilted 3D band that spins, reading on the near side and mirrored on the far side.",
+  "files": [
+    {
+      "file": "ring-text.tsx",
+      "target": "src/components/remocn/ring-text.tsx"
+    }
+  ],
+  "name": "ring-text",
+  "preview": {
+    "durationInFrames": 180,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#d4ff1f"
+    },
+    "defaults": {
+      "text": "Type in motion",
+      "separator": "•",
+      "color": "#d4ff1f",
+      "band": "#0a0a0a",
+      "radius": 210,
+      "fontSize": 40,
+      "tilt": 38,
+      "roll": -16,
+      "period": 240,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Ring Text"
+}

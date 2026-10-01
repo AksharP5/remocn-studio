@@ -1,0 +1,39 @@
+{
+  "category": "Typography",
+  "componentName": "SelectionSnap",
+  "dependencies": [
+    "remotion",
+    "@remotion/google-fonts"
+  ],
+  "description": "A thin word in a loose viewfinder snaps into a design-tool selection while it goes from Thin to Black, pops its handles and counts up a size badge.",
+  "files": [
+    {
+      "file": "selection-snap.tsx",
+      "target": "src/components/remocn/selection-snap.tsx"
+    }
+  ],
+  "name": "selection-snap",
+  "preview": {
+    "durationInFrames": 75,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#0a0a0a"
+    },
+    "defaults": {
+      "text": "Frame",
+      "color": "#fafafa",
+      "accent": "#ff4d1a",
+      "selectionColor": "#3d5afe",
+      "fontSize": 150,
+      "fromWeight": 100,
+      "toWeight": 900,
+      "badge": true,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Selection Snap"
+}

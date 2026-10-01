@@ -1,0 +1,39 @@
+{
+  "category": "Typography",
+  "componentName": "TypeRepeater",
+  "dependencies": [
+    "remotion",
+    "@remotion/google-fonts"
+  ],
+  "description": "An After Effects style repeater on a word, where copies unfold into a tunnel, a spiral or a fan behind it, breathe, then fold back into the word.",
+  "files": [
+    {
+      "file": "type-repeater.tsx",
+      "target": "src/components/remocn/type-repeater.tsx"
+    }
+  ],
+  "name": "type-repeater",
+  "preview": {
+    "durationInFrames": 100,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#ff4d1a"
+    },
+    "defaults": {
+      "text": "Repeat",
+      "mode": "tunnel",
+      "color": "#111111",
+      "accent": "#fafafa",
+      "copies": 12,
+      "fontSize": 110,
+      "fontWeight": 800,
+      "outline": true,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Type Repeater"
+}

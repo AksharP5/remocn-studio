@@ -1,0 +1,35 @@
+{
+  "category": "Shaders",
+  "componentName": "ShaderLightTunnel",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "Fly straight through a tunnel made from the original OpenShaders hero shader.",
+  "files": [
+    {
+      "file": "shader-light-tunnel.tsx",
+      "target": "src/components/remocn/shader-light-tunnel.tsx"
+    }
+  ],
+  "name": "shader-light-tunnel",
+  "preview": {
+    "durationInFrames": 90,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#05050a"
+    },
+    "defaults": {
+      "speed": 1,
+      "twist": 0.7,
+      "spirals": 3,
+      "glow": 1,
+      "depth": 1,
+      "timeOffset": 0
+    }
+  },
+  "registryDependencies": [],
+  "title": "Light Tunnel"
+}

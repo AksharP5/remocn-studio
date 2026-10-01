@@ -1,0 +1,38 @@
+{
+  "category": "Typography",
+  "componentName": "KineticMorphText",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "Letters lift, rotate, and softly reshape into editable phrases with sampled outline trails.",
+  "files": [
+    {
+      "file": "kinetic-morph-text.tsx",
+      "target": "src/components/remocn/kinetic-morph-text.tsx"
+    }
+  ],
+  "name": "kinetic-morph-text",
+  "preview": {
+    "durationInFrames": 288,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "defaults": {
+      "text": "Hello | Make it move | Shape what's next",
+      "fontSize": 100,
+      "fontWeight": "600",
+      "spread": 180,
+      "rotation": 110,
+      "morph": 0.75,
+      "trails": 0.45,
+      "transitionFrames": 54,
+      "holdFrames": 42,
+      "loop": false,
+      "color": "#b4f4d9",
+      "backgroundColor": "#a800b7",
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Kinetic Morph Text"
+}

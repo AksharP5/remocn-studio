@@ -1,0 +1,38 @@
+{
+  "category": "Transitions",
+  "componentName": null,
+  "dependencies": [
+    "remotion",
+    "@remotion/transitions"
+  ],
+  "description": "Accelerate into the hero spiral and emerge through its soft center into the next scene.",
+  "files": [
+    {
+      "file": "shader-spiral-pass.tsx",
+      "target": "src/components/remocn/shader-spiral-pass.tsx"
+    }
+  ],
+  "name": "shader-spiral-pass",
+  "preview": {
+    "durationInFrames": 168,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#15111c"
+    },
+    "defaults": {
+      "speed": 1,
+      "spirals": 3,
+      "twist": 0.7,
+      "zoom": 14,
+      "softness": 0.12,
+      "timeOffset": 0
+    }
+  },
+  "registryDependencies": [
+    "shader-light-tunnel"
+  ],
+  "title": "Shader Spiral Pass"
+}

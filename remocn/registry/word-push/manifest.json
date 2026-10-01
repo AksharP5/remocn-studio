@@ -1,0 +1,36 @@
+{
+  "category": "Typography",
+  "componentName": "WordPush",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "A phrase builds from its first word centered: each next word drives in from the right and pushes the line left, easing into the new center.",
+  "files": [
+    {
+      "file": "word-push.tsx",
+      "target": "src/components/remocn/word-push.tsx"
+    }
+  ],
+  "name": "word-push",
+  "preview": {
+    "durationInFrames": 90,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#ffffff"
+    },
+    "defaults": {
+      "text": "move at your own pace",
+      "fontSize": 72,
+      "wordGap": 10,
+      "accel": 0.8,
+      "color": "#171717",
+      "fontWeight": "400",
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Word Push"
+}

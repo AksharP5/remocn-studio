@@ -1,0 +1,38 @@
+{
+  "category": "Typography",
+  "componentName": "TypeWall",
+  "dependencies": [
+    "remotion",
+    "@remotion/google-fonts"
+  ],
+  "description": "Rows of one word fill the frame, run in alternating directions at different speeds in heavy, narrow and outline faces, with an accent band through the middle.",
+  "files": [
+    {
+      "file": "type-wall.tsx",
+      "target": "src/components/remocn/type-wall.tsx"
+    }
+  ],
+  "name": "type-wall",
+  "preview": {
+    "durationInFrames": 150,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#2b3bff"
+    },
+    "defaults": {
+      "text": "MOTION",
+      "separator": "·",
+      "color": "#fafafa",
+      "accent": "#ff4d1a",
+      "accentText": "#111111",
+      "fontSize": 64,
+      "seed": 7,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Type Wall"
+}

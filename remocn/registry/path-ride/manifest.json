@@ -1,0 +1,39 @@
+{
+  "category": "Typography",
+  "componentName": "PathRide",
+  "dependencies": [
+    "remotion",
+    "@remotion/google-fonts",
+    "@remotion/paths"
+  ],
+  "description": "A line draws itself along a curve with the text riding behind its head, then the curve pulls taut and the text settles on a straight, centered baseline.",
+  "files": [
+    {
+      "file": "path-ride.tsx",
+      "target": "src/components/remocn/path-ride.tsx"
+    }
+  ],
+  "name": "path-ride",
+  "preview": {
+    "durationInFrames": 96,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#ff4d1a"
+    },
+    "defaults": {
+      "text": "Follow the line",
+      "path": "M 120 560 C 360 120 560 120 640 360 S 920 600 1160 160",
+      "color": "#111111",
+      "lineColor": "#fafafa",
+      "fontSize": 44,
+      "fontWeight": 700,
+      "lineWidth": 3,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Path Ride"
+}

@@ -1,0 +1,41 @@
+{
+  "category": "Typography",
+  "componentName": "CenteredWordBuild",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "Words appear sharply from below while the centered phrase pushes cumulatively closer on every beat, then clears through a soft left-to-right opacity wipe.",
+  "files": [
+    {
+      "file": "centered-word-build.tsx",
+      "target": "src/components/remocn/centered-word-build.tsx"
+    }
+  ],
+  "name": "centered-word-build",
+  "preview": {
+    "durationInFrames": 75,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "gradient",
+      "value": "radial-gradient(circle at 50% 108%, #ffd77a 0%, #ff6840 31%, #f13d21 78%)"
+    },
+    "defaults": {
+      "text": "everything we learn from",
+      "fontSize": 52,
+      "wordGap": 11,
+      "accel": 0.75,
+      "rise": 0.18,
+      "zoomStep": 0.035,
+      "settleFrames": 9,
+      "exitAt": 51,
+      "exitFrames": 12,
+      "color": "#fff3df",
+      "fontWeight": "400",
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Centered Word Build"
+}

@@ -1,0 +1,38 @@
+{
+  "category": "Typography",
+  "componentName": "GlyphAnatomy",
+  "dependencies": [
+    "remotion",
+    "opentype.js",
+    "@remotion/google-fonts"
+  ],
+  "description": "A word builds as in a font editor, with metric guides, anchors along each contour and Bézier handles that pull straight segments into curves before the glyphs fill.",
+  "files": [
+    {
+      "file": "glyph-anatomy.tsx",
+      "target": "src/components/remocn/glyph-anatomy.tsx"
+    }
+  ],
+  "name": "glyph-anatomy",
+  "preview": {
+    "durationInFrames": 96,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "previewBackdrop": {
+      "type": "color",
+      "value": "#0a0a0a"
+    },
+    "defaults": {
+      "text": "Glyph",
+      "color": "#fafafa",
+      "guideColor": "#0d99ff",
+      "fontSize": 200,
+      "guides": true,
+      "keepPoints": false,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Glyph Anatomy"
+}

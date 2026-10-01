@@ -1,0 +1,32 @@
+{
+  "category": "Typography",
+  "componentName": "ChromaticWave",
+  "dependencies": [
+    "remotion"
+  ],
+  "description": "A soft wave travels down through the type; where it crosses, the letters ripple and split into RGB fringes.",
+  "files": [
+    {
+      "file": "chromatic-wave.tsx",
+      "target": "src/components/remocn/chromatic-wave.tsx"
+    }
+  ],
+  "name": "chromatic-wave",
+  "preview": {
+    "durationInFrames": 100,
+    "fps": 30,
+    "compositionWidth": 1280,
+    "compositionHeight": 720,
+    "defaults": {
+      "headline": "MUSIC",
+      "kicker": "APPLES",
+      "fill": "#ffffff",
+      "waveHeight": 28,
+      "maxDisplacementPx": 39,
+      "turbulentAmount": 130,
+      "speed": 1
+    }
+  },
+  "registryDependencies": [],
+  "title": "Chromatic Wave"
+}
