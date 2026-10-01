@@ -11,6 +11,7 @@ export const CLAUDE_MODELS: readonly ModelChoice[] = [
   { label: "Fable 5", value: "claude-fable-5" },
   { label: "Opus 5.5", value: "claude-opus-5-5" },
   { label: "Opus 5", value: "claude-opus-5" },
+  { label: "Sonnet 5.5", value: "claude-sonnet-5-5" },
   { label: "Sonnet 5", value: "claude-sonnet-5" },
   { label: "Haiku 4.5", value: "claude-haiku-4-5-20251001" },
 ];
@@ -22,7 +23,8 @@ export const DEFAULT_CLAUDE_MODEL = "claude-opus-5";
 // `system`/`init` — so the studio has to know which ones, or the Mode chip
 // claims a mode the turn did not run in. Measured one probe per model against
 // the real CLI, reading the mode `init` answers with: Fable 5.1, Fable 5,
-// Opus 5 and Sonnet 5 all run Auto; Haiku 4.5 comes back `default`.
+// Opus 5.5, Opus 5, Sonnet 5.5 and Sonnet 5 all run Auto; Haiku 4.5 comes
+// back `default`.
 const WITHOUT_AUTO: ReadonlySet<string> = new Set([
   "claude-haiku-4-5-20251001",
 ]);
@@ -54,34 +56,44 @@ export function runningModeLabel(mode: RunningMode): string {
 // that can never drift, so it leads. Astra is gated by the CLI, not the
 // plan: measured on the same login, codex-cli 0.148.0 answers 400 *"The
 // 'gpt-6-astra' model requires a newer version of Codex"* and 0.153.4 —
-// the first release carrying the slug — runs it.
+// the first release carrying the slug — runs it. The GPT-6 Sol and Luna pair
+// and GPT-6.1 Sol follow the same gate: 0.153.4 answers 400 *"The
+// 'gpt-6.1-sol' model is not supported when using Codex with a ChatGPT
+// account"* and 0.159.3 runs all three on the same login.
 export const CODEX_MODELS: readonly ModelChoice[] = [
   { label: "Default", value: "" },
+  { label: "GPT-6.1 Sol", value: "gpt-6.1-sol" },
   { label: "GPT-6 Astra", value: "gpt-6-astra" },
+  { label: "GPT-6 Sol", value: "gpt-6-sol" },
+  { label: "GPT-6 Luna", value: "gpt-6-luna" },
   { label: "GPT-5.6 Terra", value: "gpt-5.6-terra" },
   { label: "GPT-5.6 Luna", value: "gpt-5.6-luna" },
   { label: "GPT-5.6 Sol", value: "gpt-5.6-sol" },
 ];
 
-// A curated head of the 27 models `copilot help config` documents (CLI
-// 1.0.80) — Copilot is a router over other vendors' models, so the group
+// A curated head of the 32 models `copilot help config` documents (CLI
+// 1.0.90) — Copilot is a router over other vendors' models, so the group
 // samples one strong entry per family rather than mirroring the whole
 // catalog. Which of them an account may actually use is plan-shaped; a
 // refused model fails the turn with the router's own sentence. "Default"
 // is `auto` — Copilot picks — and cannot drift.
 export const COPILOT_MODELS: readonly ModelChoice[] = [
   { label: "Default", value: "" },
-  { label: "Claude Sonnet 5", value: "claude-sonnet-5" },
-  { label: "Claude Opus 5", value: "claude-opus-5" },
-  { label: "GPT-5.6 Terra", value: "gpt-5.6-terra" },
-  { label: "Gemini 3.1 Pro", value: "gemini-3.1-pro-preview" },
-  { label: "Grok 4.5", value: "grok-4.5" },
+  { label: "Claude Fable 5.1", value: "claude-fable-5.1" },
+  { label: "Claude Opus 5.5", value: "claude-opus-5.5" },
+  { label: "Claude Sonnet 5.5", value: "claude-sonnet-5.5" },
+  { label: "GPT-6.1 Sol", value: "gpt-6.1-sol" },
+  { label: "GPT-6 Astra", value: "gpt-6-astra" },
+  { label: "Gemini 3.8 Flash", value: "gemini-3.8-flash" },
+  { label: "Grok 4.6", value: "grok-4.6" },
 ];
 
-// Measured live with `grok models` against a grok.com login: 4.6 is the
-// default, 4.5 the one alternative.
+// Measured live with `grok models` against a grok.com login (grok 1.0.44):
+// 4.7 is the default, 4.7 Fast its quicker variant, 4.6 and 4.5 behind.
 export const GROK_MODELS: readonly ModelChoice[] = [
   { label: "Default", value: "" },
+  { label: "Grok 4.7", value: "grok-4.7" },
+  { label: "Grok 4.7 Fast", value: "grok-4.7-build-fast" },
   { label: "Grok 4.6", value: "grok-4.6" },
   { label: "Grok 4.5", value: "grok-4.5" },
 ];
