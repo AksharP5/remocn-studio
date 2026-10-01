@@ -41,7 +41,8 @@
   <a href="#how-a-video-gets-made">The pipeline</a> ·
   <a href="#on-set">On set</a> ·
   <a href="#the-cast">The cast</a> ·
-  <a href="#behind-the-scenes">Build from source</a>
+  <a href="#behind-the-scenes">Build from source</a> ·
+  <a href="#contributing">Contributing</a>
 </p>
 
 
@@ -258,12 +259,21 @@ the keychain and the updater. The webview is a **Next.js** static export. A
 and the renderer. The map of the system and the working rules are in
 [`CLAUDE.md`](CLAUDE.md).
 
-**Contributing.** What the studio does is specified in
-[`openspec/specs`](openspec/specs): one spec per capability, each written as
-requirements with scenarios. To change behavior, open an OpenSpec change. To
-ship it, record it with `bun run changeset`. The reasoning behind each area,
-including the measurements and the failed attempts, is in
-[`docs/decisions`](docs/decisions).
+## Contributing
+
+Bug reports, fixes and ideas are welcome. Start with
+[`CONTRIBUTING.md`](CONTRIBUTING.md). It covers setting up, the checks CI
+runs, and what a pull request needs.
+
+What the studio does is specified in [`openspec/specs`](openspec/specs): one
+spec per capability, each written as requirements with scenarios. To change
+behavior, open an OpenSpec change. To ship it, record it with
+`bun run changeset`. The reasoning behind each area, including the
+measurements and the failed attempts, is in [`docs/decisions`](docs/decisions).
+
+Found a security issue? Please report it privately through
+[GitHub security advisories](https://github.com/Remocn/remocn-studio/security/advisories/new)
+instead of opening an issue.
 
 ## Built with
 
@@ -287,14 +297,6 @@ including the measurements and the failed attempts, is in
   framework. Remotion has its own
   [license terms](https://www.remotion.dev/license), and companies may need a
   company license.
-- The motion components come from [remocn](https://remocn.dev).
-- The badges on this page are rendered by [shieldcn](https://shieldcn.dev).
+- The motion components come from [remocn](https://remocn.dev)
 
-Remocn Studio is released under the [MIT License](LICENSE). © 2026 Remocn.
-
-```text
-                                                           FADE OUT.
-
-                               THE END
-                (of the README. Your video is just getting started.)
-```
+Remocn Studio is released under the [MIT License](LICENSE). © 2026 Remocn
