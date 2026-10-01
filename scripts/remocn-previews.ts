@@ -63,6 +63,37 @@ async function manifestOf(name: string): Promise<Manifest> {
   ) as Manifest;
 }
 
+const WEBGL_CONTEXT = /getContext\(\s*["']webgl/;
+
+async function needsGl(
+  name: string,
+  seen: Set<string> = new Set()
+): Promise<boolean> {
+  if (seen.has(name)) {
+    return false;
+  }
+  seen.add(name);
+
+  const manifest = await manifestOf(name);
+  if (manifest.dependencies.includes("@paper-design/shaders-react")) {
+    return true;
+  }
+  for (const file of manifest.files) {
+    // biome-ignore lint/performance/noAwaitInLoops: a build script, run once
+    const source = await readFile(join(REGISTRY, name, file.file), "utf8");
+    if (WEBGL_CONTEXT.test(source)) {
+      return true;
+    }
+  }
+  for (const referenced of manifest.registryDependencies) {
+    // biome-ignore lint/performance/noAwaitInLoops: stops at the first hit
+    if (await needsGl(referenced, seen)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // __index__.tsx knows how the docs preview mounts each component: straight
 // from the registry, or through an example scene under components/docs.
 const INDEX_ENTRY =
@@ -384,15 +415,12 @@ async function main(): Promise<void> {
 
   for (const mount of mountable) {
     const { name } = mount.manifest;
-    const useGl = mount.manifest.dependencies.includes(
-      "@paper-design/shaders-react"
-    );
-    const gl = glFlag ?? (useGl ? "angle" : null);
+    // biome-ignore lint/performance/noAwaitInLoops: renders are memory-bound, sequential on purpose
+    const gl = glFlag ?? ((await needsGl(name)) ? "angle" : null);
     const chromiumOptions = gl === null ? {} : { gl };
     const out = join(REGISTRY, name);
 
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: renders are memory-bound, sequential on purpose
       const composition = await renderer.selectComposition({
         chromiumOptions,
         id: name,
