@@ -31,11 +31,23 @@ fn asked_to_quit() -> bool {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // WebKit's DMABuf path produces a blank webview on the Omarchy NVIDIA
-    // desktop. Keep compositing available through its fallback renderer.
     #[cfg(target_os = "linux")]
-    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
-        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    {
+        // WebKit's DMABuf path leaves this NVIDIA desktop blank; its fallback
+        // renderer keeps compositing available.
+        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        }
+
+        // NVIDIA EGL crashes during WebKit shutdown here. Mesa preserves WebGL
+        // and lets the web process exit cleanly.
+        const MESA_EGL: &str = "/usr/share/glvnd/egl_vendor.d/50_mesa.json";
+        if std::env::var_os("__EGL_VENDOR_LIBRARY_FILENAMES").is_none()
+            && std::path::Path::new("/sys/module/nvidia").exists()
+            && std::path::Path::new(MESA_EGL).is_file()
+        {
+            std::env::set_var("__EGL_VENDOR_LIBRARY_FILENAMES", MESA_EGL);
+        }
     }
 
     // `generate_context!()` is bound rather than passed straight to `build`,
