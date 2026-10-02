@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   fileManagerName,
+  isModKey,
   modKeyCombo,
   modKeyLabel,
   platformOf,
@@ -50,5 +51,19 @@ describe("labels", () => {
     expect(fileManagerName("mac")).toBe("Finder");
     expect(fileManagerName("windows")).toBe("File Explorer");
     expect(fileManagerName("linux")).toBe("Files");
+  });
+});
+
+describe("isModKey", () => {
+  it("uses Command on macOS and Control on Linux and Windows", () => {
+    const command = { ctrlKey: false, metaKey: true };
+    const control = { ctrlKey: true, metaKey: false };
+    expect(isModKey(command, "mac")).toBe(true);
+    expect(isModKey(control, "mac")).toBe(false);
+    for (const platform of ["linux", "windows"] as const) {
+      expect(isModKey(control, platform)).toBe(true);
+      expect(isModKey(command, platform)).toBe(false);
+      expect(isModKey({ ctrlKey: true, metaKey: true }, platform)).toBe(false);
+    }
   });
 });

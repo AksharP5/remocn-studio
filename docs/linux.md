@@ -24,7 +24,7 @@ bun run linux:build --no-sign
 bash scripts/install-linux.sh
 ```
 
-The build automatically downloads the Bun version pinned in `package.json`. Linux native menus operate directly on the WebKit editor, including clipboard actions on Wayland. If Node.js is missing, Install Node.js installs the official LTS runtime within app data after verifying its checksum, without changing system packages or shell configuration.
+The build automatically downloads the Bun version pinned in `package.json`. Linux editing shortcuts use Control. Native Undo follows the focused canvas; text and clipboard actions use WebKit, including on Wayland. If Node.js is missing, Install Node.js installs the official LTS runtime within app data after verifying its checksum, without changing system packages or shell configuration.
 
 ## Signed updates
 

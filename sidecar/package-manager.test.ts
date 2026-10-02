@@ -159,6 +159,59 @@ describe("commands", () => {
 });
 
 describe("binaryOf", () => {
+  const beforeHome = process.env.HOME;
+  const beforePath = process.env.PATH;
+
+  beforeEach(() => {
+    process.env.HOME = folder;
+  });
+
+  afterEach(() => {
+    if (beforeHome === undefined) {
+      Reflect.deleteProperty(process.env, "HOME");
+    } else {
+      process.env.HOME = beforeHome;
+    }
+    if (beforePath === undefined) {
+      Reflect.deleteProperty(process.env, "PATH");
+    } else {
+      process.env.PATH = beforePath;
+    }
+  });
+
+  it("prefers the active PATH over a home-directory fallback", async () => {
+    const active = path.join(folder, "node/bin");
+    const fallback = path.join(folder, ".volta/bin");
+    await Promise.all(
+      [active, fallback].map(async (dir) => {
+        await mkdir(dir, { recursive: true });
+        await writeFile(path.join(dir, "npm"), "#!/bin/sh\nexit 0\n", {
+          mode: 0o755,
+        });
+      })
+    );
+    process.env.PATH = active;
+
+    expect(binaryOf("npm")).toBe(path.join(active, "npm"));
+  });
+
+  it("skips non-executable files and directories before a working binary", async () => {
+    const blocked = path.join(folder, "blocked");
+    const directory = path.join(folder, "directory");
+    const active = path.join(folder, "active");
+    await Promise.all(
+      [blocked, directory, active].map((dir) => mkdir(dir, { recursive: true }))
+    );
+    await writeFile(path.join(blocked, "npm"), "stale shim", { mode: 0o644 });
+    await mkdir(path.join(directory, "npm"));
+    await writeFile(path.join(active, "npm"), "#!/bin/sh\nexit 0\n", {
+      mode: 0o755,
+    });
+    process.env.PATH = [blocked, directory, active].join(path.delimiter);
+
+    expect(binaryOf("npm")).toBe(path.join(active, "npm"));
+  });
+
   it("uses the sidecar's own runtime for bun, and only for bun", () => {
     if (isOwnRuntime("bun")) {
       expect(binaryOf("bun")).toBe(process.execPath);

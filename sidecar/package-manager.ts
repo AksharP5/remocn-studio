@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { env } from "node:process";
+import { which } from "bun";
 
 export const PACKAGE_MANAGERS = ["bun", "pnpm", "yarn", "npm"] as const;
 
@@ -114,16 +115,15 @@ export function isOwnRuntime(manager: PackageManager): boolean {
 
 export function searchDirs(): readonly string[] {
   const dirs: string[] = [];
-  const home = env.HOME;
-
-  if (home !== undefined) {
-    dirs.push(...HOME_DIRS.map((dir) => path.join(home, dir)));
-  }
-
   if (env.PATH !== undefined) {
     dirs.push(
       ...env.PATH.split(path.delimiter).filter((dir) => dir.length > 0)
     );
+  }
+
+  const home = env.HOME;
+  if (home !== undefined) {
+    dirs.push(...HOME_DIRS.map((dir) => path.join(home, dir)));
   }
 
   dirs.push(...FALLBACK_DIRS);
@@ -136,13 +136,5 @@ export function binaryOf(manager: PackageManager): string | null {
     return process.execPath;
   }
 
-  for (const dir of searchDirs()) {
-    const candidate = path.join(dir, manager);
-
-    if (existsSync(candidate)) {
-      return candidate;
-    }
-  }
-
-  return null;
+  return which(manager, { PATH: searchDirs().join(path.delimiter) });
 }

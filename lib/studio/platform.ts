@@ -26,6 +26,15 @@ export function modKeyLabel(platform: Platform = currentPlatform()): string {
   return platform === "mac" ? "⌘" : "Ctrl";
 }
 
+export function isModKey(
+  event: Pick<KeyboardEvent, "ctrlKey" | "metaKey">,
+  platform: Platform = currentPlatform()
+): boolean {
+  return platform === "mac"
+    ? event.metaKey && !event.ctrlKey
+    : event.ctrlKey && !event.metaKey;
+}
+
 export function modKeyCombo(
   key: string,
   platform: Platform = currentPlatform()

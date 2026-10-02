@@ -19,6 +19,7 @@ import {
   visibleRows,
   withAncestors,
 } from "@/lib/studio/layers";
+import { isModKey } from "@/lib/studio/platform";
 import {
   PREVIEW_COMMAND_SOURCE,
   type PreviewMessage,
@@ -63,8 +64,8 @@ function deletes(event: KeyboardEvent): boolean {
 function undoes(event: KeyboardEvent): boolean {
   return (
     event.key.toLowerCase() === "z" &&
-    event.metaKey &&
-    !(event.ctrlKey || event.altKey || event.shiftKey)
+    isModKey(event) &&
+    !(event.altKey || event.shiftKey)
   );
 }
 

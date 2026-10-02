@@ -157,6 +157,7 @@ describe("installer download cleanup", () => {
 describe.skipIf(process.platform !== "linux")(
   "Linux runtime installation",
   () => {
+    const beforeHome = process.env.HOME;
     const beforePath = process.env.PATH;
     const beforeData = process.env[DATA_DIR_ENV];
     let folder = "";
@@ -166,6 +167,11 @@ describe.skipIf(process.platform !== "linux")(
     afterEach(async () => {
       fetchSpy?.mockRestore();
       process.env.PATH = beforePath;
+      if (beforeHome === undefined) {
+        Reflect.deleteProperty(process.env, "HOME");
+      } else {
+        process.env.HOME = beforeHome;
+      }
       if (beforeData === undefined) {
         Reflect.deleteProperty(process.env, DATA_DIR_ENV);
       } else {
@@ -214,6 +220,12 @@ describe.skipIf(process.platform !== "linux")(
 
     it("installs and discovers npm immediately and on restart", async () => {
       const file = await archive(true);
+      process.env.HOME = path.join(folder, "home");
+      const shim = path.join(process.env.HOME, ".volta/bin");
+      await mkdir(shim, { recursive: true });
+      await writeFile(path.join(shim, "npm"), "#!/bin/sh\nexit 1\n", {
+        mode: 0o755,
+      });
       fetchSpy
         ?.mockResolvedValueOnce(
           Response.json([{ lts: "Jod", version: "v22.14.0" }])
@@ -266,14 +278,16 @@ describe.skipIf(process.platform !== "linux")(
     });
 
     it("aborts checksum verification before replacing the existing runtime", async () => {
-      const file = await archive(true);
+      folder = await mkdtemp(path.join(tmpdir(), "remocn-node-test-"));
+      process.env[DATA_DIR_ENV] = path.join(folder, "data");
+      const file = path.join(folder, "node.tar.xz");
       const node = path.join(folder, "data/node/bin/node");
       await mkdir(path.dirname(node), { recursive: true });
       await writeFile(node, "existing runtime");
       const started = Deferred.makeUnsafe<void>();
       let signal: AbortSignal | null | undefined;
       const response = Promise.withResolvers<Response>();
-      fetchSpy?.mockImplementation(
+      fetchSpy = spyOn(globalThis, "fetch").mockImplementation(
         Object.assign(
           (
             _url: Parameters<typeof fetch>[0],

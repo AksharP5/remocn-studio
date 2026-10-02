@@ -6,6 +6,7 @@ import { configureBridge, type PreviewCommand } from "./bridge";
 import { releaseFrameClips } from "./frame-clips";
 import { revealAll } from "./hidden";
 import { restoreSelection, selectedAnchor } from "./inspect";
+import { deferEmptyMediaMetadata } from "./media-metadata";
 import { release, releaseDetachedMedia } from "./media-release";
 import {
   delayScope,
@@ -101,6 +102,7 @@ export function mount(element: HTMLElement, environment: NativeEnvironment) {
     onUnplayable: paint,
   });
   const stopStyles = mountStyles(environment.root);
+  const stopMetadata = deferEmptyMediaMetadata(environment.root);
   const root = createRoot(element);
   const stopMedia = releaseDetachedMedia(element);
   const stopPresence = watchPresence(element, (ids) =>
@@ -145,6 +147,7 @@ export function mount(element: HTMLElement, environment: NativeEnvironment) {
         disposeNativeRemotion();
         stopPlayback();
         stopMedia();
+        stopMetadata();
         stopPresence();
         stopClips();
         stopStyles();

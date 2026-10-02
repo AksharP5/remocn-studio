@@ -82,6 +82,7 @@
       "../preview/transport.ts": "preview/transport.ts",
       "../shared/studio-geometry.ts": "shared/studio-geometry.ts",
       "../preview/interactivity.tsx": "preview/interactivity.tsx",
+      "../preview/media-metadata.ts": "preview/media-metadata.ts",
       "../preview/media-release.ts": "preview/media-release.ts",
       "../preview/presence.ts": "preview/presence.ts",
       "../preview/scenes.ts": "preview/scenes.ts",

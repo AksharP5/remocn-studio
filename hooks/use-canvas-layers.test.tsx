@@ -4,6 +4,7 @@ import type { MouseEvent } from "react";
 import type { PreviewControl, PreviewListener } from "@/hooks/use-preview";
 import type { PreviewMessage, PreviewScene } from "@/lib/studio/preview";
 import type { StudioObject } from "@/shared/studio-document";
+import { stubGlobal, unstubAllGlobals } from "@/test/stub-global";
 import { useCanvasLayers } from "./use-canvas-layers";
 
 function object(
@@ -102,6 +103,7 @@ function setup(
 
 afterEach(() => {
   document.body.replaceChildren();
+  unstubAllGlobals();
 });
 
 describe("useCanvasLayers", () => {
@@ -458,6 +460,18 @@ describe("useCanvasLayers", () => {
 });
 
 describe("deleting from the canvas and the list", () => {
+  it("undoes with Ctrl+Z on a Linux canvas", () => {
+    stubGlobal("navigator", { userAgent: "X11; Linux x86_64" });
+    const { deletion, press } = setup("card");
+
+    expect(press({ ctrlKey: true, key: "z" }).defaultPrevented).toBe(true);
+    expect(deletion.undo).toHaveBeenCalledTimes(1);
+    expect(
+      press({ ctrlKey: true, key: "z", shiftKey: true }).defaultPrevented
+    ).toBe(false);
+    expect(deletion.undo).toHaveBeenCalledTimes(1);
+  });
+
   it("deletes on Delete and ⌫, and undoes on ⌘Z", () => {
     const { deletion, press } = setup("card");
     expect(press({ key: "Backspace" }).defaultPrevented).toBe(true);

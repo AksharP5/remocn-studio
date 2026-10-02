@@ -1,8 +1,11 @@
-import { describe, expect, it, mock } from "bun:test";
+import { afterEach, describe, expect, it, mock } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useChatRowMenu, useVideoRowMenu } from "@/hooks/use-row-menus";
 import type { VideoMenu } from "@/hooks/use-video-menu";
 import type { Video } from "@/shared/ipc";
+import { stubGlobal, unstubAllGlobals } from "@/test/stub-global";
+
+afterEach(unstubAllGlobals);
 
 function ChatRow({
   canDelete,
@@ -56,6 +59,19 @@ function VideoRow({ menu }: { menu: VideoMenu }) {
 }
 
 describe("useChatRowMenu", () => {
+  it("deletes a Linux chat on Ctrl+Backspace through its row action", () => {
+    stubGlobal("navigator", { userAgent: "X11; Linux x86_64" });
+    const onDelete = mock();
+    render(<ChatRow canDelete onDelete={onDelete} />);
+
+    fireEvent.keyDown(screen.getByRole("button", { name: "Chat" }), {
+      ctrlKey: true,
+      key: "Backspace",
+    });
+
+    expect(onDelete).toHaveBeenCalledTimes(1);
+  });
+
   it("deletes the focused chat on ⌘⌫ through the row's own delete", () => {
     const onDelete = mock();
     render(<ChatRow canDelete onDelete={onDelete} />);
@@ -81,6 +97,19 @@ describe("useChatRowMenu", () => {
 });
 
 describe("useVideoRowMenu", () => {
+  it("requests removal of a Linux video on Ctrl+Delete", () => {
+    stubGlobal("navigator", { userAgent: "X11; Linux x86_64" });
+    const menu = videoMenu();
+    render(<VideoRow menu={menu} />);
+
+    fireEvent.keyDown(screen.getByRole("button", { name: "Intro" }), {
+      ctrlKey: true,
+      key: "Delete",
+    });
+
+    expect(menu.openRemove).toHaveBeenCalledTimes(1);
+  });
+
   it("renames on F2 and asks to delete on ⌘⌫", () => {
     const menu = videoMenu();
     render(<VideoRow menu={menu} />);
