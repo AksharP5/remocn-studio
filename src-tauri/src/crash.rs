@@ -16,16 +16,13 @@
 //! about its process group. What is left of it — `sentry::init` and the panic
 //! hook — is the plain crate.
 //!
-//! **The whole thing is behind an off-by-default Cargo feature.** No workflow
-//! in this repo compiles the Rust except the release job, so an unbuildable
-//! dependency tree would first be discovered while cutting a release. Turning
-//! `crash-reports` on is the last step of #268, once a DSN exists to point it
-//! at and someone can watch an event arrive.
+//! **The whole thing is behind an off-by-default Cargo feature.** Native CI
+//! checks the core without reporting; release builds opt in only when a
+//! report destination is configured. Consent is still required at runtime.
 
-use std::{
-    env,
-    path::{Path, PathBuf},
-};
+#[cfg(feature = "crash-reports")]
+use std::env;
+use std::path::{Path, PathBuf};
 
 use crate::ipc::AppEnvironment;
 
@@ -67,19 +64,10 @@ pub fn environment_name() -> &'static str {
 }
 
 /// Where `AppHandle::path().app_data_dir()` would answer, worked out without
-/// an app. macOS only, which is what this app is; a platform this does not
-/// know answers `None` and the core then reads no consent at all, which fails
-/// in the direction that sends nothing.
+/// an app. Tauri uses the same `dirs::data_dir()` base, including
+/// `XDG_DATA_HOME` on Linux, so early consent and the settings store agree.
 pub fn data_dir_for(identifier: &str) -> Option<PathBuf> {
-    if !cfg!(target_os = "macos") {
-        return None;
-    }
-
-    env::var_os("HOME").map(|home| {
-        PathBuf::from(home)
-            .join("Library/Application Support")
-            .join(identifier)
-    })
+    dirs::data_dir().map(|base| base.join(identifier))
 }
 
 #[cfg(feature = "crash-reports")]
@@ -177,3 +165,23 @@ pub fn note_sidecar_crash(reason: &str) {
 
 #[cfg(not(feature = "crash-reports"))]
 pub fn note_sidecar_crash(_reason: &str) {}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn early_consent_uses_the_linux_settings_directory() {
+        let base = std::env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .filter(|path| path.is_absolute())
+            .unwrap_or_else(|| {
+                PathBuf::from(std::env::var_os("HOME").expect("the desktop has a home directory"))
+                    .join(".local/share")
+            });
+        assert_eq!(
+            data_dir_for("test.remocn-studio"),
+            Some(base.join("test.remocn-studio"))
+        );
+    }
+}

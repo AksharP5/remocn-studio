@@ -5,6 +5,7 @@ mod integrations;
 mod ipc;
 mod legacy_account;
 mod links;
+mod linux;
 mod paste;
 mod sidecar;
 mod terminal;
@@ -83,6 +84,8 @@ pub fn run() {
             integrations::commands::integrations_remove,
             integrations::commands::integrations_set_disabled,
             links::take_deep_links,
+            linux::edit_webview,
+            linux::post_notification,
             paste::save_pasted_image,
             paste::save_proxy,
             terminal::open_terminal,

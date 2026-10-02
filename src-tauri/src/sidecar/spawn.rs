@@ -259,7 +259,10 @@ fn search_dirs() -> Vec<PathBuf> {
     let mut dirs = Vec::new();
 
     if let Some(home) = env::var_os("HOME") {
-        dirs.push(PathBuf::from(home).join(".bun/bin"));
+        let home = PathBuf::from(home);
+        dirs.push(home.join(".bun/bin"));
+        dirs.push(home.join(".local/bin"));
+        dirs.push(home.join(".local/share/mise/shims"));
     }
     if let Some(path) = env::var_os("PATH") {
         dirs.extend(env::split_paths(&path));
