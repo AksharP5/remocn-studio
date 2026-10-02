@@ -10,7 +10,7 @@ Download the AppImage from [this fork's releases](https://github.com/AksharP5/re
 bash scripts/install-linux.sh /path/to/Remocn_Studio.AppImage
 ```
 
-The app is installed in `~/.local/share/remocn-studio`, with `~/.local/bin/remocn-studio` and an application launcher. The desktop entry handles `remocn-studio://` template links. App data lives in `${XDG_DATA_HOME:-~/.local/share}/io.github.aksharp5.remocn-studio`.
+The app is installed in `~/.local/share/remocn-studio`, with `~/.local/bin/remocn-studio` and an application launcher. The launcher uses `GDK_SCALE=1` so Omarchy's global GTK scale does not double this X11 app on the tested 1080p display. From a terminal, use `GDK_SCALE=1 remocn-studio` for the same size. Desktop scaling stays unchanged. The desktop entry handles `remocn-studio://` template links. App data lives in `${XDG_DATA_HOME:-~/.local/share}/io.github.aksharp5.remocn-studio`.
 
 Integration keys are stored in the desktop's Secret Service. Omarchy's unlocked GNOME Keyring supplies this on the tested machine. Provider sign-in continues to use the installed Claude, Codex, Copilot or Grok CLI. The app never pastes or runs a setup command in the terminal for you.
 

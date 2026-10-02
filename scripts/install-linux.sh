@@ -43,7 +43,7 @@ cat > "$data_dir/applications/$app_id.desktop" <<EOF
 Type=Application
 Name=Remocn Studio
 Comment=Create videos with AI as editable Remotion projects
-Exec="$launcher" %U
+Exec=env GDK_SCALE=1 "$launcher" %U
 Icon=$app_id
 Terminal=false
 Categories=AudioVideo;Video;
