@@ -1,5 +1,12 @@
 # remocn-studio
 
+## 1.0.4
+
+### Patch Changes
+
+- 9601709: Use Control for Linux canvas Undo and row deletion. Route native Undo to the focused canvas before falling back to WebKit text editing.
+- 4deacb9: Use the active package-manager PATH before home-directory fallbacks and skip files that cannot be executed, so stale npm shims do not override the managed Node.js runtime.
+
 ## 1.0.3
 
 ### Patch Changes
