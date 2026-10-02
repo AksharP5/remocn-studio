@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import {
   CheckMenuItem,
   Menu,
@@ -6,6 +7,7 @@ import {
   type PredefinedMenuItemOptions,
   Submenu,
 } from "@tauri-apps/api/menu";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Data, Effect } from "effect";
 import { errorMessage } from "@/lib/error-message";
 import {
@@ -13,6 +15,7 @@ import {
   type Command,
   type MenuName,
 } from "@/lib/studio/command-registry";
+import { currentPlatform, type Platform } from "@/lib/studio/platform";
 
 export class MenuError extends Data.TaggedError("MenuError")<{
   message: string;
@@ -52,22 +55,32 @@ async function install(
   run: RunCommand,
   isCurrent: () => boolean
 ): Promise<void> {
+  const platform = currentPlatform();
   const rowsOf = (name: MenuName) =>
     commands.filter((command) => command.menu === name);
 
   const menu = await Menu.new({
     items: await Promise.all([
-      applicationMenu(rowsOf("app"), run),
-      fileMenu(rowsOf("file"), run),
+      applicationMenu(rowsOf("app"), run, platform),
+      fileMenu(rowsOf("file"), run, platform),
       submenuOf("Project", itemsOf(rowsOf("project"), run)),
-      editMenu(),
+      editMenu(platform),
       submenuOf("View", [
         ...itemsOf(rowsOf("view"), run),
         predefined("Separator"),
-        predefined("Fullscreen"),
+        platform === "mac"
+          ? predefined("Fullscreen")
+          : nativeItem(
+              "Toggle Fullscreen",
+              async () => {
+                const window = getCurrentWindow();
+                await window.setFullscreen(!(await window.isFullscreen()));
+              },
+              "F11"
+            ),
       ]),
       submenuOf("Video", itemsOf(rowsOf("video"), run)),
-      windowMenu(),
+      windowMenu(platform),
     ]),
   });
 
@@ -84,6 +97,22 @@ type Item = Promise<CheckMenuItem | MenuItem | PredefinedMenuItem | Submenu>;
 
 function predefined(item: PredefinedMenuItemOptions["item"]) {
   return PredefinedMenuItem.new({ item });
+}
+
+function nativeItem(
+  text: string,
+  action: () => Promise<void>,
+  accelerator?: string
+): Item {
+  return MenuItem.new({
+    action: () => {
+      action().catch((cause: unknown) => {
+        console.warn(`menu action ${text} failed: ${errorMessage(cause)}`);
+      });
+    },
+    text,
+    ...(accelerator === undefined ? {} : { accelerator }),
+  });
 }
 
 function itemOf(command: Command, run: RunCommand): Item {
@@ -110,23 +139,35 @@ function itemsOf(commands: readonly Command[], run: RunCommand): Item[] {
 
 // macOS titles this submenu with the app's own name; the text is only what
 // other platforms would show.
-function applicationMenu(commands: readonly Command[], run: RunCommand) {
+function applicationMenu(
+  commands: readonly Command[],
+  run: RunCommand,
+  platform: Platform
+) {
   return submenuOf("Remocn Studio", [
     predefined({ About: null }),
     predefined("Separator"),
     ...itemsOf(commands, run),
     predefined("Separator"),
-    predefined("Services"),
-    predefined("Separator"),
-    predefined("Hide"),
-    predefined("HideOthers"),
-    predefined("ShowAll"),
-    predefined("Separator"),
-    predefined("Quit"),
+    ...(platform === "mac"
+      ? [
+          predefined("Services"),
+          predefined("Separator"),
+          predefined("Hide"),
+          predefined("HideOthers"),
+          predefined("ShowAll"),
+          predefined("Separator"),
+          predefined("Quit"),
+        ]
+      : [nativeItem("Quit", () => getCurrentWindow().close(), "CmdOrCtrl+Q")]),
   ]);
 }
 
-function fileMenu(commands: readonly Command[], run: RunCommand) {
+function fileMenu(
+  commands: readonly Command[],
+  run: RunCommand,
+  platform: Platform
+) {
   const actions = commands.filter((command) => command.group !== "projects");
   const projects = commands.filter((command) => command.group === "projects");
   const projectRows =
@@ -138,11 +179,32 @@ function fileMenu(commands: readonly Command[], run: RunCommand) {
     ...itemsOf(actions, run),
     ...projectRows,
     predefined("Separator"),
-    predefined("CloseWindow"),
+    platform === "linux"
+      ? nativeItem("Close Window", () => getCurrentWindow().close(), "Ctrl+W")
+      : predefined("CloseWindow"),
   ]);
 }
 
-function editMenu() {
+function editMenu(platform: Platform) {
+  if (platform === "linux") {
+    const edit = (command: string, accelerator: string) =>
+      nativeItem(
+        command === "SelectAll" ? "Select All" : command,
+        () => invoke<void>("edit_webview", { command }),
+        accelerator
+      );
+
+    return submenuOf("Edit", [
+      edit("Undo", "Ctrl+Z"),
+      edit("Redo", "Ctrl+Shift+Z"),
+      predefined("Separator"),
+      edit("Cut", "Ctrl+X"),
+      edit("Copy", "Ctrl+C"),
+      edit("Paste", "Ctrl+V"),
+      edit("SelectAll", "Ctrl+A"),
+    ]);
+  }
+
   return submenuOf("Edit", [
     predefined("Undo"),
     predefined("Redo"),
@@ -154,7 +216,14 @@ function editMenu() {
   ]);
 }
 
-function windowMenu() {
+function windowMenu(platform: Platform) {
+  if (platform === "linux") {
+    return submenuOf("Window", [
+      nativeItem("Minimize", () => getCurrentWindow().minimize()),
+      nativeItem("Maximize", () => getCurrentWindow().toggleMaximize()),
+    ]);
+  }
+
   return submenuOf("Window", [
     predefined("Minimize"),
     predefined("Maximize"),

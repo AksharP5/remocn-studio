@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import {
   requestPermission as askPermission,
   isPermissionGranted,
@@ -6,6 +7,7 @@ import {
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Data, Effect } from "effect";
 import { errorMessage } from "@/lib/error-message";
+import { currentPlatform } from "@/lib/studio/platform";
 
 export class NotificationError extends Data.TaggedError("NotificationError")<{
   message: string;
@@ -52,6 +54,13 @@ export function post(
   title: string,
   body: string
 ): Effect.Effect<void, NotificationError> {
+  if (currentPlatform() === "linux") {
+    return Effect.tryPromise({
+      catch: fail,
+      try: () => invoke<void>("post_notification", { body, title }),
+    });
+  }
+
   return Effect.try({
     catch: fail,
     try: () => sendNotification({ body, title }),
@@ -61,5 +70,11 @@ export function post(
 export const openNotificationSettings: Effect.Effect<void, NotificationError> =
   Effect.tryPromise({
     catch: fail,
-    try: () => openUrl(NOTIFICATION_SETTINGS_URL),
+    try: async () => {
+      if (currentPlatform() === "linux") {
+        await askPermission();
+        return;
+      }
+      await openUrl(NOTIFICATION_SETTINGS_URL);
+    },
   });

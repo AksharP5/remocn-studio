@@ -47,7 +47,7 @@ import {
   shortcutKeys,
 } from "@/lib/studio/command-registry";
 import type { ShellMood } from "@/lib/studio/mood";
-import { modKeyLabel } from "@/lib/studio/platform";
+import { currentPlatform, modKeyLabel } from "@/lib/studio/platform";
 import { shortDay } from "@/lib/studio/time";
 import { downloadedLabel, downloadedShare } from "@/lib/studio/updates";
 import { cn } from "@/lib/utils";
@@ -590,6 +590,14 @@ function NotificationsSection() {
   const { permission } = notifications;
   const isUnavailable = permission === "unavailable";
   const needsPermission = permission === "default" || permission === "denied";
+  const isMac = currentPlatform() === "mac";
+  const deniedMessage = isMac
+    ? "Notifications are off for the studio in System Settings. Nothing will arrive until they are turned on there."
+    : "Notifications are blocked by your desktop. Check its notification settings, then try granting permission again.";
+  const permissionMessage = isMac
+    ? "macOS has not allowed the studio to notify yet. Nothing will arrive until it has."
+    : "The studio does not have notification permission yet. Nothing will arrive until it has.";
+  const message = permission === "denied" ? deniedMessage : permissionMessage;
 
   return (
     <>
@@ -599,7 +607,11 @@ function NotificationsSection() {
       >
         <div className="flex flex-col gap-2">
           <Row
-            description="Turn every notification on or off. macOS asks once, the first time this goes on."
+            description={
+              isMac
+                ? "Turn every notification on or off. macOS asks once, the first time this goes on."
+                : "Turn every notification on or off. Your desktop controls where notifications appear."
+            }
             htmlFor="settings-notifications"
             title="Notify me"
           >
@@ -620,9 +632,7 @@ function NotificationsSection() {
           {needsPermission ? (
             <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
               <p className="text-muted-foreground text-xs leading-snug">
-                {permission === "denied"
-                  ? "Notifications are off for the studio in System Settings. Nothing will arrive until they are turned on there."
-                  : "macOS has not allowed the studio to notify yet. Nothing will arrive until it has."}
+                {message}
               </p>
               <Button onClick={notifications.grant} size="sm" variant="outline">
                 Grant permission

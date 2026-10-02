@@ -284,6 +284,23 @@ describe("the settings page", () => {
     ).toBeVisible();
   });
 
+  it("explains notifications in terms of the Linux desktop", async () => {
+    stubGlobal("navigator", { userAgent: "X11; Linux x86_64" });
+    stubGlobal("Notification", notificationShim("granted"));
+    await renderShell();
+    await openSettings();
+
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+
+    expect(
+      await screen.findByText(
+        "Turn every notification on or off. Your desktop controls where notifications appear."
+      )
+    ).toBeVisible();
+    expect(screen.queryByText(NEVER_ASKED)).toBeNull();
+    expect(screen.queryByText(REFUSED_WORDING)).toBeNull();
+  });
+
   // Opt-in, and the wording that earns the switch is part of what is being
   // pinned: an app whose promise is that nothing reaches a third party has to
   // say what would, and what never would.
