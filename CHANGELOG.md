@@ -1,5 +1,11 @@
 # remocn-studio
 
+## 1.0.2
+
+### Patch Changes
+
+- 971b453: Use the bundled media plugin scanner on Linux AppImages when the packaging hook points at a missing path. Keep working paths and custom scanner settings intact.
+
 ## 1.0.1
 
 ### Patch Changes
