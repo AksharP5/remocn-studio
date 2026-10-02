@@ -1,5 +1,12 @@
 # remocn-studio
 
+## 1.0.5
+
+### Patch Changes
+
+- 2b2470e: Keep looping audio usable across native preview reloads when WebKit initially reports zero duration.
+- b84305f: Preserve native preview runtime error details instead of hiding the cause of a failed composition.
+
 ## 1.0.4
 
 ### Patch Changes
