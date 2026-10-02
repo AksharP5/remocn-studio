@@ -1,8 +1,10 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { mockIPC } from "@tauri-apps/api/mocks";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
+import { waitFor } from "@testing-library/react";
 import { Effect } from "effect";
 import { installAppMenu, menuShape } from "@/lib/studio/app-menu";
 import { type Command, SHORTCUTS } from "@/lib/studio/command-registry";
+import { stubGlobal, unstubAllGlobals } from "@/test/stub-global";
 
 interface Created {
   readonly handler: { onmessage: () => void } | undefined;
@@ -14,10 +16,11 @@ interface Created {
 interface Capture {
   readonly created: Created[];
   readonly installed: number[];
+  readonly invoked: { command: string; payload: unknown }[];
 }
 
 function install(): Capture {
-  const capture: Capture = { created: [], installed: [] };
+  const capture: Capture = { created: [], installed: [], invoked: [] };
   let next = 1;
   mockIPC((cmd, payload) => {
     if (cmd === "plugin:menu|new") {
@@ -36,6 +39,19 @@ function install(): Capture {
       return null;
     }
     if (cmd === "plugin:menu|close" || cmd === "plugin:resources|close") {
+      return null;
+    }
+    if (cmd === "plugin:window|is_fullscreen") {
+      return false;
+    }
+    if (
+      cmd === "edit_webview" ||
+      cmd === "plugin:window|close" ||
+      cmd === "plugin:window|minimize" ||
+      cmd === "plugin:window|toggle_maximize" ||
+      cmd === "plugin:window|set_fullscreen"
+    ) {
+      capture.invoked.push({ command: cmd, payload });
       return null;
     }
     throw new Error(`unexpected command: ${cmd}`);
@@ -116,8 +132,11 @@ describe("installAppMenu", () => {
   let capture: Capture;
 
   beforeEach(() => {
+    mockWindows("main");
     capture = install();
   });
+
+  afterEach(unstubAllGlobals);
 
   it("builds the six submenus and installs the menu", async () => {
     await Effect.runPromise(installAppMenu(COMMANDS, mock(), () => true));
@@ -209,6 +228,68 @@ describe("installAppMenu", () => {
     await Effect.runPromise(installAppMenu(COMMANDS, mock(), () => false));
 
     expect(capture.installed).toEqual([]);
+  });
+
+  it("keeps editing and window actions available on native Linux", async () => {
+    stubGlobal("navigator", { userAgent: "X11; Linux x86_64" });
+    await Effect.runPromise(installAppMenu(COMMANDS, mock(), () => true));
+
+    expect(texts(rowsOf(capture, "Edit"))).toEqual([
+      "Undo",
+      "Redo",
+      "<Separator>",
+      "Cut",
+      "Copy",
+      "Paste",
+      "Select All",
+    ]);
+    expect(texts(rowsOf(capture, "Window"))).toEqual(["Minimize", "Maximize"]);
+    expect(texts(rowsOf(capture, "Remocn Studio"))).toContain("Quit");
+    expect(texts(rowsOf(capture, "File"))).toContain("Close Window");
+
+    for (const row of rowsOf(capture, "Edit")) {
+      row.handler?.onmessage();
+    }
+    for (const row of rowsOf(capture, "Window")) {
+      row.handler?.onmessage();
+    }
+    capture.created
+      .find((row) => row.options.text === "Quit")
+      ?.handler?.onmessage();
+    capture.created
+      .find((row) => row.options.text === "Toggle Fullscreen")
+      ?.handler?.onmessage();
+
+    await waitFor(() => expect(capture.invoked).toHaveLength(10));
+    expect(
+      capture.invoked
+        .filter((row) => row.command === "edit_webview")
+        .map((row) => row.payload)
+    ).toEqual([
+      { command: "Undo" },
+      { command: "Redo" },
+      { command: "Cut" },
+      { command: "Copy" },
+      { command: "Paste" },
+      { command: "SelectAll" },
+    ]);
+    expect(capture.invoked).toContainEqual({
+      command: "plugin:window|close",
+      payload: { label: "main" },
+    });
+    expect(capture.invoked).toContainEqual({
+      command: "plugin:window|set_fullscreen",
+      payload: { label: "main", value: true },
+    });
+    expect(
+      capture.created
+        .filter((row) => row.kind === "Predefined")
+        .every(
+          (row) =>
+            row.options.item === "Separator" ||
+            typeof row.options.item === "object"
+        )
+    ).toBe(true);
   });
 });
 

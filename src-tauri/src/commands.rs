@@ -65,7 +65,7 @@ pub async fn path_exists(path: String) -> bool {
 
 #[tauri::command]
 pub async fn studio_build(app: AppHandle) -> StudioBuild {
-    let os = tauri::async_runtime::spawn_blocking(macos_version)
+    let os = tauri::async_runtime::spawn_blocking(os_version)
         .await
         .unwrap_or_else(|_| "unknown".to_string());
 
@@ -80,19 +80,89 @@ pub async fn studio_build(app: AppHandle) -> StudioBuild {
     }
 }
 
-static MACOS_VERSION: OnceLock<String> = OnceLock::new();
+static OS_VERSION: OnceLock<String> = OnceLock::new();
 
-pub(crate) fn macos_version() -> String {
-    MACOS_VERSION
-        .get_or_init(|| {
-            std::process::Command::new("sw_vers")
-                .arg("-productVersion")
-                .output()
-                .ok()
-                .and_then(|output| String::from_utf8(output.stdout).ok())
-                .map(|version| version.trim().to_string())
-                .filter(|version| !version.is_empty())
-                .unwrap_or_else(|| "unknown".to_string())
+pub(crate) fn os_version() -> String {
+    OS_VERSION.get_or_init(read_os_version).clone()
+}
+
+#[cfg(target_os = "macos")]
+fn read_os_version() -> String {
+    std::process::Command::new("sw_vers")
+        .arg("-productVersion")
+        .output()
+        .ok()
+        .and_then(|output| String::from_utf8(output.stdout).ok())
+        .map(|version| version.trim().to_string())
+        .filter(|version| !version.is_empty())
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+#[cfg(target_os = "linux")]
+fn read_os_version() -> String {
+    std::fs::read_to_string("/etc/os-release")
+        .or_else(|_| std::fs::read_to_string("/usr/lib/os-release"))
+        .ok()
+        .and_then(|release| linux_release(&release))
+        .unwrap_or_else(|| "Linux".to_string())
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
+fn read_os_version() -> String {
+    std::env::consts::OS.to_string()
+}
+
+#[cfg(target_os = "linux")]
+fn linux_release(release: &str) -> Option<String> {
+    let field = |name: &str| {
+        release.lines().find_map(|line| {
+            let (key, value) = line.split_once('=')?;
+            if key.trim() != name {
+                return None;
+            }
+            let value = value.trim();
+            let value = value
+                .strip_prefix('"')
+                .and_then(|value| value.strip_suffix('"'))
+                .or_else(|| {
+                    value
+                        .strip_prefix('\'')
+                        .and_then(|value| value.strip_suffix('\''))
+                })
+                .unwrap_or(value);
+            (!value.is_empty()).then_some(value)
         })
-        .clone()
+    };
+    let name = field("PRETTY_NAME").or_else(|| field("NAME"))?;
+    let version = field("VERSION_ID");
+    match version {
+        Some(version) if !name.contains(version) => Some(format!("{name} {version}")),
+        _ => Some(name.to_string()),
+    }
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn diagnostics_include_the_omarchy_version() {
+        assert_eq!(
+            linux_release("NAME=\"Omarchy\"\nPRETTY_NAME=\"Omarchy\"\nVERSION_ID=\"4.0.0\"\n"),
+            Some("Omarchy 4.0.0".to_string())
+        );
+    }
+
+    #[test]
+    fn diagnostics_keep_a_distributions_own_pretty_name() {
+        assert_eq!(
+            linux_release("PRETTY_NAME='Ubuntu 24.04 LTS'\nVERSION_ID=24.04\n"),
+            Some("Ubuntu 24.04 LTS".to_string())
+        );
+        assert_eq!(
+            linux_release("NAME=Arch Linux\n"),
+            Some("Arch Linux".to_string())
+        );
+        assert_eq!(linux_release("VERSION_ID=42\n"), None);
+    }
 }

@@ -174,6 +174,9 @@ export function useEnvironment(
 
             if (Exit.isSuccess(exit)) {
               setError(null);
+              if (projectId !== null) {
+                check(projectId, false);
+              }
               return;
             }
 
@@ -185,7 +188,7 @@ export function useEnvironment(
         )
       )
     );
-  }, [isInstallingNode]);
+  }, [check, isInstallingNode, projectId]);
 
   const shown = useMemo(
     () => merged(checks, pick, PROVIDER_INFO[provider].name),

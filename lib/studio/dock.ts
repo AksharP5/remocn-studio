@@ -13,6 +13,30 @@ export interface DockExportReading {
 
 export const ERROR_HOLD_MS = 3000;
 
+export function windowTitleOf(
+  reading: DockExportReading,
+  waiting: number
+): string {
+  const parts = ["Remocn Studio"];
+  if (waiting > 0) {
+    parts.push(`${waiting} waiting`);
+  }
+
+  const bar = dockProgressOf(reading);
+  if (bar.status === ProgressBarStatus.Error) {
+    parts.push("Export failed");
+  }
+  if (bar.status === ProgressBarStatus.Normal) {
+    const { event } = reading;
+    parts.push(
+      event?.type === "progress" && event.total > 0
+        ? `Export ${bar.progress ?? 0}%`
+        : "Exporting"
+    );
+  }
+  return parts.join(" · ");
+}
+
 export function dockProgressOf(reading: DockExportReading): ProgressBarState {
   if (reading.phase === "failed") {
     return { status: ProgressBarStatus.Error };

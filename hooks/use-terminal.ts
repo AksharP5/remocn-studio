@@ -1,15 +1,24 @@
 "use client";
 
+import { isTauri } from "@tauri-apps/api/core";
 import { Effect, Exit, Fiber } from "effect";
 import type { MouseEvent } from "react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAsyncAction } from "@/hooks/use-async-action";
 import { causeMessage } from "@/lib/error-message";
-import { openTerminalWith } from "@/lib/studio/terminal";
+import { currentPlatform } from "@/lib/studio/platform";
+import {
+  linuxSetupCommand,
+  openTerminalWith,
+  setupDataDir,
+} from "@/lib/studio/terminal";
 
 export interface Terminal {
   error: string | null;
+  isPreparing: boolean;
   onOpen: (event: MouseEvent<HTMLButtonElement>) => void;
   opened: string | null;
+  prepare: (command: string) => string;
 }
 
 const CLEAR_AFTER = "4 seconds";
@@ -18,6 +27,33 @@ export function useTerminal(): Terminal {
   const [opened, setOpened] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const running = useRef<Fiber.Fiber<unknown, unknown> | null>(null);
+  const needsNodePath = currentPlatform() === "linux" && isTauri();
+  const [dataDir, setDataDir] = useState<string | null>();
+  const { run, error: pathError } = useAsyncAction();
+
+  useEffect(() => {
+    if (!needsNodePath) {
+      return;
+    }
+    let current = true;
+    run(setupDataDir).then((directory) => {
+      if (current) {
+        setDataDir(directory);
+      }
+    });
+    return () => {
+      current = false;
+    };
+  }, [needsNodePath, run]);
+
+  const isPreparing = needsNodePath && dataDir === undefined;
+  const prepare = useCallback(
+    (command: string) =>
+      typeof dataDir === "string"
+        ? linuxSetupCommand(command, dataDir)
+        : command,
+    [dataDir]
+  );
 
   const onOpen = useCallback((event: MouseEvent<HTMLButtonElement>) => {
     const command = event.currentTarget.value;
@@ -49,5 +85,8 @@ export function useTerminal(): Terminal {
     );
   }, []);
 
-  return useMemo(() => ({ error, onOpen, opened }), [error, onOpen, opened]);
+  return useMemo(
+    () => ({ error: error ?? pathError, isPreparing, onOpen, opened, prepare }),
+    [error, pathError, isPreparing, onOpen, opened, prepare]
+  );
 }

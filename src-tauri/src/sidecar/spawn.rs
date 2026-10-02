@@ -1,7 +1,7 @@
 use std::{
     collections::HashSet,
     env,
-    ffi::OsString,
+    ffi::{OsStr, OsString},
     path::{Path, PathBuf},
     process::Stdio,
 };
@@ -40,7 +40,7 @@ pub fn resolve_bun() -> Result<PathBuf, String> {
         return Ok(shipped);
     }
 
-    search_dirs()
+    search_dirs(env::var_os("HOME").as_deref(), env::var_os("PATH").as_deref())
         .into_iter()
         .map(|dir| dir.join("bun"))
         .find(|candidate| candidate.is_file())
@@ -255,14 +255,21 @@ pub fn launch(paths: Launch<'_>) -> Result<Child, String> {
         .map_err(|err| format!("could not start {}: {err}", bun.display()))
 }
 
-fn search_dirs() -> Vec<PathBuf> {
+fn search_dirs(home: Option<&OsStr>, path: Option<&OsStr>) -> Vec<PathBuf> {
     let mut dirs = Vec::new();
 
-    if let Some(home) = env::var_os("HOME") {
-        dirs.push(PathBuf::from(home).join(".bun/bin"));
+    if let Some(home) = home {
+        let home = PathBuf::from(home);
+        dirs.push(home.join(".bun/bin"));
     }
-    if let Some(path) = env::var_os("PATH") {
-        dirs.extend(env::split_paths(&path));
+    if let Some(path) = path {
+        dirs.extend(env::split_paths(path));
+    }
+    if let Some(home) = home {
+        let home = PathBuf::from(home);
+        // Keep configured tools ahead of wrappers that may exec through mise.
+        dirs.push(home.join(".local/bin"));
+        dirs.push(home.join(".local/share/mise/shims"));
     }
     dirs.extend(FALLBACK_DIRS.iter().map(PathBuf::from));
 
@@ -277,10 +284,48 @@ fn child_path(bun: &Path) -> OsString {
     if let Some(parent) = bun.parent() {
         dirs.push(parent.to_path_buf());
     }
-    dirs.extend(search_dirs());
+    dirs.extend(search_dirs(
+        env::var_os("HOME").as_deref(),
+        env::var_os("PATH").as_deref(),
+    ));
 
     let mut seen = HashSet::new();
     dirs.retain(|dir| seen.insert(dir.clone()));
 
     env::join_paths(dirs).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn inherited_tools_precede_local_wrapper_fallbacks() {
+        let inherited = env::join_paths(["/managed/claude", "/usr/bin"]).unwrap();
+        let dirs = search_dirs(Some(OsStr::new("/home/user")), Some(&inherited));
+
+        assert_eq!(
+            &dirs[..5],
+            &[
+                PathBuf::from("/home/user/.bun/bin"),
+                PathBuf::from("/managed/claude"),
+                PathBuf::from("/usr/bin"),
+                PathBuf::from("/home/user/.local/bin"),
+                PathBuf::from("/home/user/.local/share/mise/shims"),
+            ]
+        );
+    }
+
+    #[test]
+    fn desktop_mise_shims_keep_their_inherited_precedence() {
+        let shims = PathBuf::from("/home/user/.local/share/mise/shims");
+        let local = PathBuf::from("/home/user/.local/bin");
+        let inherited = env::join_paths([&shims, &local, &shims]).unwrap();
+        let dirs = search_dirs(Some(OsStr::new("/home/user")), Some(&inherited));
+
+        assert_eq!(dirs[1], shims);
+        assert_eq!(dirs[2], local);
+        assert_eq!(dirs.iter().filter(|dir| **dir == shims).count(), 1);
+        assert_eq!(dirs.iter().filter(|dir| **dir == local).count(), 1);
+    }
 }

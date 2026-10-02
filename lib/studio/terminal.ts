@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { appDataDir } from "@tauri-apps/api/path";
 import { Data, Effect } from "effect";
 import { errorMessage } from "@/lib/error-message";
 
@@ -8,6 +9,17 @@ export class TerminalError extends Data.TaggedError("TerminalError")<{
 
 const fail = (cause: unknown) =>
   new TerminalError({ message: errorMessage(cause) });
+
+const TRAILING_SLASH = /\/+$/;
+
+export function linuxSetupCommand(command: string, dataDir: string): string {
+  const bin = `${dataDir.replace(TRAILING_SLASH, "")}/node/bin`;
+  const quoted = `'${bin.replaceAll("'", "'\\''")}'`;
+  return `export PATH=${quoted}:"$PATH"; ${command}`;
+}
+
+export const setupDataDir: Effect.Effect<string, TerminalError> =
+  Effect.tryPromise({ catch: fail, try: appDataDir });
 
 export function copyCommand(
   command: string

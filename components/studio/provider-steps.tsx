@@ -12,6 +12,7 @@ import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useCopyCommand } from "@/hooks/use-copy-command";
 import { useTerminal } from "@/hooks/use-terminal";
+import { currentPlatform, modKeyCombo } from "@/lib/studio/platform";
 import {
   type SetupStage,
   type StageState,
@@ -36,6 +37,14 @@ export function ProviderSteps({
   const stages = stageStates(row);
   const copy = useCopyCommand();
   const terminal = useTerminal();
+  const install = {
+    ...setup.install,
+    command: terminal.prepare(setup.install.command),
+  };
+  const signin = {
+    ...setup.signin,
+    command: terminal.prepare(setup.signin.command),
+  };
 
   return (
     <ol aria-label={`Set up ${setup.cli}`} className="mt-1 flex flex-col gap-2">
@@ -43,19 +52,29 @@ export function ProviderSteps({
         detail={setup.note}
         stage="install"
         state={stages.install}
-        step={setup.install}
+        step={install}
         title={`Install ${setup.cli}`}
       >
-        <StepActions copy={copy} step={setup.install} terminal={terminal} />
+        <StepActions
+          copy={copy}
+          disabled={terminal.isPreparing}
+          step={install}
+          terminal={terminal}
+        />
       </Step>
       <Step
         detail="A browser window opens to sign in. Use the account whose subscription you pay for."
         stage="signin"
         state={stages.signin}
-        step={setup.signin}
+        step={signin}
         title="Sign in"
       >
-        <StepActions copy={copy} step={setup.signin} terminal={terminal} />
+        <StepActions
+          copy={copy}
+          disabled={terminal.isPreparing}
+          step={signin}
+          terminal={terminal}
+        />
       </Step>
       <Step
         detail="The studio checks again on its own when you return to it."
@@ -139,10 +158,12 @@ function StageMark({ state }: { state: StageState }) {
 
 function StepActions({
   copy,
+  disabled,
   step,
   terminal,
 }: {
   copy: ReturnType<typeof useCopyCommand>;
+  disabled: boolean;
   step: SetupStep;
   terminal: ReturnType<typeof useTerminal>;
 }) {
@@ -151,10 +172,14 @@ function StepActions({
   }, []);
 
   const isOpened = terminal.opened === step.command;
+  const pasteShortcut = modKeyCombo(
+    currentPlatform() === "mac" ? "V" : "Shift+V"
+  );
 
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Button
+        disabled={disabled}
         onClick={terminal.onOpen}
         size="xs"
         title="Copies the command and opens an empty Terminal window. Nothing runs until you paste it and press Enter."
@@ -162,9 +187,10 @@ function StepActions({
         variant="outline"
       >
         <TerminalIcon data-icon="inline-start" />
-        {isOpened ? "⌘V, then Enter" : "Open in Terminal"}
+        {isOpened ? `${pasteShortcut}, then Enter` : "Open in Terminal"}
       </Button>
       <Button
+        disabled={disabled}
         onClick={copy.onCopy}
         size="xs"
         value={step.command}

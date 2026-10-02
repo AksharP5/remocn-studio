@@ -5,6 +5,7 @@ mod integrations;
 mod ipc;
 mod legacy_account;
 mod links;
+mod linux;
 mod paste;
 mod sidecar;
 mod terminal;
@@ -30,6 +31,25 @@ fn asked_to_quit() -> bool {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "linux")]
+    {
+        // WebKit's DMABuf path leaves this NVIDIA desktop blank; its fallback
+        // renderer keeps compositing available.
+        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        }
+
+        // NVIDIA EGL crashes during WebKit shutdown here. Mesa preserves WebGL
+        // and lets the web process exit cleanly.
+        const MESA_EGL: &str = "/usr/share/glvnd/egl_vendor.d/50_mesa.json";
+        if std::env::var_os("__EGL_VENDOR_LIBRARY_FILENAMES").is_none()
+            && std::path::Path::new("/sys/module/nvidia").exists()
+            && std::path::Path::new(MESA_EGL).is_file()
+        {
+            std::env::set_var("__EGL_VENDOR_LIBRARY_FILENAMES", MESA_EGL);
+        }
+    }
+
     // `generate_context!()` is bound rather than passed straight to `build`,
     // because the consent has to be read before the builder runs — a panic
     // while the app is being built is one of the crashes this exists to catch,
@@ -83,6 +103,8 @@ pub fn run() {
             integrations::commands::integrations_remove,
             integrations::commands::integrations_set_disabled,
             links::take_deep_links,
+            linux::edit_webview,
+            linux::post_notification,
             paste::save_pasted_image,
             paste::save_proxy,
             terminal::open_terminal,

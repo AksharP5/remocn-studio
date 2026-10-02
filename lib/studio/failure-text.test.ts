@@ -74,6 +74,14 @@ describe("wordFailure", () => {
     });
   });
 
+  it("words a file permission failure without assuming an operating system", () => {
+    const raw = "EACCES: permission denied, open '/home/alice/video.tsx'";
+    expect(wordFailure(raw, FALLBACK)).toEqual({
+      details: raw,
+      sentence: "The system did not allow the studio to use a file there.",
+    });
+  });
+
   it("falls back when there is nothing to say", () => {
     expect(wordFailure("  ", FALLBACK)).toEqual({
       details: null,

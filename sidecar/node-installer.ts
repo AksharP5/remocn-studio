@@ -1,13 +1,15 @@
 import { spawn } from "node:child_process";
-import { createWriteStream } from "node:fs";
-import { mkdir, rm } from "node:fs/promises";
+import { createWriteStream, existsSync } from "node:fs";
+import { mkdir, mkdtemp, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { Data, Effect } from "effect";
+import { file as bunFile, spawn as bunSpawn, CryptoHasher } from "bun";
+import { Data, Effect, Semaphore } from "effect";
 import { errorMessage } from "@/lib/error-message";
 import type { NodeDownload } from "@/shared/ipc";
+import { activateManagedNode, managedNodeDir } from "./node-runtime";
 
 export class NodeInstallError extends Data.TaggedError("NodeInstallError")<{
   message: string;
@@ -16,6 +18,8 @@ export class NodeInstallError extends Data.TaggedError("NodeInstallError")<{
 export const RELEASE_INDEX = "https://nodejs.org/dist/index.json";
 
 const SEMVER = /^v\d+\.\d+\.\d+$/;
+const WHITESPACE = /\s+/;
+const INSTALL = Semaphore.makeUnsafe(1);
 
 interface Release {
   lts: string | false;
@@ -42,8 +46,31 @@ export function newestLts(releases: readonly unknown[]): string | null {
   return null;
 }
 
-export function installerUrl(version: string): string {
-  return `https://nodejs.org/dist/${version}/node-${version}.pkg`;
+export function installerName(
+  version: string,
+  platform: NodeJS.Platform = process.platform,
+  arch: string = process.arch
+): string {
+  if (!SEMVER.test(version)) {
+    throw new Error("nodejs.org returned an invalid release version");
+  }
+  if (platform === "darwin") {
+    return `node-${version}.pkg`;
+  }
+  if (platform === "linux" && (arch === "x64" || arch === "arm64")) {
+    return `node-${version}-linux-${arch}.tar.xz`;
+  }
+  throw new Error(
+    `Node.js installation is not supported on ${platform}/${arch}`
+  );
+}
+
+export function installerUrl(
+  version: string,
+  platform: NodeJS.Platform = process.platform,
+  arch: string = process.arch
+): string {
+  return `https://nodejs.org/dist/${version}/${installerName(version, platform, arch)}`;
 }
 
 export const latestLts: Effect.Effect<string, NodeInstallError> =
@@ -83,11 +110,8 @@ export function downloadInstaller(
     const controller = new AbortController();
 
     const run = async () => {
-      const folder = path.join(tmpdir(), "remocn-studio-node");
-      await mkdir(folder, { recursive: true });
-
-      const file = path.join(folder, `node-${version}.pkg`);
-      await rm(file, { force: true });
+      const folder = await mkdtemp(path.join(tmpdir(), "remocn-studio-node-"));
+      const file = path.join(folder, installerName(version));
 
       const answer = await fetch(installerUrl(version), {
         signal: controller.signal,
@@ -158,11 +182,101 @@ export function openInstaller(
 export function installNode(
   onProgress: (event: NodeDownload) => Effect.Effect<void>
 ): Effect.Effect<{ opened: boolean; version: string }, NodeInstallError> {
-  return Effect.gen(function* () {
-    const version = yield* latestLts;
-    const file = yield* downloadInstaller(version, onProgress);
-    const opened = yield* openInstaller(file);
+  return INSTALL.withPermits(1)(
+    Effect.gen(function* () {
+      const version = yield* latestLts;
+      const file = yield* downloadInstaller(version, onProgress);
+      const opened = yield* process.platform === "linux"
+        ? installLinuxRuntime(file, version).pipe(
+            Effect.ensuring(
+              Effect.promise(() =>
+                rm(path.dirname(file), { force: true, recursive: true })
+              )
+            )
+          )
+        : openInstaller(file);
 
-    return { opened, version };
+      return { opened, version };
+    })
+  );
+}
+
+export function installLinuxRuntime(
+  file: string,
+  version: string
+): Effect.Effect<boolean, NodeInstallError> {
+  return Effect.tryPromise({
+    catch: (cause) => new NodeInstallError({ message: errorMessage(cause) }),
+    try: async () => {
+      const destination = managedNodeDir();
+      if (destination === null) {
+        throw new Error(
+          "The studio's application data directory is unavailable"
+        );
+      }
+
+      const answer = await fetch(
+        `https://nodejs.org/dist/${version}/SHASUMS256.txt`
+      );
+      if (!answer.ok) {
+        throw new Error(
+          `Node.js checksums could not be downloaded (${answer.status})`
+        );
+      }
+      const name = installerName(version, "linux");
+      const checksums = (await answer.text()).split("\n");
+      const expected = checksums
+        .map((line) => line.trim().split(WHITESPACE))
+        .find((entry) => entry[1] === name)?.[0];
+      const actual = CryptoHasher.hash(
+        "sha256",
+        await bunFile(file).arrayBuffer(),
+        "hex"
+      );
+      if (expected !== actual) {
+        throw new Error(
+          "The Node.js download failed checksum verification. Try again."
+        );
+      }
+
+      await mkdir(path.dirname(destination), { recursive: true });
+      const staging = await mkdtemp(`${destination}-`);
+      try {
+        const unpack = bunSpawn(
+          ["tar", "-xJf", file, "--strip-components=1", "-C", staging],
+          { stderr: "pipe", stdout: "ignore" }
+        );
+        const stderr = await new Response(unpack.stderr).text();
+        if ((await unpack.exited) !== 0) {
+          throw new Error(`Node.js could not be unpacked: ${stderr.trim()}`);
+        }
+        const probe = bunSpawn([path.join(staging, "bin/node"), "--version"], {
+          stderr: "pipe",
+          stdout: "pipe",
+        });
+        const installed = (await new Response(probe.stdout).text()).trim();
+        if ((await probe.exited) !== 0 || installed !== version) {
+          throw new Error("The downloaded Node.js runtime could not start");
+        }
+
+        const previous = `${destination}.previous`;
+        await rm(previous, { force: true, recursive: true });
+        const hasPrevious = existsSync(destination);
+        if (hasPrevious) {
+          await rename(destination, previous);
+        }
+        await rename(staging, destination).catch(async (cause: unknown) => {
+          if (hasPrevious) {
+            await rename(previous, destination);
+          }
+          throw cause;
+        });
+        activateManagedNode();
+        await rm(previous, { force: true, recursive: true });
+        return true;
+      } finally {
+        await rm(staging, { force: true, recursive: true });
+      }
+    },
   });
 }

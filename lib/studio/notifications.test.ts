@@ -122,4 +122,47 @@ describe("notifications", () => {
 
     expect(opened).toEqual([NOTIFICATION_SETTINGS_URL]);
   });
+
+  it("posts Linux notifications through the native action-aware transport", async () => {
+    stubGlobal("navigator", { userAgent: "X11; Linux x86_64" });
+    const posted: unknown[] = [];
+    mockIPC((cmd, payload) => {
+      if (cmd === "post_notification") {
+        posted.push(payload);
+        return null;
+      }
+      throw new Error(`unexpected command: ${cmd}`);
+    });
+
+    await Effect.runPromise(post("Intro", "The turn finished."));
+
+    expect(posted).toEqual([{ body: "The turn finished.", title: "Intro" }]);
+  });
+
+  it("rechecks Linux permission without opening macOS System Settings", async () => {
+    stubGlobal("navigator", { userAgent: "X11; Linux x86_64" });
+    const { shimmed } = shim("denied", "granted");
+    mockIPC((cmd) => {
+      throw new Error(`unexpected command: ${cmd}`);
+    });
+
+    await Effect.runPromise(openNotificationSettings);
+
+    expect(shimmed.requestPermission).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a rejected Linux notification transport as a tagged error", async () => {
+    stubGlobal("navigator", { userAgent: "X11; Linux x86_64" });
+    mockIPC(() => {
+      throw new Error("notification service unavailable");
+    });
+
+    const exit = await Effect.runPromiseExit(post("Intro", "x"));
+
+    expect(Exit.isFailure(exit)).toBe(true);
+    if (Exit.isFailure(exit)) {
+      expect(String(exit.cause)).toContain("NotificationError");
+      expect(String(exit.cause)).toContain("notification service unavailable");
+    }
+  });
 });

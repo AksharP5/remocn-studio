@@ -35,11 +35,11 @@ time = { version = "0.3", features = ["formatting"] }
 tokio = { version = "1", features = ["io-util", "net", "process", "rt", "sync", "time"] }
 tauri-plugin-updater = "2.10.1"
 tauri-plugin-notification = "2"
-keyring = { version = "3", features = ["apple-native"] }
+dirs = "6"
+keyring = "3"
 reqwest = { version = "0.13", features = ["json"] }
-# Off by default, and deliberately: nothing in CI compiles this crate — the
-# Rust is only ever built by the release job — so an unbuildable dependency
-# tree would first be found while cutting a release. `contexts` stays on for
+# Off by default; native CI checks the core without a report destination.
+# Release builds opt in when reporting is configured. `contexts` stays on for
 # the os/device context (`server_name` is overridden in `crash.rs`, which is
 # the only part of it that is PII); `release-health`, `logs` and `metrics` are
 # off because this reports crashes and nothing else.
@@ -61,6 +61,12 @@ crash-reports = ["dep:sentry"]
 libc = "0.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", features = ["apple-native"] }
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSImage"] }
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSData"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3", features = ["sync-secret-service", "crypto-rust"] }
+notify-rust = "4"
+webkit2gtk = "2"

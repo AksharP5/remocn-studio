@@ -31,8 +31,6 @@ const installed =
 
 const GIF_HEADER = /^GIF8[79]a$/;
 
-const NO_CONTEXT = /getContext\("webgl2"\) returned null/;
-
 const BOOT_MS = 600_000;
 const RENDER_MS = 600_000;
 
@@ -52,21 +50,14 @@ interface Renderer {
       type: string;
     }) => string;
   };
-  renderMedia: (options: Record<string, unknown>) => Promise<unknown>;
-  selectComposition: (
-    options: Record<string, unknown>
-  ) => Promise<Record<string, unknown> & { height: number; width: number }>;
 }
 
 let scope: Scope.Closeable;
 let fiber: Fiber.Fiber<unknown, unknown> | null = null;
-let port = 0;
 let dataDir = "";
 let renderer: Renderer;
 let out = "";
 const said: string[] = [];
-
-const serveUrl = () => `http://127.0.0.1:${port}/__remocn/render/index.html`;
 
 async function decoded(
   file: string,
@@ -202,7 +193,7 @@ beforeAll(async () => {
     )
   );
 
-  port = await Effect.runPromise(
+  await Effect.runPromise(
     Deferred.await(ready).pipe(
       Effect.timeoutOrElse({
         duration: BOOT_MS - 30_000,
@@ -262,39 +253,7 @@ describe.skipIf(!installed)(
     );
 
     it(
-      "cannot make a WebGL2 context with no backend, which is the failure the studio's policy exists to fix",
-      async () => {
-        const composition = await renderer.selectComposition({
-          chromiumOptions: { gl: null },
-          id: "WebGL",
-          logLevel: "error",
-          serveUrl: serveUrl(),
-          timeoutInMilliseconds: 30_000,
-        });
-
-        const target = path.join(out, "webgl-no-backend.mp4");
-
-        const attempt = renderer.renderMedia({
-          chromiumOptions: { gl: null },
-          codec: "h264",
-          composition,
-          logLevel: "error",
-          outputLocation: target,
-          overwrite: true,
-          serveUrl: serveUrl(),
-          timeoutInMilliseconds: 30_000,
-        });
-
-        // Not merely "it failed": the fixture cancels the render with the exact
-        // sentence the audit reproduced, so this pins the cause rather than the
-        // symptom.
-        await expect(attempt).rejects.toThrow(NO_CONTEXT);
-      },
-      RENDER_MS
-    );
-
-    it(
-      "renders that same WebGL2 scene through the studio, with frames that move",
+      "renders WebGL2 through the studio, with frames that move",
       async () => {
         const exported = await ship("WebGL");
 

@@ -18,6 +18,8 @@ const BINARIES = join(ROOT, "src-tauri", "binaries");
 const TARGETS = [
   { asset: "bun-darwin-aarch64", triple: "aarch64-apple-darwin" },
   { asset: "bun-darwin-x64", triple: "x86_64-apple-darwin" },
+  { asset: "bun-linux-x64", triple: "x86_64-unknown-linux-gnu" },
+  { asset: "bun-linux-aarch64", triple: "aarch64-unknown-linux-gnu" },
 ] as const;
 
 async function pinnedVersion(): Promise<string> {
@@ -93,11 +95,13 @@ async function fetchTarget(
 const pinned = await pinnedVersion();
 await mkdir(BINARIES, { recursive: true });
 
-const only = process.env.TAURI_ENV_TARGET_TRIPLE;
-const wanted =
-  only === undefined
-    ? TARGETS
-    : TARGETS.filter((target) => target.triple === only);
+const cpu = process.arch === "arm64" ? "aarch64" : process.arch;
+const hostArch = cpu === "x64" ? "x86_64" : cpu;
+const hostOs =
+  process.platform === "darwin" ? "apple-darwin" : "unknown-linux-gnu";
+const hostTriple = `${hostArch}-${hostOs}`;
+const only = process.env.TAURI_ENV_TARGET_TRIPLE ?? hostTriple;
+const wanted = TARGETS.filter((target) => target.triple === only);
 
 if (wanted.length === 0) {
   throw new Error(`no bun build is mapped for the target triple ${only}`);

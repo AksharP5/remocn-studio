@@ -1,0 +1,10 @@
+- [x] Map and bundle the pinned Linux Bun runtime; verify the binary's version.
+- [x] Support persistent Linux credentials, native terminal opening, OS diagnostics and crash consent; run Rust tests.
+- [x] Support Linux native menu/window actions and notification permissions; run platform UI tests.
+- [x] Install and discover Linux Node.js without root; run node-installer tests.
+- [x] Build Linux bundles and add a user-local desktop installer and fork update channel.
+- [x] Document Linux setup and add a changeset.
+- [x] Run formatting, typecheck, touched tests and the full test suite.
+- [x] Run real Remotion render smoke tests for all export formats.
+- [x] Install and visually verify the native app on Omarchy; record feature parity and evidence.
+- [x] Push the completed fork and installation instructions.

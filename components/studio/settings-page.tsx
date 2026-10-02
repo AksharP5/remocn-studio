@@ -47,7 +47,7 @@ import {
   shortcutKeys,
 } from "@/lib/studio/command-registry";
 import type { ShellMood } from "@/lib/studio/mood";
-import { modKeyLabel } from "@/lib/studio/platform";
+import { currentPlatform, modKeyLabel } from "@/lib/studio/platform";
 import { shortDay } from "@/lib/studio/time";
 import { downloadedLabel, downloadedShare } from "@/lib/studio/updates";
 import { cn } from "@/lib/utils";
@@ -316,7 +316,7 @@ const THEME_TILES: readonly {
   },
   {
     bar: "bg-white/25",
-    caption: "Follows macOS",
+    caption: "Follows your desktop",
     chip: "bg-black/25",
     id: "system",
     label: "System",
@@ -493,7 +493,7 @@ function TitlebarGroup() {
         </Row>
 
         <Row
-          description="Off holds one frame of the field; the hue still follows the mood. Also off whenever macOS asks to reduce motion."
+          description="Off holds one frame of the field; the hue still follows the mood. Also off whenever your system asks to reduce motion."
           htmlFor="settings-titlebar-motion"
           title="Animate it"
         >
@@ -544,7 +544,7 @@ function BehaviorSection() {
       </Group>
 
       <Group
-        description="Nothing leaves this Mac unless a switch here says so"
+        description="Nothing leaves this device unless a switch here says so"
         title="Privacy"
       >
         <CrashReportsRow
@@ -590,6 +590,14 @@ function NotificationsSection() {
   const { permission } = notifications;
   const isUnavailable = permission === "unavailable";
   const needsPermission = permission === "default" || permission === "denied";
+  const isMac = currentPlatform() === "mac";
+  const deniedMessage = isMac
+    ? "Notifications are off for the studio in System Settings. Nothing will arrive until they are turned on there."
+    : "Notifications are blocked by your desktop. Check its notification settings, then try granting permission again.";
+  const permissionMessage = isMac
+    ? "macOS has not allowed the studio to notify yet. Nothing will arrive until it has."
+    : "The studio does not have notification permission yet. Nothing will arrive until it has.";
+  const message = permission === "denied" ? deniedMessage : permissionMessage;
 
   return (
     <>
@@ -599,7 +607,11 @@ function NotificationsSection() {
       >
         <div className="flex flex-col gap-2">
           <Row
-            description="Turn every notification on or off. macOS asks once, the first time this goes on."
+            description={
+              isMac
+                ? "Turn every notification on or off. macOS asks once, the first time this goes on."
+                : "Turn every notification on or off. Your desktop controls where notifications appear."
+            }
             htmlFor="settings-notifications"
             title="Notify me"
           >
@@ -620,9 +632,7 @@ function NotificationsSection() {
           {needsPermission ? (
             <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
               <p className="text-muted-foreground text-xs leading-snug">
-                {permission === "denied"
-                  ? "Notifications are off for the studio in System Settings. Nothing will arrive until they are turned on there."
-                  : "macOS has not allowed the studio to notify yet. Nothing will arrive until it has."}
+                {message}
               </p>
               <Button onClick={notifications.grant} size="sm" variant="outline">
                 Grant permission
@@ -769,7 +779,10 @@ function FeedbackSection() {
                   ? "—"
                   : ENVIRONMENTS[updates.environment],
               ],
-              ["macOS", updates.os ?? "—"],
+              [
+                currentPlatform() === "mac" ? "macOS" : "Operating system",
+                updates.os ?? "—",
+              ],
               ["Agent", PROVIDER_INFO[provider].name],
             ]}
           />
@@ -807,7 +820,7 @@ const ENVIRONMENTS: Record<AppEnvironment, string> = {
 
 // The popover in the sidebar keeps `UpdatesBody`, sized for a popover. The
 // page reads top to bottom as one card: the version, its build and the
-// macOS it runs on, the studio's own sentence about it, and the check on the
+// operating system it runs on, the studio's own sentence about it, and the check on the
 // same line as the thing it checks. A release that is ready is a second
 // card under it, with its notes and the install button, and it exists only
 // while there is one — an empty "Releases" group said nothing.
@@ -859,7 +872,14 @@ function UpdatesSection() {
             </Button>
           </div>
 
-          <Facts rows={[["macOS", updates.os ?? "—"]]} />
+          <Facts
+            rows={[
+              [
+                currentPlatform() === "mac" ? "macOS" : "Operating system",
+                updates.os ?? "—",
+              ],
+            ]}
+          />
 
           {updates.error === null ? null : (
             <p className="text-destructive text-xs">{updates.error}</p>
