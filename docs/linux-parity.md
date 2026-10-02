@@ -71,7 +71,21 @@ Rechecked on October 2, 2026:
 - The installed app applied the signed 1.0.2 → 1.0.3 update and restarted. Its SHA-256 is `f73504ab0a218bb904588afcbd0bae15ca08da4152f9db6491b5edc614089f07`, matching the release. The project document checksum remained unchanged.
 - A final upstream fetch found no missing commits.
 
-The current Linux release is [v1.0.3](https://github.com/AksharP5/remocn-studio/releases/tag/v1.0.3). Recovery screenshots are in the ignored `artifacts/linux-qa/recovery-*` files.
+That audit used [v1.0.3](https://github.com/AksharP5/remocn-studio/releases/tag/v1.0.3). Recovery screenshots are in the ignored `artifacts/linux-qa/recovery-*` files.
+
+## Editing and reload audit: 1.0.5
+
+Rechecked on October 2, 2026:
+
+- Fixed Linux canvas Ctrl+Z and video/chat Control deletion shortcuts. Native GTK Undo now offers the focused canvas its existing Undo handler, while text fields retain WebKit Undo. Regression tests cover both paths and both row types. In the packaged app, a heading nudge persisted x260 → x261 and Ctrl+Z restored x260. The video deletion dialog was opened and cancelled without removing the video.
+- Reproduced native reload failure with looping audio. The error details were discarded by the native host; preserving them exposed Remotion's zero-length Loop error. A native probe isolated connected audio reporting duration zero, readyState 4 and networkState 1. The runtime now defers that metadata event until durationchange supplies a positive value, including Infinity. The packaged app retained the paused frame through nudge and Undo reloads, then played moving footage and WebGL without the error. Temporary probe changes were removed and the QA source checksum was restored.
+- Fixed stale HOME package-manager shims overriding active PATH, including unusable files and directories. Managed npm discovery is tested immediately after installation and after activation on restart. Removed unnecessary archive setup from the checksum cancellation test and waited for the real preview-collapse transition in the page test.
+- All 3,403 local application tests passed, with 10 optional skips. All eight opt-in real renderer cases passed, including WebGL, audio, MP4/H.264, WebM/VP9, MOV/ProRes, GIF and failed-export preservation. Format/lint, typecheck, static export and signed AppImage/deb packaging passed.
+- All four [CI jobs](https://github.com/AksharP5/remocn-studio/actions/runs/37077396718) passed for release source `4b7558c`, including 85 native tests and 3,396 application tests. The additional seven CI skips require local fixtures and passed locally.
+- The installed app applied the signed 1.0.3 → 1.0.5 update and restarted with helper protocol 38 and history schema 8. Its SHA-256 is `19bfa766a118184c4322e17dce8df0c755780014b17200a160c6a8a69dbfb78c`, matching the release. The project document checksum stayed unchanged through the update.
+- A final upstream fetch found no missing commits.
+
+The current Linux release is [v1.0.5](https://github.com/AksharP5/remocn-studio/releases/tag/v1.0.5). Native evidence remains in the ignored `artifacts/linux-qa/final-*`, `diagnostic-*` and `update-*` files.
 
 ## Account-dependent features
 
@@ -79,4 +93,4 @@ Provider subscriptions and optional Figma, ElevenLabs and Pexels credentials are
 
 ## Desktop differences
 
-Omarchy has no macOS Dock. The waiting count and export status appear in the native window title, while the same unread markers, cards and opt-in notifications remain in the app. Linux Edit menu actions operate directly on WebKit so clipboard actions work on Wayland. Linux provider setup commands explicitly include the managed Node.js bin directory, which also works when a terminal reuses an existing process.
+Omarchy has no macOS Dock. The waiting count and export status appear in the native window title, while the same unread markers, cards and opt-in notifications remain in the app. Linux Edit menu actions use WebKit for text and clipboard operations, while Undo follows the focused canvas. Linux editing shortcuts use Control. Linux provider setup commands explicitly include the managed Node.js bin directory, which also works when a terminal reuses an existing process.
