@@ -198,9 +198,11 @@ describe("app shell", () => {
     await renderShell();
     await showPreviewButton();
 
-    expect(
-      screen.queryByRole("button", { name: "Hide the preview" })
-    ).toBeNull();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Hide the preview" })
+      ).not.toBeInTheDocument()
+    );
   });
 
   it("does not reveal onboarding while stored projects are loading", async () => {
