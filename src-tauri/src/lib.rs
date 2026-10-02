@@ -31,6 +31,13 @@ fn asked_to_quit() -> bool {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // WebKit's DMABuf path produces a blank webview on the Omarchy NVIDIA
+    // desktop. Keep compositing available through its fallback renderer.
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+
     // `generate_context!()` is bound rather than passed straight to `build`,
     // because the consent has to be read before the builder runs — a panic
     // while the app is being built is one of the crashes this exists to catch,

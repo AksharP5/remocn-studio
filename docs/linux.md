@@ -43,3 +43,5 @@ Publish the AppImage, its signature and the Linux updater manifest together. The
 ## Verification
 
 The port's verification record is maintained in [linux-parity.md](linux-parity.md). Existing projects and exports keep their standard Remotion formats. HyperFrames support is outside this port.
+
+The app defaults to WebKit's fallback compositing renderer because its DMABuf path left the editor blank on the tested Omarchy NVIDIA desktop. This is the workaround documented in [WebKit issue 291332](https://bugs.webkit.org/show_bug.cgi?id=291332); it does not change Remotion's Chromium export renderer. An existing `WEBKIT_DISABLE_DMABUF_RENDERER` setting is respected.

@@ -58,6 +58,10 @@ if command -v gtk-update-icon-cache >/dev/null; then
   gtk-update-icon-cache -f -t "$data_dir/icons/hicolor" >/dev/null 2>&1 || true
 fi
 if command -v xdg-mime >/dev/null; then
+  mime_file="${XDG_CONFIG_HOME:-$HOME/.config}/mimeapps.list"
+  if [[ -f "$mime_file" && ! -e "$mime_file.remocn-studio-before" ]]; then
+    cp -- "$mime_file" "$mime_file.remocn-studio-before"
+  fi
   xdg-mime default "$app_id.desktop" x-scheme-handler/remocn-studio
 fi
 printf 'Installed Remocn Studio. Launch it from your app launcher or %s/remocn-studio\n' "$bin_dir"
