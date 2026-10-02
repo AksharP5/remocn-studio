@@ -23,8 +23,9 @@ pub fn open_terminal() -> Result<(), String> {
 #[cfg(target_os = "linux")]
 #[tauri::command]
 pub fn open_terminal() -> Result<(), String> {
+    let home = dirs::home_dir().ok_or_else(|| "the home directory is unavailable".to_string())?;
     open_available_terminal(|terminal| {
-        let mut child = Command::new(terminal).spawn()?;
+        let mut child = Command::new(terminal).current_dir(&home).spawn()?;
         std::thread::Builder::new()
             .name("terminal-exit".to_string())
             .spawn(move || {
