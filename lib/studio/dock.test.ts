@@ -1,6 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { ProgressBarStatus } from "@tauri-apps/api/window";
-import { badgeCountOf, dockProgressOf, sameProgress } from "@/lib/studio/dock";
+import {
+  badgeCountOf,
+  dockProgressOf,
+  sameProgress,
+  windowTitleOf,
+} from "@/lib/studio/dock";
 import { IDLE_TURN } from "@/lib/studio/turns";
 import type { ExportEvent } from "@/shared/ipc";
 
@@ -100,5 +105,31 @@ describe("badgeCountOf", () => {
 
     expect(badgeCountOf(turns)).toBe(2);
     expect(badgeCountOf(new Map())).toBe(0);
+  });
+});
+
+describe("windowTitleOf", () => {
+  it("names only the studio while idle", () => {
+    expect(windowTitleOf({ event: null, phase: "idle" }, 0)).toBe(
+      "Remocn Studio"
+    );
+  });
+
+  it("composes waiting cards with the existing render and encode progress", () => {
+    expect(windowTitleOf({ event: progress(50, 0), phase: "running" }, 2)).toBe(
+      "Remocn Studio · 2 waiting · Export 25%"
+    );
+  });
+
+  it("reports an export without claiming progress before it is measured", () => {
+    expect(windowTitleOf({ event: null, phase: "running" }, 0)).toBe(
+      "Remocn Studio · Exporting"
+    );
+  });
+
+  it("shows a failed export beside any cards still waiting", () => {
+    expect(windowTitleOf({ event: null, phase: "failed" }, 1)).toBe(
+      "Remocn Studio · 1 waiting · Export failed"
+    );
   });
 });

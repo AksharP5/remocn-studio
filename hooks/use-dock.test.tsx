@@ -4,14 +4,16 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { useDock } from "@/hooks/use-dock";
 import type { DockExportReading } from "@/lib/studio/dock";
 import { IDLE_TURN, type TurnState } from "@/lib/studio/turns";
+import { stubGlobal, unstubAllGlobals } from "@/test/stub-global";
 
 interface Painted {
   badges: (number | undefined)[];
   bars: { progress?: number; status: string }[];
+  titles: string[];
 }
 
 function core(): Painted {
-  const painted: Painted = { badges: [], bars: [] };
+  const painted: Painted = { badges: [], bars: [], titles: [] };
   mockWindows("main");
   mockIPC((cmd, payload) => {
     if (cmd === "plugin:window|set_progress_bar") {
@@ -20,6 +22,10 @@ function core(): Painted {
     }
     if (cmd === "plugin:window|set_badge_count") {
       painted.badges.push((payload as { value?: number }).value);
+      return null;
+    }
+    if (cmd === "plugin:window|set_title") {
+      painted.titles.push((payload as { value: string }).value);
       return null;
     }
     throw new Error(`unexpected command: ${cmd}`);
@@ -59,6 +65,7 @@ describe("useDock", () => {
 
   afterEach(() => {
     jest.useRealTimers();
+    unstubAllGlobals();
   });
 
   it("paints the run and hides it when the file is written", async () => {
@@ -144,5 +151,115 @@ describe("useDock", () => {
     view.rerender({ exporting: { event: null, phase: "idle" }, turns: NONE });
 
     await waitFor(() => expect(painted.badges).toEqual([1, undefined]));
+  });
+
+  it("composes Linux native status with one title writer and clears each part independently", async () => {
+    stubGlobal("navigator", { userAgent: "X11; Linux x86_64" });
+    const card = {
+      askedAt: 1,
+      id: "p",
+      input: {},
+      name: "Bash",
+      reason: "bash" as const,
+    };
+    const waiting = new Map([
+      ["s1", { ...IDLE_TURN, permissions: [card, { ...card, id: "q" }] }],
+    ]);
+    const view = dock(running(50), waiting);
+    await waitFor(() =>
+      expect(painted.titles.at(-1)).toBe(
+        "Remocn Studio · 2 waiting · Export 25%"
+      )
+    );
+
+    view.rerender({ exporting: running(50), turns: NONE });
+    await waitFor(() =>
+      expect(painted.titles.at(-1)).toBe("Remocn Studio · Export 25%")
+    );
+    view.rerender({
+      exporting: { event: null, phase: "done" },
+      turns: waiting,
+    });
+    await waitFor(() =>
+      expect(painted.titles.at(-1)).toBe("Remocn Studio · 2 waiting")
+    );
+    view.rerender({ exporting: { event: null, phase: "idle" }, turns: NONE });
+    await waitFor(() => expect(painted.titles.at(-1)).toBe("Remocn Studio"));
+    expect(painted.badges).toEqual([]);
+    expect(painted.bars).toEqual([]);
+  });
+
+  it("interrupts Linux failure status when a new export begins", async () => {
+    stubGlobal("navigator", { userAgent: "X11; Linux x86_64" });
+    jest.useFakeTimers();
+    const view = dock({ event: null, phase: "failed" });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(painted.titles.at(-1)).toBe("Remocn Studio · Export failed");
+
+    await act(async () => {
+      jest.advanceTimersByTime(1000);
+      await Promise.resolve();
+    });
+
+    view.rerender({ exporting: running(50), turns: NONE });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const before = painted.titles.length;
+    await act(async () => {
+      jest.advanceTimersByTime(4000);
+      await Promise.resolve();
+    });
+    expect(painted.titles).toHaveLength(before);
+    expect(painted.titles.at(-1)).toBe("Remocn Studio · Export 25%");
+  });
+
+  it("clears Linux failure after three seconds even when the waiting count changes", async () => {
+    stubGlobal("navigator", { userAgent: "X11; Linux x86_64" });
+    jest.useFakeTimers();
+    const failed: DockExportReading = { event: null, phase: "failed" };
+    const view = dock(failed);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(2000);
+      await Promise.resolve();
+    });
+    const waiting = new Map([
+      [
+        "s1",
+        {
+          ...IDLE_TURN,
+          permissions: [
+            {
+              askedAt: 1,
+              id: "p",
+              input: {},
+              name: "Bash",
+              reason: "bash" as const,
+            },
+          ],
+        },
+      ],
+    ]);
+    view.rerender({ exporting: failed, turns: waiting });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(painted.titles.at(-1)).toBe(
+      "Remocn Studio · 1 waiting · Export failed"
+    );
+
+    await act(async () => {
+      jest.advanceTimersByTime(1000);
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(painted.titles.at(-1)).toBe("Remocn Studio · 1 waiting");
   });
 });
