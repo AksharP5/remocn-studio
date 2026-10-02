@@ -1,9 +1,6 @@
 "use client";
 
-import { isTauri } from "@tauri-apps/api/core";
-import { appDataDir } from "@tauri-apps/api/path";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Effect } from "effect";
 import {
   CheckIcon,
   CopyIcon,
@@ -11,19 +8,16 @@ import {
   TerminalIcon,
 } from "lucide-react";
 import type { MouseEvent } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { useAsyncAction } from "@/hooks/use-async-action";
 import { useCopyCommand } from "@/hooks/use-copy-command";
 import { useTerminal } from "@/hooks/use-terminal";
-import { errorMessage } from "@/lib/error-message";
 import { currentPlatform, modKeyCombo } from "@/lib/studio/platform";
 import {
   type SetupStage,
   type StageState,
   stageStates,
 } from "@/lib/studio/setup";
-import { linuxSetupCommand, TerminalError } from "@/lib/studio/terminal";
 import { cn } from "@/lib/utils";
 import type { EnvironmentCheck } from "@/shared/ipc";
 import {
@@ -43,44 +37,13 @@ export function ProviderSteps({
   const stages = stageStates(row);
   const copy = useCopyCommand();
   const terminal = useTerminal();
-  const needsNodePath = currentPlatform() === "linux" && isTauri();
-  const [dataDir, setDataDir] = useState<string | null>();
-  const { run, error: pathError } = useAsyncAction();
-
-  useEffect(() => {
-    if (!needsNodePath) {
-      return;
-    }
-    let current = true;
-    run(
-      Effect.tryPromise({
-        catch: (cause) => new TerminalError({ message: errorMessage(cause) }),
-        try: appDataDir,
-      })
-    ).then((directory) => {
-      if (current) {
-        setDataDir(directory);
-      }
-    });
-    return () => {
-      current = false;
-    };
-  }, [needsNodePath, run]);
-
-  const isPreparing = needsNodePath && dataDir === undefined;
   const install = {
     ...setup.install,
-    command:
-      typeof dataDir === "string"
-        ? linuxSetupCommand(setup.install.command, dataDir)
-        : setup.install.command,
+    command: terminal.prepare(setup.install.command),
   };
   const signin = {
     ...setup.signin,
-    command:
-      typeof dataDir === "string"
-        ? linuxSetupCommand(setup.signin.command, dataDir)
-        : setup.signin.command,
+    command: terminal.prepare(setup.signin.command),
   };
 
   return (
@@ -94,7 +57,7 @@ export function ProviderSteps({
       >
         <StepActions
           copy={copy}
-          disabled={isPreparing}
+          disabled={terminal.isPreparing}
           step={install}
           terminal={terminal}
         />
@@ -108,7 +71,7 @@ export function ProviderSteps({
       >
         <StepActions
           copy={copy}
-          disabled={isPreparing}
+          disabled={terminal.isPreparing}
           step={signin}
           terminal={terminal}
         />
@@ -123,11 +86,6 @@ export function ProviderSteps({
       {terminal.error === null ? null : (
         <li className="text-destructive text-xs" role="alert">
           {terminal.error}
-        </li>
-      )}
-      {pathError === null ? null : (
-        <li className="text-destructive text-xs" role="alert">
-          {pathError}
         </li>
       )}
     </ol>

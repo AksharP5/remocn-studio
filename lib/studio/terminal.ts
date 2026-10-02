@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { appDataDir } from "@tauri-apps/api/path";
 import { Data, Effect } from "effect";
 import { errorMessage } from "@/lib/error-message";
 
@@ -16,6 +17,9 @@ export function linuxSetupCommand(command: string, dataDir: string): string {
   const quoted = `'${bin.replaceAll("'", "'\\''")}'`;
   return `export PATH=${quoted}:"$PATH"; ${command}`;
 }
+
+export const setupDataDir: Effect.Effect<string, TerminalError> =
+  Effect.tryPromise({ catch: fail, try: appDataDir });
 
 export function copyCommand(
   command: string
