@@ -13,3 +13,9 @@ The Linux app SHALL launch the same editor, agents, library, preview and export 
 
 - **WHEN** a platform integration cannot complete
 - **THEN** the affected workflow reports the reason without silently substituting an in-memory credential store or a macOS command
+
+#### Scenario: The AppImage's media helper is relocated
+
+- **WHEN** the packaging hook points at a missing media plugin scanner and the AppImage contains the scanner at its Linux library path
+- **THEN** the core uses the bundled scanner before loading the preview's media dependencies
+- **AND** a working configured scanner or custom override remains unchanged

@@ -8,3 +8,4 @@
 - [x] Run real Remotion render smoke tests for all export formats.
 - [x] Install and visually verify the native app on Omarchy; record feature parity and evidence.
 - [x] Push the completed fork and installation instructions.
+- [ ] Repair the AppImage media scanner path; verify `linux::tests::repairs_only_the_missing_appimage_scanner`, full checks and a fresh installed launch with footage/audio.

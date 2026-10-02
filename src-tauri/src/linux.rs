@@ -1,6 +1,35 @@
 use serde::Deserialize;
 use tauri::{AppHandle, WebviewWindow};
 
+#[cfg(target_os = "linux")]
+pub fn repair_plugin_scanner() {
+    let Some(appdir) = std::env::var_os("APPDIR") else {
+        return;
+    };
+    let Some(configured) = std::env::var_os("GST_PLUGIN_SCANNER_1_0") else {
+        return;
+    };
+    if let Some(scanner) = replacement_plugin_scanner(
+        std::path::Path::new(&appdir),
+        std::path::Path::new(&configured),
+    ) {
+        std::env::set_var("GST_PLUGIN_SCANNER_1_0", scanner);
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn replacement_plugin_scanner(
+    appdir: &std::path::Path,
+    configured: &std::path::Path,
+) -> Option<std::path::PathBuf> {
+    let default = appdir.join("usr/lib/gstreamer1.0/gstreamer-1.0/gst-plugin-scanner");
+    if configured != default || configured.is_file() {
+        return None;
+    }
+    let shipped = appdir.join("usr/lib/gstreamer-1.0/gst-plugin-scanner");
+    shipped.is_file().then_some(shipped)
+}
+
 #[derive(Clone, Copy, Deserialize)]
 pub enum EditCommand {
     Undo,
@@ -103,6 +132,41 @@ mod tests {
             assert!(serde_json::from_value::<EditCommand>(serde_json::json!(command)).is_ok());
         }
         assert!(serde_json::from_value::<EditCommand>(serde_json::json!("InsertHTML")).is_err());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn repairs_only_the_missing_appimage_scanner() {
+        use std::fs;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let root = std::env::temp_dir().join(format!(
+            "remocn-scanner-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let default = root.join("usr/lib/gstreamer1.0/gstreamer-1.0/gst-plugin-scanner");
+        let shipped = root.join("usr/lib/gstreamer-1.0/gst-plugin-scanner");
+
+        assert_eq!(replacement_plugin_scanner(&root, &default), None);
+        fs::create_dir_all(shipped.parent().unwrap()).unwrap();
+        fs::write(&shipped, "bundled scanner").unwrap();
+        assert_eq!(
+            replacement_plugin_scanner(&root, &default),
+            Some(shipped.clone())
+        );
+        assert_eq!(replacement_plugin_scanner(&root, &shipped), None);
+        assert_eq!(
+            replacement_plugin_scanner(&root, std::path::Path::new("/custom/scanner")),
+            None
+        );
+        fs::create_dir_all(default.parent().unwrap()).unwrap();
+        fs::write(&default, "valid original scanner").unwrap();
+        assert_eq!(replacement_plugin_scanner(&root, &default), None);
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[cfg(target_os = "linux")]
