@@ -57,6 +57,23 @@ describe("feedbackMailto", () => {
     expect(body).not.toContain("Remocn Studio (");
   });
 
+  it("carries the Linux distribution without a macOS label", () => {
+    const body = bodyOf(
+      feedbackMailto(
+        {
+          environment: "production",
+          os: "Omarchy 4.0.0",
+          provider: "Codex",
+          version: "1.0.0",
+        },
+        "linux"
+      )
+    );
+
+    expect(body).toContain("Omarchy 4.0.0");
+    expect(body).not.toContain("macOS");
+  });
+
   it("names the build even when only the environment is known", () => {
     const body = bodyOf(
       feedbackMailto({
