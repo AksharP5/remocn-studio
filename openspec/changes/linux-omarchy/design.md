@@ -14,4 +14,6 @@ The target machine is Omarchy 4 on x86_64 with Hyprland and Wayland. GTK 3, WebK
 
 ## State and failures
 
+The first AppImage bundling attempt failed because linuxdeploy's bundled GNU strip rejected Arch libraries with `.relr.dyn` sections. `NO_STRIP=1` preserves the system libraries while retaining Rust's existing release stripping. The Linux build script sets it explicitly; no system tool is replaced.
+
 The sidecar owns the managed runtime on disk. The Rust core owns app data and native launch actions. Existing requests carry installation progress and errors; no wire change is required. Installation failure keeps the prior runtime and reports the reason in the checklist. Native integration failures remain visible. Credentials, app history and crash consent stay local. Platform limitations in desktop badge support are reported in the parity record.

@@ -20,7 +20,7 @@ GTK 3, WebKitGTK 4.1, libsecret, OpenSSL, librsvg, patchelf, Rust and Bun are re
 
 ```sh
 bun install --frozen-lockfile
-CARGO_BUILD_JOBS=1 bun tauri build --ci --no-sign
+bun run linux:build --no-sign
 bash scripts/install-linux.sh
 ```
 
@@ -28,12 +28,14 @@ The build automatically downloads the Bun version pinned in `package.json`. Linu
 
 ## Signed updates
 
+`linux:build` disables linuxdeploy's old symbol-stripping tool, which cannot read Arch's RELR library sections. Rust's release binary is already stripped. The setting affects packaging only and follows [linuxdeploy's supported NO_STRIP option](https://github.com/linuxdeploy/linuxdeploy/issues/72).
+
 Linux checks this fork's `latest.json` and verifies downloads with its own public signing key. The private key is kept outside the repository, under `~/.local/share/remocn-studio-signing` on the maintainer's machine. Build a signed release with:
 
 ```sh
 TAURI_SIGNING_PRIVATE_KEY="$HOME/.local/share/remocn-studio-signing/linux.key" \
 TAURI_SIGNING_PRIVATE_KEY_PASSWORD='' \
-CARGO_BUILD_JOBS=1 bun tauri build --ci
+bun run linux:build
 ```
 
 Publish the AppImage, its signature and the Linux updater manifest together. The installer uses a stable AppImage path so an in-app update replaces the installed file and restarts into the new version. The upstream macOS publishing workflow runs only in the upstream repository.

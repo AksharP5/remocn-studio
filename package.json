@@ -89,6 +89,7 @@
     "crash:verify": "bun run scripts/crash-sink.ts",
     "dev": "next dev",
     "fix": "ultracite fix",
+    "linux:build": "NO_STRIP=1 CARGO_BUILD_JOBS=1 tauri build --ci --features crash-reports",
     "motion:proof": "bun scripts/motion-proof.ts",
     "release:sourcemaps": "bun run scripts/sourcemaps.ts",
     "release:tag": "changeset tag",
