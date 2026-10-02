@@ -56,7 +56,22 @@ Rechecked on October 2, 2026:
 - The installed app successfully applied the signed 1.0.1 → 1.0.2 update and restarted. The project document checksum stayed unchanged, and the installed AppImage matched release SHA-256 `59fb48f1ac7ab7336e596df5d2a64572c7b9bf61e5a766ea508504002c86a8eb`.
 - Native shutdown exited cleanly and produced no new core dumps.
 
-The current Linux release is [v1.0.2](https://github.com/AksharP5/remocn-studio/releases/tag/v1.0.2). Follow-up screenshots are in the ignored `artifacts/linux-qa/audit-*` files.
+That audit used [v1.0.2](https://github.com/AksharP5/remocn-studio/releases/tag/v1.0.2). Follow-up screenshots are in the ignored `artifacts/linux-qa/audit-*` files.
+
+## Recovery audit: 1.0.3
+
+Rechecked on October 2, 2026:
+
+- Reproduced temporary download directories left after HTTP failure and cancellation, and a checksum request that continued after cancellation. The installer now owns download cleanup through its scope and waits for cancelled IO to finish before releasing its semaphore. Cancellation stops subprocesses and preserves the existing runtime before activation.
+- All 14 installer tests passed, including the full install, failed-download cleanup, cancelled streams, checksum cancellation and cancellation of a running verification process. An isolated real installation downloaded official Node.js `v24.21.0`, verified its release checksum, activated Node/npm and removed the download directory.
+- All 3,391 local frontend/sidecar tests passed. Format/lint, typecheck, production build and signed AppImage packaging passed.
+- All four [GitHub CI jobs](https://github.com/AksharP5/remocn-studio/actions/runs/37024869087) passed for release source `2568d6d`, including 85 native tests. CI passed 3,384 application tests; its additional seven skips require local Remotion/media fixtures and passed locally. The eight opt-in real renderer cases were verified in the previous audit; this patch changes Node.js setup.
+- The new AppImage started on Omarchy, restored the QA project, played moving footage and WebGL, and quit with helper exit code zero. No new core dumps appeared.
+- Corrected an extra base64 encoding in the release manifest before applying the update. The published signature matches Tauri's generated `.sig` text directly.
+- The installed app applied the signed 1.0.2 → 1.0.3 update and restarted. Its SHA-256 is `f73504ab0a218bb904588afcbd0bae15ca08da4152f9db6491b5edc614089f07`, matching the release. The project document checksum remained unchanged.
+- A final upstream fetch found no missing commits.
+
+The current Linux release is [v1.0.3](https://github.com/AksharP5/remocn-studio/releases/tag/v1.0.3). Recovery screenshots are in the ignored `artifacts/linux-qa/recovery-*` files.
 
 ## Account-dependent features
 

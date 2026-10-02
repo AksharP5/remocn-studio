@@ -10,4 +10,4 @@
 - [x] Push the completed fork and installation instructions.
 - [x] Repair the AppImage media scanner path; verify `linux::tests::repairs_only_the_missing_appimage_scanner`, full checks and a fresh installed launch with footage/audio.
 - [x] Scope Node.js downloads, stop cancelled IO and wait for staging cleanup; reproduce failure/cancellation and verify the full install in `sidecar/node-installer.test.ts`.
-- [ ] Package and verify the recovery patch against the installed native app; run check, typecheck, the full suite and Linux CI.
+- [x] Package and verify the recovery patch against the installed native app; run check, typecheck, the full suite and Linux CI.
