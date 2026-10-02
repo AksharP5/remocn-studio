@@ -40,6 +40,8 @@ bun run linux:build
 
 Publish the AppImage, its signature and the Linux updater manifest together. The installer uses a stable AppImage path so an in-app update replaces the installed file and restarts into the new version. The upstream macOS publishing workflow runs only in the upstream repository.
 
+Copy the `.AppImage.sig` file's text directly into the manifest's `signature` field. Tauri already base64-encodes that file; encoding it again makes the updater reject the release.
+
 ## Verification
 
 The port's verification record is maintained in [linux-parity.md](linux-parity.md). Existing projects and exports keep their standard Remotion formats. HyperFrames support is outside this port.

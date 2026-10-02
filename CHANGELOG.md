@@ -1,5 +1,11 @@
 # remocn-studio
 
+## 1.0.3
+
+### Patch Changes
+
+- 7177b85: Clean up failed Node.js downloads and stop cancelled Linux installations before retrying. Preserve the existing runtime through download, extraction and verification failures.
+
 ## 1.0.2
 
 ### Patch Changes
