@@ -1,5 +1,11 @@
 # remocn-studio
 
+## 1.0.1
+
+### Patch Changes
+
+- 926d677: Add Linux desktop support with native integration storage, environment setup, packaging and signed updates for the Omarchy fork.
+
 ## 1.0.0
 
 ### Major Changes
