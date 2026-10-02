@@ -95,7 +95,11 @@ async function fetchTarget(
 const pinned = await pinnedVersion();
 await mkdir(BINARIES, { recursive: true });
 
-const hostTriple = `${process.arch === "arm64" ? "aarch64" : process.arch === "x64" ? "x86_64" : process.arch}-${process.platform === "darwin" ? "apple-darwin" : "unknown-linux-gnu"}`;
+const cpu = process.arch === "arm64" ? "aarch64" : process.arch;
+const hostArch = cpu === "x64" ? "x86_64" : cpu;
+const hostOs =
+  process.platform === "darwin" ? "apple-darwin" : "unknown-linux-gnu";
+const hostTriple = `${hostArch}-${hostOs}`;
 const only = process.env.TAURI_ENV_TARGET_TRIPLE ?? hostTriple;
 const wanted = TARGETS.filter((target) => target.triple === only);
 
