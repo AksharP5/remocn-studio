@@ -12,3 +12,5 @@
 - [x] Scope Node.js downloads, stop cancelled IO and wait for staging cleanup; reproduce failure/cancellation and verify the full install in `sidecar/node-installer.test.ts`.
 - [x] Package and verify the recovery patch against the installed native app; run check, typecheck, the full suite and Linux CI.
 - [x] Respect active package-manager PATH and skip unusable files; reproduce stale-shim failures and verify managed npm discovery immediately and after restart.
+- [x] Use Control for Linux canvas Undo and row deletion; test native Undo routing and text-editor fallback.
+- [ ] Package and verify the shortcut/runtime patch in the installed app, including canvas Ctrl+Z, row deletion confirmation and retained project data.

@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
-import { waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { Effect } from "effect";
+import { useCanvasLayers } from "@/hooks/use-canvas-layers";
+import type { PreviewControl } from "@/hooks/use-preview";
 import { installAppMenu, menuShape } from "@/lib/studio/app-menu";
 import { type Command, SHORTCUTS } from "@/lib/studio/command-registry";
 import { stubGlobal, unstubAllGlobals } from "@/test/stub-global";
@@ -290,6 +292,52 @@ describe("installAppMenu", () => {
             typeof row.options.item === "object"
         )
     ).toBe(true);
+  });
+
+  it("routes Linux menu Undo to the focused canvas before WebKit editing", async () => {
+    stubGlobal("navigator", { userAgent: "X11; Linux x86_64" });
+    const viewport = document.createElement("div");
+    viewport.tabIndex = 0;
+    document.body.append(viewport);
+    const undo = mock();
+    const { unmount } = renderHook(() =>
+      useCanvasLayers({
+        deletion: { openRowMenu: mock(), remove: mock(), undo },
+        managed: undefined,
+        preview: {
+          send: mock(),
+          subscribe: () => () => undefined,
+        } as unknown as PreviewControl,
+        selection: null,
+        viewport: { current: viewport },
+      })
+    );
+    viewport.focus();
+    await Effect.runPromise(installAppMenu(COMMANDS, mock(), () => true));
+
+    act(() => rowsOf(capture, "Edit")[0]?.handler?.onmessage());
+
+    expect(undo).toHaveBeenCalledTimes(1);
+    expect(capture.invoked).toEqual([]);
+    unmount();
+    viewport.remove();
+  });
+
+  it("leaves Undo in a Linux text field to WebKit", async () => {
+    stubGlobal("navigator", { userAgent: "X11; Linux x86_64" });
+    const input = document.createElement("input");
+    document.body.append(input);
+    input.focus();
+    await Effect.runPromise(installAppMenu(COMMANDS, mock(), () => true));
+
+    rowsOf(capture, "Edit")[0]?.handler?.onmessage();
+
+    await waitFor(() =>
+      expect(capture.invoked).toEqual([
+        { command: "edit_webview", payload: { command: "Undo" } },
+      ])
+    );
+    input.remove();
   });
 });
 

@@ -7,6 +7,7 @@ The target machine is Omarchy 4 on x86_64 with Hyprland and Wayland. GTK 3, WebK
 - Retain the existing Tauri, Next static export and Bun sidecar architecture. Use platform branches only at native boundaries.
 - Keep macOS credentials native; persist Linux credentials through Secret Service. A missing or locked service must surface a useful error rather than silently retaining a secret in memory.
 - Open the configured Linux terminal without executing the copied setup command.
+- Use the platform's primary modifier for canvas Undo and row deletion. Linux's native Undo accelerator first offers the focused DOM target its existing canvas shortcut; when no handler consumes it, invoke WebKit's native editor command. This keeps text editing native without introducing a second video Undo implementation.
 - Install official Linux Node.js archives in the app data directory. Verify the release checksum before extraction, then prepend its bin directory to the sidecar's PATH so installation survives app restarts. Do not change shell configuration or replace the user's system Node.js.
 - Resolve package managers from the active PATH before home-directory fallbacks. Bun's executable lookup rejects non-executable files and directories; an existing Volta shim must not override the managed runtime just activated by the installer.
 - Use AppImage for Omarchy, with installation under the user's local application directory. Keep desktop files and icons in XDG locations.

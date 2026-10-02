@@ -190,7 +190,23 @@ function editMenu(platform: Platform) {
     const edit = (command: string, accelerator: string) =>
       nativeItem(
         command === "SelectAll" ? "Select All" : command,
-        () => invoke<void>("edit_webview", { command }),
+        async () => {
+          // GTK accelerators consume Ctrl+Z before the canvas sees it.
+          if (
+            command === "Undo" &&
+            document.activeElement?.dispatchEvent(
+              new KeyboardEvent("keydown", {
+                bubbles: true,
+                cancelable: true,
+                ctrlKey: true,
+                key: "z",
+              })
+            ) === false
+          ) {
+            return;
+          }
+          await invoke<void>("edit_webview", { command });
+        },
         accelerator
       );
 
