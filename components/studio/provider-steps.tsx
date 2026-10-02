@@ -1,6 +1,9 @@
 "use client";
 
+import { isTauri } from "@tauri-apps/api/core";
+import { appDataDir } from "@tauri-apps/api/path";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { Effect } from "effect";
 import {
   CheckIcon,
   CopyIcon,
@@ -8,16 +11,19 @@ import {
   TerminalIcon,
 } from "lucide-react";
 import type { MouseEvent } from "react";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useAsyncAction } from "@/hooks/use-async-action";
 import { useCopyCommand } from "@/hooks/use-copy-command";
 import { useTerminal } from "@/hooks/use-terminal";
+import { errorMessage } from "@/lib/error-message";
 import { currentPlatform, modKeyCombo } from "@/lib/studio/platform";
 import {
   type SetupStage,
   type StageState,
   stageStates,
 } from "@/lib/studio/setup";
+import { linuxSetupCommand, TerminalError } from "@/lib/studio/terminal";
 import { cn } from "@/lib/utils";
 import type { EnvironmentCheck } from "@/shared/ipc";
 import {
@@ -37,6 +43,45 @@ export function ProviderSteps({
   const stages = stageStates(row);
   const copy = useCopyCommand();
   const terminal = useTerminal();
+  const needsNodePath = currentPlatform() === "linux" && isTauri();
+  const [dataDir, setDataDir] = useState<string | null>();
+  const { run, error: pathError } = useAsyncAction();
+
+  useEffect(() => {
+    if (!needsNodePath) {
+      return;
+    }
+    let current = true;
+    run(
+      Effect.tryPromise({
+        catch: (cause) => new TerminalError({ message: errorMessage(cause) }),
+        try: appDataDir,
+      })
+    ).then((directory) => {
+      if (current) {
+        setDataDir(directory);
+      }
+    });
+    return () => {
+      current = false;
+    };
+  }, [needsNodePath, run]);
+
+  const isPreparing = needsNodePath && dataDir === undefined;
+  const install = {
+    ...setup.install,
+    command:
+      typeof dataDir === "string"
+        ? linuxSetupCommand(setup.install.command, dataDir)
+        : setup.install.command,
+  };
+  const signin = {
+    ...setup.signin,
+    command:
+      typeof dataDir === "string"
+        ? linuxSetupCommand(setup.signin.command, dataDir)
+        : setup.signin.command,
+  };
 
   return (
     <ol aria-label={`Set up ${setup.cli}`} className="mt-1 flex flex-col gap-2">
@@ -44,19 +89,29 @@ export function ProviderSteps({
         detail={setup.note}
         stage="install"
         state={stages.install}
-        step={setup.install}
+        step={install}
         title={`Install ${setup.cli}`}
       >
-        <StepActions copy={copy} step={setup.install} terminal={terminal} />
+        <StepActions
+          copy={copy}
+          disabled={isPreparing}
+          step={install}
+          terminal={terminal}
+        />
       </Step>
       <Step
         detail="A browser window opens to sign in. Use the account whose subscription you pay for."
         stage="signin"
         state={stages.signin}
-        step={setup.signin}
+        step={signin}
         title="Sign in"
       >
-        <StepActions copy={copy} step={setup.signin} terminal={terminal} />
+        <StepActions
+          copy={copy}
+          disabled={isPreparing}
+          step={signin}
+          terminal={terminal}
+        />
       </Step>
       <Step
         detail="The studio checks again on its own when you return to it."
@@ -68,6 +123,11 @@ export function ProviderSteps({
       {terminal.error === null ? null : (
         <li className="text-destructive text-xs" role="alert">
           {terminal.error}
+        </li>
+      )}
+      {pathError === null ? null : (
+        <li className="text-destructive text-xs" role="alert">
+          {pathError}
         </li>
       )}
     </ol>
@@ -140,10 +200,12 @@ function StageMark({ state }: { state: StageState }) {
 
 function StepActions({
   copy,
+  disabled,
   step,
   terminal,
 }: {
   copy: ReturnType<typeof useCopyCommand>;
+  disabled: boolean;
   step: SetupStep;
   terminal: ReturnType<typeof useTerminal>;
 }) {
@@ -159,6 +221,7 @@ function StepActions({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Button
+        disabled={disabled}
         onClick={terminal.onOpen}
         size="xs"
         title="Copies the command and opens an empty Terminal window. Nothing runs until you paste it and press Enter."
@@ -169,6 +232,7 @@ function StepActions({
         {isOpened ? `${pasteShortcut}, then Enter` : "Open in Terminal"}
       </Button>
       <Button
+        disabled={disabled}
         onClick={copy.onCopy}
         size="xs"
         value={step.command}
