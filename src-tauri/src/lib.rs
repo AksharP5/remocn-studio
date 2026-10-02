@@ -33,6 +33,8 @@ fn asked_to_quit() -> bool {
 pub fn run() {
     #[cfg(target_os = "linux")]
     {
+        linux::repair_plugin_scanner();
+
         // WebKit's DMABuf path leaves this NVIDIA desktop blank; its fallback
         // renderer keeps compositing available.
         if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {

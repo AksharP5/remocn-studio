@@ -43,6 +43,21 @@ Verified on the installed 1.0.1 AppImage on October 2, 2026:
 
 Native screenshots and decoded export frames are in the local checkout's ignored `artifacts/linux-qa` directory. The release is [v1.0.1](https://github.com/AksharP5/remocn-studio/releases/tag/v1.0.1).
 
+## Follow-up audit: 1.0.2
+
+Rechecked on October 2, 2026:
+
+- The fork includes upstream `86f64ee6b2e5b9fa69c81ba2e99151a14c178b33`. Fetching upstream again found no missing commits.
+- All 3,386 frontend/sidecar tests passed, with eight real export tests run separately. The two remaining optional skips reflect happy-dom parser limitations. Format/lint, typecheck and production build passed.
+- All 85 native tests passed with crash reporting compiled in. The real Secret Service credential round trip also passed separately.
+- All four [GitHub CI jobs](https://github.com/AksharP5/remocn-studio/actions/runs/37019726180) passed for the release source, including a clean Ubuntu Linux build and vendored-skill verification.
+- Fixed a missing GStreamer plugin scanner path in the AppImage. Native startup produced 197 plugin loader warnings before the fix and zero afterwards. The WebKit child inherited the actual bundled scanner path. The regression test preserves working defaults and custom paths.
+- The patched native app played footage/audio and moving WebGL. Its 30.059-second MP4 export contained H.264/AAC at 1920 × 1080 and 30 fps, and matched the earlier verified export byte for byte.
+- The installed app successfully applied the signed 1.0.1 → 1.0.2 update and restarted. The project document checksum stayed unchanged, and the installed AppImage matched release SHA-256 `59fb48f1ac7ab7336e596df5d2a64572c7b9bf61e5a766ea508504002c86a8eb`.
+- Native shutdown exited cleanly and produced no new core dumps.
+
+The current Linux release is [v1.0.2](https://github.com/AksharP5/remocn-studio/releases/tag/v1.0.2). Follow-up screenshots are in the ignored `artifacts/linux-qa/audit-*` files.
+
 ## Account-dependent features
 
 Provider subscriptions and optional Figma, ElevenLabs and Pexels credentials are supplied by the user, as in upstream. The upstream app's private bundled Pexels key is not part of its source; this fork supports a personal key in Settings. Provider protocol coverage is retained, including upstream's experimental status for Codex, Copilot and Grok. No claim of a live integration test is made without the corresponding account.
