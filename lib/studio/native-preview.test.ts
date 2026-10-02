@@ -245,6 +245,25 @@ describe("runNativePreview", () => {
     expect(hooks().commands.slot1).toEqual([pauseCommand()]);
   });
 
+  it("preserves runtime failure details from the active preview", async () => {
+    const network = setupNetwork();
+    const message =
+      "The video could not render.\n\nLinux parity requires WebGL2";
+    network.scripts.set(
+      "v1.js",
+      workingBundle("slot1").replace(
+        'window.__nativePreviewTestHooks.commands["slot1"].push(command);',
+        `env.emit({ type: "native.error", message: ${JSON.stringify(message)} });`
+      )
+    );
+    const { channel, states, waitForState } = harness();
+    await waitForState((all) => all.some((state) => state.phase === "ready"));
+
+    channel.send(pauseCommand());
+
+    expect(states.at(-1)).toEqual({ message, phase: "failed" });
+  });
+
   it("swaps to a rebuilt runtime and stops delivering to the disposed one", async () => {
     const network = setupNetwork();
     const { channel, readyCount, waitForState } = harness();

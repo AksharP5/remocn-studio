@@ -14,3 +14,5 @@
 - [x] Respect active package-manager PATH and skip unusable files; reproduce stale-shim failures and verify managed npm discovery immediately and after restart.
 - [x] Use Control for Linux canvas Undo and row deletion; test native Undo routing and text-editor fallback.
 - [ ] Package and verify the shortcut/runtime patch in the installed app, including canvas Ctrl+Z, row deletion confirmation and retained project data.
+- [x] Reproduce lost native runtime error details and preserve the active preview's failure message.
+- [ ] Diagnose and verify the native editing/reload failure before release.

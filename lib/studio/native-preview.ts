@@ -460,9 +460,13 @@ function mountSlot(
       return;
     }
     if (message.type === "native.error") {
-      settle(Effect.fail(failure(RENDER_FAILED)));
+      const detail =
+        typeof message.message === "string" && message.message.trim()
+          ? message.message
+          : RENDER_FAILED;
+      settle(Effect.fail(failure(detail)));
       if (session.current === slot) {
-        options.onState({ message: RENDER_FAILED, phase: "failed" });
+        options.onState({ message: detail, phase: "failed" });
       }
       return;
     }
