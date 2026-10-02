@@ -290,6 +290,11 @@ describe("the settings page", () => {
     await renderShell();
     await openSettings();
 
+    fireEvent.click(screen.getByRole("button", { name: "System" }));
+    expect(await screen.findByText("Follows your desktop")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Updates" }));
+    expect(screen.getByText("Operating system")).toBeVisible();
+    expect(screen.queryByText("macOS")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
 
     expect(

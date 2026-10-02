@@ -316,7 +316,7 @@ const THEME_TILES: readonly {
   },
   {
     bar: "bg-white/25",
-    caption: "Follows macOS",
+    caption: "Follows your desktop",
     chip: "bg-black/25",
     id: "system",
     label: "System",
@@ -493,7 +493,7 @@ function TitlebarGroup() {
         </Row>
 
         <Row
-          description="Off holds one frame of the field; the hue still follows the mood. Also off whenever macOS asks to reduce motion."
+          description="Off holds one frame of the field; the hue still follows the mood. Also off whenever your system asks to reduce motion."
           htmlFor="settings-titlebar-motion"
           title="Animate it"
         >
@@ -779,7 +779,10 @@ function FeedbackSection() {
                   ? "—"
                   : ENVIRONMENTS[updates.environment],
               ],
-              ["macOS", updates.os ?? "—"],
+              [
+                currentPlatform() === "mac" ? "macOS" : "Operating system",
+                updates.os ?? "—",
+              ],
               ["Agent", PROVIDER_INFO[provider].name],
             ]}
           />
@@ -817,7 +820,7 @@ const ENVIRONMENTS: Record<AppEnvironment, string> = {
 
 // The popover in the sidebar keeps `UpdatesBody`, sized for a popover. The
 // page reads top to bottom as one card: the version, its build and the
-// macOS it runs on, the studio's own sentence about it, and the check on the
+// operating system it runs on, the studio's own sentence about it, and the check on the
 // same line as the thing it checks. A release that is ready is a second
 // card under it, with its notes and the install button, and it exists only
 // while there is one — an empty "Releases" group said nothing.
@@ -869,7 +872,14 @@ function UpdatesSection() {
             </Button>
           </div>
 
-          <Facts rows={[["macOS", updates.os ?? "—"]]} />
+          <Facts
+            rows={[
+              [
+                currentPlatform() === "mac" ? "macOS" : "Operating system",
+                updates.os ?? "—",
+              ],
+            ]}
+          />
 
           {updates.error === null ? null : (
             <p className="text-destructive text-xs">{updates.error}</p>

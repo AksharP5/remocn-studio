@@ -12,6 +12,7 @@ import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useCopyCommand } from "@/hooks/use-copy-command";
 import { useTerminal } from "@/hooks/use-terminal";
+import { currentPlatform, modKeyCombo } from "@/lib/studio/platform";
 import {
   type SetupStage,
   type StageState,
@@ -151,6 +152,9 @@ function StepActions({
   }, []);
 
   const isOpened = terminal.opened === step.command;
+  const pasteShortcut = modKeyCombo(
+    currentPlatform() === "mac" ? "V" : "Shift+V"
+  );
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -162,7 +166,7 @@ function StepActions({
         variant="outline"
       >
         <TerminalIcon data-icon="inline-start" />
-        {isOpened ? "⌘V, then Enter" : "Open in Terminal"}
+        {isOpened ? `${pasteShortcut}, then Enter` : "Open in Terminal"}
       </Button>
       <Button
         onClick={copy.onCopy}
