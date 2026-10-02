@@ -586,3 +586,6 @@ vendored source, and it records where the upstream docs drift from the actual co
   writing any Schema code. v4 rewrote Schema, so v3 knowledge from training data is wrong rather
   than merely stale — e.g. `Schema.decode` is no longer a decoder, and the `effect/schema` import
   path in the upstream guide does not resolve.
+# Linux fork
+
+This fork supports Omarchy/Linux as well as the upstream macOS source. Read `docs/linux.md` for packaging and installation, and `docs/linux-parity.md` for verification. Linux configuration is merged from `src-tauri/tauri.linux.conf.json`; updater signing keys belong outside the repository. Native UI verification uses the installed release app, not a development server.

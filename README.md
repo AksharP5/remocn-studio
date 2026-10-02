@@ -4,6 +4,8 @@
 
 <h1 align="center">Remocn Studio</h1>
 
+This fork adds [Linux / Omarchy support](docs/linux.md). Download its Linux build from [AksharP5/remocn-studio releases](https://github.com/AksharP5/remocn-studio/releases). The macOS links below describe the upstream app.
+
 <p align="center">
   <b>Ship a launch video without opening After Effects.</b><br />
   A macOS app where your own coding agent makes the video<br />

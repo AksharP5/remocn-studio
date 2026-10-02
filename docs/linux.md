@@ -1,0 +1,43 @@
+# Linux / Omarchy
+
+This fork keeps the Remotion editor and adds Linux native integrations. The original macOS source remains available through the `upstream` remote.
+
+## Install
+
+Download the AppImage from [this fork's releases](https://github.com/AksharP5/remocn-studio/releases). From the repository, run:
+
+```sh
+bash scripts/install-linux.sh /path/to/Remocn_Studio.AppImage
+```
+
+The app is installed in `~/.local/share/remocn-studio`, with `~/.local/bin/remocn-studio` and an application launcher. The desktop entry handles `remocn-studio://` template links. App data lives in `${XDG_DATA_HOME:-~/.local/share}/io.github.aksharp5.remocn-studio`.
+
+Integration keys are stored in the desktop's Secret Service. Omarchy's unlocked GNOME Keyring supplies this on the tested machine. Provider sign-in continues to use the installed Claude, Codex, Copilot or Grok CLI. The app never pastes or runs a setup command in the terminal for you.
+
+## Build
+
+GTK 3, WebKitGTK 4.1, libsecret, OpenSSL, librsvg, patchelf, Rust and Bun are required. On Omarchy these development libraries are already present on the tested machine. AppImage execution requires FUSE; Omarchy includes it.
+
+```sh
+bun install --frozen-lockfile
+CARGO_BUILD_JOBS=1 bun tauri build --ci --no-sign
+bash scripts/install-linux.sh
+```
+
+The build automatically downloads the Bun version pinned in `package.json`. Linux native menus operate directly on the WebKit editor, including clipboard actions on Wayland. If Node.js is missing, Install Node.js installs the official LTS runtime within app data after verifying its checksum, without changing system packages or shell configuration.
+
+## Signed updates
+
+Linux checks this fork's `latest.json` and verifies downloads with its own public signing key. The private key is kept outside the repository, under `~/.local/share/remocn-studio-signing` on the maintainer's machine. Build a signed release with:
+
+```sh
+TAURI_SIGNING_PRIVATE_KEY="$HOME/.local/share/remocn-studio-signing/linux.key" \
+TAURI_SIGNING_PRIVATE_KEY_PASSWORD='' \
+CARGO_BUILD_JOBS=1 bun tauri build --ci
+```
+
+Publish the AppImage, its signature and the Linux updater manifest together. The installer uses a stable AppImage path so an in-app update replaces the installed file and restarts into the new version. The upstream macOS publishing workflow runs only in the upstream repository.
+
+## Verification
+
+The port's verification record is maintained in [linux-parity.md](linux-parity.md). Existing projects and exports keep their standard Remotion formats. HyperFrames support is outside this port.
