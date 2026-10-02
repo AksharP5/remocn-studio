@@ -199,6 +199,11 @@ so a module already imported keeps its binding live rather than being replaced:
 a suite that swaps one export imports the real module first and spreads it into
 the factory.
 
+**Bun subprocess cancellation needs Bun's native `AbortSignal`.** happy-dom replaces
+`AbortController` with its DOM implementation. Tests exercising `Bun.spawn({ signal })`
+can temporarily use `NativeAbortController` from `test/register-dom.ts`, which captures
+the native constructor before registration, and restore the DOM constructor afterwards.
+
 **A mounted pane is not a ready one.** `turn.send` returns false while
 `projectId` or `videoId` is still null — both arrive over IPC — and the Send
 button stays enabled throughout, so a test that types and presses as soon as

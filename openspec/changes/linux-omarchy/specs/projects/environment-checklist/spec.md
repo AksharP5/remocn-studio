@@ -13,3 +13,10 @@ The sidecar SHALL download the newest official LTS archive for the machine, veri
 
 - **WHEN** the archive cannot be downloaded or its checksum does not match
 - **THEN** the checklist shows the reason and an existing managed runtime remains usable
+- **AND** partial downloads and staging directories are removed before another installation starts
+
+#### Scenario: Installation is cancelled before activation
+
+- **WHEN** the request is cancelled during release discovery, download, extraction or verification
+- **THEN** pending network and child-process work stops and its temporary files are removed before the request finishes
+- **AND** the existing managed runtime remains usable

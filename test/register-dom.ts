@@ -1,5 +1,7 @@
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 
+export const NativeAbortController = globalThis.AbortController;
+
 GlobalRegistrator.register({
   height: 900,
   settings: {
