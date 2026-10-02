@@ -278,14 +278,16 @@ describe.skipIf(process.platform !== "linux")(
     });
 
     it("aborts checksum verification before replacing the existing runtime", async () => {
-      const file = await archive(true);
+      folder = await mkdtemp(path.join(tmpdir(), "remocn-node-test-"));
+      process.env[DATA_DIR_ENV] = path.join(folder, "data");
+      const file = path.join(folder, "node.tar.xz");
       const node = path.join(folder, "data/node/bin/node");
       await mkdir(path.dirname(node), { recursive: true });
       await writeFile(node, "existing runtime");
       const started = Deferred.makeUnsafe<void>();
       let signal: AbortSignal | null | undefined;
       const response = Promise.withResolvers<Response>();
-      fetchSpy?.mockImplementation(
+      fetchSpy = spyOn(globalThis, "fetch").mockImplementation(
         Object.assign(
           (
             _url: Parameters<typeof fetch>[0],
