@@ -544,7 +544,7 @@ function BehaviorSection() {
       </Group>
 
       <Group
-        description="Nothing leaves this Mac unless a switch here says so"
+        description="Nothing leaves this device unless a switch here says so"
         title="Privacy"
       >
         <CrashReportsRow

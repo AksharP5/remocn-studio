@@ -101,6 +101,11 @@ describe("the services group", () => {
 
     expect(await screen.findByText("Nothing is connected yet")).toBeVisible();
     expect(screen.getByRole("button", { name: ADD })).toBeVisible();
+    expect(
+      screen.getByText(
+        "Keys stay in this device’s credential store, outside your chats and projects."
+      )
+    ).toBeVisible();
   });
 
   it("offers nothing to add when this build carries no service", async () => {

@@ -205,6 +205,8 @@ describe("where an export goes", () => {
 
   it("shortens a folder somewhere else to a path a person can read", () => {
     expect(folderLabel("/Users/me/Desktop", ROOT)).toBe("~/Desktop");
+    expect(folderLabel("/home/me/Videos", "/home/me/scenes")).toBe("~/Videos");
+    expect(folderLabel("/home", ROOT)).toBe("/home");
     expect(folderLabel("/Volumes/Work/out", ROOT)).toBe("/Volumes/Work/out");
   });
 
