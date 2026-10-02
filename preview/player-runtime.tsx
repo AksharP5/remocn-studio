@@ -296,6 +296,19 @@ function usePlayhead(
 const RENDER_FAILED =
   "The video could not render. Fix the project, then retry the preview.";
 
+export function renderFailure(error: unknown): string {
+  const detail =
+    typeof error === "object" && error !== null && "message" in error
+      ? error.message
+      : error;
+
+  if (typeof detail !== "string" || detail.trim().length === 0) {
+    return RENDER_FAILED;
+  }
+
+  return `${RENDER_FAILED}\n\n${detail}`;
+}
+
 function drawNothing() {
   return null;
 }
@@ -311,8 +324,8 @@ function usePlayerFailure(
       return;
     }
 
-    const onError = () =>
-      post({ message: RENDER_FAILED, type: "native.error" });
+    const onError = ({ detail }: { detail: { error: Error } }) =>
+      post({ message: renderFailure(detail.error), type: "native.error" });
 
     ref.addEventListener("error", onError);
 

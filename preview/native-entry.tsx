@@ -14,7 +14,7 @@ import {
 } from "./native-remotion";
 import { mountStyles } from "./native-style";
 import type { PlaybackPosition } from "./playback-position";
-import { configurePlayback, Preview } from "./player-runtime";
+import { configurePlayback, Preview, renderFailure } from "./player-runtime";
 import { watchPresence } from "./presence";
 import { configureSurface, type SurfaceEnvironment } from "./surface";
 
@@ -198,10 +198,9 @@ class PreviewBoundary extends Component<
   static getDerivedStateFromError() {
     return { failed: true };
   }
-  componentDidCatch() {
+  componentDidCatch(error: Error) {
     this.props.environment.emit({
-      message:
-        "The video could not render. Fix the project, then retry the preview.",
+      message: renderFailure(error),
       type: "native.error",
     });
   }
