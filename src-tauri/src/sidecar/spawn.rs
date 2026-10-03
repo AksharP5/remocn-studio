@@ -196,6 +196,23 @@ pub fn launch(paths: Launch<'_>) -> Result<Child, String> {
 
     let mut command = Command::new(bun);
 
+    // AppRun redirects Python to the bundle, which has no Python runtime.
+    // Agent tools use the host interpreter; keep any host search paths.
+    #[cfg(target_os = "linux")]
+    if let Some(appdir) = env::var_os("APPDIR") {
+        for name in ["PYTHONHOME", "PYTHONPATH"] {
+            let Some(value) = env::var_os(name) else {
+                continue;
+            };
+            let value = host_python_paths(&value, Path::new(&appdir));
+            if value.is_empty() {
+                command.env_remove(name);
+            } else {
+                command.env(name, value);
+            }
+        }
+    }
+
     if let Some(library) = library_dir {
         command.env(LIBRARY_DIR_ENV, library);
     }
@@ -295,9 +312,38 @@ fn child_path(bun: &Path) -> OsString {
     env::join_paths(dirs).unwrap_or_default()
 }
 
+#[cfg(target_os = "linux")]
+fn host_python_paths(value: &OsStr, appdir: &Path) -> OsString {
+    env::join_paths(env::split_paths(value).filter(|path| !path.starts_with(appdir)))
+        .expect("split Python paths can be joined")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn agent_python_uses_host_paths_outside_the_appimage() {
+        let appdir = Path::new("/tmp/.mount_remocn");
+        assert_eq!(
+            host_python_paths(OsStr::new("/tmp/.mount_remocn/usr/"), appdir),
+            ""
+        );
+        assert_eq!(
+            host_python_paths(
+                OsStr::new(
+                    "/tmp/.mount_remocn/usr/share/pyshared:/custom/python:/tmp/.mount_remocn-other"
+                ),
+                appdir
+            ),
+            "/custom/python:/tmp/.mount_remocn-other"
+        );
+        assert_eq!(
+            host_python_paths(OsStr::new("/custom/python"), appdir),
+            "/custom/python"
+        );
+    }
 
     #[test]
     fn inherited_tools_precede_local_wrapper_fallbacks() {

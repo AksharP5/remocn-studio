@@ -85,11 +85,25 @@ Rechecked on October 2, 2026:
 - The installed app applied the signed 1.0.3 → 1.0.5 update and restarted with helper protocol 38 and history schema 8. Its SHA-256 is `19bfa766a118184c4322e17dce8df0c755780014b17200a160c6a8a69dbfb78c`, matching the release. The project document checksum stayed unchanged through the update.
 - A final upstream fetch found no missing commits.
 
-The current Linux release is [v1.0.5](https://github.com/AksharP5/remocn-studio/releases/tag/v1.0.5). Native evidence remains in the ignored `artifacts/linux-qa/final-*`, `diagnostic-*` and `update-*` files.
+That audit used [v1.0.5](https://github.com/AksharP5/remocn-studio/releases/tag/v1.0.5). Native evidence remains in the ignored `artifacts/linux-qa/final-*`, `diagnostic-*` and `update-*` files.
+
+## Live Codex verification: 1.0.6
+
+Verified on October 3, 2026:
+
+- The installed app used Codex CLI 0.159.1 with the existing ChatGPT sign-in. It created the `Codex Check` project and generated a five-second Remotion title composition with local fonts. Studio's seven production stages completed; the final sampled full review had complete planned coverage and zero errors or warnings.
+- The first live turn reproduced Python failing to import `encodings`: AppRun's `PYTHONHOME` pointed at a bundle with no Python runtime. The helper now removes only AppImage Python paths and preserves configured host paths. This applies to all agent providers.
+- Installed the signed 1.0.6 AppImage and retained a verified 1.0.5 backup. The installed binary's SHA-256 is `b2216f1dc0d193939fb5e22aacf9de518cf63b65738f749549749747eeebeb8f`.
+- Reopened the saved Codex chat after restarting into 1.0.6. The same SDK conversation resumed, changed the underline to amber, and ran plain Python without clearing environment variables. Python reported prefix `/usr` and version `3.14.7`.
+- Native playback showed the entrance and completed title; Pause retained the frame. The app exported MP4/H.264 at 1920 × 1080, 30 fps and 150 video frames. Decoded entrance, settled and final frames matched the requested edit. The five-second video has a 5.056-second container duration due to the exporter's silent AAC stream.
+- All 86 native tests passed, with the opt-in credential test ignored; all 32 Codex adapter tests passed. Format/lint passed. Signed AppImage/deb packaging and all four [CI jobs](https://github.com/AksharP5/remocn-studio/actions/runs/37101531076) passed for release source `784012a`.
+- A fresh upstream fetch found no missing commits. New chats still default to Claude; select Codex in the model menu to start another Codex conversation.
+
+The current Linux release is [v1.0.6](https://github.com/AksharP5/remocn-studio/releases/tag/v1.0.6). Local screenshots, decoded export frames and verification metadata are in the ignored `artifacts/linux-qa/codex-1.0.6` directory. The test export is `~/dev/projects/Codex Check/out/codex-check.mp4`.
 
 ## Account-dependent features
 
-Provider subscriptions and optional Figma, ElevenLabs and Pexels credentials are supplied by the user, as in upstream. The upstream app's private bundled Pexels key is not part of its source; this fork supports a personal key in Settings. Provider protocol coverage is retained, including upstream's experimental status for Codex, Copilot and Grok. No claim of a live integration test is made without the corresponding account.
+Provider subscriptions and optional Figma, ElevenLabs and Pexels credentials are supplied by the user, as in upstream. The upstream app's private bundled Pexels key is not part of its source; this fork supports a personal key in Settings. Provider protocol coverage is retained, including upstream's experimental status for Codex, Copilot and Grok. Codex's live generation, resumed editing, preview and export were verified above. Copilot and Grok have not been tested with live accounts.
 
 ## Desktop differences
 

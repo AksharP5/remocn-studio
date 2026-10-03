@@ -14,6 +14,8 @@ The app is installed in `~/.local/share/remocn-studio`, with `~/.local/bin/remoc
 
 Integration keys are stored in the desktop's Secret Service. Omarchy's unlocked GNOME Keyring supplies this on the tested machine. Provider sign-in continues to use the installed Claude, Codex, Copilot or Grok CLI. The app never pastes or runs a setup command in the terminal for you.
 
+To use Codex, choose **Codex → Default** from the model menu beside the message field. Studio uses the Codex CLI's existing sign-in. Saved Codex conversations retain their provider and can resume after restarting the app. New chats and projects start with Claude, so select Codex again there. Codex remains experimental upstream; its context meter, structured plan checklist and interactive approval cards are not available in Studio.
+
 ## Build
 
 GTK 3, WebKitGTK 4.1, libsecret, OpenSSL, librsvg, patchelf, Rust and Bun are required. On Omarchy these development libraries are already present on the tested machine. AppImage execution requires FUSE; Omarchy includes it.
@@ -51,3 +53,5 @@ The app defaults to WebKit's fallback compositing renderer because its DMABuf pa
 On Linux with the NVIDIA kernel module loaded, the app selects the system Mesa EGL vendor when `/usr/share/glvnd/egl_vendor.d/50_mesa.json` exists. This avoids the NVIDIA EGL crash on shutdown observed here and reported with the same WebKitGTK version in [NVIDIA's developer forum](https://forums.developer.nvidia.com/t/egldestroycontext-segfault-in-libnvidia-eglcore-580-branch-during-ordinary-gl-context-teardown-likely-same-class-as-bug-5701801/382969). WebGL2 rendering, video and audio previews, and clean shutdown were verified on the Omarchy setup. An existing `__EGL_VENDOR_LIBRARY_FILENAMES` setting is respected. This changes the app's environment; it does not change system configuration.
 
 The Arch AppImage contains its media plugin scanner under `usr/lib/gstreamer-1.0`, while linuxdeploy's hook expects an additional `gstreamer1.0` directory. Studio repairs that specific missing bundle default before GTK starts. Working scanner paths and custom settings are preserved; system installations are unaffected.
+
+Agent commands use the host's Python. Studio removes AppImage bundle paths from the helper's `PYTHONHOME` and `PYTHONPATH`, preserving configured host paths. This prevents the bundle launcher from redirecting Python to a missing standard library.
